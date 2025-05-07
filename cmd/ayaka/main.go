@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"github.com/Hayao0819/ayaka/cmd"
+	"github.com/Hayao0819/ayaka/cmd/ayaka/cmd"
 )
 
 func main() {

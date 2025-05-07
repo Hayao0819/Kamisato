@@ -1,6 +1,6 @@
 [submodule "example/myrepo/yay"]
-	path = example/myrepo/yay
+	path = example/src/myrepo/yay
 	url = https://aur.archlinux.org/yay.git
 [submodule "example/myrepo/google-chrome"]
-	path = example/myrepo/google-chrome
+	path = example/src/myrepo/google-chrome
 	url = https://aur.archlinux.org/google-chrome.git

@@ -1,8 +1,8 @@
-# Ayaka
+# Kamisato
 
-Ayaka is a tool for managing your pacman repository.
+Kamisato is a set of tools for managing your pacman repository.
 
-It allows you to create a repository from a set of PKGBUILD, update it with new packages, and sign it with your GPG key.
+Ayaka allows you to create a repository from a set of PKGBUILD, update it with new packages, and sign it with your GPG key.
 
 ## Features
 
