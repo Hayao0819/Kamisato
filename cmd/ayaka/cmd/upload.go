@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"github.com/Hayao0819/ayaka/repo"
+	"github.com/Hayao0819/Kamisato/repo"
 	"github.com/spf13/cobra"
 )
 

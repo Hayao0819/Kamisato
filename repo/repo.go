@@ -4,9 +4,9 @@ import (
 	"os"
 	"path"
 
-	builder "github.com/Hayao0819/ayaka/abs"
-	"github.com/Hayao0819/ayaka/conf"
-	"github.com/Hayao0819/ayaka/logger"
+	builder "github.com/Hayao0819/Kamisato/abs"
+	"github.com/Hayao0819/Kamisato/conf"
+	"github.com/Hayao0819/Kamisato/logger"
 	"github.com/Morganamilo/go-srcinfo"
 	"github.com/spf13/viper"
 )

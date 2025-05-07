@@ -5,10 +5,10 @@ import (
 	"os/exec"
 	"strings"
 
-	builder "github.com/Hayao0819/ayaka/abs"
-	"github.com/Hayao0819/ayaka/logger"
-	"github.com/Hayao0819/ayaka/utils"
-	blinky_utils "github.com/Hayao0819/ayaka/utils/blinky"
+	builder "github.com/Hayao0819/Kamisato/abs"
+	"github.com/Hayao0819/Kamisato/logger"
+	"github.com/Hayao0819/Kamisato/utils"
+	blinky_utils "github.com/Hayao0819/Kamisato/utils/blinky"
 	"github.com/Morganamilo/go-srcinfo"
 )
 

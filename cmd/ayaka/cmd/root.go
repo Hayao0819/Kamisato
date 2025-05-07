@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"github.com/Hayao0819/ayaka/conf"
+	"github.com/Hayao0819/Kamisato/conf"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -16,7 +16,7 @@ func rootCmd() *cobra.Command {
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			return conf.LoadAppConfig(&conf.AppConfig)
 		},
-		SilenceUsage:  true,
+		SilenceUsage: true,
 	}
 	cmd.CompletionOptions.HiddenDefaultCmd = true
 
