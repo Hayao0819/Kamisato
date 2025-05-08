@@ -1,11 +1,12 @@
 package cmd
 
 import (
+	"github.com/Hayao0819/nahi/cobrautils"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
-var subCmds = []*cobra.Command{}
+var subCmds = cobrautils.Registory{}
 
 func rootCmd() *cobra.Command {
 	cmd := cobra.Command{
@@ -19,7 +20,7 @@ func rootCmd() *cobra.Command {
 	}
 	cmd.CompletionOptions.HiddenDefaultCmd = true
 
-	cmd.AddCommand(subCmds...)
+	subCmds.Bind(&cmd)
 	// cmd.PersistentFlags().StringVarP(&conf.AppConfigPath, "config", "c", "", "config file path")
 	// cmd.PersistentFlags().StringVarP(&conf.AppConfig.RepoDir, "repodir", "r", "", "repository directory")
 	viper.BindPFlag("repodir", cmd.PersistentFlags().Lookup("repodir"))

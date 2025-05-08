@@ -1,8 +1,11 @@
 package cmd
 
 import (
+	"path"
+
 	"github.com/Hayao0819/Kamisato/ayaka/abs"
 	"github.com/Hayao0819/Kamisato/ayaka/repo"
+	"github.com/Hayao0819/Kamisato/conf"
 	"github.com/spf13/cobra"
 )
 
@@ -19,7 +22,14 @@ func buildCmd() *cobra.Command {
 				Arch: "x86_64",
 			}
 
-			return repo.Build(&builder)
+			ac, err := conf.LoadAyakaConfig()
+			if err != nil {
+				return err
+			}
+
+			outDir := path.Join(ac.DestDir, repo.Config.Name)
+
+			return repo.Build(&builder, outDir)
 		},
 	}
 
@@ -27,5 +37,5 @@ func buildCmd() *cobra.Command {
 }
 
 func init() {
-	subCmds = append(subCmds, buildCmd())
+	subCmds.Add(buildCmd())
 }

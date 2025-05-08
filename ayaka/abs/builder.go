@@ -4,7 +4,6 @@ var Builders = []*Builder{}
 
 type Target struct {
 	Arch string
-	Base string
 }
 
 type Builder struct {

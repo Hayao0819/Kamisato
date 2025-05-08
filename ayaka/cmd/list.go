@@ -32,5 +32,5 @@ func listCmd() *cobra.Command {
 }
 
 func init() {
-	subCmds = append(subCmds, listCmd())
+	subCmds.Add(listCmd())
 }

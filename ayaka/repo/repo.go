@@ -15,20 +15,17 @@ type Repository struct {
 	Pkgs   []*Package
 }
 
-func (r *Repository) DestDir() (string, error) {
-	c, err := conf.LoadAyakaConfig()
-	if err != nil {
-		return "", err
-	}
-	dstdir := path.Join(c.DestDir, r.Config.Name)
-	return dstdir, nil
-}
-func (r *Repository) Build(t *builder.Target) error {
-	repoDst, err := r.DestDir()
-	if err != nil {
-		return err
-	}
-	dstdir := path.Join(repoDst, t.Arch)
+// func (r *Repository) DestDir() (string, error) {
+// 	c, err := conf.LoadAyakaConfig()
+// 	if err != nil {
+// 		return "", err
+// 	}
+// 	dstdir := path.Join(c.DestDir, r.Config.Name)
+// 	return dstdir, nil
+// }
+
+func (r *Repository) Build(t *builder.Target, dest string) error {
+	dstdir := path.Join(dest, t.Arch)
 	if err := os.MkdirAll(dstdir, 0755); err != nil {
 		return err
 	}
