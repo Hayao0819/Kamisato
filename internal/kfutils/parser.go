@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/knadh/koanf/v2"
 	"github.com/knadh/koanf/parsers/json"
 	"github.com/knadh/koanf/parsers/toml"
 	"github.com/knadh/koanf/parsers/yaml"
+	"github.com/knadh/koanf/v2"
 )
 
 func parserForExtension(ext string) (koanf.Parser, error) {

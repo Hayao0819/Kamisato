@@ -40,7 +40,7 @@ func MoveFile(org string, dst string) error {
 	defer orgfile.Close()
 
 	// Move the file to the directory
-	if dststat, err := os.Stat(dstabs); err == nil && dststat.IsDir() || path.Base(orgabs) == path.Base(dstabs){
+	if dststat, err := os.Stat(dstabs); err == nil && dststat.IsDir() || path.Base(orgabs) == path.Base(dstabs) {
 		dstabs = path.Join(dstabs, path.Base(orgabs))
 	}
 
@@ -55,7 +55,6 @@ func MoveFile(org string, dst string) error {
 		return err
 	}
 	defer dstfile.Close()
-
 
 	// Copy the file
 	_, err = io.Copy(dstfile, orgfile)
