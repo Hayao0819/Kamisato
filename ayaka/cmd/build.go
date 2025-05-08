@@ -14,7 +14,7 @@ func buildCmd() *cobra.Command {
 		Use:   "build",
 		Short: "Build packages",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			repo, err := repo.Get()
+			repo, err := repo.GetRepository(config.RepoDir)
 			if err != nil {
 				return err
 			}

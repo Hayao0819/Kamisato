@@ -30,11 +30,7 @@ func (r *Repository) Build(t *builder.Target, dest string) error {
 		return err
 	}
 	for _, pkg := range r.Pkgs {
-		if err := pkg.Build("archbuild", t); err != nil {
-			logger.Error(err.Error())
-		}
-
-		if err := pkg.MovePkgFile(dstdir); err != nil {
+		if err := pkg.Build("archbuild", t, dest); err != nil {
 			logger.Error(err.Error())
 		}
 
@@ -57,13 +53,7 @@ func (r *Repository) UploadAllPackageToBlinky(server string) error {
 	return nil
 }
 
-func Get() (*Repository, error) {
-	c, err := conf.LoadAyakaConfig()
-	if err != nil {
-		return nil, err
-	}
-	repodir := c.RepoDir
-
+func GetRepository(repodir string) (*Repository, error) {
 	repoconfig := new(conf.RepoConfig)
 	repo := new(Repository)
 	if err := conf.LoadRepoConfig(repodir, repoconfig); err != nil {
@@ -77,18 +67,33 @@ func Get() (*Repository, error) {
 	}
 	for _, dir := range dirs {
 		if dir.IsDir() {
-			info, err := srcinfo.ParseFile(path.Join(repodir, dir.Name(), ".SRCINFO"))
+			pkgdir := path.Join(repodir, dir.Name())
+			pkg, err := GetPackage(pkgdir)
 			if err != nil {
-				return nil, err
+				logger.Error(err.Error())
+				continue
 			}
-
-			pkg := new(Package)
-			pkg.Path = path.Join(repodir, dir.Name())
-			pkg.Srcinfo = info
 			repo.Pkgs = append(repo.Pkgs, pkg)
+		} else {
+			if dir.Name() == ".SRCINFO" {
+				continue
+			}
 		}
 	}
 
 	return repo, nil
 
+}
+
+func GetPackage(dir string) (*Package, error) {
+	info, err := srcinfo.ParseFile(path.Join(dir, ".SRCINFO"))
+	if err != nil {
+		return nil, err
+	}
+
+	pkg := new(Package)
+	pkg.Path = dir
+	pkg.Srcinfo = info
+
+	return pkg, nil
 }

@@ -2,6 +2,7 @@ package repo
 
 import (
 	"bytes"
+	"fmt"
 	"os/exec"
 	"strings"
 
@@ -17,35 +18,54 @@ type Package struct {
 	Srcinfo *srcinfo.Srcinfo
 }
 
-func (p *Package) Build(method string, target *abs.Target) error {
+func (p *Package) Build(method string, target *abs.Target, dest string) error {
 	builder := abs.GetBuilder(method)
-	logger.Info("Build %s", p.Path)
-	return builder.Build(p.Path, target)
+	if builder == nil {
+		return fmt.Errorf("unknown build method %s", method)
+	}
+
+	if err := builder.Build(p.Path, target); err != nil {
+		return err
+	}
+
+	if err := p.movePkgFile(dest); err != nil {
+		return err
+	}
+
+	return nil
 }
 
-func (p *Package) GetPkgFilePath() string {
+func (p *Package) GetPkgFilePath() (string, error) {
 	stdout := new(bytes.Buffer)
 	cmd := exec.Command("makepkg", "--packagelist")
 	cmd.Dir = p.Path
 	cmd.Stdout = stdout
 	err := cmd.Run()
 	if err != nil {
-		return ""
+		return "", err
 	}
-	return strings.TrimSpace(stdout.String())
+	return strings.TrimSpace(stdout.String()), nil
 }
 
-func (p *Package) MovePkgFile(dst string) error {
-	src := p.GetPkgFilePath()
+func (p *Package) movePkgFile(dst string) error {
+	src, err := p.GetPkgFilePath()
+	if err != nil {
+		return err
+	}
 	logger.Info("Move %s to %s", src, dst)
 	return utils.MoveFile(src, dst)
 }
 
 func (p *Package) UploadToBlinky(server string, repo *Repository) error {
-	client, error := blinkyutils.GetClient(server)
-	if error != nil {
-		return error
+	client, err := blinkyutils.GetClient(server)
+	if err != nil {
+		return err
 	}
 
-	return client.UploadPackageFiles(repo.Config.Name, p.GetPkgFilePath())
+	fp, err := p.GetPkgFilePath()
+	if err != nil {
+		return err
+	}
+
+	return client.UploadPackageFiles(repo.Config.Name, fp)
 }
