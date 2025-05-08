@@ -1,26 +1,26 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
+import { useState, useEffect } from "react";
 
 export function useMobile() {
-  const [isMobile, setIsMobile] = useState(false)
+    const [isMobile, setIsMobile] = useState(false);
 
-  useEffect(() => {
-    // 初期状態を設定
-    setIsMobile(window.innerWidth < 768)
+    useEffect(() => {
+        // 初期状態を設定
+        setIsMobile(window.innerWidth < 768);
 
-    // リサイズイベントのリスナーを追加
-    const handleResize = () => {
-      setIsMobile(window.innerWidth < 768)
-    }
+        // リサイズイベントのリスナーを追加
+        const handleResize = () => {
+            setIsMobile(window.innerWidth < 768);
+        };
 
-    window.addEventListener("resize", handleResize)
+        window.addEventListener("resize", handleResize);
 
-    // クリーンアップ関数
-    return () => {
-      window.removeEventListener("resize", handleResize)
-    }
-  }, [])
+        // クリーンアップ関数
+        return () => {
+            window.removeEventListener("resize", handleResize);
+        };
+    }, []);
 
-  return isMobile
+    return isMobile;
 }
