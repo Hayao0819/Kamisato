@@ -1,7 +1,5 @@
 github.com/BrenekH/blinky v0.0.0-20241219030850-db3136e043bd h1:7fDEt5GDSp0EhYlbA89zGe8xaws9sfYxgb7LH3h90Fc=
 github.com/BrenekH/blinky v0.0.0-20241219030850-db3136e043bd/go.mod h1:qYc1kW0L+3vHvjRExId6FXmRwWQS1Cnk1hBLJ/taPSA=
-github.com/BurntSushi/toml v1.5.0 h1:W5quZX/G/csjUnuI8SUYlsHs9M38FC7znL0lIO+DvMg=
-github.com/BurntSushi/toml v1.5.0/go.mod h1:ukJfTF/6rtPPRCnwkur4qwRxa8vTRFBF0uk2lLoLwho=
 github.com/Morganamilo/go-srcinfo v1.0.0 h1:Wh4nEF+HJWo+29hnxM18Q2hi+DUf0GejS13+Wg+dzmI=
 github.com/Morganamilo/go-srcinfo v1.0.0/go.mod h1:MP6VGY1NNpVUmYIEgoM9acix95KQqIRyqQ0hCLsyYUY=
 github.com/bytedance/sonic v1.11.6 h1:oUp34TzMlL+OY1OUWxHqsdkgC/Zfc85zGqw9siXjrc0=

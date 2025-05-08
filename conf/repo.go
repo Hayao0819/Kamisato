@@ -4,12 +4,12 @@ import (
 	viper "github.com/spf13/viper"
 )
 
-type RepoConf struct {
+type RepoConfig struct {
 	Name       string `mapstructure:"name"`
 	Maintainer string `mapstructure:"maintainer"`
 }
 
-func LoadRepoConfig(repodir string, config *RepoConf) error {
+func LoadRepoConfig(repodir string, config *RepoConfig) error {
 	viper.SetConfigName("repo")
 	viper.AddConfigPath(repodir)
 

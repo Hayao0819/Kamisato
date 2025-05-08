@@ -4,24 +4,31 @@ import (
 	"os"
 	"path"
 
-	builder "github.com/Hayao0819/Kamisato/abs"
+	builder "github.com/Hayao0819/Kamisato/ayaka/abs"
 	"github.com/Hayao0819/Kamisato/conf"
-	"github.com/Hayao0819/Kamisato/logger"
+	"github.com/Hayao0819/Kamisato/internal/logger"
 	"github.com/Morganamilo/go-srcinfo"
-	"github.com/spf13/viper"
 )
 
 type Repository struct {
-	Config *conf.RepoConf
+	Config *conf.RepoConfig
 	Pkgs   []*Package
 }
 
-func (r *Repository) GetDistDir() string {
-	return path.Join(conf.AppConfig.DistDir, r.Config.Name)
+func (r *Repository) DestDir() (string, error) {
+	c, err := conf.LoadAyakaConfig()
+	if err != nil {
+		return "", err
+	}
+	dstdir := path.Join(c.DestDir, r.Config.Name)
+	return dstdir, nil
 }
-
 func (r *Repository) Build(t *builder.Target) error {
-	dstdir := path.Join(r.GetDistDir(), t.Arch)
+	repoDst, err := r.DestDir()
+	if err != nil {
+		return err
+	}
+	dstdir := path.Join(repoDst, t.Arch)
 	if err := os.MkdirAll(dstdir, 0755); err != nil {
 		return err
 	}
@@ -54,8 +61,13 @@ func (r *Repository) UploadAllPackageToBlinky(server string) error {
 }
 
 func Get() (*Repository, error) {
-	repodir := viper.GetString("repodir")
-	repoconfig := new(conf.RepoConf)
+	c, err := conf.LoadAyakaConfig()
+	if err != nil {
+		return nil, err
+	}
+	repodir := c.RepoDir
+
+	repoconfig := new(conf.RepoConfig)
 	repo := new(Repository)
 	if err := conf.LoadRepoConfig(repodir, repoconfig); err != nil {
 		return nil, err

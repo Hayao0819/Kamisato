@@ -5,10 +5,10 @@ import (
 	"os/exec"
 	"strings"
 
-	builder "github.com/Hayao0819/Kamisato/abs"
-	"github.com/Hayao0819/Kamisato/logger"
-	"github.com/Hayao0819/Kamisato/utils"
-	blinky_utils "github.com/Hayao0819/Kamisato/utils/blinky"
+	"github.com/Hayao0819/Kamisato/ayaka/abs"
+	"github.com/Hayao0819/Kamisato/internal/blinkyutils"
+	"github.com/Hayao0819/Kamisato/internal/logger"
+	"github.com/Hayao0819/Kamisato/internal/utils"
 	"github.com/Morganamilo/go-srcinfo"
 )
 
@@ -17,8 +17,8 @@ type Package struct {
 	Srcinfo *srcinfo.Srcinfo
 }
 
-func (p *Package) Build(method string, target *builder.Target) error {
-	builder := builder.GetBuilder(method)
+func (p *Package) Build(method string, target *abs.Target) error {
+	builder := abs.GetBuilder(method)
 	logger.Info("Build %s", p.Path)
 	return builder.Build(p.Path, target)
 }
@@ -42,7 +42,7 @@ func (p *Package) MovePkgFile(dst string) error {
 }
 
 func (p *Package) UploadToBlinky(server string, repo *Repository) error {
-	client, error := blinky_utils.GetClient(server)
+	client, error := blinkyutils.GetClient(server)
 	if error != nil {
 		return error
 	}

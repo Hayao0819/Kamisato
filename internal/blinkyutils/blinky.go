@@ -1,4 +1,4 @@
-package blinky_utils
+package blinkyutils
 
 import (
 	blinky_clintlib "github.com/BrenekH/blinky/clientlib"
