@@ -17,5 +17,5 @@ func (l *Loader[T]) Get() (*T, error) {
 }
 
 func (l *Loader[T]) Unmarshal(v *T) error {
-	return l.k.Unmarshal("koanf", v)
+	return l.k.Unmarshal("", v)
 }
