@@ -1,10 +1,11 @@
-package main
+package handler
 
 import (
 	"fmt"
 	"log"
 	"net/http"
 
+	"github.com/Hayao0819/Kamisato/ayato/utils"
 	"github.com/gin-gonic/gin"
 )
 
@@ -29,7 +30,7 @@ func UploadHandler(c *gin.Context) {
 	// Add the package to the repository database
 	useSignedDB := false
 	var gnupgDir *string
-	err = RepoAdd(config.DBPath, filePath, useSignedDB, gnupgDir)
+	err = utils.RepoAdd(config.DBPath, filePath, useSignedDB, gnupgDir)
 	if err != nil {
 		c.String(http.StatusInternalServerError, fmt.Sprintf("repo-add err: %s", err.Error()))
 		return
