@@ -29,7 +29,7 @@ func buildCmd() *cobra.Command {
 
 			outDir := path.Join(ac.DestDir, repo.Config.Name)
 
-			return repo.Build(&builder, outDir)
+			return repo.Build(&builder, outDir, args...)
 		},
 	}
 

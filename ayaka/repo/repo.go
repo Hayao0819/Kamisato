@@ -1,6 +1,7 @@
 package repo
 
 import (
+	"fmt"
 	"os"
 	"path"
 
@@ -8,6 +9,7 @@ import (
 	"github.com/Hayao0819/Kamisato/conf"
 	"github.com/Hayao0819/Kamisato/internal/logger"
 	"github.com/Morganamilo/go-srcinfo"
+	"github.com/samber/lo"
 )
 
 type Repository struct {
@@ -24,14 +26,32 @@ type Repository struct {
 // 	return dstdir, nil
 // }
 
-func (r *Repository) Build(t *builder.Target, dest string) error {
-	dstdir := path.Join(dest, t.Arch)
-	if err := os.MkdirAll(dstdir, 0755); err != nil {
+func (r *Repository) Build(t *builder.Target, dest string, pkgs ...string) error {
+	fulldstdir := path.Join(dest, t.Arch)
+	var errs []error
+	if err := os.MkdirAll(fulldstdir, 0755); err != nil {
 		return err
 	}
-	for _, pkg := range r.Pkgs {
-		if err := pkg.Build("archbuild", t, dest); err != nil {
-			logger.Error(err.Error())
+
+	var targetPkgs []*Package
+	if len(pkgs) > 0 {
+		for _, pkg := range pkgs {
+			for _, p := range r.Pkgs {
+				names := p.Names()
+				if pkg == p.Srcinfo.Pkgbase || lo.Contains(names, pkg) {
+					targetPkgs = append(targetPkgs, p)
+					break
+				}
+			}
+		}
+	} else {
+		targetPkgs = r.Pkgs
+	}
+
+	for _, pkg := range targetPkgs {
+		if err := pkg.Build("archbuild", t, fulldstdir); err != nil {
+			// logger.Error(err.Error())
+			errs = append(errs, err)
 		}
 
 		/*
@@ -40,6 +60,13 @@ func (r *Repository) Build(t *builder.Target, dest string) error {
 			}
 		*/
 
+	}
+	if len(errs) > 0 {
+		var errstr string
+		for _, err := range errs {
+			errstr += err.Error() + "\n"
+		}
+		return fmt.Errorf("errors occurred during build:\n%s", errstr)
 	}
 	return nil
 }

@@ -10,16 +10,22 @@ import (
 
 var yayPkg Package
 
-func TestGetPkgFilePath(t *testing.T) {
-	p, err := yayPkg.GetPkgFilePath()
+func TestGetPkgFileNames(t *testing.T) {
+	pkgs, err := yayPkg.GetPkgFileNames()
 	if err != nil {
-		t.Errorf("GetPkgFilePath() error = %v", err)
+		t.Errorf("GetPkgFileNames() error = %v", err)
 		return
 	}
-	t.Log("pkg file path:", p)
-	if !strings.HasSuffix(p, ".pkg.tar.zst") {
-		t.Errorf("GetPkgFilePath() = %v, want .pkg.tar.zst", p)
+	t.Log("pkg file path:", pkgs)
+	if len(pkgs) == 0 {
+		t.Errorf("GetPkgFileNames() = %v, want not empty", pkgs)
 		return
+	}
+	for _, p := range pkgs {
+		if !strings.HasSuffix(p, ".pkg.tar.zst") {
+			t.Errorf("GetPkgFileNames() = %v, want .pkg.tar.zst", p)
+			return
+		}
 	}
 }
 
