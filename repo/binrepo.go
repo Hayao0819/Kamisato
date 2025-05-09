@@ -19,6 +19,5 @@ func ValidatePackageBinary(fh *multipart.FileHeader) error {
 		return fmt.Errorf("file is empty")
 	}
 
-
 	return nil
 }

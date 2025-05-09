@@ -4,8 +4,8 @@ import (
 	"path"
 
 	"github.com/Hayao0819/Kamisato/ayaka/abs"
-	"github.com/Hayao0819/Kamisato/repo"
 	"github.com/Hayao0819/Kamisato/conf"
+	"github.com/Hayao0819/Kamisato/repo"
 	"github.com/spf13/cobra"
 )
 

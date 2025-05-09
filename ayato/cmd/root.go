@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/Hayao0819/Kamisato/ayato/repository"
 	"github.com/Hayao0819/Kamisato/ayato/router"
 	"github.com/Hayao0819/Kamisato/conf"
 	"github.com/gin-gonic/gin"
@@ -20,9 +21,14 @@ func rootCmd() *cobra.Command {
 				return err
 			}
 
+			db, err := repository.New(config.DbPath())
+			if err != nil {
+				return err
+			}
+
 			engine := gin.Default()
 
-			router.SetRoute(engine, config)
+			router.SetRoute(engine, config, db)
 
 			log.Printf("Listening on port %d", config.Port)
 			if err := engine.Run(fmt.Sprintf(":%d", config.Port)); err != nil {

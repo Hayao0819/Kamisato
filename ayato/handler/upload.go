@@ -5,13 +5,12 @@ import (
 	"net/http"
 	"path"
 
-	"github.com/Hayao0819/Kamisato/ayato/middleware"
 	"github.com/Hayao0819/Kamisato/ayato/utils"
 	"github.com/Hayao0819/Kamisato/repo"
 	"github.com/gin-gonic/gin"
 )
 
-func (h *Handler)UploadHandler(ctx *gin.Context) {
+func (h *Handler) UploadHandler(ctx *gin.Context) {
 	// Check if the request contains a file
 	file, err := ctx.FormFile("file")
 	if err != nil {
@@ -29,17 +28,10 @@ func (h *Handler)UploadHandler(ctx *gin.Context) {
 		return
 	}
 
-	// Get the Ayato configuration
-	cfg := middleware.GetConfig(ctx)
-	if cfg == nil {
-		ctx.String(http.StatusInternalServerError, "Configuration not found")
-		return
-	}
-
 	// Assemble the file path
 	// TODO: 複数アーキテクチャに対応する
 	var repoDbPath string // Path to the repository database
-	for _, r := range cfg.RepoPath {
+	for _, r := range h.cfg.RepoPath {
 		if path.Base(r) == repoName {
 			repoDbPath = r
 			break

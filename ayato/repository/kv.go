@@ -7,13 +7,13 @@ import (
 	"github.com/dgraph-io/badger/v3"
 )
 
-func New(dbDirPath string) (BadgerAdapter, error) {
+func New(dbDirPath string) (*BadgerAdapter, error) {
 	db, err := badger.Open(badger.DefaultOptions(dbDirPath))
 	if err != nil {
-		return BadgerAdapter{}, err
+		return nil, err
 	}
 
-	return BadgerAdapter{db: db}, nil
+	return &BadgerAdapter{db: db}, nil
 }
 
 type BadgerAdapter struct { // implements: github.com/BrenekH/blinky.PackageNameToFileProvider
