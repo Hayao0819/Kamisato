@@ -10,7 +10,7 @@ import (
 
 type SourceRepo struct {
 	Config *conf.RepoConfig
-	Pkgs   []*Package
+	Pkgs   []*PackageSource
 }
 
 func GetRepository(repodir string) (*SourceRepo, error) {

@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-var yayPkg Package
+var yayPkg PackageSource
 
 func TestGetPkgFileNames(t *testing.T) {
 	pkgs, err := yayPkg.GetPkgFileNames()

@@ -9,7 +9,7 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/utils"
 )
 
-func (p *Package) Build(method string, target *abs.Target, dest string) error {
+func (p *PackageSource) Build(method string, target *abs.Target, dest string) error {
 	builder := abs.GetBuilder(method)
 	if builder == nil {
 		return fmt.Errorf("unknown build method %s", method)

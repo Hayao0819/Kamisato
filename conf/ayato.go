@@ -1,7 +1,7 @@
 package conf
 
 type AyatoConfig struct {
-	RepoPath string
+	RepoPath []string
 	Port     int
 	DBPath   string
 	Username string

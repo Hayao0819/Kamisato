@@ -6,7 +6,7 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/blinkyutils"
 )
 
-func (p *Package) UploadToBlinky(server string, repo *SourceRepo) error {
+func (p *PackageSource) UploadToBlinky(server string, repo *SourceRepo) error {
 	client, err := blinkyutils.GetClient(server)
 	if err != nil {
 		return err

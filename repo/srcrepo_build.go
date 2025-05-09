@@ -16,7 +16,7 @@ func (r *SourceRepo) Build(t *builder.Target, dest string, pkgs ...string) error
 		return err
 	}
 
-	var targetPkgs []*Package
+	var targetPkgs []*PackageSource
 	if len(pkgs) > 0 {
 		for _, pkg := range pkgs {
 			for _, p := range r.Pkgs {

@@ -6,18 +6,18 @@ import (
 	"github.com/Morganamilo/go-srcinfo"
 )
 
-type Package struct {
+type PackageSource struct {
 	Path    string
 	Srcinfo *srcinfo.Srcinfo
 }
 
-func GetPackage(dir string) (*Package, error) {
+func GetPackage(dir string) (*PackageSource, error) {
 	info, err := srcinfo.ParseFile(path.Join(dir, ".SRCINFO"))
 	if err != nil {
 		return nil, err
 	}
 
-	pkg := new(Package)
+	pkg := new(PackageSource)
 	pkg.Path = dir
 	pkg.Srcinfo = info
 
