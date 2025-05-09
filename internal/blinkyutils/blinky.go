@@ -20,6 +20,5 @@ func GetClient(server string) (*blinky_clintlib.BlinkyClient, error) {
 	}
 
 	serverInfo := serverdb.Servers[server]
-	client := blinky_clintlib.New(server, serverInfo.Username, serverInfo.Password)
-	return &client, nil
+	return blinky_clintlib.New(server, serverInfo.Username, serverInfo.Password)
 }

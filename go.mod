@@ -5,7 +5,7 @@ go 1.23.0
 toolchain go1.24.2
 
 require (
-	github.com/BrenekH/blinky v0.0.0-20241219030850-db3136e043bd
+	github.com/BrenekH/blinky v0.0.0-20250508042804-dc156eb662a6
 	github.com/Hayao0819/nahi v0.0.3
 	github.com/Morganamilo/go-srcinfo v1.0.0
 	github.com/gin-gonic/gin v1.10.0
