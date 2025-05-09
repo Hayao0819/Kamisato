@@ -8,7 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func RepoHandler(ctx *gin.Context) {
+func (h *Handler)RepoHandler(ctx *gin.Context) {
 	repoName := ctx.Param("repo")
 
 	// Get the Ayato configuration

@@ -11,7 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func UploadHandler(ctx *gin.Context) {
+func (h *Handler)UploadHandler(ctx *gin.Context) {
 	// Check if the request contains a file
 	file, err := ctx.FormFile("file")
 	if err != nil {

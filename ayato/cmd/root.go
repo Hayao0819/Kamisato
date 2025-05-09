@@ -22,7 +22,7 @@ func rootCmd() *cobra.Command {
 
 			engine := gin.Default()
 
-			router.SetRoute(engine)
+			router.SetRoute(engine, config)
 
 			log.Printf("Listening on port %d", config.Port)
 			if err := engine.Run(fmt.Sprintf(":%d", config.Port)); err != nil {
