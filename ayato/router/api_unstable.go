@@ -8,7 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func SetRoute(e *gin.Engine, cfg *conf.AyatoConfig, kv repository.PkgNameStoreProvider) {
+func SetRoute(e *gin.Engine, cfg *conf.AyatoConfig, kv repository.Repository) {
 
 	h := handler.NewHandler(cfg, kv)
 	m := middleware.NewMiddleware(cfg)

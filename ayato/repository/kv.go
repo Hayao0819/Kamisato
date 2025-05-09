@@ -7,20 +7,20 @@ import (
 	"github.com/dgraph-io/badger/v3"
 )
 
-func New(dbDirPath string) (*BadgerAdapter, error) {
+func New(dbDirPath string) (*BadgerRepository, error) {
 	db, err := badger.Open(badger.DefaultOptions(dbDirPath))
 	if err != nil {
 		return nil, err
 	}
 
-	return &BadgerAdapter{db: db}, nil
+	return &BadgerRepository{db: db}, nil
 }
 
-type BadgerAdapter struct { // implements: github.com/BrenekH/blinky.PackageNameToFileProvider
+type BadgerRepository struct { // implements: github.com/BrenekH/blinky.PackageNameToFileProvider
 	db *badger.DB
 }
 
-func (b *BadgerAdapter) PackageFile(packageName string) (string, error) {
+func (b *BadgerRepository) PackageFile(packageName string) (string, error) {
 	// Convert to bytes outside the txn to reduce time spent in txn.
 	key := []byte(packageName)
 
@@ -41,7 +41,7 @@ func (b *BadgerAdapter) PackageFile(packageName string) (string, error) {
 	return string(dstBuf), nil
 }
 
-func (b *BadgerAdapter) StorePackageFile(packageName, filePath string) error {
+func (b *BadgerRepository) StorePackageFile(packageName, filePath string) error {
 	// Convert to bytes outside the txn to reduce time spent in txn.
 	key := []byte(packageName)
 	val := []byte(filePath)
@@ -56,7 +56,7 @@ func (b *BadgerAdapter) StorePackageFile(packageName, filePath string) error {
 	return nil
 }
 
-func (b *BadgerAdapter) DeletePackageFileEntry(packageName string) error {
+func (b *BadgerRepository) DeletePackageFileEntry(packageName string) error {
 	// Convert to bytes outside the txn to reduce time spent in txn.
 	key := []byte(packageName)
 
