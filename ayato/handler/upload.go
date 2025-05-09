@@ -58,7 +58,7 @@ func UploadHandler(ctx *gin.Context) {
 	// Add the package to the repository database
 	useSignedDB := false
 	var gnupgDir *string
-	err = utils.RepoAdd(cfg.DBPath, fullPkgBinary, useSignedDB, gnupgDir)
+	err = utils.RepoAdd(repoDbPath, fullPkgBinary, useSignedDB, gnupgDir)
 	if err != nil {
 		ctx.String(http.StatusInternalServerError, fmt.Sprintf("repo-add err: %s", err.Error()))
 		return
