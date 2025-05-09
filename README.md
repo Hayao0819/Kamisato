@@ -25,8 +25,8 @@ to Ayato or Blinky.
 
 ## Ayato
 
-Ayato is a Blinky compatible backend.It handles package hosting with automatic
-database updates.
+Ayato is a Blinkyd compatible backend for ayaka and blinky.It handles package hosting
+with automatic database updates.
 
 ### Todo
 
