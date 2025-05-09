@@ -9,19 +9,25 @@ import (
 )
 
 func SetRoute(e *gin.Engine) {
-	api := e.Group("/api/unstable")
-	api.Use(middleware.Config())
-
-	api.GET("/", func(c *gin.Context) {
-		c.String(http.StatusOK, "Hello, Ayato.")
-	})
-
-	api.GET("/info")
-
 	{
-		auth := api.Group("")
-		auth.Use(middleware.BasicAuth())
-		api.PUT("/:repo/package/:name", handler.UploadHandler)
-		api.DELETE("/:repo/package/:name", handler.RemoveHandler)
+		api := e.Group("/api/unstable")
+		api.Use(middleware.Config())
+
+		api.GET("/", func(c *gin.Context) {
+			c.String(http.StatusOK, "Hello, Ayato.")
+		})
+
+		{
+			auth := api.Group("")
+			auth.Use(middleware.BasicAuth())
+			api.PUT("/:repo/package/:name", handler.UploadHandler)
+			api.DELETE("/:repo/package/:name", handler.RemoveHandler)
+		}
+	}
+	{
+		repo := e.Group("/repo")
+		repo.Use(middleware.Config())
+		repo.GET("/:repo", handler.RepoHandler)
+
 	}
 }
