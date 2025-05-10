@@ -42,7 +42,8 @@ func (h *Handler) UploadHandler(ctx *gin.Context) {
 
 	// fullPkgBinary := path.Join(repoDbPath, file.Filename)
 
-	if err := h.s.UploadPkgFile(repoName, [2]string{file.Filename, ""}); err != nil {
+	pkgfile := path.Join(tmpDir, file.Filename)
+	if err := h.s.UploadPkgFile(repoName, [2]string{pkgfile, ""}); err != nil {
 		ctx.String(http.StatusInternalServerError, fmt.Sprintf("upload file err: %s", err.Error()))
 		return
 	}
