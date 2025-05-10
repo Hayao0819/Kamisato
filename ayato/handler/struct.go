@@ -2,16 +2,18 @@ package handler
 
 import (
 	"github.com/Hayao0819/Kamisato/ayato/service"
+	"github.com/Hayao0819/Kamisato/conf"
 )
 
 // 最終的にServiceのみの依存にする
 type Handler struct {
-	// cfg *conf.AyatoConfig // 間違った依存なのでいつか消す
-	s service.Service
+	cfg *conf.AyatoConfig // 間違った依存なので/いつか消す -> 別に良いらしい？
+	s   service.Service
 }
 
-func New(service service.Service) *Handler {
+func New(service service.Service, cfg *conf.AyatoConfig) *Handler {
 	return &Handler{
-		s: service,
+		s:   service,
+		cfg: cfg,
 	}
 }

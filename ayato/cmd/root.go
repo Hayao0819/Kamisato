@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/Hayao0819/Kamisato/ayato/handler"
+	"github.com/Hayao0819/Kamisato/ayato/middleware"
 	"github.com/Hayao0819/Kamisato/ayato/repository"
 	"github.com/Hayao0819/Kamisato/ayato/router"
 	"github.com/Hayao0819/Kamisato/ayato/service"
@@ -29,13 +31,15 @@ func rootCmd() *cobra.Command {
 				return err
 			}
 			s := service.New(r)
+			h := handler.New(s, cfg)
+			m := middleware.New(cfg)
 
 			// Init gin
 			engine := gin.Default()
-			router.SetRoute(engine, cfg, s)
+			router.SetRoute(engine, h, m)
 
 			// Init pacman repository
-			if err := r.InitPkgRepo(false, nil); err != nil {
+			if err := r.PkgRepoInit(false, nil); err != nil {
 				return err
 			}
 

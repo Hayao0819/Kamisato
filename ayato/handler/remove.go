@@ -1,28 +1,30 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 )
 
 func (h *Handler) RemoveHandler(ctx *gin.Context) {
+	repoName := ctx.Param("repo")
+	packageName := ctx.Param("name")
+	if packageName == "" {
+		ctx.String(http.StatusBadRequest, "Package name is required")
+		return
+	}
+	if repoName == "" {
+		ctx.String(http.StatusBadRequest, "Repository name is required")
+		return
+	}
 
-	ctx.AbortWithStatus(http.StatusNotImplemented)
+	if err := h.s.RemovePkgFile(repoName, packageName); err != nil {
+		ctx.String(http.StatusInternalServerError, fmt.Sprintf("Remove package file err: %s", err.Error()))
+		return
+	}
 
-	// cfg := middleware.GetConfig(ctx)
-	// if cfg == nil {
-	// 	ctx.String(http.StatusInternalServerError, "Configuration not found")
-	// 	return
-	// }
-
-	// packageName := ctx.Query("package")
-	// if packageName == "" {
-	// 	ctx.String(http.StatusBadRequest, "Package name is required")
-	// 	return
-	// }
-
-	// // Remove the package from the repository
+	// Remove the package from the repository
 	// useSignedDB := false
 	// var gnupgDir *string
 	// err := utils.RepoRemove(cfg.DBPath, packageName, useSignedDB, gnupgDir)
@@ -31,5 +33,5 @@ func (h *Handler) RemoveHandler(ctx *gin.Context) {
 	// 	return
 	// }
 
-	// ctx.String(http.StatusOK, fmt.Sprintf("'%s' removed!", packageName))
+	ctx.String(http.StatusOK, fmt.Sprintf("'%s' removed!", packageName))
 }

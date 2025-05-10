@@ -3,17 +3,11 @@ package router
 import (
 	"github.com/Hayao0819/Kamisato/ayato/handler"
 	"github.com/Hayao0819/Kamisato/ayato/middleware"
-	"github.com/Hayao0819/Kamisato/ayato/service"
 	"github.com/Hayao0819/Kamisato/ayato/view"
-	"github.com/Hayao0819/Kamisato/conf"
 	"github.com/gin-gonic/gin"
 )
 
-func SetRoute(e *gin.Engine, cfg *conf.AyatoConfig, s service.Service) {
-
-	h := handler.New(s)
-	m := middleware.NewMiddleware(cfg)
-
+func SetRoute(e *gin.Engine, h *handler.Handler, m *middleware.Middleware) {
 	// Set template
 	if err := view.Set(e); err != nil {
 		panic(e)

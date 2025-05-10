@@ -8,6 +8,7 @@ type AyatoConfig struct {
 	DataPath string   `koanf:"datapath"`
 	Username string   `koanf:"username"`
 	Password string   `koanf:"password"`
+	MaxSize  int      `koanf:"maxsize"`
 }
 
 func LoadAyatoConfig() (*AyatoConfig, error) {

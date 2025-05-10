@@ -56,6 +56,7 @@ func RepoAdd(dbPath, pkgFilePath string, useSignedDB bool, gnupgDir *string) err
 		cmd.Env = append(cmd.Env, fmt.Sprintf("GNUPGHOME=%s", *gnupgDir))
 	}
 
+	fmt.Println("repo-add", cmd.String())
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("RepoAdd: error running %s (output: %s): %w", cmd.String(), string(out), err)

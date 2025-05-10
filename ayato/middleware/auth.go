@@ -13,7 +13,7 @@ type Middleware struct {
 	cfg *conf.AyatoConfig
 }
 
-func NewMiddleware(cfg *conf.AyatoConfig) *Middleware {
+func New(cfg *conf.AyatoConfig) *Middleware {
 	return &Middleware{
 		cfg: cfg,
 	}
