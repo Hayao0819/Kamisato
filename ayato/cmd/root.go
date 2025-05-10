@@ -16,24 +16,30 @@ func rootCmd() *cobra.Command {
 	cmd := cobra.Command{
 		Use: "ayato",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Load config
 			var err error
 			cfg, err := conf.LoadAyatoConfig()
 			if err != nil {
 				return err
 			}
 
+			// Init
 			r, err := repository.New(cfg)
 			if err != nil {
 				return err
 			}
-			s := service.NewService(r)
+			s := service.New(r)
 
-			if cfg == nil {
-				return fmt.Errorf("config is nil")
-			}
-
+			// Init gin
 			engine := gin.Default()
 			router.SetRoute(engine, cfg, s)
+
+			// Init pacman repository
+			if err := r.InitPacmanRepo(false, nil); err != nil {
+				return err
+			}
+
+			// Start server
 			log.Printf("Listening on port %d", cfg.Port)
 			if err := engine.Run(fmt.Sprintf(":%d", cfg.Port)); err != nil {
 				return err

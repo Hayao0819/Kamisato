@@ -10,7 +10,7 @@ import (
 
 func SetRoute(e *gin.Engine, cfg *conf.AyatoConfig, s service.Service) {
 
-	h := handler.NewHandler(s)
+	h := handler.New(s)
 	m := middleware.NewMiddleware(cfg)
 
 	{

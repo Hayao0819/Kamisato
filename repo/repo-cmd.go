@@ -1,4 +1,4 @@
-package utils
+package repo
 
 import (
 	"fmt"
@@ -62,4 +62,8 @@ func RepoAdd(dbPath, pkgFilePath string, useSignedDB bool, gnupgDir *string) err
 	}
 
 	return nil
+}
+
+func RepoInit(dbPath string, useSignedDB bool, gnupgDir *string) error {
+	return RepoAdd(dbPath, "", useSignedDB, gnupgDir)
 }
