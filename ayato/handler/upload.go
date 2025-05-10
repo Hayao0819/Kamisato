@@ -12,49 +12,53 @@ import (
 
 func (h *Handler) UploadHandler(ctx *gin.Context) {
 	// Check if the request contains a file
-	file, err := ctx.FormFile("file")
+	repoName := ctx.Param("repo")
+	file, err := ctx.FormFile("package")
 	if err != nil {
 		ctx.String(http.StatusBadRequest, fmt.Sprintf("get form err: %s", err.Error()))
 		return
 	}
 
-	// Get repository information
-	repoName := ctx.Param("repo")
-	// pkgName := ctx.Param("name")
+	// TODO: Check signature file
 
 	// Validate the file
-	if err := repo.ValidatePackageBinary(file); err != nil {
+	if err := repo.ValidatePkgHeader(file); err != nil {
 		ctx.String(http.StatusBadRequest, fmt.Sprintf("validate file err: %s", err.Error()))
 		return
 	}
 
 	// Assemble the file path
 	// TODO: 複数アーキテクチャに対応する
-	var repoDbPath string // Path to the repository database
-	for _, r := range h.cfg.RepoPath {
-		if path.Base(r) == repoName {
-			repoDbPath = r
-			break
-		}
+	repoDbPath, err := determineRepoDir(h.cfg.RepoPath, repoName)
+	if err != nil {
+		ctx.String(http.StatusBadRequest, fmt.Sprintf("repo %s not found", repoName))
+		return
 	}
-	filename := file.Filename
-	fullPkgBinary := path.Join(repoDbPath, repoName, filename)
+	fullPkgBinary := path.Join(repoDbPath, file.Filename)
 
 	// Save the file to the repository
-	err = ctx.SaveUploadedFile(file, fullPkgBinary)
-	if err != nil {
+	if err := ctx.SaveUploadedFile(file, fullPkgBinary); err != nil {
 		ctx.String(http.StatusInternalServerError, fmt.Sprintf("upload file err: %s", err.Error()))
 		return
 	}
 
 	// Add the package to the repository database
 	useSignedDB := false
-	var gnupgDir *string
+	var gnupgDir *string // TODO: Check if the directory exists
 	err = utils.RepoAdd(repoDbPath, fullPkgBinary, useSignedDB, gnupgDir)
 	if err != nil {
 		ctx.String(http.StatusInternalServerError, fmt.Sprintf("repo-add err: %s", err.Error()))
 		return
 	}
 
-	ctx.String(http.StatusOK, fmt.Sprintf("'%s' uploaded!", filename))
+	ctx.String(http.StatusOK, fmt.Sprintf("'%s' uploaded!", file.Filename))
+}
+
+func determineRepoDir(repo []string, name string) (string, error) {
+	for _, r := range repo {
+		if path.Base(r) == name {
+			return r, nil
+		}
+	}
+	return "", fmt.Errorf("repo %s not found", name)
 }
