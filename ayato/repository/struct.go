@@ -19,9 +19,8 @@ func New(cfg *conf.AyatoConfig) (*Repository, error) {
 		return nil, err
 	}
 
-	// return &BadgerRepository{db: db}, nil
 	return &Repository{
 		pkgNameDb: &BadgerRepository{db: db},
-		cfg:       nil,
+		cfg:       cfg,
 	}, nil
 }
