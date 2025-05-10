@@ -2,7 +2,7 @@ package conf
 
 type AyakaConfig struct {
 	RepoDir string `koanf:"repodir"`
-	DestDir string `koanf:"distdir"`
+	DestDir string `koanf:"destdir"`
 }
 
 func LoadAyakaConfig() (*AyakaConfig, error) {

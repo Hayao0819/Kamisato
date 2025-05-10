@@ -16,12 +16,12 @@ func (r *SourceRepo) Build(t *builder.Target, dest string, pkgs ...string) error
 		return err
 	}
 
-	var targetPkgs []*PackageSource
+	var targetPkgs []*Package
 	if len(pkgs) > 0 {
 		for _, pkg := range pkgs {
 			for _, p := range r.Pkgs {
 				names := p.Names()
-				if pkg == p.Srcinfo.Pkgbase || lo.Contains(names, pkg) {
+				if pkg == p.Info().Pkgbase || lo.Contains(names, pkg) {
 					targetPkgs = append(targetPkgs, p)
 					break
 				}

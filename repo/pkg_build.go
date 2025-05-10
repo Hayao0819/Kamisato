@@ -9,7 +9,7 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/utils"
 )
 
-func (p *PackageSource) Build(method string, target *abs.Target, dest string) error {
+func (p *Package) Build(method string, target *abs.Target, dest string) error {
 	builder := abs.GetBuilder(method)
 	if builder == nil {
 		return fmt.Errorf("unknown build method %s", method)
@@ -26,7 +26,7 @@ func (p *PackageSource) Build(method string, target *abs.Target, dest string) er
 		// defer os.RemoveAll(tmpdir)
 
 		// Copy directory to temp directory
-		if err := utils.CopyDir(p.Path, tmpdir); err != nil {
+		if err := utils.CopyDir(path.Dir(p.path), tmpdir); err != nil {
 			return err
 		}
 	}

@@ -21,7 +21,7 @@ func listCmd() *cobra.Command {
 			}
 
 			for _, pkg := range repo.Pkgs {
-				cmd.Println(pkg.Srcinfo.Pkgbase)
+				cmd.Println(pkg.Info().Pkgbase)
 			}
 
 			return nil

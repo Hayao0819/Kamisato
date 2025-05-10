@@ -27,6 +27,8 @@ func buildCmd() *cobra.Command {
 				return err
 			}
 
+			// TODO: ac.DestDirにメタデータを作る
+
 			outDir := path.Join(ac.DestDir, repo.Config.Name)
 
 			return repo.Build(&builder, outDir, args...)

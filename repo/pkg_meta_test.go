@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-var yayPkg PackageSource
+var yayPkg Package
 
 func TestGetPkgFileNames(t *testing.T) {
 	pkgs, err := yayPkg.GetPkgFileNames()
@@ -33,7 +33,7 @@ func init() {
 	_, f, _, _ := runtime.Caller(0)
 	rootDir := filepath.Clean(path.Join(path.Dir(f), "..", ".."))
 
-	y, err := GetPackage(path.Join(rootDir, "example", "src", "myrepo", "yay"))
+	y, err := GetPkgFromSrc(path.Join(rootDir, "example", "src", "myrepo", "yay"))
 	if err != nil {
 		panic(err)
 	}

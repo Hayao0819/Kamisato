@@ -1,4 +1,4 @@
 {
     "repodir": "../example/src/myrepo",
-    "distdir": "../example/out"
+    "destdir": "../example/out"
 }

@@ -10,6 +10,7 @@ require (
 	github.com/Morganamilo/go-srcinfo v1.0.0
 	github.com/dgraph-io/badger/v3 v3.2103.5
 	github.com/gin-gonic/gin v1.10.0
+	github.com/klauspost/compress v1.17.11
 	github.com/knadh/koanf/parsers/json v1.0.0
 	github.com/knadh/koanf/parsers/toml v0.1.0
 	github.com/knadh/koanf/parsers/yaml v1.0.0
@@ -45,7 +46,6 @@ require (
 	github.com/google/flatbuffers v1.12.1 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
-	github.com/klauspost/compress v1.17.11 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.7 // indirect
 	github.com/knadh/koanf/maps v0.1.2 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect

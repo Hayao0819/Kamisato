@@ -10,7 +10,7 @@ import (
 
 type SourceRepo struct {
 	Config *conf.RepoConfig
-	Pkgs   []*PackageSource
+	Pkgs   []*Package
 }
 
 func GetRepository(repodir string) (*SourceRepo, error) {
@@ -28,7 +28,7 @@ func GetRepository(repodir string) (*SourceRepo, error) {
 	for _, dir := range dirs {
 		if dir.IsDir() {
 			pkgdir := path.Join(repodir, dir.Name())
-			pkg, err := GetPackage(pkgdir)
+			pkg, err := GetPkgFromSrc(pkgdir)
 			if err != nil {
 				logger.Error(err.Error())
 				continue

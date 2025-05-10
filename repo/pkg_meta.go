@@ -10,11 +10,11 @@ import (
 	"github.com/samber/lo"
 )
 
-func (p *PackageSource) Names() []string {
+func (p *Package) Names() []string {
 	names := []string{
-		p.Srcinfo.Pkgbase,
+		p.Info().Pkgbase,
 	}
-	for _, pkg := range p.Srcinfo.Packages {
+	for _, pkg := range p.Info().Packages {
 		names = append(names, pkg.Pkgname)
 	}
 
@@ -23,10 +23,10 @@ func (p *PackageSource) Names() []string {
 	return names
 }
 
-func (p *PackageSource) GetPkgFileNames() ([]string, error) {
+func (p *Package) GetPkgFileNames() ([]string, error) {
 	stdout := new(bytes.Buffer)
 	cmd := exec.Command("makepkg", "--packagelist")
-	cmd.Dir = p.Path
+	cmd.Dir = path.Dir(p.path)
 	cmd.Stdout = stdout
 	err := cmd.Run()
 	if err != nil {
