@@ -1,7 +1,7 @@
 {
-    "repopath": "",
-    "port": "",
-    "datapath": "",
+    "repopath": "./repo",
+    "port": "9000",
+    "datapath": "./db",
     "username": "",
     "password": ""
 }
