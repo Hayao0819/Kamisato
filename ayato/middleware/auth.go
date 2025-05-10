@@ -30,9 +30,9 @@ func (m *Middleware) BasicAuth(c *gin.Context) {
 
 	username := m.cfg.Username
 	password := m.cfg.Password
-	if username == "" || password == "" {
-		c.Header("WWW-Authenticate", `Basic realm="Restricted"`)
-		c.AbortWithStatus(http.StatusUnauthorized)
+	// If username and password are empty, skip authentication
+	if username == "" && password == "" {
+		c.Next()
 		return
 	}
 
@@ -43,6 +43,7 @@ func (m *Middleware) BasicAuth(c *gin.Context) {
 		return
 	}
 
+	// Split the decoded string into username and password
 	pair := strings.SplitN(string(payload), ":", 2)
 	if len(pair) != 2 || pair[0] != username || pair[1] != password {
 		c.Header("WWW-Authenticate", `Basic realm="Restricted"`)
