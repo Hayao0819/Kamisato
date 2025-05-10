@@ -15,11 +15,11 @@ func SetRoute(e *gin.Engine, cfg *conf.AyatoConfig, kv repository.Repository) {
 
 	{
 		api := e.Group("/api/unstable")
-		api.GET("/", h.HelloHandler)
+		api.GET("/hello", h.HelloHandler)
 
 		auth := api.Group("")
 		auth.Use(m.BasicAuth)
-		api.PUT("/:repo/package/:name", h.UploadHandler)
+		api.PUT("/:repo/package", h.UploadHandler)
 		api.DELETE("/:repo/package/:name", h.RemoveHandler)
 
 	}
