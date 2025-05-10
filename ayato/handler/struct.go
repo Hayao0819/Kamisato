@@ -2,7 +2,6 @@ package handler
 
 import (
 	"github.com/Hayao0819/Kamisato/ayato/service"
-	"github.com/Hayao0819/Kamisato/conf"
 )
 
 // 最終的にServiceのみの依存にする
@@ -11,9 +10,8 @@ type Handler struct {
 	s service.Service
 }
 
-func NewHandler(cfg *conf.AyatoConfig, service service.Service) *Handler {
+func NewHandler(service service.Service) *Handler {
 	return &Handler{
-		// cfg: cfg,
 		s: service,
 	}
 }
