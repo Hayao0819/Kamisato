@@ -3,9 +3,9 @@ package handler
 import (
 	"fmt"
 	"net/http"
+	"os"
 	"path"
 
-	"github.com/Hayao0819/Kamisato/ayato/utils"
 	"github.com/Hayao0819/Kamisato/repo"
 	"github.com/gin-gonic/gin"
 )
@@ -27,38 +27,25 @@ func (h *Handler) UploadHandler(ctx *gin.Context) {
 		return
 	}
 
-	// Assemble the file path
-	// TODO: 複数アーキテクチャに対応する
-	repoDbPath, err := determineRepoDir(h.cfg.RepoPath, repoName)
+	tmpDir, err := os.MkdirTemp("", "ayato-upload-*")
 	if err != nil {
-		ctx.String(http.StatusBadRequest, fmt.Sprintf("repo %s not found", repoName))
+		ctx.String(http.StatusInternalServerError, fmt.Sprintf("create temp dir err: %s", err.Error()))
 		return
 	}
-	fullPkgBinary := path.Join(repoDbPath, file.Filename)
+	defer os.RemoveAll(tmpDir)
 
 	// Save the file to the repository
-	if err := ctx.SaveUploadedFile(file, fullPkgBinary); err != nil {
+	if err := ctx.SaveUploadedFile(file, path.Join(tmpDir, file.Filename)); err != nil {
 		ctx.String(http.StatusInternalServerError, fmt.Sprintf("upload file err: %s", err.Error()))
 		return
 	}
 
-	// Add the package to the repository database
-	useSignedDB := false
-	var gnupgDir *string // TODO: Check if the directory exists
-	err = utils.RepoAdd(repoDbPath, fullPkgBinary, useSignedDB, gnupgDir)
-	if err != nil {
-		ctx.String(http.StatusInternalServerError, fmt.Sprintf("repo-add err: %s", err.Error()))
+	// fullPkgBinary := path.Join(repoDbPath, file.Filename)
+
+	if err := h.s.UploadPkgFile(repoName, [2]string{file.Filename, ""}); err != nil {
+		ctx.String(http.StatusInternalServerError, fmt.Sprintf("upload file err: %s", err.Error()))
 		return
 	}
 
 	ctx.String(http.StatusOK, fmt.Sprintf("'%s' uploaded!", file.Filename))
-}
-
-func determineRepoDir(repo []string, name string) (string, error) {
-	for _, r := range repo {
-		if path.Base(r) == name {
-			return r, nil
-		}
-	}
-	return "", fmt.Errorf("repo %s not found", name)
 }

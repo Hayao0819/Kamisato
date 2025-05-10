@@ -6,6 +6,7 @@ import (
 
 	"github.com/Hayao0819/Kamisato/ayato/repository"
 	"github.com/Hayao0819/Kamisato/ayato/router"
+	"github.com/Hayao0819/Kamisato/ayato/service"
 	"github.com/Hayao0819/Kamisato/conf"
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/cobra"
@@ -21,14 +22,15 @@ func rootCmd() *cobra.Command {
 				return err
 			}
 
-			db, err := repository.New(config.DbPath())
+			db, err := repository.New(config.DbPath(), config)
 			if err != nil {
 				return err
 			}
+			s := service.NewService(*db)
 
 			engine := gin.Default()
 
-			router.SetRoute(engine, config, db)
+			router.SetRoute(engine, config, s)
 
 			log.Printf("Listening on port %d", config.Port)
 			if err := engine.Run(fmt.Sprintf(":%d", config.Port)); err != nil {

@@ -3,14 +3,14 @@ package router
 import (
 	"github.com/Hayao0819/Kamisato/ayato/handler"
 	"github.com/Hayao0819/Kamisato/ayato/middleware"
-	"github.com/Hayao0819/Kamisato/ayato/repository"
+	"github.com/Hayao0819/Kamisato/ayato/service"
 	"github.com/Hayao0819/Kamisato/conf"
 	"github.com/gin-gonic/gin"
 )
 
-func SetRoute(e *gin.Engine, cfg *conf.AyatoConfig, kv repository.Repository) {
+func SetRoute(e *gin.Engine, cfg *conf.AyatoConfig, s service.Service) {
 
-	h := handler.NewHandler(cfg, kv)
+	h := handler.NewHandler(cfg, s)
 	m := middleware.NewMiddleware(cfg)
 
 	{

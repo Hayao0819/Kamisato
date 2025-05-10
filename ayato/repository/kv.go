@@ -7,15 +7,6 @@ import (
 	"github.com/dgraph-io/badger/v3"
 )
 
-func New(dbDirPath string) (*BadgerRepository, error) {
-	db, err := badger.Open(badger.DefaultOptions(dbDirPath))
-	if err != nil {
-		return nil, err
-	}
-
-	return &BadgerRepository{db: db}, nil
-}
-
 type BadgerRepository struct { // implements: github.com/BrenekH/blinky.PackageNameToFileProvider
 	db *badger.DB
 }
