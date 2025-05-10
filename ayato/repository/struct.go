@@ -2,8 +2,8 @@ package repository
 
 import (
 	"github.com/BrenekH/blinky"
+	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
 	"github.com/Hayao0819/Kamisato/conf"
-	"github.com/dgraph-io/badger/v3"
 )
 
 // type Repository blinky.PackageNameToFileProvider
@@ -14,13 +14,13 @@ type Repository struct {
 }
 
 func New(cfg *conf.AyatoConfig) (*Repository, error) {
-	db, err := badger.Open(badger.DefaultOptions(cfg.DbPath()))
+	db, err := kv.NewBadger(cfg.DbPath())
 	if err != nil {
 		return nil, err
 	}
 
 	return &Repository{
-		pkgNameDb: &BadgerRepository{db: db},
+		pkgNameDb: db,
 		cfg:       cfg,
 	}, nil
 }

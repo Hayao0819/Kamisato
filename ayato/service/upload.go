@@ -8,7 +8,7 @@ import (
 )
 
 func (s *Service) UploadPkgFile(rname string, name [2]string) error {
-	repoDir, err := s.repo.RepoDir(rname)
+	repoDir, err := s.repo.PkgRepoDir(rname)
 	if err != nil {
 		// return fmt.Errorf("repo %s not found", repo)
 		return err

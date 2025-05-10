@@ -2,12 +2,13 @@ package repository
 
 import (
 	"fmt"
+	"os"
 	"path"
 
 	"github.com/Hayao0819/Kamisato/repo"
 )
 
-func (r *Repository) RepoDir(name string) (string, error) {
+func (r *Repository) PkgRepoDir(name string) (string, error) {
 	if r.cfg == nil {
 		return "", fmt.Errorf("config is nil")
 	}
@@ -19,20 +20,30 @@ func (r *Repository) RepoDir(name string) (string, error) {
 	return "", fmt.Errorf("repo %s not found", name)
 }
 
-func (r *Repository) initRepoDir(name string, useSignedDB bool, gnupgDir *string) error {
-	repoDir, err := r.RepoDir(name)
+func (r *Repository) PkgRepoAdd(name string, packageName string, useSignedDB bool, gnupgDir *string) error {
+	repoDir, err := r.PkgRepoDir(name)
 	if err != nil {
 		return err
 	}
 
-	if err := repo.RepoInit(repoDir, useSignedDB, gnupgDir); err != nil {
-		return fmt.Errorf("repo init err: %s", err.Error())
+	if err := os.MkdirAll(path.Join(repoDir, "x86_64"), os.ModePerm); err != nil {
+		return fmt.Errorf("mkdir %s err: %s", path.Join(repoDir, "x86_64"), err.Error())
+	}
+
+	repoDbPath := path.Join(repoDir, "x86_64", name+".db.tar.gz")
+	err = repo.RepoAdd(repoDbPath, packageName, useSignedDB, gnupgDir)
+	if err != nil {
+		return fmt.Errorf("repo-add err: %s", err.Error())
 	}
 
 	return nil
 }
 
-func (r *Repository) RepoNames() []string {
+// func (r *Repository) initPkgRepoDir(name string, useSignedDB bool, gnupgDir *string) error {
+// 	return r.PkgRepoAdd(name, "", useSignedDB, gnupgDir)
+// }
+
+func (r *Repository) PkgRepoNames() []string {
 	if r.cfg == nil {
 		return nil
 	}
@@ -43,9 +54,9 @@ func (r *Repository) RepoNames() []string {
 	return names
 }
 
-func (r *Repository) InitPacmanRepo(useSignedDB bool, gnupgDir *string) error {
-	for _, name := range r.RepoNames() {
-		if err := r.initRepoDir(name, useSignedDB, gnupgDir); err != nil {
+func (r *Repository) InitPkgRepo(useSignedDB bool, gnupgDir *string) error {
+	for _, name := range r.PkgRepoNames() {
+		if err := r.PkgRepoAdd(name, "", useSignedDB, gnupgDir); err != nil {
 			return err
 		}
 	}

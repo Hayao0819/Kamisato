@@ -8,7 +8,7 @@ import (
 
 func (s *Service) Repo(ctx *gin.Context, repo string) error {
 
-	repoDbpath, err := s.repo.RepoDir(repo)
+	repoDbpath, err := s.repo.PkgRepoDir(repo)
 	if err != nil {
 		// s.logger.Errorf("repo %s not found", repo)
 		return err

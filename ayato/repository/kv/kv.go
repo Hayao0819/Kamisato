@@ -1,5 +1,5 @@
-// Fike: https://github.com/BrenekH/blinky/blob/dc156eb662a6f52ab98c41ea792af17ed2e66b8a/keyvaluestore/kv.go
-package repository
+// File: https://github.com/BrenekH/blinky/blob/dc156eb662a6f52ab98c41ea792af17ed2e66b8a/keyvaluestore/kv.go
+package kv
 
 import (
 	"fmt"
@@ -7,11 +7,21 @@ import (
 	"github.com/dgraph-io/badger/v3"
 )
 
-type BadgerRepository struct { // implements: github.com/BrenekH/blinky.PackageNameToFileProvider
+type Badger struct { // implements: github.com/BrenekH/blinky.PackageNameToFileProvider
 	db *badger.DB
 }
 
-func (b *BadgerRepository) PackageFile(packageName string) (string, error) {
+func NewBadger(dir string) (*Badger, error) {
+	db, err := badger.Open(badger.DefaultOptions(dir))
+	if err != nil {
+		return nil, err
+	}
+	return &Badger{
+		db: db,
+	}, nil
+}
+
+func (b *Badger) PackageFile(packageName string) (string, error) {
 	// Convert to bytes outside the txn to reduce time spent in txn.
 	key := []byte(packageName)
 
@@ -32,7 +42,7 @@ func (b *BadgerRepository) PackageFile(packageName string) (string, error) {
 	return string(dstBuf), nil
 }
 
-func (b *BadgerRepository) StorePackageFile(packageName, filePath string) error {
+func (b *Badger) StorePackageFile(packageName, filePath string) error {
 	// Convert to bytes outside the txn to reduce time spent in txn.
 	key := []byte(packageName)
 	val := []byte(filePath)
@@ -47,7 +57,7 @@ func (b *BadgerRepository) StorePackageFile(packageName, filePath string) error 
 	return nil
 }
 
-func (b *BadgerRepository) DeletePackageFileEntry(packageName string) error {
+func (b *Badger) DeletePackageFileEntry(packageName string) error {
 	// Convert to bytes outside the txn to reduce time spent in txn.
 	key := []byte(packageName)
 
