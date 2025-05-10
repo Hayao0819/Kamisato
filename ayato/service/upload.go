@@ -7,8 +7,6 @@ import (
 )
 
 func (s *Service) UploadPkgFile(repo string, name [2]string) error {
-	// Assemble the file path
-	// TODO: 複数アーキテクチャに対応する
 	repoDir, err := s.repo.RepoDir(repo)
 	if err != nil {
 		return fmt.Errorf("repo %s not found", repo)

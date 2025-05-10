@@ -1,7 +1,9 @@
 {
-    "repopath": "./repo",
+    "repopath": [
+        "../example/srv/repo"
+    ],
     "port": "9000",
-    "datapath": "./db",
+    "datapath": "../example/srv/db",
     "username": "",
     "password": ""
 }
