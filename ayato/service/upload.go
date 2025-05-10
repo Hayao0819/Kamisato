@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+	"path"
 
 	"github.com/Hayao0819/Kamisato/ayato/utils"
 )
@@ -9,7 +10,8 @@ import (
 func (s *Service) UploadPkgFile(repo string, name [2]string) error {
 	repoDir, err := s.repo.RepoDir(repo)
 	if err != nil {
-		return fmt.Errorf("repo %s not found", repo)
+		// return fmt.Errorf("repo %s not found", repo)
+		return err
 	}
 
 	pkgFile := name[0]
@@ -19,7 +21,8 @@ func (s *Service) UploadPkgFile(repo string, name [2]string) error {
 
 	useSignedDB := false
 	var gnupgDir *string // TODO: Check if the directory exists
-	err = utils.RepoAdd(repoDir, pkgFile, useSignedDB, gnupgDir)
+	repoDbPath := path.Join(repoDir, "x86_64", repo+".db.tar.gz")
+	err = utils.RepoAdd(repoDbPath, pkgFile, useSignedDB, gnupgDir)
 	if err != nil {
 		return fmt.Errorf("repo-add err: %s", err.Error())
 	}

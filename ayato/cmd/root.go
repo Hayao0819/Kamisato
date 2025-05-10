@@ -17,25 +17,25 @@ func rootCmd() *cobra.Command {
 		Use: "ayato",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var err error
-			config, err := conf.LoadAyatoConfig()
+			cfg, err := conf.LoadAyatoConfig()
 			if err != nil {
 				return err
 			}
 
-			db, err := repository.New(config)
+			r, err := repository.New(cfg)
 			if err != nil {
 				return err
 			}
-			s := service.NewService(*db)
+			s := service.NewService(r)
 
-			if config == nil {
+			if cfg == nil {
 				return fmt.Errorf("config is nil")
 			}
 
 			engine := gin.Default()
-			router.SetRoute(engine, config, s)
-			log.Printf("Listening on port %d", config.Port)
-			if err := engine.Run(fmt.Sprintf(":%d", config.Port)); err != nil {
+			router.SetRoute(engine, cfg, s)
+			log.Printf("Listening on port %d", cfg.Port)
+			if err := engine.Run(fmt.Sprintf(":%d", cfg.Port)); err != nil {
 				return err
 			}
 			return nil
