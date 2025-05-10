@@ -62,3 +62,26 @@ func (r *Repository) InitPkgRepo(useSignedDB bool, gnupgDir *string) error {
 	}
 	return nil
 }
+
+func (r *Repository) PkgRepoFileList(name string, arch string) ([]string, error) {
+	dp, err := r.PkgRepoDir(name)
+	if err != nil {
+		// slog.Error("err while getting repo dir", "name", name, "err", err)
+		// continue
+		return nil, err
+	}
+
+	entries, err := os.ReadDir(path.Join(dp, arch))
+	if err != nil {
+		return nil, err
+	}
+
+	rt := []string{}
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+		rt = append(rt, e.Name())
+	}
+	return rt, nil
+}
