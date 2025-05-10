@@ -13,8 +13,8 @@ type Repository struct {
 	cfg       *conf.AyatoConfig
 }
 
-func New(dbDirPath string, cfg *conf.AyatoConfig) (*Repository, error) {
-	db, err := badger.Open(badger.DefaultOptions(dbDirPath))
+func New(cfg *conf.AyatoConfig) (*Repository, error) {
+	db, err := badger.Open(badger.DefaultOptions(cfg.DbPath()))
 	if err != nil {
 		return nil, err
 	}

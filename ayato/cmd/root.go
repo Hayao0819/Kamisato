@@ -22,16 +22,18 @@ func rootCmd() *cobra.Command {
 				return err
 			}
 
-			db, err := repository.New(config.DbPath(), config)
+			db, err := repository.New(config)
 			if err != nil {
 				return err
 			}
 			s := service.NewService(*db)
 
+			if config == nil {
+				return fmt.Errorf("config is nil")
+			}
+
 			engine := gin.Default()
-
 			router.SetRoute(engine, config, s)
-
 			log.Printf("Listening on port %d", config.Port)
 			if err := engine.Run(fmt.Sprintf(":%d", config.Port)); err != nil {
 				return err
