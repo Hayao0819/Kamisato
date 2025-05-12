@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"path"
 	"strings"
@@ -54,35 +55,36 @@ func GetPkgFromBin(name string) (*Package, error) {
 	tarReader := tar.NewReader(zstdDecoder)
 
 	// .BININFOファイルを探す
-	var bininfoData string
+	var buildInfoData string
 	for {
 		header, err := tarReader.Next()
 
 		if err == io.EOF {
 			break
 		}
+		slog.Info("tar header", "name", header.Name)
 
 		if err != nil {
 			return nil, fmt.Errorf("failed to read tar header: %w", err)
 		}
 
-		if header.Name == ".BININFO" {
+		if header.Name == ".BUILDINFO" {
 			// .BININFOファイルの内容を読み取る
 			buf := new(strings.Builder)
 			if _, err := io.Copy(buf, tarReader); err != nil {
 				return nil, fmt.Errorf("failed to read .BININFO: %w", err)
 			}
-			bininfoData = buf.String()
+			buildInfoData = buf.String()
 			break
 		}
 	}
 
-	if bininfoData == "" {
-		return nil, fmt.Errorf(".BININFO not found in archive")
+	if buildInfoData == "" {
+		return nil, fmt.Errorf(".BUILDINFO not found in archive")
 	}
 
 	// srcinfoを解析
-	info, err := srcinfo.Parse(bininfoData)
+	info, err := srcinfo.Parse(buildInfoData)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse srcinfo: %w", err)
 	}

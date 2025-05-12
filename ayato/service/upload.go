@@ -32,7 +32,14 @@ func (s *Service) UploadPkgFile(rname string, name [2]string) error {
 
 	// Store package file to the database
 	// FIXME: バイナリからパッケージ名を特定する
-	if err := s.repo.SetPkgFileName(rname, path.Base(pkgFile)); err != nil {
+
+	p, err := repo.GetPkgFromBin(pkgFile)
+	if err != nil {
+		return fmt.Errorf("get pkg from bin err: %s", err.Error())
+	}
+	slog.Info("get pkg from bin", "pkgname", p.Info().Pkgname, "pkgver", p.Info().Pkgver)
+
+	if err := s.repo.SetPkgFileName(p.Info().Pkgname, path.Base(pkgFile)); err != nil {
 		return fmt.Errorf("set pkg file err: %s", err.Error())
 	}
 
