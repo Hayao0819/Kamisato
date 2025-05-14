@@ -1,5 +1,8 @@
 package raiou
 
+// Copied from here
+// https://github.com/Morganamilo/go-srcinfo/blob/05dcd7cd516fb84dcbfa22794d486a0d7b67823b/examples_test.go
+
 import (
 	"fmt"
 	"github.com/Morganamilo/go-srcinfo"
