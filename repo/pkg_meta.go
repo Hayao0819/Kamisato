@@ -11,16 +11,20 @@ import (
 )
 
 func (p *Package) Names() []string {
-	names := []string{
-		p.Info().Pkgbase,
-	}
-	for _, pkg := range p.Info().Packages {
-		names = append(names, pkg.Pkgname)
-	}
 
+	names := make([]string, 0)
+	if p.pkginfo != nil {
+		names = append(names, p.pkginfo.PkgBase, p.pkginfo.PkgName)
+	}
+	if p.srcinfo != nil {
+		names = append(names, p.srcinfo.Pkgbase)
+		for _, pkg := range p.srcinfo.Packages {
+			names = append(names, pkg.Pkgname)
+		}
+	}
 	names = lo.Uniq(names)
-
 	return names
+
 }
 
 func (p *Package) GetPkgFileNames() ([]string, error) {

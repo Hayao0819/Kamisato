@@ -9,30 +9,54 @@ import (
 	"path"
 	"strings"
 
-	"github.com/Morganamilo/go-srcinfo"
+	"github.com/Hayao0819/Kamisato/raiou"
 	"github.com/klauspost/compress/zstd"
 )
 
-type Info srcinfo.Srcinfo
-
 type Package struct {
-	path string
-	info *Info
+	path    string
+	srcinfo *raiou.SRCINFO
+	pkginfo *raiou.PKGINFO
 }
 
-func (p *Package) Info() *Info {
-	return p.info
+func (p *Package) SRCINFO() (*raiou.SRCINFO, error) {
+	if p.srcinfo == nil {
+		return nil, fmt.Errorf("srcinfo not found")
+	}
+	return p.srcinfo, nil
+}
+
+func (p *Package) PKGINFO() (*raiou.PKGINFO, error) {
+	if p.pkginfo == nil {
+		return nil, fmt.Errorf("pkginfo not found")
+	}
+	return p.pkginfo, nil
+}
+
+func (p *Package) MustSRCINFO() *raiou.SRCINFO {
+	info, err := p.SRCINFO()
+	if err != nil {
+		panic("failed to get srcinfo: " + err.Error())
+	}
+	return info
+}
+func (p *Package) MustPKGINFO() *raiou.PKGINFO {
+	info, err := p.PKGINFO()
+	if err != nil {
+		panic("failed to get pkginfo: " + err.Error())
+	}
+	return info
 }
 
 func GetPkgFromSrc(pkgbuild string) (*Package, error) {
-	info, err := srcinfo.ParseFile(path.Join(path.Dir(pkgbuild), ".SRCINFO"))
+	info, err := raiou.ParseSrcinfoFile(path.Join(path.Dir(pkgbuild), ".SRCINFO"))
 	if err != nil {
 		return nil, err
 	}
 
 	pkg := new(Package)
 	pkg.path = pkgbuild
-	pkg.info = (*Info)(info)
+	pkg.srcinfo = info
 
 	return pkg, nil
 }
@@ -55,7 +79,7 @@ func GetPkgFromBin(name string) (*Package, error) {
 	tarReader := tar.NewReader(zstdDecoder)
 
 	// .BININFOファイルを探す
-	var buildInfoData string
+	var pkginfoData string
 	for {
 		header, err := tarReader.Next()
 
@@ -68,30 +92,28 @@ func GetPkgFromBin(name string) (*Package, error) {
 			return nil, fmt.Errorf("failed to read tar header: %w", err)
 		}
 
-		if header.Name == ".BUILDINFO" {
-			// .BININFOファイルの内容を読み取る
+		if header.Name == ".PKGINFO" {
 			buf := new(strings.Builder)
 			if _, err := io.Copy(buf, tarReader); err != nil {
 				return nil, fmt.Errorf("failed to read .BININFO: %w", err)
 			}
-			buildInfoData = buf.String()
+			pkginfoData = buf.String()
 			break
 		}
 	}
 
-	if buildInfoData == "" {
-		return nil, fmt.Errorf(".BUILDINFO not found in archive")
+	if pkginfoData == "" {
+		return nil, fmt.Errorf(".PKGINFO not found in archive")
 	}
 
-	// srcinfoを解析
-	info, err := srcinfo.Parse(buildInfoData)
+	info, err := raiou.ParsePkginfoString(pkginfoData)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse srcinfo: %w", err)
 	}
 
 	pkg := new(Package)
 	pkg.path = name
-	pkg.info = (*Info)(info)
+	pkg.pkginfo = info
 
 	return pkg, nil
 }

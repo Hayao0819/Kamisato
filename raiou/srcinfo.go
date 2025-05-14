@@ -6,9 +6,9 @@ import (
 	"github.com/Morganamilo/go-srcinfo"
 )
 
-type Srcinfo srcinfo.Srcinfo
+type SRCINFO srcinfo.Srcinfo
 
-func ParseSrcinfo(r io.Reader) (*Srcinfo, error) {
+func ParseSrcinfo(r io.Reader) (*SRCINFO, error) {
 	b, err := io.ReadAll(r)
 	if err != nil {
 		return nil, err
@@ -17,21 +17,21 @@ func ParseSrcinfo(r io.Reader) (*Srcinfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	return (*Srcinfo)(srcinfo), nil
+	return (*SRCINFO)(srcinfo), nil
 }
 
-func ParseSrcinfoFile(path string) (*Srcinfo, error) {
+func ParseSrcinfoFile(path string) (*SRCINFO, error) {
 	srcinfo, err := srcinfo.ParseFile(path)
 	if err != nil {
 		return nil, err
 	}
-	return (*Srcinfo)(srcinfo), nil
+	return (*SRCINFO)(srcinfo), nil
 }
 
-func ParseSrcinfoString(data string) (*Srcinfo, error) {
+func ParseSrcinfoString(data string) (*SRCINFO, error) {
 	srcinfo, err := srcinfo.Parse(data)
 	if err != nil {
 		return nil, err
 	}
-	return (*Srcinfo)(srcinfo), nil
+	return (*SRCINFO)(srcinfo), nil
 }

@@ -37,9 +37,14 @@ func (s *Service) UploadPkgFile(rname string, name [2]string) error {
 	if err != nil {
 		return fmt.Errorf("get pkg from bin err: %s", err.Error())
 	}
-	slog.Info("get pkg from bin", "pkgname", p.Info().Pkgname, "pkgver", p.Info().Pkgver)
 
-	if err := s.repo.SetPkgFileName(p.Info().Pkgname, path.Base(pkgFile)); err != nil {
+	pi , err := p.PKGINFO()
+	if err != nil {
+		return fmt.Errorf("get pkginfo err: %s", err.Error())
+	}
+	slog.Info("get pkg from bin", "pkgname", pi.PkgName, "pkgver", pi.PkgVer)
+
+	if err := s.repo.SetPkgFileName(pi.PkgName, path.Base(pkgFile)); err != nil {
 		return fmt.Errorf("set pkg file err: %s", err.Error())
 	}
 
