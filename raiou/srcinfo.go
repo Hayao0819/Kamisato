@@ -3,6 +3,7 @@ package raiou
 import (
 	"bytes"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/Morganamilo/go-srcinfo"
@@ -37,6 +38,8 @@ func (s *SrcInfoParser) Parse(bs []byte) (*Srcinfo, error) {
 
 	src := &Srcinfo{}
 	var currentPkg *Package // nil means global context (PackageBase/Package)
+	seenPkgnames := map[string]struct{}{}
+	archDefined := false
 
 	// known fields and their types
 	singleFields := map[string]*string{
@@ -47,6 +50,7 @@ func (s *SrcInfoParser) Parse(bs []byte) (*Srcinfo, error) {
 		"url":       &src.URL,
 		"install":   &src.Install,
 		"changelog": &src.Changelog,
+		"pkgdesc":   &src.Pkgdesc,
 	}
 	stringSliceFields := map[string]*[]string{
 		"arch":         &src.Arch,
@@ -57,7 +61,7 @@ func (s *SrcInfoParser) Parse(bs []byte) (*Srcinfo, error) {
 		"validpgpkeys": &src.ValidPGPKeys,
 		"noextract":    &src.NoExtract,
 	}
-	archStringSliceFields := map[string]*[]ArchString{
+	archStringSliceFields := map[string]*[]srcinfo.ArchString{
 		"source":       &src.Source,
 		"md5sums":      &src.MD5Sums,
 		"sha1sums":     &src.SHA1Sums,
@@ -75,13 +79,26 @@ func (s *SrcInfoParser) Parse(bs []byte) (*Srcinfo, error) {
 		"checkdepends": &src.CheckDepends,
 	}
 
-	for _, kv := range kvs {
+	for i, kv := range kvs {
 		key := kv.Key()
 		value := kv.Value()
+
+		if value == "" {
+			return nil, fmt.Errorf("empty value for key '%s' on line %d", key, i+1)
+		}
 
 		if key == "pkgname" {
 			// start new package block
 			pkg := Package{Pkgname: value}
+
+			if src.Pkgbase == "" {
+				return nil, fmt.Errorf("'pkgname' appears before 'pkgbase' on line %d", i+1)
+			}
+			if _, ok := seenPkgnames[value]; ok {
+				return nil, fmt.Errorf("duplicate 'pkgname' %q on line %d", value, i+1)
+			}
+			seenPkgnames[value] = struct{}{}
+
 			src.Packages = append(src.Packages, pkg)
 			currentPkg = &src.Packages[len(src.Packages)-1]
 			continue
@@ -119,18 +136,66 @@ func (s *SrcInfoParser) Parse(bs []byte) (*Srcinfo, error) {
 		if ptr, ok := targetSingleFields[key]; ok {
 			*ptr = value
 		} else if ptr, ok := targetStringSliceFields[key]; ok {
+			if key == "arch" && value == "any" {
+				return nil, fmt.Errorf("invalid arch 'any' for key '%s' on line %d", key, i+1)
+			}
+			if key == "arch" {
+				archDefined = true
+			}
 			*ptr = append(*ptr, value)
 		} else if ptr, ok := targetArchStringSliceFields[key]; ok {
 			as := parseArchString(value)
+			if as.Arch != "" && as.Arch != "any" {
+				found := false
+				for _, a := range src.Arch {
+					if a == as.Arch {
+						found = true
+						break
+					}
+				}
+				if !found {
+					return nil, fmt.Errorf("unsupported arch '%s' for key '%s' on line %d", as.Arch, key, i+1)
+				}
+			} else if as.Arch == "any" {
+				return nil, fmt.Errorf("invalid arch 'any' for key '%s' on line %d", key, i+1)
+			}
 			*ptr = append(*ptr, as)
 		} else {
 			return nil, fmt.Errorf("unknown key: %s", key)
 		}
 	}
 
+	if src.Pkgbase == "" {
+		return nil, fmt.Errorf("missing required field 'pkgbase'")
+	}
+	if len(src.Packages) == 0 {
+		return nil, fmt.Errorf("missing required field 'pkgname'")
+	}
+	if src.Pkgver == "" {
+		return nil, fmt.Errorf("missing required field 'pkgver'")
+	}
+	if src.Pkgrel == "" {
+		return nil, fmt.Errorf("missing required field 'pkgrel'")
+	}
+	if !archDefined {
+		return nil, fmt.Errorf("missing required field 'arch'")
+	}
+
 	s.srcinfo = src
 	s.parsed = true
 	return src, nil
+}
+
+func (s *SrcInfoParser) ParseFile(filename string) (*Srcinfo, error) {
+	if s.parsed {
+		return s.srcinfo, nil
+	}
+
+	bs, err := os.ReadFile(filename)
+	if err != nil {
+		return nil, err
+	}
+	return s.Parse(bs)
 }
 
 // parseArchString parses a value that may have optional arch: "arch:value" or "value"
@@ -152,4 +217,11 @@ func NewSrcInfoParser() *SrcInfoParser {
 		parsed:  false,
 		srcinfo: nil,
 	}
+}
+func ParseFile(filename string) (*Srcinfo, error) {
+	return NewSrcInfoParser().ParseFile(filename)
+}
+
+func Parse(bs []byte) (*Srcinfo, error) {
+	return NewSrcInfoParser().Parse(bs)
 }
