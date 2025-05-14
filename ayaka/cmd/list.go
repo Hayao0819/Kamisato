@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"log/slog"
+
 	"github.com/Hayao0819/Kamisato/repo"
 	"github.com/spf13/cobra"
 )
@@ -8,8 +10,8 @@ import (
 func listCmd() *cobra.Command {
 	cmd := cobra.Command{
 		Use:   "list",
-		Short: "List packages in repository",
-		Long:  "List packages in repository",
+		Short: "List packages in source repository",
+		Long:  "List packages in source repository",
 		Args:  cobra.MaximumNArgs(1),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			return nil
@@ -21,7 +23,12 @@ func listCmd() *cobra.Command {
 			}
 
 			for _, pkg := range repo.Pkgs {
-				cmd.Println(pkg.Info().Pkgbase)
+				srcinfo, err := pkg.SRCINFO()
+				if err != nil {
+					slog.Warn("failed to get srcinfo", "error", err)
+					continue
+				}
+				cmd.Println(srcinfo.Pkgbase)
 			}
 
 			return nil
