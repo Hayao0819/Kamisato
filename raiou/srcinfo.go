@@ -40,6 +40,44 @@ func (s *SrcInfoParser) Parse(bs []byte) (*Srcinfo, error) {
 	var currentPkg *Package // nil means global context (PackageBase/Package)
 	seenPkgnames := map[string]struct{}{}
 	archDefined := false
+	definedArchs := make(map[string]struct{})
+
+	// pkgbase only fields
+	pkgbaseSingleOnly := map[string]struct{}{
+		"validpgpkeys": {},
+	}
+	pkgbaseSliceOnly := map[string]struct{}{
+		"checkdepends": {},
+		"makedepends":  {},
+		"source":       {},
+		"md5sums":      {},
+		"sha1sums":     {},
+		"sha224sums":   {},
+		"sha256sums":   {},
+		"sha384sums":   {},
+		"sha512sums":   {},
+		"b2sums":       {},
+		"noextract":    {},
+	}
+
+	// pkgname forbidden fields
+	pkgnameForbidden := map[string]struct{}{
+		"epoch":        {},
+		"pkgver":       {},
+		"pkgrel":       {},
+		"validpgpkeys": {},
+		"checkdepends": {},
+		"makedepends":  {},
+		"source":       {},
+		"md5sums":      {},
+		"sha1sums":     {},
+		"sha224sums":   {},
+		"sha256sums":   {},
+		"sha384sums":   {},
+		"sha512sums":   {},
+		"b2sums":       {},
+		"noextract":    {},
+	}
 
 	// known fields and their types
 	singleFields := map[string]*string{
@@ -104,6 +142,23 @@ func (s *SrcInfoParser) Parse(bs []byte) (*Srcinfo, error) {
 			continue
 		}
 
+		if currentPkg == nil { // in pkgbase section
+			// pkgver, pkgrel, epoch は pkgbase で許可されるべき
+			if _, forbidden := pkgnameForbidden[key]; forbidden && key != "pkgver" && key != "pkgrel" && key != "epoch" {
+				return nil, fmt.Errorf("key '%s' is not allowed in the pkgbase section on line %d", key, i+1)
+			}
+		} else { // in pkgname section
+			if _, forbidden := pkgnameForbidden[key]; forbidden {
+				return nil, fmt.Errorf("key '%s' is not allowed in the pkgname section '%s' on line %d", key, currentPkg.Pkgname, i+1)
+			}
+			if _, onlyBase := pkgbaseSingleOnly[key]; onlyBase {
+				return nil, fmt.Errorf("key '%s' is only allowed in the pkgbase section on line %d", key, i+1)
+			}
+			if _, onlyBase := pkgbaseSliceOnly[key]; onlyBase {
+				return nil, fmt.Errorf("key '%s' is only allowed in the pkgbase section on line %d", key, i+1)
+			}
+		}
+
 		targetSingleFields := singleFields
 		targetStringSliceFields := stringSliceFields
 		targetArchStringSliceFields := archStringSliceFields
@@ -136,32 +191,34 @@ func (s *SrcInfoParser) Parse(bs []byte) (*Srcinfo, error) {
 		if ptr, ok := targetSingleFields[key]; ok {
 			*ptr = value
 		} else if ptr, ok := targetStringSliceFields[key]; ok {
-			if key == "arch" && value == "any" {
-				return nil, fmt.Errorf("invalid arch 'any' for key '%s' on line %d", key, i+1)
-			}
 			if key == "arch" {
+				if value == "any" {
+					if len(*ptr) > 0 {
+						return nil, fmt.Errorf("key '%s' with value 'any' cannot be combined with other architectures on line %d", key, i+1)
+					}
+				} else if containsArch(*ptr, "any") {
+					return nil, fmt.Errorf("key '%s' with value '%s' cannot be combined with 'any' on line %d", key, value, i+1)
+				}
+				if value != "any" {
+					definedArchs[value] = struct{}{}
+				}
 				archDefined = true
 			}
 			*ptr = append(*ptr, value)
 		} else if ptr, ok := targetArchStringSliceFields[key]; ok {
 			as := parseArchString(value)
 			if as.Arch != "" && as.Arch != "any" {
-				found := false
-				for _, a := range src.Arch {
-					if a == as.Arch {
-						found = true
-						break
-					}
-				}
-				if !found {
-					return nil, fmt.Errorf("unsupported arch '%s' for key '%s' on line %d", as.Arch, key, i+1)
+				if _, ok := definedArchs[as.Arch]; !ok {
+					return nil, fmt.Errorf("unsupported arch '%s' for key '%s' on line %d. Available archs: %v", as.Arch, key, i+1, src.Arch)
 				}
 			} else if as.Arch == "any" {
-				return nil, fmt.Errorf("invalid arch 'any' for key '%s' on line %d", key, i+1)
+				return nil, fmt.Errorf("invalid arch 'any' with value for key '%s' on line %d", key, i+1)
 			}
 			*ptr = append(*ptr, as)
+		// } else if key == "options" && currentPkg != nil && value == "" {
+		// 	currentPkg.OptionsUnset = true
 		} else {
-			return nil, fmt.Errorf("unknown key: %s", key)
+			return nil, fmt.Errorf("unknown key: %s on line %d", key, i+1)
 		}
 	}
 
@@ -184,6 +241,15 @@ func (s *SrcInfoParser) Parse(bs []byte) (*Srcinfo, error) {
 	s.srcinfo = src
 	s.parsed = true
 	return src, nil
+}
+
+func containsArch(archs []string, arch string) bool {
+	for _, a := range archs {
+		if a == arch {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *SrcInfoParser) ParseFile(filename string) (*Srcinfo, error) {
