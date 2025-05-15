@@ -3,3 +3,5 @@ node_modules
 out
 .DS_Store
 .env
+next-env.d.ts
+lumine
