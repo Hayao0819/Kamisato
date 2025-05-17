@@ -20,7 +20,7 @@ func rootCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Load config
 			var err error
-			cfg, err := conf.LoadAyatoConfig()
+			cfg, err := conf.LoadAyatoConfig(cmd.Flags())
 			if err != nil {
 				return err
 			}

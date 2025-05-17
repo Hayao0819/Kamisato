@@ -15,7 +15,7 @@ func rootCmd() *cobra.Command {
 		Short: "Repository management tool",
 		Long:  "Ayaka is a tool for managing your pacman repository",
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			c, err := conf.LoadAyakaConfig()
+			c, err := conf.LoadAyakaConfig(cmd.Flags())
 			if err != nil {
 				return err
 			}
@@ -23,12 +23,14 @@ func rootCmd() *cobra.Command {
 			return nil
 		},
 		SilenceUsage: true,
+		CompletionOptions: cobra.CompletionOptions{
+			HiddenDefaultCmd: true,
+		},
 	}
-	cmd.CompletionOptions.HiddenDefaultCmd = true
 
 	subCmds.Bind(&cmd)
-	// cmd.PersistentFlags().StringVarP(&conf.AppConfigPath, "config", "c", "", "config file path")
-	// cmd.PersistentFlags().StringVarP(&conf.AppConfig.RepoDir, "repodir", "r", "", "repository directory")
+	// cmd.PersistentFlags().StringVarP(&config., "config", "c", "", "config file path")
+	cmd.PersistentFlags().StringVarP(&config.RepoDir, "repodir", "r", "", "repository directory")
 
 	// TODO: Implement it with koanf
 	// viper.BindPFlag("repodir", cmd.PersistentFlags().Lookup("repodir"))

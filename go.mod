@@ -14,11 +14,14 @@ require (
 	github.com/knadh/koanf/parsers/json v1.0.0
 	github.com/knadh/koanf/parsers/toml v0.1.0
 	github.com/knadh/koanf/parsers/yaml v1.0.0
+	github.com/knadh/koanf/providers/env v1.1.0
 	github.com/knadh/koanf/providers/file v1.2.0
+	github.com/knadh/koanf/providers/posflag v1.0.0
 	github.com/knadh/koanf/v2 v2.2.0
 	github.com/otiai10/copy v1.14.1
 	github.com/samber/lo v1.50.0
 	github.com/spf13/cobra v1.9.1
+	github.com/spf13/pflag v1.0.6
 )
 
 require (
@@ -59,7 +62,6 @@ require (
 	github.com/pelletier/go-toml v1.9.5 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.4 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
-	github.com/spf13/pflag v1.0.6 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.2.12 // indirect
 	go.opencensus.io v0.24.0 // indirect

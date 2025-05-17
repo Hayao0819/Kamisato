@@ -2,8 +2,10 @@ package conf
 
 import (
 	"os"
+	"strings"
 
 	"github.com/Hayao0819/Kamisato/internal/kfutils"
+	"github.com/spf13/pflag"
 )
 
 func commonConfigDirs() []string {
@@ -20,20 +22,8 @@ func commonConfigDirs() []string {
 	return dirs
 }
 
-func loadConfig[T any](files ...string) (*T, error) {
-	// l, err := kfutils.New[T](".").Dirs(commonConfigDirs()...).Files(files...).Load()
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// return l.Get()
-
-	return loadConfigWithDir[T](commonConfigDirs(), files)
-}
-
-func loadConfigWithDir[T any](dir []string, files []string) (*T, error) {
-	l, err := kfutils.New[T](".").Dirs(dir...).Files(files...).Load()
-	if err != nil {
-		return nil, err
-	}
-	return l.Get()
+func loadConfig[T any](dirs []string, files []string, flags *pflag.FlagSet, envPrefix string) (*T, error) {
+	return kfutils.Load[T](dirs, files, flags, "KAMISATO_"+envPrefix, "_", func(key string) string {
+		return strings.ToLower(key)
+	})
 }

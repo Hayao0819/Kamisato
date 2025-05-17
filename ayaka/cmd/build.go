@@ -4,7 +4,6 @@ import (
 	"path"
 
 	"github.com/Hayao0819/Kamisato/ayaka/abs"
-	"github.com/Hayao0819/Kamisato/conf"
 	"github.com/Hayao0819/Kamisato/repo"
 	"github.com/spf13/cobra"
 )
@@ -22,14 +21,8 @@ func buildCmd() *cobra.Command {
 				Arch: "x86_64",
 			}
 
-			ac, err := conf.LoadAyakaConfig()
-			if err != nil {
-				return err
-			}
-
-			// TODO: ac.DestDirにメタデータを作る
-
-			outDir := path.Join(ac.DestDir, repo.Config.Name)
+			// TODO: DestDirにメタデータを作る
+			outDir := path.Join(config.DestDir, repo.Config.Name)
 
 			return repo.Build(&builder, outDir, args...)
 		},

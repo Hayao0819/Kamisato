@@ -20,5 +20,12 @@ type RepoConfig struct {
 // }
 
 func LoadRepoConfig(repodir string) (*RepoConfig, error) {
-	return loadConfigWithDir[RepoConfig]([]string{repodir}, []string{"repo.json"})
+	// return loadConfigWithDir[RepoConfig]([]string{repodir}, []string{"repo.json"})
+
+	return loadConfig[RepoConfig](
+		[]string{repodir},
+		[]string{"repo.json"},
+		nil,
+		"REPO",
+	)
 }

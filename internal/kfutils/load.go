@@ -5,7 +5,10 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/knadh/koanf/providers/env"
 	"github.com/knadh/koanf/providers/file"
+	"github.com/knadh/koanf/providers/posflag"
+	"github.com/spf13/pflag"
 )
 
 // Dirs sets search directories
@@ -34,7 +37,7 @@ func (l *Loader[T]) Load() (*Loader[T], error) {
 				return l, fmt.Errorf("failed to stat %s: %w", path, err)
 			}
 			if info.IsDir() {
-				continue // skip directories
+				continue
 			}
 
 			ext := filepath.Ext(path)
@@ -56,4 +59,16 @@ func (l *Loader[T]) Load() (*Loader[T], error) {
 // LoadFiles is a wrapper for Dirs + Files + Load
 func (l *Loader[T]) LoadFiles(dirs []string, filenames []string) (*Loader[T], error) {
 	return l.Dirs(dirs...).Files(filenames...).Load()
+}
+
+// WithEnv loads configuration from environment variables
+func (l *Loader[T]) WithEnv(prefix, delimiter string, keyMap func(string) string) *Loader[T] {
+	l.k.Load(env.Provider(prefix, delimiter, keyMap), nil)
+	return l
+}
+
+// WithPFlag loads configuration from pflag.FlagSet
+func (l *Loader[T]) WithPFlag(fs *pflag.FlagSet) *Loader[T] {
+	l.k.Load(posflag.Provider(fs, ".", l.k), nil)
+	return l
 }

@@ -1,10 +1,17 @@
 package conf
 
+import "github.com/spf13/pflag"
+
 type AyakaConfig struct {
 	RepoDir string `koanf:"repodir"`
 	DestDir string `koanf:"destdir"`
 }
 
-func LoadAyakaConfig() (*AyakaConfig, error) {
-	return loadConfig[AyakaConfig](".ayakarc.toml", ".ayakarc.yaml", ".ayakarc.json")
+func LoadAyakaConfig(flags *pflag.FlagSet) (*AyakaConfig, error) {
+	return loadConfig[AyakaConfig](
+		commonConfigDirs(),
+		[]string{".ayakarc.json", ".ayakarc.toml", ".ayakarc.yaml"},
+		flags,
+		"AYAKA",
+	)
 }
