@@ -19,6 +19,8 @@ func rootCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+
+			cmd.Println(c.RepoDir)
 			config = c
 			return nil
 		},
@@ -30,7 +32,7 @@ func rootCmd() *cobra.Command {
 
 	subCmds.Bind(&cmd)
 	// cmd.PersistentFlags().StringVarP(&config., "config", "c", "", "config file path")
-	cmd.PersistentFlags().StringVarP(&config.RepoDir, "repodir", "r", "", "repository directory")
+	cmd.PersistentFlags().StringP("repodir", "r", "", "repository directory")
 
 	// TODO: Implement it with koanf
 	// viper.BindPFlag("repodir", cmd.PersistentFlags().Lookup("repodir"))

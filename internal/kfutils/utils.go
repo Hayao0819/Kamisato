@@ -6,9 +6,13 @@ import (
 )
 
 type Loader[T any] struct {
-	k         *koanf.Koanf
-	dirs      []string
-	filenames []string
+	k            *koanf.Koanf
+	dirs         []string
+	filenames    []string
+	envPrefix    string
+	envDelimiter string
+	envKeyMap    func(string) string
+	pflags       *pflag.FlagSet
 }
 
 func (l *Loader[T]) Get() (*T, error) {
@@ -22,8 +26,8 @@ func (l *Loader[T]) Unmarshal(v *T) error {
 }
 
 func SimpleLoad[T any](dir []string, files []string) (*T, error) {
-	l, err := New[T](".").Dirs(dir...).Files(files...).Load()
-	if err != nil {
+	l := New[T](".").Dirs(dir...).Files(files...)
+	if err := l.Load(); err != nil {
 		return nil, err
 	}
 	return l.Get()
@@ -37,23 +41,16 @@ func Load[T any](
 	envDelimiter string, // 環境変数の区切り（例: .）
 	envKeyMap func(string) string, // 任意のキー変換関数
 ) (*T, error) {
-	loader := New[T](".")
+	loader := New[T](".").
+		Dirs(dirs...).
+		Files(files...).
+		PFlags(flags).
+		Env(envPrefix, envDelimiter, envKeyMap)
 
-	// 環境変数のロード
-	if envPrefix != "" {
-		loader.WithEnv(envPrefix, envDelimiter, envKeyMap)
-	}
-
-	// フラグのロード
-	if flags != nil {
-		loader.WithPFlag(flags)
-	}
-
-	// ファイルのロード
-	l, err := loader.Dirs(dirs...).Files(files...).Load()
+	err := loader.Load()
 	if err != nil {
 		return nil, err
 	}
 
-	return l.Get()
+	return loader.Get()
 }

@@ -23,8 +23,22 @@ func (l *Loader[T]) Files(filenames ...string) *Loader[T] {
 	return l
 }
 
+func (l *Loader[T]) Env(prefix, delimiter string, keyMap func(string) string) *Loader[T] {
+	l.envPrefix = prefix
+	l.envDelimiter = delimiter
+	l.envKeyMap = keyMap
+
+	return l
+}
+
+func (l *Loader[T]) PFlags(flags *pflag.FlagSet) *Loader[T] {
+	l.pflags = flags
+	return l
+}
+
 // Load loads and merges config files based on Dirs() and Files() state
-func (l *Loader[T]) Load() (*Loader[T], error) {
+func (l *Loader[T]) Load() error {
+	// Load files from directories
 	for _, dir := range l.dirs {
 		for _, filename := range l.filenames {
 			path := filepath.Join(dir, filename)
@@ -34,7 +48,7 @@ func (l *Loader[T]) Load() (*Loader[T], error) {
 				if os.IsNotExist(err) {
 					continue
 				}
-				return l, fmt.Errorf("failed to stat %s: %w", path, err)
+				return fmt.Errorf("failed to stat %s: %w", path, err)
 			}
 			if info.IsDir() {
 				continue
@@ -49,26 +63,24 @@ func (l *Loader[T]) Load() (*Loader[T], error) {
 
 			fmt.Printf("Loading config (%s): %s\n", ext, path)
 			if err := l.k.Load(file.Provider(path), parser); err != nil {
-				return l, fmt.Errorf("failed to load %s: %w", path, err)
+				return fmt.Errorf("failed to load %s: %w", path, err)
 			}
 		}
 	}
-	return l, nil
-}
 
-// LoadFiles is a wrapper for Dirs + Files + Load
-func (l *Loader[T]) LoadFiles(dirs []string, filenames []string) (*Loader[T], error) {
-	return l.Dirs(dirs...).Files(filenames...).Load()
-}
+	// Load environment variables
+	if l.envPrefix != "" {
+		if err := l.k.Load(env.Provider(l.envPrefix, l.envDelimiter, l.envKeyMap), nil); err != nil {
+			return fmt.Errorf("failed to load env vars: %w", err)
+		}
+	}
 
-// WithEnv loads configuration from environment variables
-func (l *Loader[T]) WithEnv(prefix, delimiter string, keyMap func(string) string) *Loader[T] {
-	l.k.Load(env.Provider(prefix, delimiter, keyMap), nil)
-	return l
-}
+	// Load pflag values
+	if l.pflags != nil {
+		if err := l.k.Load(posflag.Provider(l.pflags, ".", nil), nil); err != nil {
+			return fmt.Errorf("failed to load pflags: %w", err)
+		}
+	}
 
-// WithPFlag loads configuration from pflag.FlagSet
-func (l *Loader[T]) WithPFlag(fs *pflag.FlagSet) *Loader[T] {
-	l.k.Load(posflag.Provider(fs, ".", l.k), nil)
-	return l
+	return nil
 }
