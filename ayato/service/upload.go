@@ -42,7 +42,7 @@ func (s *Service) UploadPkgFile(rname string, name [2]string) error {
 	}
 
 	// Store metadata to the kv store
-	if err := s.r.StorePkgFileName(rname, path.Base(pkgFile)); err != nil {
+	if err := s.r.StorePkgFileName(pi.PkgName, path.Base(pkgFile)); err != nil {
 		return fmt.Errorf("store pkg file name err: %s", err.Error())
 	}
 

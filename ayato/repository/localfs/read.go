@@ -2,6 +2,7 @@ package localfs
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"path"
 
@@ -9,15 +10,27 @@ import (
 )
 
 func (l *LocalPkgBinaryStore) DeleteFile(repo string, arch string, file string, useSignedDB bool, gnupgDir *string) error {
-	return nil
-}
-
-func (l *LocalPkgBinaryStore) StoreFile(repo string, arch string, file string, useSignedDB bool, gnupgDir *string) error {
-
 	repoDir, err := l.getRepoDir(repo)
 	if err != nil {
 		return err
 	}
+
+	// Remove package file to the repository directory
+	pkgPath := path.Join(repoDir, "x86_64", file)
+	slog.Info("remove pkg file", "file", pkgPath)
+	if err := os.Remove(pkgPath); err != nil {
+		slog.Warn("remove pkg file err", "err", err)
+	}
+
+	return nil
+}
+
+func (l *LocalPkgBinaryStore) StoreFile(repo string, arch string, file string, useSignedDB bool, gnupgDir *string) error {
+	repoDir, err := l.getRepoDir(repo)
+	if err != nil {
+		return err
+	}
+
 	repoPath := path.Join(repoDir, arch)
 	if err := os.MkdirAll(repoPath, os.ModePerm); err != nil {
 		return fmt.Errorf("mkdir %s err: %s", repoPath, err.Error())

@@ -19,16 +19,14 @@ func (s *Service) RemovePkgFile(rname string, arch string, pkgname string) error
 	if err != nil {
 		return fmt.Errorf("get pkg file err: %s", err.Error())
 	}
-
-	// Remove package file to the repository directory
-	// pkgPath := path.Join(repoDir, "x86_64", filename)
-	// slog.Info("remove pkg file", "file", pkgPath)
-	// if err := os.Remove(pkgPath); err != nil {
-	// 	slog.Warn("remove pkg file err", "err", err)
-	// }
+	slog.Info("get pkg file", "file", filename)
 
 	if err := s.r.DeleteFile(rname, "x86_64", filename, false, nil); err != nil {
 		return fmt.Errorf("delete pkg file err: %s", err.Error())
+	}
+
+	if err := s.r.DeletePkgFileName(pkgname); err != nil {
+		return fmt.Errorf("remove pkg file name err: %s", err.Error())
 	}
 
 	return nil
