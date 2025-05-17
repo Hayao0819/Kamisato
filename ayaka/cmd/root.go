@@ -4,7 +4,6 @@ import (
 	"github.com/Hayao0819/Kamisato/conf"
 	"github.com/Hayao0819/nahi/cobrautils"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 var subCmds = cobrautils.Registory{}
@@ -30,7 +29,9 @@ func rootCmd() *cobra.Command {
 	subCmds.Bind(&cmd)
 	// cmd.PersistentFlags().StringVarP(&conf.AppConfigPath, "config", "c", "", "config file path")
 	// cmd.PersistentFlags().StringVarP(&conf.AppConfig.RepoDir, "repodir", "r", "", "repository directory")
-	viper.BindPFlag("repodir", cmd.PersistentFlags().Lookup("repodir"))
+
+	// TODO: Implement it with koanf
+	// viper.BindPFlag("repodir", cmd.PersistentFlags().Lookup("repodir"))
 
 	return &cmd
 }
