@@ -14,7 +14,7 @@ func uploadCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			server := args[0]
 
-			dest, err := repo.GetRepository(config.DestDir)
+			dest, err := repo.GetSrcRepo(config.DestDir)
 			if err != nil {
 				return err
 			}

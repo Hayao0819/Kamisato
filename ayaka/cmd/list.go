@@ -17,7 +17,7 @@ func listCmd() *cobra.Command {
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			repo, err := repo.GetRepository(config.RepoDir)
+			repo, err := repo.GetSrcRepo(config.RepoDir)
 			if err != nil {
 				return err
 			}
