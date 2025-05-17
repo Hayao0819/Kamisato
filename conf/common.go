@@ -21,7 +21,17 @@ func commonConfigDirs() []string {
 }
 
 func loadConfig[T any](files ...string) (*T, error) {
-	l, err := kfutils.New[T](".").Dirs(commonConfigDirs()...).Files(files...).Load()
+	// l, err := kfutils.New[T](".").Dirs(commonConfigDirs()...).Files(files...).Load()
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// return l.Get()
+
+	return loadConfigWithDir[T](commonConfigDirs(), files)
+}
+
+func loadConfigWithDir[T any](dir []string, files []string) (*T, error) {
+	l, err := kfutils.New[T](".").Dirs(dir...).Files(files...).Load()
 	if err != nil {
 		return nil, err
 	}

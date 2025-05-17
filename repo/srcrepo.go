@@ -13,10 +13,11 @@ type SourceRepo struct {
 	Pkgs   []*Package
 }
 
-func GetRepository(repodir string) (*SourceRepo, error) {
-	repoconfig := new(conf.RepoConfig)
+func GetSrcRepo(repodir string) (*SourceRepo, error) {
+	// repoconfig := new(conf.RepoConfig)
 	repo := new(SourceRepo)
-	if err := conf.LoadRepoConfig(repodir, repoconfig); err != nil {
+	repoconfig, err := conf.LoadRepoConfig(repodir)
+	if err != nil {
 		return nil, err
 	}
 	repo.Config = repoconfig
