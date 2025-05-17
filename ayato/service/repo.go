@@ -26,7 +26,7 @@ func (s *Service) Repo(repo string, file string, w http.ResponseWriter, req *htt
 }
 
 func (s *Service) RepoList() ([]string, error) {
-	return s.r.RepoNames()
+	return s.r.Repos()
 
 }
 func (s *Service) RepoFileList(repo, arch string) ([]string, error) {

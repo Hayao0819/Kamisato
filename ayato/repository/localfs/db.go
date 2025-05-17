@@ -21,7 +21,10 @@ func (l *LocalPkgBinaryStore) dbAdd(name string, fileName string, useSignedDB bo
 	}
 
 	repoDbPath := path.Join(repoPath, name+".db.tar.gz")
-	pkgFilePath := path.Join(repoPath, fileName)
+	pkgFilePath := ""
+	if fileName != "" {
+		pkgFilePath = path.Join(repoPath, fileName)
+	}
 	if err := repo.RepoAdd(repoDbPath, pkgFilePath, useSignedDB, gnupgDir); err != nil {
 		return fmt.Errorf("repo-add err: %s", err.Error())
 	}

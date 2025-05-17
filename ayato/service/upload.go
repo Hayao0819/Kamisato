@@ -3,6 +3,7 @@ package service
 import (
 	"fmt"
 	"log/slog"
+	"path"
 
 	"github.com/Hayao0819/Kamisato/repo"
 )
@@ -41,7 +42,9 @@ func (s *Service) UploadPkgFile(rname string, name [2]string) error {
 	}
 
 	// Store metadata to the kv store
-	// if err := 
+	if err := s.r.StorePkgFileName(rname, path.Base(pkgFile)); err != nil {
+		return fmt.Errorf("store pkg file name err: %s", err.Error())
+	}
 
 	return nil
 }
