@@ -39,7 +39,10 @@ func rootCmd() *cobra.Command {
 			router.SetRoute(engine, h, m)
 
 			// Init pacman repository
-			if err := r.Init(false, nil); err != nil {
+			// if err := r.Init(false, nil); err != nil {
+			// 	return err
+			// }
+			if err := s.InitAll(); err != nil {
 				return err
 			}
 

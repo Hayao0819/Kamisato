@@ -9,7 +9,7 @@ func (s *Service) RemovePkgFile(rname string, arch string, pkgname string) error
 	// Verify repository directory
 	if s.r.VerifyPkgRepo(rname) != nil {
 		slog.Warn("repository directory not found", "repo", rname)
-		if err := s.r.Init(false, nil); err != nil {
+		if err := s.r.Init(arch, false, nil); err != nil {
 			return fmt.Errorf("init repo err: %s", err.Error())
 		}
 	}
@@ -21,7 +21,7 @@ func (s *Service) RemovePkgFile(rname string, arch string, pkgname string) error
 	}
 	slog.Info("get pkg file", "file", filename)
 
-	if err := s.r.DeleteFile(rname, "x86_64", filename, false, nil); err != nil {
+	if err := s.r.DeleteFile(rname, arch, filename, false, nil); err != nil {
 		return fmt.Errorf("delete pkg file err: %s", err.Error())
 	}
 

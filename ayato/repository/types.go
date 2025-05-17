@@ -38,8 +38,8 @@ type PkgBinaryStoreProvider interface {
 	DeleteFile(repo string, arch string, file string, useSignedDB bool, gnupgDir *string) error
 
 	// Init initializes the database.
-	Init(useSignedDB bool, gnupgDir *string) error
+	Init(name string, arch string, useSignedDB bool, gnupgDir *string) error
 	RepoNames() ([]string, error)
 	Files(repo string, arch string) ([]string, error)
-	Archs(repo string) ([]string, error)
+	ExistArchs(repo string) ([]string, error)
 }

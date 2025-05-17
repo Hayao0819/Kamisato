@@ -2,20 +2,19 @@ package localfs
 
 import (
 	"fmt"
-	"log/slog"
 	"os"
 	"path"
 
 	"github.com/Hayao0819/Kamisato/repo"
 )
 
-func (l *LocalPkgBinaryStore) dbAdd(name string, fileName string, useSignedDB bool, gnupgDir *string) error {
+func (l *LocalPkgBinaryStore) dbAdd(name string, arch string, fileName string, useSignedDB bool, gnupgDir *string) error {
 	repoDir, err := l.getRepoDir(name)
 	if err != nil {
 		return err
 	}
 
-	repoPath := path.Join(repoDir, "x86_64")
+	repoPath := path.Join(repoDir, arch)
 	if err := os.MkdirAll(repoPath, os.ModePerm); err != nil {
 		return fmt.Errorf("mkdir %s err: %s", repoPath, err.Error())
 	}
@@ -47,17 +46,10 @@ func (l *LocalPkgBinaryStore) dbRemove(name string, fileName string, useSignedDB
 	return nil
 }
 
-func (l *LocalPkgBinaryStore) Init(useSignedDB bool, gnupgDir *string) error {
-	names, err := l.RepoNames()
-	if err != nil {
+func (l *LocalPkgBinaryStore) Init(name string, arch string, useSignedDB bool, gnupgDir *string) error {
+	// slog.Info("init pkg repo", "name", name)
+	if err := l.dbAdd(name, arch, "", useSignedDB, gnupgDir); err != nil {
 		return err
-	}
-
-	for _, name := range names {
-		slog.Info("init pkg repo", "name", name)
-		if err := l.dbAdd(name, "", useSignedDB, gnupgDir); err != nil {
-			return err
-		}
 	}
 	return nil
 }

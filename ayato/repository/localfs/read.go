@@ -36,9 +36,23 @@ func (l *LocalPkgBinaryStore) StoreFile(repo string, arch string, file string, u
 		return fmt.Errorf("mkdir %s err: %s", repoPath, err.Error())
 	}
 
-	dstFile := path.Join(repoPath, path.Base(file))
-	if err := cp.Copy(file, dstFile); err != nil {
-		return fmt.Errorf("copy file err: %s", err.Error())
+	if arch != "any" {
+		dstFile := path.Join(repoPath, path.Base(file))
+		if err := cp.Copy(file, dstFile); err != nil {
+			return fmt.Errorf("copy file err: %s", err.Error())
+		}
+		return nil
+	}
+
+	arches, err := l.ExistArchs(repo)
+	if err != nil {
+		return err
+	}
+	for _, arch := range arches {
+		dstFile := path.Join(repoDir, arch, path.Base(file))
+		if err := cp.Copy(file, dstFile); err != nil {
+			return fmt.Errorf("copy file err: %s", err.Error())
+		}
 	}
 
 	return nil
