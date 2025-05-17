@@ -61,6 +61,8 @@ func GetPkgFromSrc(pkgbuild string) (*Package, error) {
 	return pkg, nil
 }
 
+
+// GetPkgFromBinは、指定されたパスからパッケージを取得します。
 func GetPkgFromBin(name string) (*Package, error) {
 	file, err := os.Open(name)
 	if err != nil {

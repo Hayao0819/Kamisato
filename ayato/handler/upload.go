@@ -25,7 +25,6 @@ func (h *Handler) UploadHandler(ctx *gin.Context) {
 		ctx.String(http.StatusBadRequest, "file is empty")
 		return
 	}
-	fmt.Println(file.Size, h.cfg.MaxSize)
 	if file.Size > int64(h.cfg.MaxSize) {
 		ctx.String(http.StatusBadRequest, "file is too large")
 		return
@@ -50,8 +49,6 @@ func (h *Handler) UploadHandler(ctx *gin.Context) {
 		ctx.String(http.StatusInternalServerError, fmt.Sprintf("upload file err: %s", err.Error()))
 		return
 	}
-
-	// fullPkgBinary := path.Join(repoDbPath, file.Filename)
 
 	// Upload the file to the repository
 	pkgfile := path.Join(tmpDir, file.Filename)

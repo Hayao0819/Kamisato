@@ -33,7 +33,12 @@ func (h *Handler) RepoFileListHandler(ctx *gin.Context) {
 }
 
 func (h *Handler) RepoListHandler(ctx *gin.Context) {
-	l := h.s.RepoList()
+	l, err := h.s.RepoList()
+	if err != nil {
+		slog.Error("err while getting repo dir", "err", err)
+		ctx.String(http.StatusInternalServerError, "err while getting repo dir")
+		return
+	}
 
 	ctx.HTML(http.StatusOK, "repolist.tmpl", gin.H{
 		"List": l,

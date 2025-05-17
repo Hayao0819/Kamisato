@@ -5,11 +5,11 @@ import (
 )
 
 type Service struct {
-	repo *repository.Repository
+	r *repository.Repository
 }
 
 func New(repo *repository.Repository) Service {
 	return Service{
-		repo: repo,
+		r: repo,
 	}
 }
