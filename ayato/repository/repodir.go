@@ -56,10 +56,6 @@ func (r *Repository) PkgRepoRemove(name string, packageName string, useSignedDB 
 	return nil
 }
 
-// func (r *Repository) initPkgRepoDir(name string, useSignedDB bool, gnupgDir *string) error {
-// 	return r.PkgRepoAdd(name, "", useSignedDB, gnupgDir)
-// }
-
 func (r *Repository) PkgRepoNames() []string {
 	if r.cfg == nil {
 		return nil

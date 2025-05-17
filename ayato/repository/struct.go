@@ -1,15 +1,12 @@
 package repository
 
 import (
-	"github.com/BrenekH/blinky"
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
 	"github.com/Hayao0819/Kamisato/conf"
 )
 
-// type Repository blinky.PackageNameToFileProvider
-
 type Repository struct {
-	pkgNameDb blinky.PackageNameToFileProvider
+	pkgNameDb PkgNameStoreProvider
 	cfg       *conf.AyatoConfig
 }
 
