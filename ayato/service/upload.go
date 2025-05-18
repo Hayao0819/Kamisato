@@ -5,7 +5,7 @@ import (
 	"log/slog"
 	"path"
 
-	"github.com/Hayao0819/Kamisato/repo"
+	repo "github.com/Hayao0819/Kamisato/alpmpkg"
 )
 
 func (s *Service) UploadPkgFile(rname string, name [2]string) error {

@@ -4,13 +4,14 @@ import (
 	"os"
 	"path"
 
+	"github.com/Hayao0819/Kamisato/alpmpkg"
 	"github.com/Hayao0819/Kamisato/conf"
 	"github.com/Hayao0819/Kamisato/internal/logger"
 )
 
 type SourceRepo struct {
 	Config *conf.RepoConfig
-	Pkgs   []*Package
+	Pkgs   []*alpmpkg.Package
 }
 
 func GetSrcRepo(repodir string) (*SourceRepo, error) {
@@ -29,7 +30,7 @@ func GetSrcRepo(repodir string) (*SourceRepo, error) {
 	for _, dir := range dirs {
 		if dir.IsDir() {
 			pkgdir := path.Join(repodir, dir.Name())
-			pkg, err := GetPkgFromSrc(pkgdir)
+			pkg, err := alpmpkg.GetPkgFromSrc(pkgdir)
 			if err != nil {
 				logger.Error(err.Error())
 				continue

@@ -5,7 +5,7 @@ import (
 	"os"
 	"path"
 
-	"github.com/Hayao0819/Kamisato/repo"
+	"github.com/Hayao0819/Kamisato/ayato/repository/pacman"
 )
 
 func (l *LocalPkgBinaryStore) dbAdd(name string, arch string, fileName string, useSignedDB bool, gnupgDir *string) error {
@@ -24,7 +24,7 @@ func (l *LocalPkgBinaryStore) dbAdd(name string, arch string, fileName string, u
 	if fileName != "" {
 		pkgFilePath = path.Join(repoPath, fileName)
 	}
-	if err := repo.RepoAdd(repoDbPath, pkgFilePath, useSignedDB, gnupgDir); err != nil {
+	if err := pacman.RepoAdd(repoDbPath, pkgFilePath, useSignedDB, gnupgDir); err != nil {
 		return fmt.Errorf("repo-add err: %s", err.Error())
 	}
 
@@ -39,7 +39,7 @@ func (l *LocalPkgBinaryStore) dbRemove(name string, fileName string, useSignedDB
 
 	repoDbPath := path.Join(repoDir, "x86_64", name+".db.tar.gz")
 	pkgFilePath := path.Join(repoDir, "x86_64", fileName)
-	if err := repo.RepoRemove(repoDbPath, pkgFilePath, useSignedDB, gnupgDir); err != nil {
+	if err := pacman.RepoRemove(repoDbPath, pkgFilePath, useSignedDB, gnupgDir); err != nil {
 		return fmt.Errorf("repo-remove err: %s", err.Error())
 	}
 

@@ -5,6 +5,7 @@ import (
 	"os"
 	"path"
 
+	"github.com/Hayao0819/Kamisato/alpmpkg"
 	builder "github.com/Hayao0819/Kamisato/ayaka/abs"
 	"github.com/samber/lo"
 )
@@ -16,7 +17,7 @@ func (r *SourceRepo) Build(t *builder.Target, dest string, pkgs ...string) error
 		return err
 	}
 
-	var targetPkgs []*Package
+	var targetPkgs []*alpmpkg.Package
 	if len(pkgs) > 0 {
 		for _, pkg := range pkgs {
 			for _, p := range r.Pkgs {

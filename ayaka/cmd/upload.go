@@ -3,7 +3,7 @@ package cmd
 import (
 	"log/slog"
 
-	"github.com/Hayao0819/Kamisato/repo"
+	"github.com/Hayao0819/Kamisato/ayaka/repo"
 	"github.com/spf13/cobra"
 )
 

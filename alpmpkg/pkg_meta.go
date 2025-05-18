@@ -1,4 +1,4 @@
-package repo
+package alpmpkg
 
 import (
 	"bytes"
