@@ -12,35 +12,14 @@ Kamisato is a set of tools for managing your pacman repository.
 Ayaka is a command line front end. It builds packages locally and deploys them
 to Ayato or Blinky.
 
-### Features
-
-- Build all packages within chroot environment
-- Upload built binary to blinkyd server
-- Ayaka works as client of blinkyd
-
-### Todo
-
-- Mirroring repository to another server
-- Signing packages with GPG key
+[REFER TO THE DOCUMENT](./ayaka/README.md)
 
 ## Ayato
 
 Ayato is a Blinkyd compatible backend for ayaka and blinky.It handles package hosting
 with automatic database updates.
 
-### Features
-
-- Upload package file with `blinky` command
-- Auto update repository database
-
-### Todo
-
-- Implement basic features
-  - Delete package
-  - Store metadata
-  - Provice stored data
-- Multi-arch support
-- GPG sign support
+[REFER TO THE DOCUMENT](./ayato/README.md)
 
 ## Lumine
 
