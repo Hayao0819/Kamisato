@@ -1,17 +1,23 @@
 package repo
 
 import (
-	"os"
-	"path"
-
-	"github.com/Hayao0819/Kamisato/alpmpkg"
+	alpmpkg "github.com/Hayao0819/Kamisato/alpm"
 	"github.com/Hayao0819/Kamisato/conf"
 	"github.com/Hayao0819/Kamisato/internal/logger"
+	"github.com/Hayao0819/nahi/flist"
 )
 
 type SourceRepo struct {
 	Config *conf.RepoConfig
 	Pkgs   []*alpmpkg.Package
+}
+
+func GetSrcDirs(repodir string) ([]string, error) {
+	srcdirs, err := flist.Get(repodir, flist.WithDirOnly(), flist.WithExactDepth(1))
+	if err != nil {
+		return nil, err
+	}
+	return *srcdirs, nil
 }
 
 func GetSrcRepo(repodir string) (*SourceRepo, error) {
@@ -23,24 +29,18 @@ func GetSrcRepo(repodir string) (*SourceRepo, error) {
 	}
 	repo.Config = repoconfig
 
-	dirs, err := os.ReadDir(repodir)
+	dirs, err := GetSrcDirs(repodir)
 	if err != nil {
 		return nil, err
 	}
+
 	for _, dir := range dirs {
-		if dir.IsDir() {
-			pkgdir := path.Join(repodir, dir.Name())
-			pkg, err := alpmpkg.GetPkgFromSrc(pkgdir)
-			if err != nil {
-				logger.Error(err.Error())
-				continue
-			}
-			repo.Pkgs = append(repo.Pkgs, pkg)
-		} else {
-			if dir.Name() == ".SRCINFO" {
-				continue
-			}
+		pkg, err := alpmpkg.GetPkgFromSrc(dir)
+		if err != nil {
+			logger.Error(err.Error())
+			continue
 		}
+		repo.Pkgs = append(repo.Pkgs, pkg)
 	}
 
 	return repo, nil

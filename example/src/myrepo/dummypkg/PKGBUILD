@@ -1,0 +1,19 @@
+pkgname=dummypkg
+pkgver=1.0.0
+pkgrel=1
+pkgdesc="A dummy package that does nothing"
+arch=('any')
+license=('custom:none')
+url="https://example.com/"
+depends=()
+makedepends=()
+provides=()
+conflicts=()
+replaces=()
+source=()
+md5sums=()
+
+package() {
+    # This function is intentionally empty
+    :
+}

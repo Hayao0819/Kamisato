@@ -2,11 +2,12 @@ package repo
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"path"
 
-	"github.com/Hayao0819/Kamisato/alpmpkg"
-	builder "github.com/Hayao0819/Kamisato/ayaka/abs"
+	"github.com/Hayao0819/Kamisato/alpm"
+	"github.com/Hayao0819/Kamisato/alpm/builder"
 	"github.com/samber/lo"
 )
 
@@ -17,17 +18,20 @@ func (r *SourceRepo) Build(t *builder.Target, dest string, pkgs ...string) error
 		return err
 	}
 
-	var targetPkgs []*alpmpkg.Package
+	var targetPkgs []*alpm.Package
 	if len(pkgs) > 0 {
 		for _, pkg := range pkgs {
+			slog.Info("searching for package", "pkg", pkg)
 			for _, p := range r.Pkgs {
-				pi, err := p.PKGINFO()
+				pi, err := p.SRCINFO()
 				if err != nil {
+					slog.Error("get pkginfo failed", "pkg", pkg, "err", err)
 					continue
 				}
+				slog.Info("found package", "pkg", pi.Pkgbase, "pkgver", pi.Pkgver)
 
 				names := p.Names()
-				if pkg == pi.PkgBase || lo.Contains(names, pkg) {
+				if pkg == pi.Pkgbase || lo.Contains(names, pkg) {
 					targetPkgs = append(targetPkgs, p)
 					break
 				}
@@ -38,17 +42,10 @@ func (r *SourceRepo) Build(t *builder.Target, dest string, pkgs ...string) error
 	}
 
 	for _, pkg := range targetPkgs {
-		if err := pkg.Build("archbuild", t, fulldstdir); err != nil {
-			// logger.Error(err.Error())
+		if err := pkg.Build(t, fulldstdir); err != nil {
+			slog.Error("build package failed", "pkg", pkg.Names(), "err", err)
 			errs = append(errs, err)
 		}
-
-		/*
-			if err := r.UploadToBlinky(conf.AppConfig.BlinkyServer, pkg); err != nil {
-				logger.Error(err.Error())
-			}
-		*/
-
 	}
 	if len(errs) > 0 {
 		var errstr string

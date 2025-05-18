@@ -28,6 +28,7 @@ func rootCmd() *cobra.Command {
 		CompletionOptions: cobra.CompletionOptions{
 			HiddenDefaultCmd: true,
 		},
+		SilenceErrors: true,
 	}
 
 	subCmds.Bind(&cmd)

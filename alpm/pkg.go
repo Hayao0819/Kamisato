@@ -1,4 +1,4 @@
-package alpmpkg
+package alpm
 
 import (
 	"archive/tar"
@@ -10,8 +10,11 @@ import (
 	"strings"
 
 	"github.com/Hayao0819/Kamisato/raiou"
+	"github.com/Hayao0819/nahi/futils"
 	"github.com/klauspost/compress/zstd"
 )
+
+var ErrSRCINFONotFound = fmt.Errorf(".SRCINFO not found in archive")
 
 type Package struct {
 	path    string
@@ -48,14 +51,19 @@ func (p *Package) MustPKGINFO() *raiou.PKGINFO {
 	return info
 }
 
-func GetPkgFromSrc(pkgbuild string) (*Package, error) {
-	info, err := raiou.ParseSrcinfoFile(path.Join(path.Dir(pkgbuild), ".SRCINFO"))
+func GetPkgFromSrc(dir string) (*Package, error) {
+	srcinfoFile := path.Join(dir, ".SRCINFO")
+	if !futils.Exists(srcinfoFile) {
+		return nil, ErrSRCINFONotFound
+	}
+
+	info, err := raiou.ParseSrcinfoFile(srcinfoFile)
 	if err != nil {
 		return nil, err
 	}
 
 	pkg := new(Package)
-	pkg.path = pkgbuild
+	pkg.path = dir
 	pkg.srcinfo = info
 
 	return pkg, nil

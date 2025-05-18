@@ -1,4 +1,4 @@
-package alpmpkg
+package alpm
 
 import (
 	"bytes"
@@ -29,8 +29,9 @@ func (p *Package) Names() []string {
 
 func (p *Package) GetPkgFileNames() ([]string, error) {
 	stdout := new(bytes.Buffer)
-	cmd := exec.Command("makepkg", "--packagelist")
-	cmd.Dir = path.Dir(p.path)
+	cmd := exec.Command("makepkg", "--packagelist", "OPTIONS=-debug")
+	cmd.Dir = p.path
+
 	cmd.Stdout = stdout
 	err := cmd.Run()
 	if err != nil {
