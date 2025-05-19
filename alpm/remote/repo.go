@@ -14,5 +14,5 @@ func GetRepoFromURL(url string) (*RemoteRepo, error) {
 }
 
 func GetRepoFromDBFile(dbfile string) (*RemoteRepo, error) {
-	
+	return nil, nil
 }

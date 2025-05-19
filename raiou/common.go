@@ -38,3 +38,11 @@ func parseKeyValues(lines []string) ([]keyValue, error) {
 	}
 	return kv, nil
 }
+
+func KvToMap(kvs []keyValue) map[string]string {
+	m := make(map[string]string, len(kvs))
+	for _, kv := range kvs {
+		m[kv.Key()] = kv.Value()
+	}
+	return m
+}
