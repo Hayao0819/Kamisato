@@ -5,14 +5,15 @@ with automatic database updates.
 
 ## Features
 
-- Upload package file with `blinky` command
+- Upload package file with `blinky` or `ayaka` command
+- Delete package file with `blinky` command
 - Auto update repository database
 
 ## Todo
 
 - Implement basic features
-  - Delete package
   - Store metadata
-  - Provice stored data
+  - Provide stored data
 - Multi-arch support
 - GPG sign support
+- API for lumine

@@ -8,8 +8,8 @@ to Ayato or Blinky.
 - Build all packages within chroot environment
 - Upload built binary to blinkyd server
 - Ayaka works as client of blinkyd
+- Signing packages with GPG key
 
 ## Todo
 
 - Mirroring repository to another server
-- Signing packages with GPG key
