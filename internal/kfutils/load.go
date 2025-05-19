@@ -61,7 +61,7 @@ func (l *Loader[T]) Load() error {
 				continue
 			}
 
-			fmt.Printf("Loading config (%s): %s\n", ext, path)
+			// fmt.Printf("Loading config (%s): %s\n", ext, path)
 			if err := l.k.Load(file.Provider(path), parser); err != nil {
 				return fmt.Errorf("failed to load %s: %w", path, err)
 			}

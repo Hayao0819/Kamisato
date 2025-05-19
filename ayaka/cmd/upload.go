@@ -1,30 +1,38 @@
 package cmd
 
 import (
+	"errors"
 	"log/slog"
 
-	"github.com/Hayao0819/Kamisato/ayaka/repo"
+	"github.com/Hayao0819/Kamisato/internal/blinkyutils"
 	"github.com/spf13/cobra"
 )
 
 func uploadCmd() *cobra.Command {
+	var server string
 	cmd := cobra.Command{
 		Use:  "upload server",
-		Args: cobra.ExactArgs(1),
+		Args: cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			server := args[0]
+			reponame := args[0]
+			pkgs := args[1:]
 
-			dest, err := repo.GetSrcRepo(config.DestDir)
-			if err != nil {
-				return err
+			slog.Debug("uploading to blinky", "repo", reponame)
+
+			if server == "" {
+				return errors.New("server is required")
 			}
 
-			slog.Debug("uploading to blinky", "server", server, "dest", dest.Config.Name)
+			for _, pkg := range pkgs {
+				blinkyutils.UploadToBlinky(server, reponame, pkg)
+			}
 
 			return nil
 
 		},
 	}
+
+	cmd.Flags().StringVarP(&server, "server", "s", "", "Blinky server to upload to")
 	return &cmd
 }
 

@@ -20,7 +20,7 @@ func rootCmd() *cobra.Command {
 				return err
 			}
 
-			cmd.Println(c.RepoDir)
+			// cmd.Println(c.RepoDir)
 			config = c
 			return nil
 		},
