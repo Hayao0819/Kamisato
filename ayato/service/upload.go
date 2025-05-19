@@ -5,7 +5,7 @@ import (
 	"log/slog"
 	"path"
 
-	repo "github.com/Hayao0819/Kamisato/alpm"
+	"github.com/Hayao0819/Kamisato/alpm/pkg"
 )
 
 func (s *Service) UploadPkgFile(rname string, name [2]string) error {
@@ -22,7 +22,7 @@ func (s *Service) UploadPkgFile(rname string, name [2]string) error {
 	}
 
 	// Get package file name
-	p, err := repo.GetPkgFromBin(pkgFile)
+	p, err := pkg.GetPkgFromBin(pkgFile)
 	if err != nil {
 		return fmt.Errorf("get pkg from bin err: %s", err.Error())
 	}

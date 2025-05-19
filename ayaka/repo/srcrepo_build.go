@@ -6,7 +6,7 @@ import (
 	"os"
 	"path"
 
-	"github.com/Hayao0819/Kamisato/alpm"
+	"github.com/Hayao0819/Kamisato/alpm/pkg"
 	"github.com/Hayao0819/Kamisato/alpm/builder"
 	"github.com/samber/lo"
 )
@@ -18,7 +18,7 @@ func (r *SourceRepo) Build(t *builder.Target, dest string, pkgs ...string) error
 		return err
 	}
 
-	var targetPkgs []*alpm.Package
+	var targetPkgs []*pkg.Package
 	if len(pkgs) > 0 {
 		for _, pkg := range pkgs {
 			slog.Info("searching for package", "pkg", pkg)

@@ -1,4 +1,4 @@
-package alpm
+package pkg
 
 import (
 	"path"

@@ -1,7 +1,7 @@
 package repo
 
 import (
-	alpmpkg "github.com/Hayao0819/Kamisato/alpm"
+	alpmpkg "github.com/Hayao0819/Kamisato/alpm/pkg"
 	"github.com/Hayao0819/Kamisato/conf"
 	"github.com/Hayao0819/Kamisato/internal/logger"
 	"github.com/Hayao0819/nahi/flist"

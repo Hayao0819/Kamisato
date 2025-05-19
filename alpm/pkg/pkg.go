@@ -1,4 +1,4 @@
-package alpm
+package pkg
 
 import (
 	"archive/tar"
@@ -14,10 +14,11 @@ import (
 	"github.com/klauspost/compress/zstd"
 )
 
-var ErrSRCINFONotFound = fmt.Errorf(".SRCINFO not found in archive")
+var ErrSRCINFONotFound = fmt.Errorf(".SRCINFO not found")
 
 type Package struct {
-	path    string
+	srcdir  string
+	bin     string
 	srcinfo *raiou.SRCINFO
 	pkginfo *raiou.PKGINFO
 }
@@ -63,7 +64,7 @@ func GetPkgFromSrc(dir string) (*Package, error) {
 	}
 
 	pkg := new(Package)
-	pkg.path = dir
+	pkg.srcdir = dir
 	pkg.srcinfo = info
 
 	return pkg, nil
@@ -88,6 +89,7 @@ func GetPkgFromBin(name string) (*Package, error) {
 	tarReader := tar.NewReader(zstdDecoder)
 
 	// .BININFOファイルを探す
+
 	var pkginfoData string
 	for {
 		header, err := tarReader.Next()
@@ -121,7 +123,20 @@ func GetPkgFromBin(name string) (*Package, error) {
 	}
 
 	pkg := new(Package)
-	pkg.path = name
+	pkg.bin = name
+	pkg.pkginfo = info
+
+	return pkg, nil
+}
+
+func GetPkgFromPKGINFO(bin string, pkginfoData string) (*Package, error) {
+	info, err := raiou.ParsePkginfoString(pkginfoData)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse srcinfo: %w", err)
+	}
+
+	pkg := new(Package)
+	pkg.bin = bin
 	pkg.pkginfo = info
 
 	return pkg, nil

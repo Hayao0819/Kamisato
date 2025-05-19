@@ -1,4 +1,4 @@
-package alpm
+package pkg
 
 import (
 	"fmt"
@@ -31,7 +31,7 @@ func (p *Package) Build(target *builder.Target, dest string) error {
 		// defer os.RemoveAll(tmpdir)
 
 		// Copy directory to temp directory
-		if err := utils.CopyDir(p.path, tmpdir); err != nil {
+		if err := utils.CopyDir(p.srcdir, tmpdir); err != nil {
 			return err
 		}
 	}
