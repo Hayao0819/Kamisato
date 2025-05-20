@@ -3,6 +3,7 @@ package cmd
 import (
 	"os"
 	"path"
+	"path/filepath"
 
 	"log/slog"
 
@@ -45,7 +46,17 @@ func buildCmd() *cobra.Command {
 
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			repo, err := repo.GetSrcRepo(config.RepoDir)
+			destDir, err := filepath.Abs(config.DestDir)
+			if err != nil {
+				return errors.Wrap(err, "failed to get absolute path")
+			}
+
+			repoDir, err := filepath.Abs(config.RepoDir)
+			if err != nil {
+				return errors.Wrap(err, "failed to get absolute path")
+			}
+
+			repo, err := repo.GetSrcRepo(repoDir)
 			if err != nil {
 				return errors.Wrap(err, "failed to get source repository")
 			}
@@ -55,12 +66,13 @@ func buildCmd() *cobra.Command {
 			}
 
 			// TODO: DestDirにメタデータを作る
-			outDir := path.Join(config.DestDir, repo.Config.Name)
+			outDir := path.Join(destDir, repo.Config.Name)
 
-			slog.Info("building packages", "outdir", outDir, "gpgkey", gpgkey)
+			slog.Info("building packages", "repo", config.RepoDir, "outdir", outDir, "gpgkey", gpgkey)
 			if err := repo.Build(&t, outDir, args...); err != nil {
 				return errors.Wrap(err, "failed to build packages")
 			}
+			slog.Debug("build done", "outdir", outDir)
 			return nil
 		},
 	}
