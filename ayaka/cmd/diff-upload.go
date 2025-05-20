@@ -1,6 +1,9 @@
 package cmd
 
 import (
+	"log/slog"
+
+	"github.com/Hayao0819/Kamisato/alpm/remote"
 	"github.com/Hayao0819/Kamisato/ayaka/repo"
 	"github.com/Hayao0819/Kamisato/internal/utils"
 	"github.com/cockroachdb/errors"
@@ -20,6 +23,12 @@ func diffBuildCmd() *cobra.Command {
 
 			if server == "" {
 				server = srcrepo.Config.Server
+			}
+
+			slog.Debug("getting diff build", "repo", srcrepo.Config.Name, "server", server)
+			_, err = remote.GetRepoFromURL(server, srcrepo.Config.Name)
+			if err != nil {
+				return errors.Wrap(err, "failed to get remote repository")
 			}
 
 			return nil
