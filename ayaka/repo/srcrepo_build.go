@@ -6,8 +6,8 @@ import (
 	"os"
 	"path"
 
-	"github.com/Hayao0819/Kamisato/alpm/pkg"
 	"github.com/Hayao0819/Kamisato/alpm/builder"
+	"github.com/Hayao0819/Kamisato/alpm/pkg"
 	"github.com/samber/lo"
 )
 
@@ -39,6 +39,10 @@ func (r *SourceRepo) Build(t *builder.Target, dest string, pkgs ...string) error
 		}
 	} else {
 		targetPkgs = r.Pkgs
+	}
+
+	if len(targetPkgs) == 0 {
+		return fmt.Errorf("no packages found")
 	}
 
 	for _, pkg := range targetPkgs {

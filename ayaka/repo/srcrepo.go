@@ -1,9 +1,10 @@
 package repo
 
 import (
+	"log/slog"
+
 	alpmpkg "github.com/Hayao0819/Kamisato/alpm/pkg"
 	"github.com/Hayao0819/Kamisato/conf"
-	"github.com/Hayao0819/Kamisato/internal/logger"
 	"github.com/Hayao0819/nahi/flist"
 )
 
@@ -25,6 +26,7 @@ func GetSrcRepo(repodir string) (*SourceRepo, error) {
 	repo := new(SourceRepo)
 	repoconfig, err := conf.LoadRepoConfig(repodir)
 	if err != nil {
+		slog.Error("load repo config failed", "dir", repodir, "err", err)
 		return nil, err
 	}
 	repo.Config = repoconfig
@@ -34,10 +36,16 @@ func GetSrcRepo(repodir string) (*SourceRepo, error) {
 		return nil, err
 	}
 
+	if len(dirs) == 0 {
+		slog.Info("no src directories found", "dir", repodir)
+		return nil, nil
+	}
+
 	for _, dir := range dirs {
+		slog.Info("get pkg from src", "dir", dir)
 		pkg, err := alpmpkg.GetPkgFromSrc(dir)
 		if err != nil {
-			logger.Error(err.Error())
+			slog.Error("get pkg from src failed", "dir", dir, "err", err)
 			continue
 		}
 		repo.Pkgs = append(repo.Pkgs, pkg)
