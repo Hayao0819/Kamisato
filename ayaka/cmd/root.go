@@ -12,7 +12,7 @@ import (
 var subCmds = cobrautils.Registory{}
 var config *conf.AyakaConfig
 
-func rootCmd() *cobra.Command {
+func RootCmd() *cobra.Command {
 	var debug bool
 	cmd := cobra.Command{
 		Use:   "ayaka",
@@ -49,8 +49,4 @@ func rootCmd() *cobra.Command {
 	// viper.BindPFlag("repodir", cmd.PersistentFlags().Lookup("repodir"))
 
 	return &cmd
-}
-
-func Execute() error {
-	return rootCmd().Execute()
 }

@@ -14,7 +14,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func rootCmd() *cobra.Command {
+func RootCmd() *cobra.Command {
 	cmd := cobra.Command{
 		Use: "ayato",
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -58,8 +58,4 @@ func rootCmd() *cobra.Command {
 	cmd.SilenceUsage = true
 
 	return &cmd
-}
-
-func Execute() error {
-	return rootCmd().Execute()
 }
