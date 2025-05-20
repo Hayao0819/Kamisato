@@ -3,6 +3,7 @@ package conf
 type RepoConfig struct {
 	Name       string `koanf:"name"`
 	Maintainer string `koanf:"maintainer"`
+	Server     string `koanf:"server"`
 }
 
 // func LoadRepoConfig(repodir string, config *RepoConfig) error {
