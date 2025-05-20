@@ -3,14 +3,14 @@ package repo
 import (
 	"log/slog"
 
-	alpmpkg "github.com/Hayao0819/Kamisato/alpm/pkg"
+	"github.com/Hayao0819/Kamisato/alpm/pkg"
 	"github.com/Hayao0819/Kamisato/conf"
 	"github.com/Hayao0819/nahi/flist"
 )
 
 type SourceRepo struct {
 	Config *conf.RepoConfig
-	Pkgs   []*alpmpkg.Package
+	Pkgs   []*pkg.Package
 }
 
 func GetSrcDirs(repodir string) ([]string, error) {
@@ -43,7 +43,7 @@ func GetSrcRepo(repodir string) (*SourceRepo, error) {
 
 	for _, dir := range dirs {
 		slog.Info("get pkg from src", "dir", dir)
-		pkg, err := alpmpkg.GetPkgFromSrc(dir)
+		pkg, err := pkg.GetPkgFromSrc(dir)
 		if err != nil {
 			slog.Error("get pkg from src failed", "dir", dir, "err", err)
 			continue

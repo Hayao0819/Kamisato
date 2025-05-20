@@ -35,11 +35,15 @@ type DESC struct {
 
 func NewDESC() *DESC {
 	return &DESC{
+		Groups:      []string{},
 		License:     []string{},
+		Replaces:    []string{},
 		Depends:     []string{},
+		OptDepends:  []string{},
+		Conflicts:   []string{},
 		Provides:    []string{},
 		XData:       []keyValue{},
-		ExtraFields: make(map[string][]string),
+		ExtraFields: map[string][]string{},
 	}
 }
 
@@ -70,17 +74,27 @@ func ParseDesc(r io.Reader) (*DESC, error) {
 
 		switch currentField {
 		case "NAME":
-			desc.Name = strings.Join(buffer, " ")
+			if len(buffer) > 0 {
+				desc.Name = buffer[0]
+			}
 		case "VERSION":
-			desc.Version = strings.Join(buffer, " ")
+			if len(buffer) > 0 {
+				desc.Version = buffer[0]
+			}
 		case "BASE":
-			desc.Base = strings.Join(buffer, " ")
+			if len(buffer) > 0 {
+				desc.Base = buffer[0]
+			}
 		case "DESC":
 			desc.Description = strings.Join(buffer, "\n")
 		case "URL":
-			desc.URL = strings.Join(buffer, " ")
+			if len(buffer) > 0 {
+				desc.URL = buffer[0]
+			}
 		case "ARCH":
-			desc.Arch = strings.Join(buffer, " ")
+			if len(buffer) > 0 {
+				desc.Arch = buffer[0]
+			}
 		case "BUILDDATE":
 			if t, err := parseUnixTimestamp(buffer); err != nil {
 				return fmt.Errorf("invalid BUILDDATE: %w", err)
@@ -94,7 +108,9 @@ func ParseDesc(r io.Reader) (*DESC, error) {
 				desc.InstallDate = t
 			}
 		case "PACKAGER":
-			desc.Packager = strings.Join(buffer, " ")
+			if len(buffer) > 0 {
+				desc.Packager = buffer[0]
+			}
 		case "SIZE":
 			if s, err := parseInt(buffer); err != nil {
 				return fmt.Errorf("invalid SIZE: %w", err)
@@ -112,7 +128,9 @@ func ParseDesc(r io.Reader) (*DESC, error) {
 		case "LICENSE":
 			desc.License = append(desc.License, buffer...)
 		case "VALIDATION":
-			desc.Validation = strings.Join(buffer, " ")
+			if len(buffer) > 0 {
+				desc.Validation = buffer[0]
+			}
 		case "REPLACES":
 			desc.Replaces = append(desc.Replaces, buffer...)
 		case "DEPENDS":
@@ -144,7 +162,7 @@ func ParseDesc(r io.Reader) (*DESC, error) {
 			}
 			currentField = strings.Trim(line, "%")
 		} else if currentField != "" {
-			buffer = append(buffer, line)
+			buffer = append(buffer, strings.TrimSpace(line))
 		}
 	}
 	if err := flush(); err != nil {

@@ -129,7 +129,7 @@ func GetPkgFromBin(name string) (*Package, error) {
 	return pkg, nil
 }
 
-func GetPkgFromPKGINFO(bin string, pkginfoData string) (*Package, error) {
+func GetPkgFromPkginfoString(bin string, pkginfoData string) (*Package, error) {
 	info, err := raiou.ParsePkginfoString(pkginfoData)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse srcinfo: %w", err)
@@ -137,6 +137,23 @@ func GetPkgFromPKGINFO(bin string, pkginfoData string) (*Package, error) {
 
 	pkg := new(Package)
 	pkg.bin = bin
+	pkg.pkginfo = info
+
+	return pkg, nil
+}
+
+func GetPkgFromDesc(d io.Reader) (*Package, error) {
+	desc, err := raiou.ParseDesc(d)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse desc: %w", err)
+	}
+
+	info, err := desc.ToPKGINFO()
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert desc to pkginfo: %w", err)
+	}
+
+	pkg := new(Package)
 	pkg.pkginfo = info
 
 	return pkg, nil
