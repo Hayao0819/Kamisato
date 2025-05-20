@@ -7,6 +7,7 @@ toolchain go1.24.2
 require (
 	github.com/BrenekH/blinky v0.0.0-20250508042804-dc156eb662a6
 	github.com/Hayao0819/nahi v0.0.3
+	github.com/Jguer/go-alpm/v2 v2.2.2
 	github.com/Morganamilo/go-srcinfo v1.0.0
 	github.com/cockroachdb/errors v1.12.0
 	github.com/dgraph-io/badger/v3 v3.2103.5

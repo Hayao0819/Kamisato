@@ -4,6 +4,10 @@ github.com/BrenekH/blinky v0.0.0-20250508042804-dc156eb662a6/go.mod h1:qYc1kW0L+
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
 github.com/Hayao0819/nahi v0.0.3 h1:sdXZO523hZJYLe9wSvEhAQEzkxfCyKer3gpKNeba7i4=
 github.com/Hayao0819/nahi v0.0.3/go.mod h1:6y4OH/3jDW6HX3L2LoaE+GvNlqAzUG0hrpba9U1b2XA=
+github.com/Jguer/go-alpm/v2 v2.2.2 h1:sPwUoZp1X5Tw6K6Ba1lWvVJfcgVNEGVcxARLBttZnC0=
+github.com/Jguer/go-alpm/v2 v2.2.2/go.mod h1:lfe8gSe83F/KERaQvEfrSqQ4n+8bES+ZIyKWR/gm3MI=
+github.com/Morganamilo/go-pacmanconf v0.0.0-20210502114700-cff030e927a5 h1:TMscPjkb1ThXN32LuFY5bEYIcXZx3YlwzhS1GxNpn/c=
+github.com/Morganamilo/go-pacmanconf v0.0.0-20210502114700-cff030e927a5/go.mod h1:Hk55m330jNiwxRodIlMCvw5iEyoRUCIY64W1p9D+tHc=
 github.com/Morganamilo/go-srcinfo v1.0.0 h1:Wh4nEF+HJWo+29hnxM18Q2hi+DUf0GejS13+Wg+dzmI=
 github.com/Morganamilo/go-srcinfo v1.0.0/go.mod h1:MP6VGY1NNpVUmYIEgoM9acix95KQqIRyqQ0hCLsyYUY=
 github.com/OneOfOne/xxhash v1.2.2 h1:KMrpdQIwFcEqXDklaen+P1axHaj9BSKzvpUUfnHldSE=
