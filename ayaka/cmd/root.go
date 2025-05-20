@@ -1,7 +1,10 @@
 package cmd
 
 import (
+	"log/slog"
+
 	"github.com/Hayao0819/Kamisato/conf"
+	"github.com/Hayao0819/Kamisato/internal/utils"
 	"github.com/Hayao0819/nahi/cobrautils"
 	"github.com/spf13/cobra"
 )
@@ -10,6 +13,7 @@ var subCmds = cobrautils.Registory{}
 var config *conf.AyakaConfig
 
 func rootCmd() *cobra.Command {
+	var debug bool
 	cmd := cobra.Command{
 		Use:   "ayaka",
 		Short: "Repository management tool",
@@ -19,9 +23,14 @@ func rootCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-
-			// cmd.Println(c.RepoDir)
 			config = c
+
+			if debug {
+				// println("debug mode")
+				utils.UseColorLog(slog.LevelDebug)
+			} else {
+				utils.UseColorLog(slog.LevelInfo)
+			}
 			return nil
 		},
 		SilenceUsage: true,
@@ -34,6 +43,7 @@ func rootCmd() *cobra.Command {
 	subCmds.Bind(&cmd)
 	// cmd.PersistentFlags().StringVarP(&config., "config", "c", "", "config file path")
 	cmd.PersistentFlags().StringP("repodir", "r", "", "repository directory")
+	cmd.PersistentFlags().BoolVarP(&debug, "debug", "d", false, "enable debug mode")
 
 	// TODO: Implement it with koanf
 	// viper.BindPFlag("repodir", cmd.PersistentFlags().Lookup("repodir"))
