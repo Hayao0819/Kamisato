@@ -29,3 +29,7 @@ status and searches for packages.
 ### Todo
 
 Lumine is waiting for Ayato's implementation.
+
+## Special thanks
+
+- <https://genshin.hoyoverse.com/ja/character/inazuma?char=0>
