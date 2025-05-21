@@ -4,9 +4,9 @@ import (
 	"log/slog"
 
 	"github.com/BrenekH/blinky"
-	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
-	"github.com/Hayao0819/Kamisato/ayato/repository/localfs"
-	"github.com/Hayao0819/Kamisato/ayato/repository/sql"
+	"github.com/Hayao0819/Kamisato/ayato/repository/metastore/kv"
+	"github.com/Hayao0819/Kamisato/ayato/repository/binarystore/localfs"
+	"github.com/Hayao0819/Kamisato/ayato/repository/metastore/sql"
 	"github.com/Hayao0819/Kamisato/conf"
 )
 
