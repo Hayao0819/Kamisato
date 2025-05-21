@@ -16,6 +16,7 @@ type AyatoConfig struct {
 	Password string   `koanf:"password"`
 	MaxSize  int      `koanf:"maxsize"`
 	Database DbConfig `koanf:"dbconfig"`
+	AWSS3    S3Config `koanf:"awss3"`
 }
 
 func LoadAyatoConfig(flags *pflag.FlagSet) (*AyatoConfig, error) {
