@@ -24,32 +24,32 @@ func (s *S3ObjectSource) GetObject(ctx context.Context, key string) (provider.Bi
 		return nil, err
 	}
 
-	return &S3ObjectStream{
+	return &s3ObjectStream{
 		Body:        output.Body,
 		filename:    path.Base(key),                   // またはS3タグ等から取得
 		contentType: aws.ToString(output.ContentType), // Content-Typeがある場合
 	}, nil
 }
 
-type S3ObjectStream struct {
+type s3ObjectStream struct {
 	Body        io.ReadCloser
 	filename    string
 	contentType string
 }
 
-func (s *S3ObjectStream) Read(p []byte) (int, error) {
+func (s *s3ObjectStream) Read(p []byte) (int, error) {
 	return s.Body.Read(p)
 }
 
-func (s *S3ObjectStream) Close() error {
+func (s *s3ObjectStream) Close() error {
 	return s.Body.Close()
 }
 
-func (s *S3ObjectStream) FileName() string {
+func (s *s3ObjectStream) FileName() string {
 	return s.filename
 }
 
-func (s *S3ObjectStream) ContentType() string {
+func (s *s3ObjectStream) ContentType() string {
 	if s.contentType != "" {
 		return s.contentType
 	}
