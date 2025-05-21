@@ -1,12 +1,14 @@
 package sql
 
-import (
-	"fmt"
-)
-
 func (s *Sql) PackageFile(packageName string) (string, error) {
-	// key := []byte(packageName)
+	var pkg PackageFile
+	err := s.db.
+		Where("package_name = ?", packageName).
+		First(&pkg).Error
 
-	return "", fmt.Errorf("sql: PackageFile not implemented")
+	if err != nil {
+		return "", err
+	}
 
+	return pkg.FilePath, nil
 }

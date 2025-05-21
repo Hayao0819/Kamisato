@@ -1,13 +1,24 @@
 package sql
 
-func (s *Sql) StorePackageFile(packageName, filePath string) error{
-	// Convert to bytes outside the txn to reduce time spent in txn.
-	key := []byte(packageName)
-	val := []byte(filePath)
+import (
+	"fmt"
 
-	err := s.db.Exec("INSERT INTO package_files (package_name, file_path) VALUES (?, ?)", key, val).Error
-	if err != nil {
-		return err
+	"gorm.io/gorm/clause"
+)
+
+func (s *Sql) StorePackageFile(packageName, filePath string) error {
+	if s.db == nil {
+		return fmt.Errorf("database connection is nil")
 	}
-	return nil
+
+	pkg := PackageFile{
+		PackageName: packageName,
+		FilePath:    filePath,
+	}
+	return s.db.
+		Clauses(clause.OnConflict{
+			Columns:   []clause.Column{{Name: "package_name"}},
+			DoUpdates: clause.AssignmentColumns([]string{"file_path"}),
+		}).
+		Create(&pkg).Error
 }
