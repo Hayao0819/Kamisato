@@ -1,5 +1,7 @@
 package repository
 
+import "github.com/Hayao0819/Kamisato/ayato/repository/provider"
+
 func (r *Repository) StoreFile(repo string, arch string, file string, useSignedDB bool, gnupgDir *string) error {
 	return r.pkgBinStore.StoreFile(repo, arch, file, useSignedDB, gnupgDir)
 }
@@ -15,6 +17,10 @@ func (r *Repository) Files(name string, arch string) ([]string, error) {
 	return r.pkgBinStore.Files(name, arch)
 }
 
-func (r *Repository) ExistArchs(repo string) ([]string, error) {
+func (r *Repository) Arches(repo string) ([]string, error) {
 	return r.pkgBinStore.Arches(repo)
+}
+
+func (r *Repository) FetchFile(repo string, arch string, file string) (provider.BinaryStream, error) {
+	return r.pkgBinStore.FetchFile(repo, arch, file)
 }

@@ -24,6 +24,7 @@ type PkgBinaryStoreProvider interface {
 	Arches(repo string) ([]string, error)
 }
 
+// 多分ここにあっちゃだめ
 type BinaryStream interface {
 	io.ReadCloser        // ストリーミング返却
 	FileName() string    // ダウンロード時のファイル名

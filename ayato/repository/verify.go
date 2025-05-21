@@ -8,7 +8,7 @@ import (
 )
 
 func (r *Repository) VerifyPkgRepo(name string) error {
-	arches, err := r.ExistArchs(name)
+	arches, err := r.Arches(name)
 	if err != nil {
 		return err
 	}

@@ -31,6 +31,18 @@ func (s *S3) listDirs(dir string) ([]string, error) {
 	return dirs, nil
 }
 
+func (s *S3) listFiles(dir string) ([]string, error) {
+	l, err := s.list(dir)
+	if err != nil {
+		return nil, err
+	}
+	var files []string
+	for _, obj := range l.Contents {
+		files = append(files, *obj.Key)
+	}
+	return files, nil
+}
+
 func (s *S3) uploadFile(name string) error {
 
 	f, err := os.Open(name)
