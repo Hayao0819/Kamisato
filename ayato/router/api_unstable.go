@@ -15,12 +15,18 @@ func SetRoute(e *gin.Engine, h *handler.Handler, m *middleware.Middleware) {
 
 	{
 		api := e.Group("/api/unstable")
-		api.GET("/hello", h.HelloHandler)
+		{
+			api.GET("/hello", h.HelloHandler)
+			api.GET("/:repo/:arch/package", h.AllPkgsHandler)
+			api.GET("/:repo/:arch/package/:name") // TODO: Implement this
+		}
 
 		auth := api.Group("")
-		auth.Use(m.BasicAuth)
-		api.PUT("/:repo/package", h.UploadHandler)
-		api.DELETE("/:repo/package/:name", h.RemoveHandler)
+		{
+			auth.Use(m.BasicAuth)
+			auth.PUT("/:repo/package", h.BlinkyUploadHandler)          // Blinky compatible
+			auth.DELETE("/:repo/package/:name", h.BlinkyRemoveHandler) // Blinky compatible
+		}
 
 	}
 	{

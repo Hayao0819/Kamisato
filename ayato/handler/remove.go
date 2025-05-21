@@ -7,7 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func (h *Handler) RemoveHandler(ctx *gin.Context) {
+func (h *Handler) BlinkyRemoveHandler(ctx *gin.Context) {
 	repoName := ctx.Param("repo")
 	packageName := ctx.Param("name")
 	archName := "x86_64"

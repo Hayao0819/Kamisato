@@ -9,7 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func (h *Handler) UploadHandler(ctx *gin.Context) {
+func (h *Handler) BlinkyUploadHandler(ctx *gin.Context) {
 	// Check if the request contains a file
 	repoName := ctx.Param("repo")
 	file, err := ctx.FormFile("package")
