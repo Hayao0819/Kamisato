@@ -1,9 +1,12 @@
 package repository
 
 import (
+	"log/slog"
+
 	"github.com/BrenekH/blinky"
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
 	"github.com/Hayao0819/Kamisato/ayato/repository/localfs"
+	"github.com/Hayao0819/Kamisato/ayato/repository/sql"
 	"github.com/Hayao0819/Kamisato/conf"
 )
 
@@ -14,7 +17,14 @@ type Repository struct {
 }
 
 func New(cfg *conf.AyatoConfig) (*Repository, error) {
-	db, err := kv.NewBadger(cfg.DbPath())
+	var db PkgNameStoreProvider
+	var err error
+	if cfg.Database.Server != "" {
+		slog.Warn("Using SQL is still experimental, please use with caution")
+		db, err = sql.NewSql(cfg.Database.Driver, cfg.Database.Server)
+	} else {
+		db, err = kv.NewBadger(cfg.DbPath())
+	}
 	if err != nil {
 		return nil, err
 	}
