@@ -47,7 +47,9 @@ func RootCmd() *cobra.Command {
 			m := middleware.New(cfg)
 
 			// Init gin
-			engine := gin.Default()
+			engine := gin.New()
+			engine.Use(gin.Recovery())
+			engine.Use(utils.GinLog())
 			router.SetRoute(engine, h, m)
 
 			// Init pacman repository
