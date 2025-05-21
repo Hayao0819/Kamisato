@@ -9,11 +9,12 @@ import (
 
 func (h *Handler) RepoFileHandler(ctx *gin.Context) {
 	repoName := ctx.Param("repo")
+	arch := ctx.Param("arch")
 	fileName := ctx.Param("file")
 
 	// FileServerに渡す http.StripPrefixのprefixを決定
 	slog.Info("repoHandler", "repoName", repoName)
-	if err := h.s.Repo(repoName, fileName, ctx.Writer, ctx.Request); err != nil {
+	if err := h.s.BinFile(repoName, arch, fileName, ctx.Writer, ctx.Request); err != nil {
 		ctx.String(http.StatusNotFound, "failed to serve %s", repoName)
 	}
 }

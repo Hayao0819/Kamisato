@@ -4,7 +4,7 @@ import (
 	"net/http"
 )
 
-func (s *Service) Repo(repo string, file string, w http.ResponseWriter, req *http.Request) error {
+func (s *Service) BinFile(repo string, arch string, file string, w http.ResponseWriter, req *http.Request) error {
 
 	// repoDbpath, err := s.repo.PkgRepoDir(repo)
 	// if err != nil {
