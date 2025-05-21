@@ -6,5 +6,12 @@
     "datapath": "../example/srv/db",
     "username": "",
     "password": "",
-    "maxsize": "10000000000000000"
+    "maxsize": "10000000000000000",
+    "dbconfig": {
+        "driver": "",
+        "server": "",
+        "user": "",
+        "password":"",
+        "database":""
+    }
 }

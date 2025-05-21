@@ -4,8 +4,8 @@ import (
 	"log/slog"
 
 	"github.com/BrenekH/blinky"
-	"github.com/Hayao0819/Kamisato/ayato/repository/metastore/kv"
 	"github.com/Hayao0819/Kamisato/ayato/repository/binarystore/localfs"
+	"github.com/Hayao0819/Kamisato/ayato/repository/metastore/kv"
 	"github.com/Hayao0819/Kamisato/ayato/repository/metastore/sql"
 	"github.com/Hayao0819/Kamisato/conf"
 )
@@ -19,9 +19,15 @@ type Repository struct {
 func New(cfg *conf.AyatoConfig) (*Repository, error) {
 	var db PkgNameStoreProvider
 	var err error
-	if cfg.Database.Server != "" {
+
+	dsn, err := cfg.Database.DSN()
+	if err != nil {
+		slog.Debug("Failed to get DSN", "error", err)
+	}
+
+	if dsn != "" {
 		slog.Warn("Using SQL is still experimental, please use with caution")
-		db, err = sql.NewSql(cfg.Database.Driver, cfg.Database.Server)
+		db, err = sql.NewSql(cfg.Database.Driver, dsn)
 	} else {
 		db, err = kv.NewBadger(cfg.DbPath())
 	}

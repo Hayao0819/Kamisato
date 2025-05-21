@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"log"
+	"log/slog"
 
 	"github.com/Hayao0819/Kamisato/ayato/handler"
 	"github.com/Hayao0819/Kamisato/ayato/middleware"
@@ -10,6 +11,7 @@ import (
 	"github.com/Hayao0819/Kamisato/ayato/router"
 	"github.com/Hayao0819/Kamisato/ayato/service"
 	"github.com/Hayao0819/Kamisato/conf"
+	"github.com/Hayao0819/Kamisato/internal/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/cobra"
 )
@@ -24,6 +26,16 @@ func RootCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+
+			if cfg.Debug {
+				// println("debug mode")
+				utils.UseColorLog(slog.LevelDebug)
+				slog.Debug("Debug mode enabled")
+			} else {
+				utils.UseColorLog(slog.LevelInfo)
+			}
+
+			slog.Debug("Config loaded", "config", cfg)
 
 			// Init
 			r, err := repository.New(cfg)
@@ -54,6 +66,7 @@ func RootCmd() *cobra.Command {
 			return nil
 		},
 	}
+	cmd.PersistentFlags().BoolP("debug", "d", false, "Enable debug mode")
 	cmd.SilenceErrors = true
 	cmd.SilenceUsage = true
 

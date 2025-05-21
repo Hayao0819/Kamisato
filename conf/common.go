@@ -24,6 +24,10 @@ func commonConfigDirs() []string {
 
 func loadConfig[T any](dirs []string, files []string, flags *pflag.FlagSet, envPrefix string) (*T, error) {
 	return kfutils.Load[T](dirs, files, flags, "KAMISATO_"+envPrefix, "_", func(key string) string {
-		return strings.ToLower(key)
+		// fmt.Println("env key:", key)
+		// return strings.ToLower(key)
+		key = strings.ToLower(key)
+		// key = strings.ReplaceAll(key, "_", ".")
+		return key
 	})
 }

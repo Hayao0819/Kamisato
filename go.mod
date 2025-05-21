@@ -13,6 +13,7 @@ require (
 	github.com/dgraph-io/badger/v3 v3.2103.5
 	github.com/gin-gonic/gin v1.10.0
 	github.com/jinzhu/gorm v1.9.16
+	github.com/joho/godotenv v1.5.1
 	github.com/klauspost/compress v1.17.11
 	github.com/knadh/koanf/parsers/json v1.0.0
 	github.com/knadh/koanf/parsers/toml v0.1.0
