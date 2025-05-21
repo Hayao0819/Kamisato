@@ -21,7 +21,7 @@ type PkgBinaryStoreProvider interface {
 	Init(name string, arch string, useSignedDB bool, gnupgDir *string) error
 	RepoNames() ([]string, error)
 	Files(repo string, arch string) ([]string, error)
-	ExistArchs(repo string) ([]string, error)
+	Arches(repo string) ([]string, error)
 }
 
 type BinaryStream interface {

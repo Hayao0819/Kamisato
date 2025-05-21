@@ -44,7 +44,7 @@ func (l *LocalPkgBinaryStore) StoreFile(repo string, arch string, file string, u
 		return nil
 	}
 
-	arches, err := l.ExistArchs(repo)
+	arches, err := l.Arches(repo)
 	if err != nil {
 		return err
 	}

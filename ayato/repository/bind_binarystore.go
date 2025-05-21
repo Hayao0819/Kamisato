@@ -16,5 +16,5 @@ func (r *Repository) Files(name string, arch string) ([]string, error) {
 }
 
 func (r *Repository) ExistArchs(repo string) ([]string, error) {
-	return r.pkgBinStore.ExistArchs(repo)
+	return r.pkgBinStore.Arches(repo)
 }

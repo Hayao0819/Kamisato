@@ -37,7 +37,7 @@ func (l *LocalPkgBinaryStore) FileList(name string, arch string) ([]string, erro
 	return files, nil
 }
 
-func (l *LocalPkgBinaryStore) ExistArchs(repo string) ([]string, error) {
+func (l *LocalPkgBinaryStore) Arches(repo string) ([]string, error) {
 	repoDir, err := l.getRepoDir(repo)
 	if err != nil {
 		return nil, err
