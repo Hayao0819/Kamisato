@@ -1,9 +1,14 @@
 package sql
 
 import (
-	"github.com/jinzhu/gorm"
+	"fmt"
+
+	"github.com/Hayao0819/Kamisato/internal/utils"
 	_ "github.com/lib/pq"
-	_ "gorm.io/driver/postgres"
+	"gorm.io/driver/mysql"
+	"gorm.io/driver/postgres"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
 )
 
 type Sql struct {
@@ -11,11 +16,25 @@ type Sql struct {
 }
 
 func NewSql(driver string, dsn string) (*Sql, error) {
-	db, err := gorm.Open(driver, dsn)
+	var dialector gorm.Dialector
+
+	switch driver {
+	case "postgres":
+		dialector = postgres.Open(dsn)
+	case "mysql":
+		dialector = mysql.Open(dsn)
+	case "sqlite":
+		dialector = sqlite.Open(dsn)
+	default:
+		return nil, fmt.Errorf("unsupported driver: %s", driver)
+	}
+
+	db, err := gorm.Open(dialector, &gorm.Config{
+		Logger: utils.GormLog(),
+	})
 	if err != nil {
 		return nil, err
 	}
-
 	db.AutoMigrate(&PackageFile{})
 	return &Sql{
 		db: db,

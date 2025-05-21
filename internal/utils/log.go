@@ -5,7 +5,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/m-mizutani/clog"
+	slogGorm "github.com/orandin/slog-gorm"
 	sloggin "github.com/samber/slog-gin"
+	gormlogger "gorm.io/gorm/logger"
 )
 
 func UseColorLog(level slog.Level) {
@@ -14,9 +16,14 @@ func UseColorLog(level slog.Level) {
 	slog.SetDefault(l)
 }
 
-func Gin() gin.HandlerFunc {
+func GinLog() gin.HandlerFunc {
 	config := sloggin.Config{
 		DefaultLevel: slog.LevelDebug,
 	}
 	return sloggin.NewWithConfig(slog.Default(), config)
+}
+
+func GormLog() gormlogger.Interface {
+	gormLogger := slogGorm.New()
+	return gormLogger
 }

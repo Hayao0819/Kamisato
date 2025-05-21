@@ -14,7 +14,7 @@ type DbConfig struct {
 	User          string `koanf:"user"`           // 例: root
 	Password      string `koanf:"password"`       // 任意（SQLite除く）
 	Database      string `koanf:"database"`       // DB名 or SQLiteファイルパス
-	AdditionalDSN string `koanf:"additional_dsn"` // 例: sslmode=require
+	AdditionalDSN string `koanf:"additionaldsn"` // 例: sslmode=require
 }
 
 func (c DbConfig) DSN() (string, error) {

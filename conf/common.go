@@ -29,6 +29,7 @@ func loadConfig[T any](dirs []string, files []string, flags *pflag.FlagSet, envP
 	return kfutils.Load[T](dirs, files, flags, "KAMISATO_"+envPrefix, "_", func(key string) string {
 		key = strings.ToLower(key)
 		key = strings.TrimPrefix(key, "kamisato_ayato_")
+		// fmt.Println(key)
 		return key
 	})
 }
