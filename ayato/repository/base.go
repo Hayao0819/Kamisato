@@ -9,5 +9,3 @@ type Repository struct {
 	pkgBinStore  PkgBinaryStoreProvider
 	cfg          *conf.AyatoConfig
 }
-
-var useS3 = false

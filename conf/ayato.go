@@ -8,15 +8,17 @@ import (
 )
 
 type AyatoConfig struct {
-	Debug    bool     `koanf:"debug"`
-	RepoPath []string `koanf:"repopath"`
-	Port     int      `koanf:"port"`
-	DataPath string   `koanf:"datapath"`
-	Username string   `koanf:"username"`
-	Password string   `koanf:"password"`
-	MaxSize  int      `koanf:"maxsize"`
-	Database DbConfig `koanf:"dbconfig"`
-	AWSS3    S3Config `koanf:"awss3"`
+	Debug        bool     `koanf:"debug"`
+	RepoPath     []string `koanf:"repopath"`
+	Port         int      `koanf:"port"`
+	DataPath     string   `koanf:"datapath"`
+	Username     string   `koanf:"username"`
+	Password     string   `koanf:"password"`
+	MaxSize      int      `koanf:"maxsize"`
+	DatabaseType string   `koanf:"database"` // "external" or "badgerdb"
+	Database     DbConfig `koanf:"dbconfig"`
+	StorageType  string   `koanf:"storage"` // "localfs" or "s3"
+	AWSS3        S3Config `koanf:"awss3"`
 }
 
 func LoadAyatoConfig(flags *pflag.FlagSet) (*AyatoConfig, error) {

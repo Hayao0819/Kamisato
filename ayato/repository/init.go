@@ -31,8 +31,13 @@ func New(cfg *conf.AyatoConfig) (*Repository, error) {
 
 	// Check if S3 is enabled
 	var bin PkgBinaryStoreProvider
-	if useS3 {
-		bin, _ = s3.NewS3(&cfg.AWSS3)
+	if cfg.StorageType == "s3" {
+		slog.Warn("Using S3 is still experimental, please use with caution")
+		bin, err = s3.NewS3(&cfg.AWSS3)
+		if err != nil {
+			bin = nil
+			slog.Error("Failed to create S3 client", "error", err)
+		}
 	}
 
 	// Fallback to localfs if S3 is not enabled
