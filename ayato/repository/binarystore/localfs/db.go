@@ -8,7 +8,7 @@ import (
 	"github.com/Hayao0819/Kamisato/ayato/repository/pacman"
 )
 
-func (l *LocalPkgBinaryStore) dbAdd(name string, arch string, fileName string, useSignedDB bool, gnupgDir *string) error {
+func (l *LocalPkgBinaryStore) repoAdd(name string, arch string, fileName string, useSignedDB bool, gnupgDir *string) error {
 	repoDir, err := l.getRepoDir(name)
 	if err != nil {
 		return err
@@ -31,7 +31,7 @@ func (l *LocalPkgBinaryStore) dbAdd(name string, arch string, fileName string, u
 	return nil
 }
 
-func (l *LocalPkgBinaryStore) dbRemove(name string, fileName string, useSignedDB bool, gnupgDir *string) error {
+func (l *LocalPkgBinaryStore) repoRemove(name string, fileName string, useSignedDB bool, gnupgDir *string) error {
 	repoDir, err := l.getRepoDir(name)
 	if err != nil {
 		return err
@@ -48,7 +48,7 @@ func (l *LocalPkgBinaryStore) dbRemove(name string, fileName string, useSignedDB
 
 func (l *LocalPkgBinaryStore) Init(name string, arch string, useSignedDB bool, gnupgDir *string) error {
 	// slog.Info("init pkg repo", "name", name)
-	if err := l.dbAdd(name, arch, "", useSignedDB, gnupgDir); err != nil {
+	if err := l.repoAdd(name, arch, "", useSignedDB, gnupgDir); err != nil {
 		return err
 	}
 	return nil

@@ -49,6 +49,11 @@ func (l *LocalPkgBinaryStore) StoreFile(repo string, arch string, file domain.IF
 	if _, err := io.Copy(dstFile, file); err != nil {
 		return fmt.Errorf("copy file err: %s", err.Error())
 	}
+
+	err = l.repoAdd(repo, arch, file.FileName(), useSignedDB, gnupgDir)
+	if err != nil {
+		return fmt.Errorf("repo-add err: %s", err.Error())
+	}
 	return nil
 }
 

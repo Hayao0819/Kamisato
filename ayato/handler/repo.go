@@ -14,22 +14,24 @@ func (h *Handler) RepoFileHandler(ctx *gin.Context) {
 	arch := ctx.Param("arch")
 	fileName := ctx.Param("file")
 
-	// FileServerに渡す http.StripPrefixのprefixを決定
 	slog.Info("repoHandler", "repoName", repoName)
 
 	s, err := h.s.GetFile(repoName, arch, fileName)
 	if err != nil {
 		ctx.String(http.StatusNotFound, "failed to serve %s", repoName)
+		return
 	}
+	defer s.Close()
 
 	ctx.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s", s.FileName()))
 	ctx.Header("Content-Type", s.ContentType())
-	ctx.Stream(func(w io.Writer) bool {
-		_, err := io.Copy(w, s)
-		return err == nil
-	})
-}
 
+	// 通常のファイル送信として出力
+	_, err = io.Copy(ctx.Writer, s)
+	if err != nil {
+		slog.Error("failed to write file to response", "error", err)
+	}
+}
 func (h *Handler) RepoFileListHandler(ctx *gin.Context) {
 	repo := ctx.Param("repo")
 	arch := ctx.Param("arch")

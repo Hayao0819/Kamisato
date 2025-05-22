@@ -5,6 +5,7 @@ import (
 	"compress/gzip"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
@@ -30,7 +31,7 @@ func GetRepoFromURL(server string, name string) (*RemoteRepo, error) {
 		return nil, fmt.Errorf("bad status while downloading: %s", resp.Status)
 	}
 
-	return getRepo(name, resp.Body)
+	return GetRepo(name, resp.Body)
 }
 
 func GetRepoFromDBFile(name string, dbfile string) (*RemoteRepo, error) {
@@ -40,10 +41,10 @@ func GetRepoFromDBFile(name string, dbfile string) (*RemoteRepo, error) {
 	}
 	defer db.Close()
 
-	return getRepo(name, db)
+	return GetRepo(name, db)
 }
 
-func getRepo(name string, db io.Reader) (*RemoteRepo, error) {
+func GetRepo(name string, db io.Reader) (*RemoteRepo, error) {
 	// gzip リーダーを作成
 	gzr, err := gzip.NewReader(db)
 	if err != nil {
@@ -60,6 +61,7 @@ func getRepo(name string, db io.Reader) (*RemoteRepo, error) {
 	for {
 		hdr, err := tr.Next()
 		if err == io.EOF {
+			slog.Debug("End of tar archive")
 			break // 終了
 		}
 		if err != nil {
@@ -72,6 +74,7 @@ func getRepo(name string, db io.Reader) (*RemoteRepo, error) {
 		}
 
 		// fmt.Printf("File: %s\n", hdr.Name)
+		slog.Debug("File", "name", hdr.Name)
 
 		// ファイルの内容を読み込んで出力
 		p, err := pkg.GetPkgFromDesc(tr)
