@@ -26,7 +26,7 @@ func (l *LocalPkgBinaryStore) DeleteFile(repo string, arch string, file string, 
 	return nil
 }
 
-func (l *LocalPkgBinaryStore) StoreFile(repo string, arch string, file domain.IFileStream, useSignedDB bool, gnupgDir *string) error {
+func (l *LocalPkgBinaryStore) StoreFile(repo string, arch string, file domain.IFileSeekStream, useSignedDB bool, gnupgDir *string) error {
 	repoDir, err := l.getRepoDir(repo)
 	if err != nil {
 		return err

@@ -2,7 +2,7 @@ package repository
 
 import "github.com/Hayao0819/Kamisato/ayato/domain"
 
-func (r *Repository) StoreFile(repo string, arch string, stream domain.IFileStream, useSignedDB bool, gnupgDir *string) error {
+func (r *Repository) StoreFile(repo string, arch string, stream domain.IFileSeekStream, useSignedDB bool, gnupgDir *string) error {
 	return r.pkgBinStore.StoreFile(repo, arch, stream, useSignedDB, gnupgDir)
 }
 
