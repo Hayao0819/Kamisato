@@ -2,11 +2,12 @@ package localfs
 
 import (
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 	"path"
 
-	cp "github.com/otiai10/copy"
+	"github.com/Hayao0819/Kamisato/ayato/domain"
 )
 
 func (l *LocalPkgBinaryStore) DeleteFile(repo string, arch string, file string, useSignedDB bool, gnupgDir *string) error {
@@ -25,7 +26,7 @@ func (l *LocalPkgBinaryStore) DeleteFile(repo string, arch string, file string, 
 	return nil
 }
 
-func (l *LocalPkgBinaryStore) StoreFile(repo string, arch string, file string, useSignedDB bool, gnupgDir *string) error {
+func (l *LocalPkgBinaryStore) StoreFile(repo string, arch string, file domain.IFileStream, useSignedDB bool, gnupgDir *string) error {
 	repoDir, err := l.getRepoDir(repo)
 	if err != nil {
 		return err
@@ -36,25 +37,18 @@ func (l *LocalPkgBinaryStore) StoreFile(repo string, arch string, file string, u
 		return fmt.Errorf("mkdir %s err: %s", repoPath, err.Error())
 	}
 
-	if arch != "any" {
-		dstFile := path.Join(repoPath, path.Base(file))
-		if err := cp.Copy(file, dstFile); err != nil {
-			return fmt.Errorf("copy file err: %s", err.Error())
-		}
-		return nil
-	}
-
-	arches, err := l.Arches(repo)
+	dstFilePath := path.Join(repoPath, file.FileName())
+	// if err := cp.Copy(file, dstFile); err != nil {
+	// 	return fmt.Errorf("copy file err: %s", err.Error())
+	// }
+	dstFile, err := os.Create(dstFilePath)
 	if err != nil {
-		return err
+		return fmt.Errorf("create file err: %s", err.Error())
 	}
-	for _, arch := range arches {
-		dstFile := path.Join(repoDir, arch, path.Base(file))
-		if err := cp.Copy(file, dstFile); err != nil {
-			return fmt.Errorf("copy file err: %s", err.Error())
-		}
+	defer dstFile.Close()
+	if _, err := io.Copy(dstFile, file); err != nil {
+		return fmt.Errorf("copy file err: %s", err.Error())
 	}
-
 	return nil
 }
 

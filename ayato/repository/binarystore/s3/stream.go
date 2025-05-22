@@ -5,7 +5,7 @@ import (
 	"io"
 	"path"
 
-	"github.com/Hayao0819/Kamisato/ayato/repository/provider"
+	"github.com/Hayao0819/Kamisato/ayato/domain"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
@@ -15,7 +15,7 @@ type S3ObjectSource struct {
 	bucket string
 }
 
-func (s *S3ObjectSource) GetObject(ctx context.Context, key string) (provider.BinaryStream, error) {
+func (s *S3ObjectSource) GetObject(ctx context.Context, key string) (domain.IFileStream, error) {
 	output, err := s.client.GetObject(ctx, &s3.GetObjectInput{
 		Bucket: aws.String(s.bucket),
 		Key:    aws.String(key),

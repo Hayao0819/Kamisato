@@ -6,20 +6,19 @@ import (
 	"github.com/Hayao0819/Kamisato/ayato/repository/binarystore/localfs"
 	"github.com/Hayao0819/Kamisato/ayato/repository/metastore/kv"
 	"github.com/Hayao0819/Kamisato/ayato/repository/metastore/sql"
-	"github.com/Hayao0819/Kamisato/ayato/repository/provider"
 	"github.com/Hayao0819/Kamisato/conf"
 )
 
 type Repository struct {
-	pkgNameStore provider.PkgNameStoreProvider
-	pkgBinStore  provider.PkgBinaryStoreProvider
+	pkgNameStore PkgNameStoreProvider
+	pkgBinStore  PkgBinaryStoreProvider
 	cfg          *conf.AyatoConfig
 }
 
 var useS3 = false
 
 func New(cfg *conf.AyatoConfig) (*Repository, error) {
-	var db provider.PkgNameStoreProvider
+	var db PkgNameStoreProvider
 	var err error
 
 	dsn, err := cfg.Database.DSN()
@@ -38,7 +37,7 @@ func New(cfg *conf.AyatoConfig) (*Repository, error) {
 	}
 
 	// bin := localfs.NewLocalPkgBinaryStore(cfg)
-	var bin provider.PkgBinaryStoreProvider
+	var bin PkgBinaryStoreProvider
 	if useS3 {
 		// bin, err = s3.NewS3PkgBinaryStore(cfg)
 	} else {

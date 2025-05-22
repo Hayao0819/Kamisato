@@ -1,9 +1,9 @@
 package repository
 
-import "github.com/Hayao0819/Kamisato/ayato/repository/provider"
+import "github.com/Hayao0819/Kamisato/ayato/domain"
 
-func (r *Repository) StoreFile(repo string, arch string, file string, useSignedDB bool, gnupgDir *string) error {
-	return r.pkgBinStore.StoreFile(repo, arch, file, useSignedDB, gnupgDir)
+func (r *Repository) StoreFile(repo string, arch string, stream domain.IFileStream, useSignedDB bool, gnupgDir *string) error {
+	return r.pkgBinStore.StoreFile(repo, arch, stream, useSignedDB, gnupgDir)
 }
 
 func (r *Repository) DeleteFile(repo string, arch string, file string, useSignedDB bool, gnupgDir *string) error {
@@ -21,6 +21,6 @@ func (r *Repository) Arches(repo string) ([]string, error) {
 	return r.pkgBinStore.Arches(repo)
 }
 
-func (r *Repository) FetchFile(repo string, arch string, file string) (provider.BinaryStream, error) {
+func (r *Repository) FetchFile(repo string, arch string, file string) (domain.IFileStream, error) {
 	return r.pkgBinStore.FetchFile(repo, arch, file)
 }
