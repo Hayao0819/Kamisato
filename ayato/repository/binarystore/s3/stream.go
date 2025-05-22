@@ -1,7 +1,6 @@
 package s3
 
 import (
-	"context"
 	"io"
 	"path"
 
@@ -10,13 +9,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
-type S3ObjectSource struct {
-	client *s3.Client
-	bucket string
-}
-
-func (s *S3ObjectSource) GetObject(ctx context.Context, key string) (domain.IFileStream, error) {
-	output, err := s.client.GetObject(ctx, &s3.GetObjectInput{
+func (s *S3) getObject(key string) (domain.IFileStream, error) {
+	output, err := s.storage.GetObject(s.ctx, &s3.GetObjectInput{
 		Bucket: aws.String(s.bucket),
 		Key:    aws.String(key),
 	})

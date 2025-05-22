@@ -1,11 +1,16 @@
 package s3
 
 import (
+	"io"
 	"os"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awss3 "github.com/aws/aws-sdk-go-v2/service/s3"
 )
+
+func key(repo, arch, name string) string {
+	return repo + "/" + arch + "/" + name
+}
 
 func (s *S3) list(dir string) (*awss3.ListObjectsV2Output, error) {
 	l, err := s.storage.ListObjectsV2(s.ctx, &awss3.ListObjectsV2Input{
@@ -43,20 +48,28 @@ func (s *S3) listFiles(dir string) ([]string, error) {
 	return files, nil
 }
 
-func (s *S3) uploadFile(name string) error {
+func (s *S3) putFile(key, name string) error {
 
 	f, err := os.Open(name)
 	if err != nil {
 		return err
 	}
-	_, err = s.storage.PutObject(s.ctx, &awss3.PutObjectInput{
+	defer f.Close()
+	if err := s.putObject(key, f); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *S3) putObject(key string, body io.ReadCloser) error {
+	_, err := s.storage.PutObject(s.ctx, &awss3.PutObjectInput{
 		Bucket: aws.String(s.bucket),
-		Key:    aws.String(name),
-		Body:   f,
+		Key:    aws.String(key),
+		Body:   body,
 	})
 	if err != nil {
 		return err
 	}
-
 	return nil
 }

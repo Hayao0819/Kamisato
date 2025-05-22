@@ -2,6 +2,7 @@ package s3
 
 import (
 	"os"
+	"path"
 	"testing"
 
 	"github.com/Hayao0819/Kamisato/conf"
@@ -38,7 +39,7 @@ func TestUploadFile(t *testing.T) {
 		t.Fatalf("Failed to write to test file: %v", err)
 	}
 
-	err = s3.uploadFile(filePath)
+	err = s3.putFile(path.Base(filePath), filePath)
 	if err != nil {
 		t.Fatalf("Failed to upload file: %v", err)
 	}
