@@ -3,9 +3,8 @@ package handler
 import (
 	"fmt"
 	"net/http"
-	"os"
-	"path"
 
+	"github.com/Hayao0819/Kamisato/ayato/domain"
 	"github.com/gin-gonic/gin"
 )
 
@@ -35,23 +34,17 @@ func (h *Handler) BlinkyUploadHandler(ctx *gin.Context) {
 		return
 	}
 
-	// Create a temporary directory to save the file
-	tmpDir, err := os.MkdirTemp("", "ayato-upload-*")
+	pkgStream, err := formFileStream(pkgHeader)
 	if err != nil {
-		ctx.String(http.StatusInternalServerError, fmt.Sprintf("create temp dir err: %s", err.Error()))
-		return
-	}
-	defer os.RemoveAll(tmpDir)
-
-	// Save the file to the temporary directory
-	if err := ctx.SaveUploadedFile(pkgHeader, path.Join(tmpDir, pkgHeader.Filename)); err != nil {
-		ctx.String(http.StatusInternalServerError, fmt.Sprintf("upload file err: %s", err.Error()))
+		ctx.String(http.StatusBadRequest, fmt.Sprintf("open file err: %s", err.Error()))
 		return
 	}
 
 	// Upload the file to the repository
-	pkgfile := path.Join(tmpDir, pkgHeader.Filename)
-	if err := h.s.UploadPkgFile(repoName, [2]string{pkgfile, ""}); err != nil {
+	// pkgfile := path.Join(tmpDir, pkgHeader.Filename)
+	if err := h.s.UploadPkgFile(repoName, &domain.UploadFiles{
+		PkgFile: pkgStream,
+	}); err != nil {
 		ctx.String(http.StatusInternalServerError, fmt.Sprintf("upload file err: %s", err.Error()))
 		return
 	}

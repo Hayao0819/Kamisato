@@ -6,7 +6,7 @@ import (
 	"github.com/Hayao0819/Kamisato/ayato/domain"
 )
 
-func formFileStream(f *multipart.FileHeader) (domain.IFileStream, error) {
+func formFileStream(f *multipart.FileHeader) (*domain.FileStream, error) {
 	file, err := f.Open()
 	if err != nil {
 		return nil, err

@@ -5,7 +5,7 @@ import (
 )
 
 type IFileStream interface {
-	io.ReadCloser        // ストリーミング返却
+	io.ReadCloser    // ストリーミング返却
 	FileName() string    // ダウンロード時のファイル名
 	ContentType() string // MIMEタイプ（例: application/zip）
 }
@@ -13,10 +13,10 @@ type IFileStream interface {
 type FileStream struct {
 	fileName    string
 	contentType string
-	stream      io.ReadCloser
+	stream      io.ReadSeekCloser
 }
 
-func NewFileStream(fileName string, contentType string, stream io.ReadCloser) *FileStream {
+func NewFileStream(fileName string, contentType string, stream io.ReadSeekCloser) *FileStream {
 	return &FileStream{
 		fileName:    fileName,
 		contentType: contentType,
@@ -44,4 +44,8 @@ func (f *FileStream) ContentType() string {
 		return f.contentType
 	}
 	return "application/octet-stream"
+}
+
+func (f *FileStream) Seek(offset int64, whence int) (int64, error) {
+	return f.stream.Seek(offset, whence)
 }

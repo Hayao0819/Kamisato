@@ -17,10 +17,11 @@ import (
 var ErrSRCINFONotFound = fmt.Errorf(".SRCINFO not found")
 
 type Package struct {
-	srcdir  string
-	bin     string
-	srcinfo *raiou.SRCINFO
-	pkginfo *raiou.PKGINFO
+	srcdir   string
+	bin      string
+	srcinfo  *raiou.SRCINFO
+	pkginfo  *raiou.PKGINFO
+	onmemory bool
 }
 
 func (p *Package) SRCINFO() (*raiou.SRCINFO, error) {
@@ -66,20 +67,31 @@ func GetPkgFromSrc(dir string) (*Package, error) {
 	pkg := new(Package)
 	pkg.srcdir = dir
 	pkg.srcinfo = info
+	pkg.onmemory = false
 
 	return pkg, nil
 }
 
-// GetPkgFromBinは、指定されたパスからパッケージを取得します。
-func GetPkgFromBin(name string) (*Package, error) {
-	file, err := os.Open(name)
+func GetPkgFromBinFile(bin string) (*Package, error) {
+	file, err := os.Open(bin)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open file: %w", err)
 	}
 	defer file.Close()
+	pkg, err := GetPkgFromBin(bin, file)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get pkg from bin: %w", err)
+	}
+	pkg.bin = bin
+	pkg.onmemory = false
+	return pkg, nil
+}
+
+// GetPkgFromBinは、指定されたパスからパッケージを取得します。
+func GetPkgFromBin(bin string, r io.Reader) (*Package, error) {
 
 	// zstdデコーダーを作成
-	zstdDecoder, err := zstd.NewReader(file)
+	zstdDecoder, err := zstd.NewReader(r)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create zstd decoder: %w", err)
 	}
@@ -123,8 +135,9 @@ func GetPkgFromBin(name string) (*Package, error) {
 	}
 
 	pkg := new(Package)
-	pkg.bin = name
+	pkg.bin = bin
 	pkg.pkginfo = info
+	pkg.onmemory = true
 
 	return pkg, nil
 }
@@ -138,6 +151,7 @@ func GetPkgFromPkginfoString(bin string, pkginfoData string) (*Package, error) {
 	pkg := new(Package)
 	pkg.bin = bin
 	pkg.pkginfo = info
+	pkg.onmemory = true
 
 	return pkg, nil
 }
@@ -155,6 +169,7 @@ func GetPkgFromDesc(d io.Reader) (*Package, error) {
 
 	pkg := new(Package)
 	pkg.pkginfo = info
+	pkg.onmemory = true
 
 	return pkg, nil
 }
