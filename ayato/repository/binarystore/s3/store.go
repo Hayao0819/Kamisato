@@ -12,7 +12,7 @@ func (s *S3) StoreFile(repo string, arch string, file domain.IFileSeekStream, us
 		return fmt.Errorf("failed to store file %s: %w", k, err)
 	}
 
-	if err := s.repoAdd(repo, arch, file.FileName(), file, nil, false, nil); err != nil {
+	if err := s.repoAdd(repo, arch, file, false, nil); err != nil {
 		return fmt.Errorf("failed to add file %s to repo: %w", k, err)
 	}
 	return nil

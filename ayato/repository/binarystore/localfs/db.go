@@ -2,6 +2,7 @@ package localfs
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"path"
 
@@ -48,6 +49,7 @@ func (l *LocalPkgBinaryStore) repoRemove(name string, fileName string, useSigned
 
 func (l *LocalPkgBinaryStore) Init(name string, arch string, useSignedDB bool, gnupgDir *string) error {
 	// slog.Info("init pkg repo", "name", name)
+	slog.Debug("init pkg repo", "name", name, "arch", arch)
 	if err := l.repoAdd(name, arch, "", useSignedDB, gnupgDir); err != nil {
 		return err
 	}

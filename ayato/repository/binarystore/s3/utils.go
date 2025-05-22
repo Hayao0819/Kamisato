@@ -3,9 +3,11 @@ package s3
 import (
 	"io"
 	"os"
+	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awss3 "github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/samber/lo"
 )
 
 func key(repo, arch, name string) string {
@@ -33,7 +35,10 @@ func (s *S3) listDirs(dir string) ([]string, error) {
 	for _, obj := range l.CommonPrefixes {
 		dirs = append(dirs, *obj.Prefix)
 	}
-	return dirs, nil
+
+	return lo.Map(dirs, func(name string, _ int) string {
+		return strings.TrimSuffix(name, "/")
+	}), nil
 }
 
 func (s *S3) listFiles(dir string) ([]string, error) {
