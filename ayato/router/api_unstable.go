@@ -7,16 +7,17 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func SetRoute(e *gin.Engine, h *handler.Handler, m *middleware.Middleware) {
+func SetRoute(e *gin.Engine, h *handler.Handler, m *middleware.Middleware) error {
 	// Set template
 	if err := view.Set(e); err != nil {
-		panic(e)
+		return err
 	}
 
 	{
 		api := e.Group("/api/unstable")
 		{
 			api.GET("/hello", h.HelloHandler)
+			api.GET("/teapot", h.TeapotHandler)
 			api.GET("/:repo/:arch/package", h.AllPkgsHandler)
 			api.GET("/:repo/:arch/package/:name") // TODO: Implement this
 		}
@@ -27,12 +28,11 @@ func SetRoute(e *gin.Engine, h *handler.Handler, m *middleware.Middleware) {
 			auth.PUT("/:repo/package", h.BlinkyUploadHandler)          // Blinky compatible
 			auth.DELETE("/:repo/package/:name", h.BlinkyRemoveHandler) // Blinky compatible
 		}
-
 	}
 	{
 		repo := e.Group("/repo")
-		repo.GET("/", h.RepoListHandler)
 		repo.GET("/:repo/:arch", h.RepoFileListHandler)
 		repo.GET("/:repo/:arch/:file", h.RepoFileHandler)
 	}
+	return nil
 }

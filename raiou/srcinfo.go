@@ -1,37 +1,49 @@
 package raiou
 
-import (
-	"io"
-
-	"github.com/Morganamilo/go-srcinfo"
-)
-
-type SRCINFO srcinfo.Srcinfo
-
-func ParseSrcinfo(r io.Reader) (*SRCINFO, error) {
-	b, err := io.ReadAll(r)
-	if err != nil {
-		return nil, err
-	}
-	srcinfo, err := srcinfo.Parse(string(b))
-	if err != nil {
-		return nil, err
-	}
-	return (*SRCINFO)(srcinfo), nil
+type ArchString struct {
+	Arch  string
+	Value string
 }
 
-func ParseSrcinfoFile(path string) (*SRCINFO, error) {
-	srcinfo, err := srcinfo.ParseFile(path)
-	if err != nil {
-		return nil, err
-	}
-	return (*SRCINFO)(srcinfo), nil
+type Package struct {
+	PkgName    string
+	PkgDesc    string
+	PkgArch    []string
+	URL        string
+	License    []string
+	Groups     []string
+	Depends    []ArchString
+	OptDepends []ArchString
+	Provides   []ArchString
+	Conflicts  []ArchString
+	Replaces   []ArchString
+	Backup     []string
+	Options    []string
+	Install    string
+	Changelog  string
 }
 
-func ParseSrcinfoString(data string) (*SRCINFO, error) {
-	srcinfo, err := srcinfo.Parse(data)
-	if err != nil {
-		return nil, err
-	}
-	return (*SRCINFO)(srcinfo), nil
+type PackageBase struct {
+	PkgBase      string
+	PkgVer       string
+	PkgRel       string
+	PkgEpoch     string // Renamed Epoch
+	Source       []ArchString
+	ValidPGPKeys []string
+	NoExtract    []string
+	MD5Sums      []ArchString
+	SHA1Sums     []ArchString
+	SHA224Sums   []ArchString
+	SHA256Sums   []ArchString
+	SHA384Sums   []ArchString
+	SHA512Sums   []ArchString
+	B2Sums       []ArchString
+	MakeDepends  []ArchString
+	CheckDepends []ArchString
+}
+
+type SRCINFO struct {
+	PackageBase
+	Package
+	Packages []Package
 }

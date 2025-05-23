@@ -44,21 +44,7 @@ func (h *Handler) RepoFileListHandler(ctx *gin.Context) {
 
 	slog.Warn("repoHandler", "repoName", repo, "arch", arch, "filelist", l)
 
-	ctx.HTML(http.StatusOK, "repolist.tmpl", gin.H{
-		"List": l,
-	})
-
-}
-
-func (h *Handler) RepoListHandler(ctx *gin.Context) {
-	l, err := h.s.RepoList()
-	if err != nil {
-		slog.Error("err while getting repo dir", "err", err)
-		ctx.String(http.StatusInternalServerError, "err while getting repo dir")
-		return
-	}
-
-	ctx.HTML(http.StatusOK, "repolist.tmpl", gin.H{
+	ctx.HTML(http.StatusOK, "filelist.tmpl", gin.H{
 		"List": l,
 	})
 }

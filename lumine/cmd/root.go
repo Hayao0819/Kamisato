@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"io/fs"
 	"net/http"
 
 	"github.com/Hayao0819/Kamisato/lumine/embed"
@@ -15,16 +14,13 @@ func RootCmd() *cobra.Command {
 		Use:   "lumine",
 		Short: "Lumine is a frontend for Ayato",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			staticFS, err := fs.Sub(embed.NextFS(), "out")
+			h, err := embed.NextHandler()
 			if err != nil {
 				return fmt.Errorf("failed to prepare embedded filesystem: %w", err)
 			}
 
-			fileServer := http.FileServer(http.FS(staticFS))
-			http.Handle("/", fileServer)
-
+			http.Handle("/", h)
 			cmd.PrintErrln("Starting Lumine server on", addr)
-
 			if err := http.ListenAndServe(addr, nil); err != nil {
 				return fmt.Errorf("failed to start server: %w", err)
 			}

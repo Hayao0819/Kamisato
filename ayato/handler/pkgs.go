@@ -18,7 +18,7 @@ func (h *Handler) AllPkgsHandler(ctx *gin.Context) {
 		return
 	}
 
-	pkgs, err := h.s.GetAllPkgs(repoName, archName)
+	pkgs, err := h.s.PacmanRepoPkgs(repoName, archName)
 	if err != nil {
 		ctx.String(http.StatusInternalServerError, err.Error())
 		return
