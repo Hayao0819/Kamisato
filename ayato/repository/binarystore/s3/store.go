@@ -3,10 +3,10 @@ package s3
 import (
 	"fmt"
 
-	domain "github.com/Hayao0819/Kamisato/ayato/stream"
+	"github.com/Hayao0819/Kamisato/ayato/repository/stream"
 )
 
-func (s *S3) StoreFile(repo string, arch string, file domain.IFileSeekStream) error {
+func (s *S3) StoreFile(repo string, arch string, file stream.IFileSeekStream) error {
 	k := key(repo, arch, file.FileName())
 	if err := s.putObject(k, file); err != nil {
 		return fmt.Errorf("failed to store file %s: %w", k, err)

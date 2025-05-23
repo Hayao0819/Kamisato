@@ -5,11 +5,11 @@ import (
 	"os"
 	"path"
 
-	domain "github.com/Hayao0819/Kamisato/ayato/stream"
+	"github.com/Hayao0819/Kamisato/ayato/repository/stream"
 	"github.com/Hayao0819/nahi/futils"
 )
 
-func (l *LocalPkgBinaryStore) FetchFile(repo string, arch string, file string) (domain.IFileStream, error) {
+func (l *LocalPkgBinaryStore) FetchFile(repo string, arch string, file string) (stream.IFileStream, error) {
 	repoDir, err := l.getRepoDir(repo)
 	if err != nil {
 		return nil, err
@@ -22,7 +22,7 @@ func (l *LocalPkgBinaryStore) FetchFile(repo string, arch string, file string) (
 	}
 	slog.Info("fetch pkg file", "file", pkgPath)
 
-	streamFile, err := domain.OpenFileStreamWithTypeDetection(pkgPath)
+	streamFile, err := stream.OpenFileStreamWithTypeDetection(pkgPath)
 	if err != nil {
 		return nil, err
 	}

@@ -3,7 +3,7 @@ package s3
 import (
 	"fmt"
 
-		domain "github.com/Hayao0819/Kamisato/ayato/stream"
+	"github.com/Hayao0819/Kamisato/ayato/repository/stream"
 )
 
 // func fileAliasResolver(repo, arch, filename string) string
@@ -17,7 +17,7 @@ func fileAliasResolver(repo, _, filename string) string {
 	return filename
 }
 
-func (s *S3) FetchFile(repo string, arch string, name string) (domain.IFileStream, error) {
+func (s *S3) FetchFile(repo string, arch string, name string) (stream.IFileStream, error) {
 	if name == repo+".db" {
 		name = repo + ".db.tar.gz"
 	}

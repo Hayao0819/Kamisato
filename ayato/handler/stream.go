@@ -3,7 +3,7 @@ package handler
 import (
 	"mime/multipart"
 
-	"github.com/Hayao0819/Kamisato/ayato/stream"
+	"github.com/Hayao0819/Kamisato/ayato/repository/stream"
 )
 
 func formFileStream(f *multipart.FileHeader) (*stream.FileStream, error) {

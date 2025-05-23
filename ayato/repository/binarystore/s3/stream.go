@@ -4,12 +4,12 @@ import (
 	"io"
 	"path"
 
-	domain "github.com/Hayao0819/Kamisato/ayato/stream"
+	"github.com/Hayao0819/Kamisato/ayato/repository/stream"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
-func (s *S3) getObject(key string) (domain.IFileStream, error) {
+func (s *S3) getObject(key string) (stream.IFileStream, error) {
 	output, err := s.storage.GetObject(s.ctx, &s3.GetObjectInput{
 		Bucket: aws.String(s.bucket),
 		Key:    aws.String(key),

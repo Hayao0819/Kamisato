@@ -5,7 +5,7 @@ import (
 	"os"
 	"path"
 
-	domain "github.com/Hayao0819/Kamisato/ayato/stream"
+	"github.com/Hayao0819/Kamisato/ayato/repository/stream"
 )
 
 func writeReadSeekerToFile(name string, stream io.Reader) error {
@@ -31,7 +31,7 @@ func writeReadSeekerToFile(name string, stream io.Reader) error {
 	return nil
 }
 
-func writeStreamToFile(dir string, stream domain.IFileStream) (string, error) {
+func writeStreamToFile(dir string, stream stream.IFileStream) (string, error) {
 
 	if stream == nil {
 		return "", nil

@@ -6,10 +6,10 @@ import (
 	"os"
 	"path"
 
-	domain "github.com/Hayao0819/Kamisato/ayato/stream"
+	"github.com/Hayao0819/Kamisato/ayato/repository/stream"
 )
 
-func (l *LocalPkgBinaryStore) StoreFile(repo string, arch string, file domain.IFileSeekStream) error {
+func (l *LocalPkgBinaryStore) StoreFile(repo string, arch string, file stream.IFileSeekStream) error {
 	repoDir, err := l.getRepoDir(repo)
 	if err != nil {
 		return err

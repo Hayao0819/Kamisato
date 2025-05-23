@@ -1,7 +1,7 @@
 package service
 
 import (
-	"github.com/Hayao0819/Kamisato/ayato/stream"
+	"github.com/Hayao0819/Kamisato/ayato/repository/stream"
 )
 
 func (s *Service) GetFile(repoName, archName, name string) (stream.IFileStream, error) {

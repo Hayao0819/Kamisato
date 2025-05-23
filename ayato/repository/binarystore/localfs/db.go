@@ -7,7 +7,7 @@ import (
 	"path"
 
 	"github.com/Hayao0819/Kamisato/ayato/repository/pacman"
-	domain "github.com/Hayao0819/Kamisato/ayato/stream"
+	"github.com/Hayao0819/Kamisato/ayato/repository/stream"
 )
 
 func (l *LocalPkgBinaryStore) repoAdd(name string, arch string, fileName string, useSignedDB bool, gnupgDir *string) error {
@@ -33,7 +33,7 @@ func (l *LocalPkgBinaryStore) repoAdd(name string, arch string, fileName string,
 	return nil
 }
 
-func (s *LocalPkgBinaryStore) RepoAdd(repo, arch string, pkgfile, sigfile domain.IFileSeekStream, useSignedDB bool, gnupgDir *string) error {
+func (s *LocalPkgBinaryStore) RepoAdd(repo, arch string, pkgfile, sigfile stream.IFileSeekStream, useSignedDB bool, gnupgDir *string) error {
 	t, err := os.MkdirTemp("", "ayato-")
 	if err != nil {
 		return err
@@ -52,7 +52,7 @@ func (s *LocalPkgBinaryStore) RepoAdd(repo, arch string, pkgfile, sigfile domain
 	repoDir = path.Join(repoDir, arch)
 
 	dbpath := path.Join(repoDir, repo+".db.tar.gz")
-	dbfile, err := domain.OpenFileStreamWithTypeDetection(dbpath)
+	dbfile, err := stream.OpenFileStreamWithTypeDetection(dbpath)
 	if err != nil {
 		// if s3shared.
 		return fmt.Errorf("failed to open file %s: %w", dbpath, err)
@@ -82,7 +82,7 @@ func (s *LocalPkgBinaryStore) RepoRemove(repo string, arch string, pkg string, u
 	repoDir = path.Join(repoDir, arch)
 
 	dbpath := path.Join(repoDir, repo+".db.tar.gz")
-	dbfile, err := domain.OpenFileStreamWithTypeDetection(dbpath)
+	dbfile, err := stream.OpenFileStreamWithTypeDetection(dbpath)
 	if err != nil {
 		// if s3shared.
 		return fmt.Errorf("failed to open file %s: %w", dbpath, err)

@@ -8,7 +8,7 @@ import (
 	"path"
 
 	"github.com/Hayao0819/Kamisato/ayato/repository/pacman"
-	domain "github.com/Hayao0819/Kamisato/ayato/stream"
+	"github.com/Hayao0819/Kamisato/ayato/repository/stream"
 )
 
 func writeReadSeekerToFile(name string, stream io.Reader) error {
@@ -34,7 +34,7 @@ func writeReadSeekerToFile(name string, stream io.Reader) error {
 	return nil
 }
 
-func writeStreamToFile(dir string, stream domain.IFileStream) (string, error) {
+func writeStreamToFile(dir string, stream stream.IFileStream) (string, error) {
 
 	if stream == nil {
 		return "", nil
@@ -63,7 +63,7 @@ func (s *S3) initRepo(repo, arch string, useSignedDB bool, gnupgDir *string) err
 	}
 
 	dbkey := key(repo, arch, repo+".db.tar.gz")
-	dbobj, err := domain.OpenFileStreamWithTypeDetection(dbpath)
+	dbobj, err := stream.OpenFileStreamWithTypeDetection(dbpath)
 	if err != nil {
 		slog.Error("OpenFileStreamWithTypeDetection", "err", err)
 		return err
@@ -78,7 +78,7 @@ func (s *S3) initRepo(repo, arch string, useSignedDB bool, gnupgDir *string) err
 	return nil
 }
 
-func (s *S3) RepoAdd(repo, arch string, pkgfile, sigfile domain.IFileSeekStream, useSignedDB bool, gnupgDir *string) error {
+func (s *S3) RepoAdd(repo, arch string, pkgfile, sigfile stream.IFileSeekStream, useSignedDB bool, gnupgDir *string) error {
 
 	t, err := os.MkdirTemp("", "ayato-")
 	if err != nil {

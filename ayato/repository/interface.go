@@ -2,7 +2,7 @@ package repository
 
 import (
 	"github.com/BrenekH/blinky"
-	"github.com/Hayao0819/Kamisato/ayato/stream"
+	"github.com/Hayao0819/Kamisato/ayato/repository/stream"
 )
 
 type PkgNameStoreProvider blinky.PackageNameToFileProvider
