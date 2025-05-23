@@ -3,13 +3,13 @@ package handler
 import (
 	"mime/multipart"
 
-	"github.com/Hayao0819/Kamisato/ayato/domain"
+	"github.com/Hayao0819/Kamisato/ayato/stream"
 )
 
-func formFileStream(f *multipart.FileHeader) (*domain.FileStream, error) {
+func formFileStream(f *multipart.FileHeader) (*stream.FileStream, error) {
 	file, err := f.Open()
 	if err != nil {
 		return nil, err
 	}
-	return domain.NewFileStream(f.Filename, f.Header.Get("Content-Type"), file), nil
+	return stream.NewFileStream(f.Filename, f.Header.Get("Content-Type"), file), nil
 }

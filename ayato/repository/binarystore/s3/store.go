@@ -3,7 +3,7 @@ package s3
 import (
 	"fmt"
 
-	"github.com/Hayao0819/Kamisato/ayato/domain"
+	domain "github.com/Hayao0819/Kamisato/ayato/stream"
 )
 
 func (s *S3) StoreFile(repo string, arch string, file domain.IFileSeekStream) error {

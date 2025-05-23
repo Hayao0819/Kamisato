@@ -1,14 +1,13 @@
-package utils
+package stream
 
 import (
 	"io"
 	"os"
 
-	"github.com/Hayao0819/Kamisato/ayato/domain"
 	"github.com/gabriel-vasile/mimetype"
 )
 
-func OpenFileStreamWithTypeDetection(filePath string) (*domain.FileStream, error) {
+func OpenFileStreamWithTypeDetection(filePath string) (*FileStream, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
 		return nil, err
@@ -20,5 +19,5 @@ func OpenFileStreamWithTypeDetection(filePath string) (*domain.FileStream, error
 	}
 	file.Seek(0, io.SeekStart) // Reset the file pointer to the beginning
 
-	return domain.NewFileStream(file.Name(), mt.String(), file), nil
+	return NewFileStream(file.Name(), mt.String(), file), nil
 }

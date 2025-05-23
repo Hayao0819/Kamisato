@@ -4,7 +4,7 @@ import (
 	"io"
 	"path"
 
-	"github.com/Hayao0819/Kamisato/ayato/domain"
+	domain "github.com/Hayao0819/Kamisato/ayato/stream"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 )

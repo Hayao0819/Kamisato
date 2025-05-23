@@ -5,8 +5,7 @@ import (
 	"os"
 	"path"
 
-	"github.com/Hayao0819/Kamisato/ayato/domain"
-	"github.com/Hayao0819/Kamisato/internal/utils"
+	domain "github.com/Hayao0819/Kamisato/ayato/stream"
 	"github.com/Hayao0819/nahi/futils"
 )
 
@@ -23,7 +22,7 @@ func (l *LocalPkgBinaryStore) FetchFile(repo string, arch string, file string) (
 	}
 	slog.Info("fetch pkg file", "file", pkgPath)
 
-	streamFile, err := utils.OpenFileStreamWithTypeDetection(pkgPath)
+	streamFile, err := domain.OpenFileStreamWithTypeDetection(pkgPath)
 	if err != nil {
 		return nil, err
 	}

@@ -2,23 +2,23 @@ package repository
 
 import (
 	"github.com/BrenekH/blinky"
-	"github.com/Hayao0819/Kamisato/ayato/domain"
+	"github.com/Hayao0819/Kamisato/ayato/stream"
 )
 
 type PkgNameStoreProvider blinky.PackageNameToFileProvider
 
 type PkgBinaryStoreProvider interface {
 	// StoreFile stores a file
-	StoreFile(repo string, arch string, stream domain.IFileSeekStream) error
+	StoreFile(repo string, arch string, stream stream.IFileSeekStream) error
 
 	// DeleteFile deletes a file from the database
 	DeleteFile(repo string, arch string, file string) error
 
 	// FetchFile fetches a file from the database
-	FetchFile(repo string, arch string, file string) (domain.IFileStream, error)
+	FetchFile(repo string, arch string, file string) (stream.IFileStream, error)
 
 	// RepoAdd adds a repository
-	RepoAdd(name string, arch string, pkg, sig domain.IFileSeekStream, useSignedDB bool, gnupgDir *string) error
+	RepoAdd(name string, arch string, pkg, sig stream.IFileSeekStream, useSignedDB bool, gnupgDir *string) error
 
 	// RepoRemove removes a repository
 	RepoRemove(name string, arch string, pkg string, useSignedDB bool, gnupgDir *string) error

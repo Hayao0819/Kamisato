@@ -1,8 +1,10 @@
 package service
 
-import "github.com/Hayao0819/Kamisato/ayato/domain"
+import (
+	"github.com/Hayao0819/Kamisato/ayato/stream"
+)
 
-func (s *Service) GetFile(repoName, archName, name string) (domain.IFileStream, error) {
+func (s *Service) GetFile(repoName, archName, name string) (stream.IFileStream, error) {
 	pkg, err := s.r.FetchFile(repoName, archName, name)
 	if err != nil {
 		return nil, err

@@ -7,9 +7,8 @@ import (
 	"os"
 	"path"
 
-	"github.com/Hayao0819/Kamisato/ayato/domain"
 	"github.com/Hayao0819/Kamisato/ayato/repository/pacman"
-	"github.com/Hayao0819/Kamisato/internal/utils"
+	domain "github.com/Hayao0819/Kamisato/ayato/stream"
 )
 
 func writeReadSeekerToFile(name string, stream io.Reader) error {
@@ -64,7 +63,7 @@ func (s *S3) initRepo(repo, arch string, useSignedDB bool, gnupgDir *string) err
 	}
 
 	dbkey := key(repo, arch, repo+".db.tar.gz")
-	dbobj, err := utils.OpenFileStreamWithTypeDetection(dbpath)
+	dbobj, err := domain.OpenFileStreamWithTypeDetection(dbpath)
 	if err != nil {
 		slog.Error("OpenFileStreamWithTypeDetection", "err", err)
 		return err
