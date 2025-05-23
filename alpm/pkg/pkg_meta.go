@@ -17,9 +17,9 @@ func (p *Package) Names() []string {
 		names = append(names, p.pkginfo.PkgBase, p.pkginfo.PkgName)
 	}
 	if p.srcinfo != nil {
-		names = append(names, p.srcinfo.Pkgbase)
+		names = append(names, p.srcinfo.PkgBase)
 		for _, pkg := range p.srcinfo.Packages {
-			names = append(names, pkg.Pkgname)
+			names = append(names, pkg.PkgName)
 		}
 	}
 	names = lo.Uniq(names)

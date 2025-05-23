@@ -28,10 +28,10 @@ func (r *SourceRepo) Build(t *builder.Target, dest string, pkgs ...string) error
 					slog.Error("get pkginfo failed", "pkg", pkg, "err", err)
 					continue
 				}
-				slog.Info("found package", "pkg", pi.Pkgbase, "pkgver", pi.Pkgver)
+				slog.Info("found package", "pkg", pi.PkgBase, "pkgver", pi.PkgVer)
 
 				names := p.Names()
-				if pkg == pi.Pkgbase || lo.Contains(names, pkg) {
+				if pkg == pi.PkgBase || lo.Contains(names, pkg) {
 					targetPkgs = append(targetPkgs, p)
 					break
 				}

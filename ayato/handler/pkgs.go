@@ -25,4 +25,5 @@ func (h *Handler) AllPkgsHandler(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, pkgs)
+
 }

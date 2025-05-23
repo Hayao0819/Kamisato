@@ -8,7 +8,7 @@ import (
 
 type GoSRCINFO srcinfo.Srcinfo
 
-func ParseSrcinfo(r io.Reader) (*GoSRCINFO, error) {
+func ParseSrcinfo(r io.Reader) (*SRCINFO, error) {
 	b, err := io.ReadAll(r)
 	if err != nil {
 		return nil, err
@@ -17,21 +17,21 @@ func ParseSrcinfo(r io.Reader) (*GoSRCINFO, error) {
 	if err != nil {
 		return nil, err
 	}
-	return (*GoSRCINFO)(srcinfo), nil
+	return RaiouSRCINFO(srcinfo), nil
 }
 
-func ParseSrcinfoFile(path string) (*GoSRCINFO, error) {
+func ParseSrcinfoFile(path string) (*SRCINFO, error) {
 	srcinfo, err := srcinfo.ParseFile(path)
 	if err != nil {
 		return nil, err
 	}
-	return (*GoSRCINFO)(srcinfo), nil
+	return RaiouSRCINFO(srcinfo), nil
 }
 
-func ParseSrcinfoString(data string) (*GoSRCINFO, error) {
+func ParseSrcinfoString(data string) (*SRCINFO, error) {
 	srcinfo, err := srcinfo.Parse(data)
 	if err != nil {
 		return nil, err
 	}
-	return (*GoSRCINFO)(srcinfo), nil
+	return RaiouSRCINFO(srcinfo), nil
 }

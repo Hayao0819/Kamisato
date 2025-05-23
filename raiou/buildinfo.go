@@ -10,22 +10,22 @@ import (
 
 // BUILDINFO represents the parsed .BUILDINFO file (version 2).
 type BUILDINFO struct {
-	Format            int
-	PkgName           string
-	PkgBase           string
-	PkgVer            string
-	PkgArch           string
-	PkgbuildSHA256Sum string
-	Packager          string
-	BuildDate         int64
-	BuildDir          string
-	StartDir          string
-	BuildTool         string
-	BuildToolVer      string
-	BuildEnv          []string
-	Options           []string
-	Installed         []string
-	XData             map[string]string // For any unrecognized keywords
+	Format            int               `json:"format" yml:"format" toml:"format"`
+	PkgName           string            `json:"pkgname" yml:"pkgname" toml:"pkgname"`
+	PkgBase           string            `json:"pkgbase" yml:"pkgbase" toml:"pkgbase"`
+	PkgVer            string            `json:"pkgver" yml:"pkgver" toml:"pkgver"`
+	PkgArch           string            `json:"pkgarch" yml:"pkgarch" toml:"pkgarch"`
+	PkgbuildSHA256Sum string            `json:"pkgbuild_sha256sum" yml:"pkgbuild_sha256sum" toml:"pkgbuild_sha256sum"`
+	Packager          string            `json:"packager" yml:"packager" toml:"packager"`
+	BuildDate         int64             `json:"builddate" yml:"builddate" toml:"builddate"`
+	BuildDir          string            `json:"builddir" yml:"builddir" toml:"builddir"`
+	StartDir          string            `json:"startdir" yml:"startdir" toml:"startdir"`
+	BuildTool         string            `json:"buildtool" yml:"buildtool" toml:"buildtool"`
+	BuildToolVer      string            `json:"buildtoolver" yml:"buildtoolver" toml:"buildtoolver"`
+	BuildEnv          []string          `json:"buildenv" yml:"buildenv" toml:"buildenv"`
+	Options           []string          `json:"options" yml:"options" toml:"options"`
+	Installed         []string          `json:"installed" yml:"installed" toml:"installed"`
+	XData             map[string]string `json:"xdata" yml:"xdata" toml:"xdata"` // For any unrecognized keywords
 }
 
 // NewBUILDINFO creates a new BUILDINFO struct.

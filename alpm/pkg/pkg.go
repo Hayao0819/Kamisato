@@ -19,12 +19,12 @@ var ErrSRCINFONotFound = fmt.Errorf(".SRCINFO not found")
 type Package struct {
 	srcdir   string
 	bin      string
-	srcinfo  *raiou.GoSRCINFO
+	srcinfo  *raiou.SRCINFO
 	pkginfo  *raiou.PKGINFO
 	onmemory bool
 }
 
-func (p *Package) SRCINFO() (*raiou.GoSRCINFO, error) {
+func (p *Package) SRCINFO() (*raiou.SRCINFO, error) {
 	if p.srcinfo == nil {
 		return nil, fmt.Errorf("srcinfo not found")
 	}
@@ -38,7 +38,7 @@ func (p *Package) PKGINFO() (*raiou.PKGINFO, error) {
 	return p.pkginfo, nil
 }
 
-func (p *Package) MustSRCINFO() *raiou.GoSRCINFO {
+func (p *Package) MustSRCINFO() *raiou.SRCINFO {
 	info, err := p.SRCINFO()
 	if err != nil {
 		panic("failed to get srcinfo: " + err.Error())

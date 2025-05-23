@@ -10,27 +10,27 @@ import (
 
 // PKGINFO represents the parsed PKGINFO file.
 type PKGINFO struct {
-	PkgName     string
-	PkgBase     string
-	PkgVer      string
-	PkgDesc     string
-	URL         string
-	BuildDate   int64
-	Packager    string
-	Size        int64
-	Arch        string
-	License     []string
-	Replaces    []string
-	Group       []string
-	Conflict    []string
-	Provides    []string
-	Backup      []string
-	Depend      []string
-	OptDepend   []string
-	MakeDepend  []string
-	CheckDepend []string
-	XData       map[string]string
-	PkgType     string
+	PkgName     string            `json:"pkgname" yml:"pkgname" toml:"pkgname"`
+	PkgBase     string            `json:"pkgbase" yml:"pkgbase" toml:"pkgbase"`
+	PkgVer      string            `json:"pkgver" yml:"pkgver" toml:"pkgver"`
+	PkgDesc     string            `json:"pkgdesc" yml:"pkgdesc" toml:"pkgdesc"`
+	URL         string            `json:"url" yml:"url" toml:"url"`
+	BuildDate   int64             `json:"builddate" yml:"builddate" toml:"builddate"`
+	Packager    string            `json:"packager" yml:"packager" toml:"packager"`
+	Size        int64             `json:"size" yml:"size" toml:"size"`
+	Arch        string            `json:"arch" yml:"arch" toml:"arch"`
+	License     []string          `json:"license" yml:"license" toml:"license"`
+	Replaces    []string          `json:"replaces" yml:"replaces" toml:"replaces"`
+	Group       []string          `json:"group" yml:"group" toml:"group"`
+	Conflict    []string          `json:"conflict" yml:"conflict" toml:"conflict"`
+	Provides    []string          `json:"provides" yml:"provides" toml:"provides"`
+	Backup      []string          `json:"backup" yml:"backup" toml:"backup"`
+	Depend      []string          `json:"depend" yml:"depend" toml:"depend"`
+	OptDepend   []string          `json:"optdepend" yml:"optdepend" toml:"optdepend"`
+	MakeDepend  []string          `json:"makedepend" yml:"makedepend" toml:"makedepend"`
+	CheckDepend []string          `json:"checkdepend" yml:"checkdepend" toml:"checkdepend"`
+	XData       map[string]string `json:"xdata" yml:"xdata" toml:"xdata"`
+	PkgType     string            `json:"pkgtype" yml:"pkgtype" toml:"pkgtype"`
 }
 
 // NewPKGINFO creates a new PKGINFO struct.

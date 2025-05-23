@@ -10,27 +10,27 @@ import (
 )
 
 type DESC struct {
-	Name        string
-	Version     string
-	Base        string
-	Description string
-	URL         string
-	Arch        string
-	BuildDate   time.Time
-	InstallDate time.Time
-	Packager    string
-	Size        int64
-	Reason      int64
-	Groups      []string
-	License     []string
-	Validation  string
-	Replaces    []string
-	Depends     []string
-	OptDepends  []string
-	Conflicts   []string
-	Provides    []string
-	XData       []keyValue
-	ExtraFields map[string][]string
+	Name        string              `json:"name" yml:"name" toml:"name"`
+	Version     string              `json:"version" yml:"version" toml:"version"`
+	Base        string              `json:"base" yml:"base" toml:"base"`
+	Description string              `json:"description" yml:"description" toml:"description"`
+	URL         string              `json:"url" yml:"url" toml:"url"`
+	Arch        string              `json:"arch" yml:"arch" toml:"arch"`
+	BuildDate   time.Time           `json:"builddate" yml:"builddate" toml:"builddate"`
+	InstallDate time.Time           `json:"installdate" yml:"installdate" toml:"installdate"`
+	Packager    string              `json:"packager" yml:"packager" toml:"packager"`
+	Size        int64               `json:"size" yml:"size" toml:"size"`
+	Reason      int64               `json:"reason" yml:"reason" toml:"reason"`
+	Groups      []string            `json:"groups" yml:"groups" toml:"groups"`
+	License     []string            `json:"license" yml:"license" toml:"license"`
+	Validation  string              `json:"validation" yml:"validation" toml:"validation"`
+	Replaces    []string            `json:"replaces" yml:"replaces" toml:"replaces"`
+	Depends     []string            `json:"depends" yml:"depends" toml:"depends"`
+	OptDepends  []string            `json:"optdepends" yml:"optdepends" toml:"optdepends"`
+	Conflicts   []string            `json:"conflicts" yml:"conflicts" toml:"conflicts"`
+	Provides    []string            `json:"provides" yml:"provides" toml:"provides"`
+	XData       []keyValue          `json:"xdata" yml:"xdata" toml:"xdata"`
+	ExtraFields map[string][]string `json:"extrafields" yml:"extrafields" toml:"extrafields"`
 }
 
 func NewDESC() *DESC {

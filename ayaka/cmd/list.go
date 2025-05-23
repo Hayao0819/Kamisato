@@ -28,7 +28,7 @@ func listCmd() *cobra.Command {
 					slog.Warn("failed to get srcinfo", "error", err)
 					continue
 				}
-				cmd.Println(srcinfo.Pkgbase)
+				cmd.Println(srcinfo.PkgBase)
 			}
 
 			return nil
