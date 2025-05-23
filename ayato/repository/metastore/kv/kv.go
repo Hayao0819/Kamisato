@@ -2,6 +2,7 @@
 package kv
 
 import (
+	"github.com/Hayao0819/Kamisato/ayato/repository/metastore/kv/logger"
 	"github.com/dgraph-io/badger/v3"
 )
 
@@ -12,7 +13,11 @@ type Badger struct {
 }
 
 func NewBadger(dir string) (*Badger, error) {
-	db, err := badger.Open(badger.DefaultOptions(dir))
+
+	opt := badger.DefaultOptions(dir)
+	opt.Logger = logger.Default()
+
+	db, err := badger.Open(opt)
 	if err != nil {
 		return nil, err
 	}
