@@ -11,7 +11,7 @@ import (
 )
 
 func UseColorLog(level slog.Level) {
-	h := clog.New(clog.WithColor(true), clog.WithLevel(level))
+	h := clog.New(clog.WithColor(true), clog.WithLevel(level), clog.WithSource(true))
 	l := slog.New(h)
 	slog.SetDefault(l)
 }

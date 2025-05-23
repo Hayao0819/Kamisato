@@ -7,17 +7,17 @@ import (
 	"strings"
 )
 
-type DbConfig struct {
-	Driver        string `koanf:"driver"`         // postgres | mysql | sqlite
-	Host          string `koanf:"host"`           // 例: localhost
-	Port          string `koanf:"port"`           // 例: 5432, 3306
-	User          string `koanf:"user"`           // 例: root
-	Password      string `koanf:"password"`       // 任意（SQLite除く）
-	Database      string `koanf:"database"`       // DB名 or SQLiteファイルパス
+type SqlConfig struct {
+	Driver        string `koanf:"driver"`        // postgres | mysql | sqlite
+	Host          string `koanf:"host"`          // 例: localhost
+	Port          string `koanf:"port"`          // 例: 5432, 3306
+	User          string `koanf:"user"`          // 例: root
+	Password      string `koanf:"password"`      // 任意（SQLite除く）
+	Database      string `koanf:"database"`      // DB名 or SQLiteファイルパス
 	AdditionalDSN string `koanf:"additionaldsn"` // 例: sslmode=require
 }
 
-func (c DbConfig) DSN() (string, error) {
+func (c SqlConfig) DSN() (string, error) {
 	switch strings.ToLower(c.Driver) {
 	case "postgres":
 		return c.postgresDSN()
@@ -30,7 +30,7 @@ func (c DbConfig) DSN() (string, error) {
 	}
 }
 
-func (c DbConfig) postgresDSN() (string, error) {
+func (c SqlConfig) postgresDSN() (string, error) {
 	if c.Host == "" || c.User == "" || c.Database == "" {
 		return "", errors.New("postgres: missing required fields (host, user, database)")
 	}
@@ -50,7 +50,7 @@ func (c DbConfig) postgresDSN() (string, error) {
 	return base, nil
 }
 
-func (c DbConfig) mysqlDSN() (string, error) {
+func (c SqlConfig) mysqlDSN() (string, error) {
 	if c.Host == "" || c.User == "" || c.Database == "" {
 		return "", errors.New("mysql: missing required fields (host, user, database)")
 	}
@@ -70,7 +70,7 @@ func (c DbConfig) mysqlDSN() (string, error) {
 	return base, nil
 }
 
-func (c DbConfig) sqliteDSN() (string, error) {
+func (c SqlConfig) sqliteDSN() (string, error) {
 	if c.Database == "" {
 		return "", errors.New("sqlite: missing required field: database (file path)")
 	}

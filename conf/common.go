@@ -26,9 +26,10 @@ func loadConfig[T any](dirs []string, files []string, flags *pflag.FlagSet, envP
 
 	// fmt.Println(os.Getenv("KAMISATO_AYATO_PORT"))
 
-	return kfutils.Load[T](dirs, files, flags, "KAMISATO_"+envPrefix, "_", func(key string) string {
+	return kfutils.Load[T](dirs, files, flags, envPrefix, "_", func(key string) string {
 		key = strings.ToLower(key)
-		key = strings.TrimPrefix(key, "kamisato_ayato_")
+		key = strings.TrimPrefix(key, "ayato_")
+		key = strings.TrimPrefix(key, "ayaka_")
 		// fmt.Println(key)
 		return key
 	})

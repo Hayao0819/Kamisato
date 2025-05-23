@@ -8,17 +8,25 @@ import (
 )
 
 type AyatoConfig struct {
-	Debug        bool     `koanf:"debug"`
-	RepoPath     []string `koanf:"repopath"`
-	Port         int      `koanf:"port"`
-	DataPath     string   `koanf:"datapath"`
-	Username     string   `koanf:"username"`
-	Password     string   `koanf:"password"`
-	MaxSize      int      `koanf:"maxsize"`
-	DatabaseType string   `koanf:"database"` // "external" or "badgerdb"
-	Database     DbConfig `koanf:"dbconfig"`
-	StorageType  string   `koanf:"storage"` // "localfs" or "s3"
-	AWSS3        S3Config `koanf:"awss3"`
+	Debug    bool        `koanf:"debug"`
+	RepoPath []string    `koanf:"repopath"`
+	Port     int         `koanf:"port"`
+	MaxSize  int         `koanf:"maxsize"`
+	Auth     AuthConfig  `koanf:"auth"`
+	Store    StoreConfig `koanf:"store"`
+}
+
+type AuthConfig struct {
+	Username string `koanf:"username"`
+	Password string `koanf:"password"`
+}
+
+type StoreConfig struct {
+	DBType      string    `koanf:"dbtype"` // "external" or "badgerdb"
+	SQL         SqlConfig `koanf:"sql"`
+	StorageType string    `koanf:"storagetype"` // "localfs" or "s3"
+	AWSS3       S3Config  `koanf:"awss3"`
+	BadgerDB    string    `koanf:"badgerdb"`
 }
 
 func LoadAyatoConfig(flags *pflag.FlagSet) (*AyatoConfig, error) {
@@ -38,5 +46,5 @@ func LoadAyatoConfig(flags *pflag.FlagSet) (*AyatoConfig, error) {
 }
 
 func (c *AyatoConfig) DbPath() string {
-	return path.Join(c.DataPath, "kv-db")
+	return path.Join(c.Store.BadgerDB, "kv-db")
 }

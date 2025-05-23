@@ -15,9 +15,9 @@ func initPkgBinaryStore(cfg *conf.AyatoConfig) (PkgBinaryStoreProvider, error) {
 	var err error
 
 	// Check if S3 is enabled
-	if cfg.StorageType == "s3" {
+	if cfg.Store.StorageType == "s3" {
 		slog.Warn("Using S3 is still experimental, please use with caution")
-		bin, err = s3.NewS3(&cfg.AWSS3)
+		bin, err = s3.NewS3(&cfg.Store.AWSS3)
 		if err != nil {
 			bin = nil
 			slog.Error("Failed to create S3 client", "error", err)
@@ -36,14 +36,14 @@ func initMetaStore(cfg *conf.AyatoConfig) (PkgNameStoreProvider, error) {
 	var db PkgNameStoreProvider
 	var err error
 
-	dsn, err := cfg.Database.DSN()
+	dsn, err := cfg.Store.SQL.DSN()
 	if err != nil {
 		slog.Debug("Failed to get DSN", "error", err)
 	}
 
-	if cfg.DatabaseType == "external" {
+	if cfg.Store.DBType == "external" {
 		slog.Warn("Using SQL is still experimental, please use with caution")
-		db, err = sql.NewSql(cfg.Database.Driver, dsn)
+		db, err = sql.NewSql(cfg.Store.SQL.Driver, dsn)
 	} else {
 		db, err = kv.NewBadger(cfg.DbPath())
 	}

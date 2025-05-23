@@ -28,8 +28,8 @@ func (m *Middleware) BasicAuth(c *gin.Context) {
 		return
 	}
 
-	username := m.cfg.Username
-	password := m.cfg.Password
+	username := m.cfg.Auth.Username
+	password := m.cfg.Auth.Password
 	// If username and password are empty, skip authentication
 	if username == "" && password == "" {
 		c.Next()

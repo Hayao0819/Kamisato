@@ -1,17 +1,33 @@
 {
+    "debug": false,
     "repopath": [
         "../example/srv/repo"
     ],
-    "port": "9000",
-    "datapath": "../example/srv/db",
-    "username": "",
-    "password": "",
-    "maxsize": "10000000000000000",
-    "dbconfig": {
-        "driver": "",
-        "server": "",
-        "user": "",
-        "password":"",
-        "database":""
+    "port": 9000,
+    "maxsize": 10000000000000000,
+    "auth": {
+        "username": "",
+        "password": ""
+    },
+    "store": {
+        "dbtype": "",
+        "sql": {
+            "driver": "",
+            "server": "",
+            "user": "",
+            "password": "",
+            "database": ""
+        },
+        "storagetye": "",
+        "awss3": {
+            "region": "",
+            "accesskeyid": "",
+            "secretkey": "",
+            "sessiontoken": "",
+            "bucket": "",
+            "endpoint": "",
+            "usepathstyle": true
+        },
+        "badgerdb": "../example/srv/db"
     }
 }
