@@ -32,8 +32,10 @@ func RootCmd() *cobra.Command {
 				// println("debug mode")
 				utils.UseColorLog(slog.LevelDebug)
 				slog.Debug("Debug mode enabled")
+				gin.SetMode(gin.DebugMode)
 			} else {
 				utils.UseColorLog(slog.LevelInfo)
+				gin.SetMode(gin.ReleaseMode)
 			}
 
 			slog.Debug("Config loaded", "port", cfg.Port, "debug", cfg.Debug, "names", cfg.RepoNames, "maxsize", cfg.MaxSize, "dbtype", cfg.Store.DBType, "storagetype", cfg.Store.StorageType)
