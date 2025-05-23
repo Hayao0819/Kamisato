@@ -79,7 +79,7 @@ func (s *S3) initRepo(repo, arch string, useSignedDB bool, gnupgDir *string) err
 	return nil
 }
 
-func (s *S3) repoAdd(repo, arch string, pkgfile domain.IFileSeekStream, useSignedDB bool, gnupgDir *string) error {
+func (s *S3) RepoAdd(repo, arch string, pkgfile, sigfile domain.IFileSeekStream, useSignedDB bool, gnupgDir *string) error {
 
 	t, err := os.MkdirTemp("", "ayato-")
 	if err != nil {
@@ -109,7 +109,7 @@ func (s *S3) repoAdd(repo, arch string, pkgfile domain.IFileSeekStream, useSigne
 	return pacman.RepoAdd(dbPath, pkgPath, useSignedDB, gnupgDir)
 }
 
-func (s *S3) repoRemove(repo string, arch string, pkg string, useSignedDB bool, gnupgDir *string) error {
+func (s *S3) RepoRemove(repo string, arch string, pkg string, useSignedDB bool, gnupgDir *string) error {
 	dbkey := key(repo, arch, repo+".db.tar.gz")
 	dbobj, err := s.getObject(dbkey)
 	if err != nil {

@@ -10,11 +10,7 @@ func (l *LocalPkgBinaryStore) RepoNames() ([]string, error) {
 	if l.cfg == nil {
 		return nil, fmt.Errorf("config is nil")
 	}
-	names := make([]string, 0, len(l.cfg.RepoPath))
-	for _, r := range l.cfg.RepoPath {
-		names = append(names, path.Base(r))
-	}
-	return names, nil
+	return l.cfg.RepoNames, nil
 }
 
 func (l *LocalPkgBinaryStore) FileList(name string, arch string) ([]string, error) {

@@ -21,7 +21,7 @@ func (s *Service) RemovePkgFile(rname string, arch string, pkgname string) error
 	}
 	slog.Info("get pkg file", "file", filename)
 
-	if err := s.r.DeleteFile(rname, arch, filename, false, nil); err != nil {
+	if err := s.r.DeleteFile(rname, arch, filename); err != nil {
 		return fmt.Errorf("delete pkg file err: %s", err.Error())
 	}
 

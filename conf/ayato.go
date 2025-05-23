@@ -8,12 +8,12 @@ import (
 )
 
 type AyatoConfig struct {
-	Debug    bool        `koanf:"debug"`
-	RepoPath []string    `koanf:"repopath"`
-	Port     int         `koanf:"port"`
-	MaxSize  int         `koanf:"maxsize"`
-	Auth     AuthConfig  `koanf:"auth"`
-	Store    StoreConfig `koanf:"store"`
+	Debug     bool        `koanf:"debug"`
+	RepoNames []string    `koanf:"names"`
+	Port      int         `koanf:"port"`
+	MaxSize   int         `koanf:"maxsize"`
+	Auth      AuthConfig  `koanf:"auth"`
+	Store     StoreConfig `koanf:"store"`
 }
 
 type AuthConfig struct {
@@ -25,6 +25,7 @@ type StoreConfig struct {
 	DBType      string    `koanf:"dbtype"` // "external" or "badgerdb"
 	SQL         SqlConfig `koanf:"sql"`
 	StorageType string    `koanf:"storagetype"` // "localfs" or "s3"
+	RepoDir     string    `koanf:"repodir"`
 	AWSS3       S3Config  `koanf:"awss3"`
 	BadgerDB    string    `koanf:"badgerdb"`
 }

@@ -36,7 +36,7 @@ func RootCmd() *cobra.Command {
 				utils.UseColorLog(slog.LevelInfo)
 			}
 
-			slog.Debug("Config loaded", "port", cfg.Port, "debug", cfg.Debug, "repopath", cfg.RepoPath, "maxsize", cfg.MaxSize, "dbtype", cfg.Store.DBType, "storagetype", cfg.Store.StorageType)
+			slog.Debug("Config loaded", "port", cfg.Port, "debug", cfg.Debug, "names", cfg.RepoNames, "maxsize", cfg.MaxSize, "dbtype", cfg.Store.DBType, "storagetype", cfg.Store.StorageType)
 
 			// Init
 			r, err := repository.New(cfg)

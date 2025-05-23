@@ -31,6 +31,7 @@ func (p *Package) Build(target *builder.Target, dest string) error {
 		// defer os.RemoveAll(tmpdir)
 
 		// Copy directory to temp directory
+		// TODO: Use third party library
 		if err := utils.CopyDir(p.srcdir, tmpdir); err != nil {
 			return err
 		}
@@ -63,6 +64,7 @@ func (p *Package) Build(target *builder.Target, dest string) error {
 			return err
 		}
 		if futils.Exists(src + ".sig") {
+			//TODO: Use third party library
 			if err := utils.MoveFile(src+".sig", dest); err != nil {
 				return err
 			}

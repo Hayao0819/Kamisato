@@ -39,10 +39,16 @@ func (s *Service) UploadPkgFile(repo string, files *domain.UploadFiles) error {
 	slog.Info("get pkg from bin", "pkgname", pi.PkgName, "pkgver", pi.PkgVer)
 
 	// Store package file to the repository directory
+	if err := s.r.StoreFile(repo, pi.Arch, pkgFileStream); err != nil {
+		return fmt.Errorf("store file err: %s", err.Error())
+	}
+
+	// Update the package database
+	// TOOD: Support signed database
 	useSignedDB := false
 	var gnupgDir *string // TODO: Check if the directory exists
-	if err := s.r.StoreFile(repo, pi.Arch, pkgFileStream, useSignedDB, gnupgDir); err != nil {
-		return fmt.Errorf("store file err: %s", err.Error())
+	if err := s.r.RepoAdd(repo, pi.Arch, pkgFileStream, nil, useSignedDB, gnupgDir); err != nil {
+		return fmt.Errorf("repo-add err: %s", err.Error())
 	}
 
 	// Store metadata to the kv store

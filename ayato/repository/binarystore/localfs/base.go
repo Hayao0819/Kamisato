@@ -19,9 +19,9 @@ func (l *LocalPkgBinaryStore) getRepoDir(name string) (string, error) {
 	if l.cfg == nil {
 		return "", fmt.Errorf("config is nil")
 	}
-	for _, r := range l.cfg.RepoPath {
-		if path.Base(r) == name {
-			return r, nil
+	for _, n := range l.cfg.RepoNames {
+		if n == name {
+			return path.Join(l.cfg.Store.RepoDir, name), nil
 		}
 	}
 	return "", fmt.Errorf("repo %s not found", name)

@@ -6,7 +6,9 @@ import (
 	"os"
 	"path"
 
+	"github.com/Hayao0819/Kamisato/ayato/domain"
 	"github.com/Hayao0819/Kamisato/ayato/repository/pacman"
+	"github.com/Hayao0819/Kamisato/internal/utils"
 )
 
 func (l *LocalPkgBinaryStore) repoAdd(name string, arch string, fileName string, useSignedDB bool, gnupgDir *string) error {
@@ -32,16 +34,85 @@ func (l *LocalPkgBinaryStore) repoAdd(name string, arch string, fileName string,
 	return nil
 }
 
-func (l *LocalPkgBinaryStore) repoRemove(name string, fileName string, useSignedDB bool, gnupgDir *string) error {
+func (l *LocalPkgBinaryStore) repoRemove(name string, arch string, fileName string, useSignedDB bool, gnupgDir *string) error {
 	repoDir, err := l.getRepoDir(name)
 	if err != nil {
 		return err
 	}
 
-	repoDbPath := path.Join(repoDir, "x86_64", name+".db.tar.gz")
-	pkgFilePath := path.Join(repoDir, "x86_64", fileName)
+	repoDbPath := path.Join(repoDir, arch, name+".db.tar.gz")
+	pkgFilePath := path.Join(repoDir, arch, fileName)
 	if err := pacman.RepoRemove(repoDbPath, pkgFilePath, useSignedDB, gnupgDir); err != nil {
 		return fmt.Errorf("repo-remove err: %s", err.Error())
+	}
+
+	return nil
+}
+
+func (s *LocalPkgBinaryStore) RepoAdd(repo, arch string, pkgfile, sigfile domain.IFileSeekStream, useSignedDB bool, gnupgDir *string) error {
+	t, err := os.MkdirTemp("", "ayato-")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(t)
+
+	pkgPath, err := writeStreamToFile(t, pkgfile)
+	if err != nil {
+		return err
+	}
+
+	repoDir, err := s.getRepoDir(repo)
+	if err != nil {
+		return err
+	}
+	repoDir = path.Join(repoDir, arch)
+
+	dbpath := path.Join(repoDir, repo+".db.tar.gz")
+	dbfile, err := utils.OpenFileStreamWithTypeDetection(dbpath)
+	if err != nil {
+		// if s3shared.
+		return fmt.Errorf("failed to open file %s: %w", dbpath, err)
+	}
+	defer dbfile.Close()
+
+	dbPath, err := writeStreamToFile(t, dbfile)
+	if err != nil {
+		return err
+		// slog.Error("writeStreamToFile", "err", err)
+	}
+
+	return pacman.RepoAdd(dbPath, pkgPath, useSignedDB, gnupgDir)
+}
+
+func (s *LocalPkgBinaryStore) RepoRemove(repo string, arch string, pkg string, useSignedDB bool, gnupgDir *string) error {
+	t, err := os.MkdirTemp("", "ayato-")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(t)
+
+	repoDir, err := s.getRepoDir(repo)
+	if err != nil {
+		return err
+	}
+	repoDir = path.Join(repoDir, arch)
+
+	dbpath := path.Join(repoDir, repo+".db.tar.gz")
+	dbfile, err := utils.OpenFileStreamWithTypeDetection(dbpath)
+	if err != nil {
+		// if s3shared.
+		return fmt.Errorf("failed to open file %s: %w", dbpath, err)
+	}
+	defer dbfile.Close()
+
+	dbPath, err := writeStreamToFile(t, dbfile)
+	if err != nil {
+		return err
+	}
+
+	if err := pacman.RepoRemove(dbPath, pkg, useSignedDB, gnupgDir); err != nil {
+		slog.Error("RepoRemove", "err", err)
+		return err
 	}
 
 	return nil
