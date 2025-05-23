@@ -1,7 +1,7 @@
 package repository
 
 import (
-	"github.com/Hayao0819/Kamisato/ayato/repository/stream"
+	"github.com/Hayao0819/Kamisato/ayato/stream"
 )
 
 func (r *Repository) StoreFile(repo string, arch string, stream stream.IFileSeekStream) error {

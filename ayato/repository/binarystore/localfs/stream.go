@@ -5,7 +5,7 @@ import (
 	"os"
 	"path"
 
-	"github.com/Hayao0819/Kamisato/ayato/repository/stream"
+	"github.com/Hayao0819/Kamisato/ayato/stream"
 )
 
 func writeReadSeekerToFile(name string, stream io.Reader) error {

@@ -7,7 +7,7 @@ import (
 	"path"
 
 	"github.com/Hayao0819/Kamisato/ayato/repository/pacman"
-	"github.com/Hayao0819/Kamisato/ayato/repository/stream"
+	"github.com/Hayao0819/Kamisato/ayato/stream"
 )
 
 func (l *LocalPkgBinaryStore) repoAdd(name string, arch string, fileName string, useSignedDB bool, gnupgDir *string) error {

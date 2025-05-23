@@ -6,7 +6,7 @@ import (
 	"os"
 	"path"
 
-	"github.com/Hayao0819/Kamisato/ayato/repository/stream"
+	"github.com/Hayao0819/Kamisato/ayato/stream"
 )
 
 func (l *LocalPkgBinaryStore) StoreFile(repo string, arch string, file stream.IFileSeekStream) error {

@@ -3,7 +3,7 @@ package s3
 import (
 	"fmt"
 
-	"github.com/Hayao0819/Kamisato/ayato/repository/stream"
+	"github.com/Hayao0819/Kamisato/ayato/stream"
 )
 
 // func fileAliasResolver(repo, arch, filename string) string
