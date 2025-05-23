@@ -2,6 +2,7 @@ package s3
 
 import (
 	"io"
+	"log/slog"
 	"os"
 	"strings"
 
@@ -20,6 +21,7 @@ func (s *S3) list(dir string) (*awss3.ListObjectsV2Output, error) {
 		Prefix:    aws.String(dir),
 		Delimiter: aws.String("/"),
 	})
+	slog.Debug("S3 ListObjectsV2", "dir", dir, "bucket", s.bucket, "result", l)
 	if err != nil {
 		return nil, err
 	}

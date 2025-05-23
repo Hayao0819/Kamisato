@@ -6,9 +6,39 @@
 </head>
 <body>
     <ul>
-        {{range .List}}
-            <li>{{.}}</li>
-        {{end}}
+        {{- range .List}}
+            <li><a href="{{.}}" download>{{.}}</a></li>
+        {{- end}}
     </ul>
+    <script>
+document.addEventListener('DOMContentLoaded', function() {
+    const listItems = document.querySelectorAll('li a');
+    listItems.forEach(function(item) {
+        let relativePath = item.getAttribute('href');
+        if (relativePath && !relativePath.startsWith('http://') && !relativePath.startsWith('https://') && !relativePath.startsWith('/')) {
+            let baseUrl = window.location.href;
+            // Remove filename from URL if present
+            if (baseUrl.includes('/')) {
+                baseUrl = baseUrl.substring(0, baseUrl.lastIndexOf('/') + 1);
+            }
+            item.href = baseUrl + relativePath;
+        }
+
+        // Extract filename and update link text
+        try {
+            const url = new URL(item.href);
+            const pathSegments = url.pathname.split('/');
+            const filename = pathSegments[pathSegments.length - 1];
+            item.textContent = filename;
+            item.setAttribute('download', filename); // Add this line
+        } catch (e) {
+            console.error("Invalid URL for filename extraction:", item.href, e);
+            // Fallback to using the original relative path as text and download if URL is invalid
+            item.textContent = relativePath;
+            item.setAttribute('download', relativePath); // Add this line for fallback
+        }
+    });
+});
+</script>
 </body>
 </html>

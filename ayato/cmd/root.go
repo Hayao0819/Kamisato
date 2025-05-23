@@ -27,6 +27,7 @@ func RootCmd() *cobra.Command {
 				return err
 			}
 
+			// Init logger
 			if cfg.Debug {
 				// println("debug mode")
 				utils.UseColorLog(slog.LevelDebug)
