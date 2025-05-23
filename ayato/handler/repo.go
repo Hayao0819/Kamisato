@@ -33,12 +33,16 @@ func (h *Handler) RepoFileHandler(ctx *gin.Context) {
 	}
 }
 func (h *Handler) RepoFileListHandler(ctx *gin.Context) {
+	// slog.Info("repoHandler", "repoName", ctx.Param("repo"))
 	repo := ctx.Param("repo")
 	arch := ctx.Param("arch")
+	// fmt.Println("hoge")
 	l, err := h.s.RepoFileList(repo, arch)
 	if err != nil {
 		slog.Error("err while getting repo dir", "repo", repo, "arch", arch, "err", err)
 	}
+
+	slog.Warn("repoHandler", "repoName", repo, "arch", arch, "filelist", l)
 
 	ctx.HTML(http.StatusOK, "repolist.tmpl", gin.H{
 		"List": l,

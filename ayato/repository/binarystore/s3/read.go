@@ -28,5 +28,20 @@ func (s *S3) Arches(repo string) ([]string, error) {
 }
 
 func (s *S3) Files(repo string, arch string) ([]string, error) {
-	return s.listFiles(fmt.Sprintf("%s/%s", repo, arch))
+	l, err := s.listFiles(fmt.Sprintf("%s/%s", repo, arch))
+	if err != nil {
+		return nil, err
+	}
+	slog.Debug("get raw files", "repo", repo, "arch", arch, "files", l)
+
+	for _, name := range l {
+		r := fileAliasResolver(repo, arch, name)
+		if r != name {
+			l = append(l, r)
+		}
+	}
+	ul := lo.Uniq(l)
+
+	slog.Debug("get files", "repo", repo, "arch", arch, "files", ul)
+	return ul, nil
 }

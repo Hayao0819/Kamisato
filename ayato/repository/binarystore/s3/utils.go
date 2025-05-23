@@ -46,6 +46,7 @@ func (s *S3) listFiles(dir string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
+	// slog.Debug("get raw files", "dir", dir, "files", l.Contents)
 	var files []string
 	for _, obj := range l.Contents {
 		files = append(files, *obj.Key)
@@ -72,6 +73,17 @@ func (s *S3) putObject(key string, body io.ReadCloser) error {
 		Bucket: aws.String(s.bucket),
 		Key:    aws.String(key),
 		Body:   body,
+	})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *S3) deleteObject(key string) error {
+	_, err := s.storage.DeleteObject(s.ctx, &awss3.DeleteObjectInput{
+		Bucket: aws.String(s.bucket),
+		Key:    aws.String(key),
 	})
 	if err != nil {
 		return err

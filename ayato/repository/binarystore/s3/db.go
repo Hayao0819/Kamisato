@@ -9,6 +9,7 @@ import (
 
 	"github.com/Hayao0819/Kamisato/ayato/domain"
 	"github.com/Hayao0819/Kamisato/ayato/repository/pacman"
+	"github.com/Hayao0819/Kamisato/internal/utils"
 )
 
 func writeReadSeekerToFile(name string, stream io.Reader) error {
@@ -47,6 +48,37 @@ func writeStreamToFile(dir string, stream domain.IFileStream) (string, error) {
 	return fp, nil
 }
 
+func (s *S3) initRepo(repo, arch string, useSignedDB bool, gnupgDir *string) error {
+	slog.Debug("initRepo", "repo", repo, "arch", arch, "useSignedDB", useSignedDB, "gnupgDir", gnupgDir)
+	t, err := os.MkdirTemp("", "ayato-s3-")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(t)
+
+	dbpath := path.Join(t, repo+".db.tar.gz")
+
+	if err := pacman.RepoAdd(dbpath, "", useSignedDB, gnupgDir); err != nil {
+		slog.Error("RepoAdd", "err", err)
+		return err
+	}
+
+	dbkey := key(repo, arch, repo+".db.tar.gz")
+	dbobj, err := utils.OpenFileStreamWithTypeDetection(dbpath)
+	if err != nil {
+		slog.Error("OpenFileStreamWithTypeDetection", "err", err)
+		return err
+	}
+	defer dbobj.Close()
+
+	if err := s.putObject(dbkey, dbobj); err != nil {
+		slog.Error("putObject", "err", err)
+		return err
+	}
+
+	return nil
+}
+
 func (s *S3) repoAdd(repo, arch string, pkgfile domain.IFileSeekStream, useSignedDB bool, gnupgDir *string) error {
 
 	t, err := os.MkdirTemp("", "ayato-")
@@ -60,9 +92,10 @@ func (s *S3) repoAdd(repo, arch string, pkgfile domain.IFileSeekStream, useSigne
 		return err
 	}
 
-	dbkey := key(repo, arch, repo+".db")
+	dbkey := key(repo, arch, repo+".db.tar.gz")
 	dbobj, err := s.getObject(dbkey)
 	if err != nil {
+		// if s3shared.
 		return fmt.Errorf("failed to get object %s: %w", dbkey, err)
 	}
 	defer dbobj.Close()
@@ -76,16 +109,37 @@ func (s *S3) repoAdd(repo, arch string, pkgfile domain.IFileSeekStream, useSigne
 	return pacman.RepoAdd(dbPath, pkgPath, useSignedDB, gnupgDir)
 }
 
-func (s *S3) repoRemove(repo string, arch string, useSignedDB bool, gnupgDir *string) error {
-	// return nil
-	// _, err := s.prepareRepoExecuteEnv(repo, arch, name, pkgfile, signfile, dbfile, useSignedDB, gnupgDir)
-	// return err
+func (s *S3) repoRemove(repo string, arch string, pkg string, useSignedDB bool, gnupgDir *string) error {
+	dbkey := key(repo, arch, repo+".db.tar.gz")
+	dbobj, err := s.getObject(dbkey)
+	if err != nil {
+		// if s3shared.
+		return fmt.Errorf("failed to get object %s: %w", dbkey, err)
+	}
+	defer dbobj.Close()
+
+	t, err := os.MkdirTemp("", "ayato-")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(t)
+
+	dbPath, err := writeStreamToFile(t, dbobj)
+	if err != nil {
+		return err
+	}
+
+	if err := pacman.RepoRemove(dbPath, pkg, useSignedDB, gnupgDir); err != nil {
+		slog.Error("RepoRemove", "err", err)
+		return err
+	}
+
 	return nil
 }
 
 func (s *S3) Init(repo string, arch string, useSignedDB bool, gnupgDir *string) error {
 	slog.Debug("Init", "repo", repo, "arch", arch, "useSignedDB", useSignedDB, "gnupgDir", gnupgDir)
-	if err := s.repoAdd(repo, arch, nil, useSignedDB, gnupgDir); err != nil {
+	if err := s.initRepo(repo, arch, useSignedDB, gnupgDir); err != nil {
 		return err
 	}
 
