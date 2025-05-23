@@ -2,6 +2,7 @@ package utils
 
 import (
 	"log/slog"
+	"text/template"
 
 	"github.com/gin-gonic/gin"
 	"github.com/m-mizutani/clog"
@@ -10,8 +11,16 @@ import (
 	gormlogger "gorm.io/gorm/logger"
 )
 
+const clogTemplate = `{{.Level}} {{.Message}}{{ if .FileName }} [{{.FileName}}:{{.FileLine}}]{{ end }} `
+
+
 func UseColorLog(level slog.Level) {
-	h := clog.New(clog.WithColor(true), clog.WithLevel(level), clog.WithSource(true))
+	tmpl, err := template.New("default").Parse(clogTemplate)
+	if err != nil {
+		panic(err)
+	}
+
+	h := clog.New(clog.WithColor(true), clog.WithLevel(level), clog.WithSource(true), clog.WithTemplate(tmpl))
 	l := slog.New(h)
 	slog.SetDefault(l)
 }
