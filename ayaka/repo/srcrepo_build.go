@@ -46,6 +46,7 @@ func (r *SourceRepo) Build(t *builder.Target, dest string, pkgs ...string) error
 	}
 
 	for _, pkg := range targetPkgs {
+		slog.Info("building package", "pkg", pkg.Names())
 		if err := pkg.Build(t, fulldstdir); err != nil {
 			slog.Error("build package failed", "pkg", pkg.Names(), "err", err)
 			errs = append(errs, err)

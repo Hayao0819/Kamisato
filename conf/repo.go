@@ -1,9 +1,10 @@
 package conf
 
 type RepoConfig struct {
-	Name       string   `koanf:"name"`
-	Maintainer string   `koanf:"maintainer"`
-	Server     string   `koanf:"server"`
+	Name        string   `koanf:"name"`
+	Maintainer  string   `koanf:"maintainer"`
+	Server      string   `koanf:"server"`
+	InstallPkgs []string `koanf:"installpkgs"`
 	// AurPkgs    []string `koanf:"aurpkgs"`
 }
 

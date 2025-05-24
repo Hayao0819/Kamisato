@@ -1,8 +1,9 @@
 package builder
 
 type Target struct {
-	Arch    string
-	SignKey string
+	Arch        string
+	SignKey     string
+	InstallPkgs []string
 }
 
 type Builder struct {

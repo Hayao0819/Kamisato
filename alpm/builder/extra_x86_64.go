@@ -8,17 +8,18 @@ import (
 var Extra_x86_64 = Builder{
 	Name: "extra-x86_64",
 	Build: func(dir string, target *Target) error {
-		build := cmd(
-			dir,
-			"extra-x86_64-build",
-			// archbuild arguments
-			"--",
-			// makechrootpkg arguments
-			"-c",
-			"--",
-			// makepkg arguments
-			"--syncdeps", "--noconfirm", "--log", "--holdver","OPTIONS=-debug",
-		)
+		archBuildArgs := []string{"extra-x86_64-build"}
+		makePkgArgs := []string{"--syncdeps", "--noconfirm", "--log", "--holdver", "OPTIONS=-debug"}
+		makeChrootPkgArgs := []string{"-c"}
+		for _, pkg := range target.InstallPkgs {
+			makeChrootPkgArgs = append(makeChrootPkgArgs, "-I", pkg)
+		}
+
+		args := append(archBuildArgs, "--")
+		args = append(args, makeChrootPkgArgs...)
+		args = append(args, "--")
+		args = append(args, makePkgArgs...)
+		build := cmd(dir, args...)
 
 		if err := build.Run(); err != nil {
 			return err
