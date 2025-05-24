@@ -1,10 +1,24 @@
-import { servers } from "@/lib/data";
 import { StatusCard } from "@/components/status-card";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, RefreshCw } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
+import { getHelloEndpoint, getTeapotEndpoint } from "@/lib/api";
+import { RefreshButton } from "@/components/refresh-button";
 
-export default function ServerStatus() {
+async function checkServerStatus() {
+  const helloStatus = await fetch(getHelloEndpoint()).then(res => res.ok ? "Online" : "Offline").catch(() => "Offline");
+  const teapotStatus = await fetch(getTeapotEndpoint()).then(res => res.ok ? "Online" : "Offline").catch(() => "Offline");
+
+  return [
+    { id: "hello", name: "Hello Endpoint", status: helloStatus },
+    { id: "teapot", name: "Teapot Endpoint", status: teapotStatus },
+    // Add other relevant endpoints to check as needed
+  ];
+}
+
+export default async function ServerStatus() {
+    const servers = await checkServerStatus();
+
     return (
         <div className="container mx-auto py-4 sm:py-8 px-4 sm:px-6">
             <header className="mb-6 sm:mb-8">
@@ -13,13 +27,7 @@ export default function ServerStatus() {
                         サーバーステータス
                     </h1>
                     <div className="flex gap-2 w-full sm:w-auto">
-                        <Button
-                            variant="outline"
-                            className="flex-1 sm:flex-auto"
-                        >
-                            <RefreshCw className="h-4 w-4 mr-2" />
-                            更新
-                        </Button>
+                        <RefreshButton />
                         <Link href="/" className="flex-1 sm:flex-auto">
                             <Button variant="outline" className="w-full">
                                 <ArrowLeft className="h-4 w-4 mr-2" />
@@ -29,8 +37,7 @@ export default function ServerStatus() {
                     </div>
                 </div>
                 <p className="text-sm sm:text-base text-muted-foreground">
-                    Pacman
-                    パッケージリポジトリの各サーバーの状態を確認できます。
+                    Ayaka バックエンドの各エンドポイントの状態を確認できます。
                 </p>
             </header>
 
@@ -43,7 +50,7 @@ export default function ServerStatus() {
             </main>
 
             <footer className="mt-8 sm:mt-12 text-center text-xs sm:text-sm text-muted-foreground py-4">
-                <p>© 2023 Pacman パッケージリポジトリ</p>
+                <p>© 2023 山田ハヤオ / Lumine</p>
             </footer>
         </div>
     );

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"log/slog"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -20,6 +21,7 @@ func (h *Handler) AllPkgsHandler(ctx *gin.Context) {
 
 	pkgs, err := h.s.PacmanRepoPkgs(repoName, archName)
 	if err != nil {
+		slog.Error("Failed to get packages", "error", err)
 		ctx.String(http.StatusInternalServerError, err.Error())
 		return
 	}

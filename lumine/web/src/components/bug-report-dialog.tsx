@@ -3,7 +3,7 @@
 import type React from "react";
 
 import { useState } from "react";
-import type { Package } from "@/lib/data";
+import type { PackageInfo } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -28,7 +28,7 @@ import { BugIcon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface BugReportDialogProps {
-    packageInfo: Package;
+    packageInfo: PackageInfo;
 }
 
 export function BugReportDialog({ packageInfo }: BugReportDialogProps) {
@@ -40,7 +40,7 @@ export function BugReportDialog({ packageInfo }: BugReportDialogProps) {
         // ここでバグ報告を送信する処理を実装（モックなので実際には何もしない）
         toast({
             title: "バグ報告を送信しました",
-            description: `${packageInfo.name} のバグ報告ありがとうございます。開発チームが確認します。`,
+            description: `${packageInfo.pkgname} のバグ報告ありがとうございます。開発チームが確認します。`,
         });
         setOpen(false);
     };
@@ -61,7 +61,7 @@ export function BugReportDialog({ packageInfo }: BugReportDialogProps) {
                 <DialogHeader>
                     <DialogTitle>バグ報告</DialogTitle>
                     <DialogDescription>
-                        {packageInfo.name} ({packageInfo.version})
+                        {packageInfo.pkgname} ({packageInfo.pkgver})
                         に関するバグを報告します。
                     </DialogDescription>
                 </DialogHeader>

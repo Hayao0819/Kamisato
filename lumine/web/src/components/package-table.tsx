@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { Package } from "@/lib/data";
+import type { PackageInfo } from "@/lib/types";
 import {
     Table,
     TableBody,
@@ -33,11 +33,11 @@ import { Badge } from "@/components/ui/badge";
 import { useMobile } from "@/hooks/use-mobile";
 
 interface PackageTableProps {
-    packages: Package[];
+    packages: PackageInfo[];
 }
 
 export function PackageTable({ packages: initialPackages }: PackageTableProps) {
-    const [packages, setPackages] = useState<Package[]>(initialPackages);
+    const [packages, setPackages] = useState<PackageInfo[]>(initialPackages);
     const isMobile = useMobile();
 
     const handleSearch = (query: string) => {
@@ -48,11 +48,16 @@ export function PackageTable({ packages: initialPackages }: PackageTableProps) {
 
         const filtered = initialPackages.filter(
             (pkg) =>
-                pkg.name.toLowerCase().includes(query.toLowerCase()) ||
-                pkg.description.toLowerCase().includes(query.toLowerCase()),
+                pkg.pkgname.toLowerCase().includes(query.toLowerCase()) ||
+                pkg.pkgdesc.toLowerCase().includes(query.toLowerCase()),
         );
 
         setPackages(filtered);
+    };
+
+    const formatDate = (timestamp: number) => {
+        const date = new Date(timestamp * 1000); // Convert Unix timestamp to milliseconds
+        return date.toLocaleDateString(); // Format as a localized date string
     };
 
     // モバイル用のカードビュー
@@ -65,25 +70,25 @@ export function PackageTable({ packages: initialPackages }: PackageTableProps) {
                     </div>
                 ) : (
                     packages.map((pkg) => (
-                        <Card key={pkg.id}>
+                        <Card key={pkg.pkgname}>
                             <CardContent className="pt-6">
                                 <div className="flex items-start justify-between">
                                     <div className="flex items-center">
                                         <PackageIcon className="h-4 w-4 mr-2 text-muted-foreground" />
                                         <h3 className="font-medium">
-                                            {pkg.name}
+                                            {pkg.pkgname}
                                         </h3>
                                     </div>
                                     <Badge variant="outline">
-                                        {pkg.version}
+                                        {pkg.pkgver}
                                     </Badge>
                                 </div>
                                 <p className="text-sm text-muted-foreground mt-2">
-                                    {pkg.description}
+                                    {pkg.pkgdesc}
                                 </p>
                                 <div className="flex items-center text-xs text-muted-foreground mt-3">
                                     <Calendar className="h-3 w-3 mr-1" />
-                                    {pkg.lastUpdated}
+                                    {formatDate(pkg.builddate)}
                                 </div>
                             </CardContent>
                             <CardFooter className="flex justify-between pt-0">
@@ -150,16 +155,16 @@ export function PackageTable({ packages: initialPackages }: PackageTableProps) {
                             </TableRow>
                         ) : (
                             packages.map((pkg) => (
-                                <TableRow key={pkg.id}>
+                                <TableRow key={pkg.pkgname}>
                                     <TableCell className="font-medium">
                                         <div className="flex items-center">
                                             <PackageIcon className="h-4 w-4 mr-2 text-muted-foreground" />
-                                            {pkg.name}
+                                            {pkg.pkgname}
                                         </div>
                                     </TableCell>
-                                    <TableCell>{pkg.version}</TableCell>
-                                    <TableCell>{pkg.description}</TableCell>
-                                    <TableCell>{pkg.lastUpdated}</TableCell>
+                                    <TableCell>{pkg.pkgver}</TableCell>
+                                    <TableCell>{pkg.pkgdesc}</TableCell>
+                                    <TableCell>{formatDate(pkg.builddate)}</TableCell>
                                     <TableCell className="text-right">
                                         <div className="flex justify-end gap-2">
                                             <BugReportDialog
