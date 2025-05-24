@@ -71,7 +71,7 @@ func diffBuildCmd() *cobra.Command {
 			t := builder.Target{
 				Arch:    "x86_64",
 				SignKey: "",
-				InstallPkgs: srcrepo.Config.InstallPkgs,
+				InstallPkgs: srcrepo.Config.InstallPkgs.Files,
 			}
 
 			// Build the packages

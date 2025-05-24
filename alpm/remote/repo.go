@@ -1,8 +1,6 @@
 package remote
 
-import (
-	"github.com/Hayao0819/Kamisato/alpm/pkg"
-)
+import "github.com/Hayao0819/Kamisato/alpm/pkg"
 
 type RemoteRepo struct {
 	Name string
