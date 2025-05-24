@@ -48,3 +48,11 @@ func (r *Repository) RemoteRepo(name, arch string) (*remote.RemoteRepo, error) {
 	}
 	return rr, nil
 }
+
+func (r *Repository) RepoNames() ([]string, error) {
+	names, err := r.pkgBinStore.RepoNames()
+	if err != nil {
+		return nil, err
+	}
+	return names, nil
+}

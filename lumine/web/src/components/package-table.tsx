@@ -19,6 +19,7 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
+import { getRepoFileEndpoint } from "@/lib/api";
 import { BugReportDialog } from "./bug-report-dialog";
 import { SearchBar } from "./search-bar";
 import {
@@ -111,7 +112,13 @@ export function PackageTable({ packages: initialPackages }: PackageTableProps) {
                                             <Info className="h-4 w-4 mr-2" />
                                             詳細を表示
                                         </DropdownMenuItem>
-                                        <DropdownMenuItem>
+                                        <DropdownMenuItem
+                                            onSelect={() => {
+                                                // TODO: Get repo and arch dynamically
+                                                const downloadUrl = getRepoFileEndpoint("repo", "x86_64", `${pkg.pkgname}-${pkg.pkgver}.pkg.tar.zst`);
+                                                window.open(downloadUrl, "_blank");
+                                            }}
+                                        >
                                             <Download className="h-4 w-4 mr-2" />
                                             ダウンロード
                                         </DropdownMenuItem>
@@ -192,7 +199,13 @@ export function PackageTable({ packages: initialPackages }: PackageTableProps) {
                                                         <Info className="h-4 w-4 mr-2" />
                                                         詳細を表示
                                                     </DropdownMenuItem>
-                                                    <DropdownMenuItem>
+                                                    <DropdownMenuItem
+                                                        onSelect={() => {
+                                                            // TODO: Get repo and arch dynamically
+                                                            const downloadUrl = getRepoFileEndpoint("repo", "x86_64", `${pkg.pkgname}-${pkg.pkgver}.pkg.tar.zst`);
+                                                            window.open(downloadUrl, "_blank");
+                                                        }}
+                                                    >
                                                         <Download className="h-4 w-4 mr-2" />
                                                         ダウンロード
                                                     </DropdownMenuItem>

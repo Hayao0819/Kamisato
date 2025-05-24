@@ -60,3 +60,13 @@ func (s *Service) PacmanRepoPkgs(repo, arch string) (*domain.PacmanPkgs, error) 
 
 	return &rt, nil
 }
+
+// RepoNames returns the names of all repositories.
+func (s *Service) RepoNames() ([]string, error) {
+	return s.r.RepoNames()
+}
+
+// Arches returns the architectures of a repository.
+func (s *Service) Arches(repo string) ([]string, error) {
+	return s.r.Arches(repo)
+}
