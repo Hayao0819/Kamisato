@@ -1,6 +1,7 @@
 package builder
 
 import (
+	"log/slog"
 	"os"
 	"os/exec"
 )
@@ -14,6 +15,7 @@ var Extra_x86_64 = Builder{
 		for _, pkg := range target.InstallPkgs {
 			makeChrootPkgArgs = append(makeChrootPkgArgs, "-I", pkg)
 		}
+		slog.Debug("install packages", "pkgs", target.InstallPkgs)
 
 		args := append(archBuildArgs, "--")
 		args = append(args, makeChrootPkgArgs...)
@@ -21,6 +23,7 @@ var Extra_x86_64 = Builder{
 		args = append(args, makePkgArgs...)
 		build := cmd(dir, args...)
 
+		slog.Debug("build command", "cmd", build.String())
 		if err := build.Run(); err != nil {
 			return err
 		}

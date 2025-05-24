@@ -63,6 +63,7 @@ func buildCmd() *cobra.Command {
 			t := builder.Target{
 				Arch:    "x86_64",
 				SignKey: gpgkey,
+				InstallPkgs: repo.Config.InstallPkgs,
 			}
 
 			// TODO: DestDirにメタデータを作る

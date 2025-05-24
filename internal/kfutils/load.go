@@ -2,6 +2,7 @@ package kfutils
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 
@@ -62,6 +63,7 @@ func (l *Loader[T]) Load() error {
 			}
 
 			// fmt.Printf("Loading config (%s): %s\n", ext, path)
+			slog.Debug("Loading config", "path", path)
 			if err := l.k.Load(file.Provider(path), parser); err != nil {
 				return fmt.Errorf("failed to load %s: %w", path, err)
 			}
