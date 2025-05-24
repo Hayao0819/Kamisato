@@ -26,9 +26,18 @@ with automatic database updates.
 Lumine is a web frontend for Ayato, built using Next.js, that displays server
 status and searches for packages.
 
+### Features
+
+- Display package list
+- Search packages
+- Display Ayato backend server status
+- Bug reporting for packages (mock function)
+
 ### Todo
 
-Lumine is waiting for Ayato's implementation.
+- 問い合わせの送信の実装
+- リポジトリの選択
+- 複数サーバーへの対応
 
 ## Special thanks
 
