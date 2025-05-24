@@ -15,6 +15,7 @@ func SetRoute(e *gin.Engine, h *handler.Handler, m *middleware.Middleware) error
 
 	{
 		api := e.Group("/api/unstable")
+		api.Use(m.Cors())
 		{
 			api.GET("/hello", h.HelloHandler)
 			api.GET("/teapot", h.TeapotHandler)
