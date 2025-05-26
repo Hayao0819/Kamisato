@@ -8,6 +8,7 @@ import (
 	"log/slog"
 
 	"github.com/Hayao0819/Kamisato/alpm/builder"
+	"github.com/Hayao0819/Kamisato/alpm/utils"
 	"github.com/Hayao0819/Kamisato/ayaka/gpg"
 	"github.com/Hayao0819/Kamisato/ayaka/repo"
 	"github.com/cockroachdb/errors"
@@ -60,10 +61,16 @@ func buildCmd() *cobra.Command {
 			if err != nil {
 				return errors.Wrap(err, "failed to get source repository")
 			}
+
+			pkgs, err := utils.GetCleanPkgBinary(repo.Config.InstallPkgs.Names...)
+			if err != nil {
+				return errors.Wrap(err, "failed to get clean package binary")
+			}
+
 			t := builder.Target{
-				Arch:    "x86_64",
-				SignKey: gpgkey,
-				InstallPkgs: repo.Config.InstallPkgs.Files,
+				Arch:        "x86_64",
+				SignKey:     gpgkey,
+				InstallPkgs: append(repo.Config.InstallPkgs.Files, pkgs...),
 			}
 
 			// TODO: DestDirにメタデータを作る

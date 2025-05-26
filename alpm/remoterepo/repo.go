@@ -1,4 +1,4 @@
-package remote
+package remoterepo
 
 import "github.com/Hayao0819/Kamisato/alpm/pkg"
 

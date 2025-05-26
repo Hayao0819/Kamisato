@@ -21,6 +21,7 @@ type Package struct {
 	bin      string
 	srcinfo  *raiou.SRCINFO
 	pkginfo  *raiou.PKGINFO
+	desc     *raiou.DESC
 	onmemory bool
 }
 
@@ -51,6 +52,20 @@ func (p *Package) MustPKGINFO() *raiou.PKGINFO {
 		panic("failed to get pkginfo: " + err.Error())
 	}
 	return info
+}
+
+func (p *Package) Desc() (*raiou.DESC, error) {
+	if p.desc == nil {
+		return nil, fmt.Errorf("desc not found")
+	}
+	return p.desc, nil
+}
+func (p *Package) MustDesc() *raiou.DESC {
+	desc, err := p.Desc()
+	if err != nil {
+		panic("failed to get desc: " + err.Error())
+	}
+	return desc
 }
 
 func GetPkgFromSrc(dir string) (*Package, error) {

@@ -3,6 +3,7 @@ package raiou
 import (
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"strconv"
 	"strings"
@@ -143,6 +144,8 @@ func (p *PKGINFO) parseKeyValues(kvs []keyValue) error {
 			if err := p.parseXData(value); err != nil {
 				return err
 			}
+		default:
+			slog.Warn("unknown key in PKGINFO", "key", key, "value", value)
 		}
 	}
 	return nil

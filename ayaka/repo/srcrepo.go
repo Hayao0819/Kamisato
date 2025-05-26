@@ -1,6 +1,7 @@
 package repo
 
 import (
+	"errors"
 	"log/slog"
 
 	"github.com/Hayao0819/Kamisato/alpm/pkg"
@@ -37,8 +38,8 @@ func GetSrcRepo(repodir string) (*SourceRepo, error) {
 	}
 
 	if len(dirs) == 0 {
-		slog.Info("no src directories found", "dir", repodir)
-		return nil, nil
+		slog.Error("no src directories found", "dir", repodir)
+		return nil, errors.New("no src directories found")
 	}
 
 	for _, dir := range dirs {

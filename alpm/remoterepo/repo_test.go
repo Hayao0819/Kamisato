@@ -1,9 +1,9 @@
-package remote_test
+package remoterepo_test
 
 import (
 	"testing"
 
-	"github.com/Hayao0819/Kamisato/alpm/remote"
+	remote "github.com/Hayao0819/Kamisato/alpm/remoterepo"
 )
 
 func TestGetRepoFromDBFile(t *testing.T) {

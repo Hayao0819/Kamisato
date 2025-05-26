@@ -3,7 +3,7 @@ package repository
 import (
 	"fmt"
 
-	"github.com/Hayao0819/Kamisato/alpm/remote"
+	remote "github.com/Hayao0819/Kamisato/alpm/remoterepo"
 )
 
 // TODO: implement this function

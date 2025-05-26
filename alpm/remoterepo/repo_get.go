@@ -1,8 +1,7 @@
-package remote
+package remoterepo
 
 import (
 	"archive/tar"
-	"compress/gzip"
 	"fmt"
 	"io"
 	"log/slog"
@@ -11,6 +10,7 @@ import (
 	"os"
 
 	"github.com/Hayao0819/Kamisato/alpm/pkg"
+	"github.com/Hayao0819/Kamisato/internal/utils"
 )
 
 // GetRepoFromURL fetches the remote repository from the given URL.
@@ -46,7 +46,7 @@ func GetRepoFromDBFile(name string, dbfile string) (*RemoteRepo, error) {
 
 func GetRepo(name string, db io.Reader) (*RemoteRepo, error) {
 	// gzip リーダーを作成
-	gzr, err := gzip.NewReader(db)
+	gzr, _, err := utils.DetectCompression(db)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create gzip reader: %w", err)
 	}

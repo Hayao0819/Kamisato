@@ -6,7 +6,7 @@ import (
 	"github.com/Hayao0819/Kamisato/alpm"
 	"github.com/Hayao0819/Kamisato/alpm/builder"
 	"github.com/Hayao0819/Kamisato/alpm/pkg"
-	"github.com/Hayao0819/Kamisato/alpm/remote"
+	remote "github.com/Hayao0819/Kamisato/alpm/remoterepo"
 	"github.com/Hayao0819/Kamisato/ayaka/repo"
 	"github.com/cockroachdb/errors"
 	"github.com/spf13/cobra"
@@ -69,19 +69,20 @@ func diffBuildCmd() *cobra.Command {
 			}
 
 			t := builder.Target{
-				Arch:    "x86_64",
-				SignKey: "",
+				Arch:        "x86_64",
+				SignKey:     "",
 				InstallPkgs: srcrepo.Config.InstallPkgs.Files,
 			}
 
 			// Build the packages
 			for _, pkg := range shoubuild {
-				slog.Debug("building package", "pkgbase", pkg.MustPKGINFO().PkgBase)
+				pkgbase := pkg.MustPKGINFO().PkgBase
+				slog.Debug("building package", "pkgbase", pkgbase)
 				if err := pkg.Build(&t, config.DestDir); err != nil {
-					slog.Error("failed to build package", "pkgbase", pkg.MustPKGINFO().PkgBase, "error", err)
+					slog.Error("failed to build package", "pkgbase", pkgbase, "error", err)
 					return errors.Wrap(err, "failed to build package")
 				}
-				slog.Debug("package built", "pkgbase", pkg.MustPKGINFO().PkgBase)
+				slog.Debug("package built", "pkgbase", pkgbase)
 			}
 
 			return nil

@@ -1,4 +1,4 @@
-package pkg
+package utils
 
 import (
 	"fmt"
@@ -7,7 +7,7 @@ import (
 	"path"
 
 	"github.com/Hayao0819/Kamisato/alpm/pkg"
-	"github.com/Hayao0819/Kamisato/alpm/remote"
+	remote "github.com/Hayao0819/Kamisato/alpm/remoterepo"
 	"github.com/Hayao0819/nahi/exutils"
 	"github.com/Hayao0819/nahi/flist"
 	"github.com/Hayao0819/nahi/futils"
@@ -33,35 +33,35 @@ func (c *CleanPkgBinary) Close() error {
 	return nil
 }
 
-func GetCleanPkgBinary(names ...string) (string, error) {
+func GetCleanPkgBinary(names ...string) ([]string, error) {
 	tmp, err := os.MkdirTemp("", "kamisato-pkg-dl-")
 	if err != nil {
-		return "", fmt.Errorf("failed to create temp directory: %w", err)
+		return nil, fmt.Errorf("failed to create temp directory: %w", err)
 	}
 	// defer os.RemoveAll(tmp)
 
 	dbpath := path.Join(tmp, "db")
 	if err := os.MkdirAll(dbpath, 0755); err != nil {
-		return "", fmt.Errorf("failed to create db directory: %w", err)
+		return nil, fmt.Errorf("failed to create db directory: %w", err)
 	}
 	cachepath := path.Join(tmp, "cache")
 	if err := os.MkdirAll(cachepath, 0755); err != nil {
-		return "", fmt.Errorf("failed to create cache directory: %w", err)
+		return nil, fmt.Errorf("failed to create cache directory: %w", err)
 	}
 
 	args := []string{"pacman", "--sync", "--refresh", "--noconfirm", "--downloadonly", "--cachedir", cachepath, "--dbpath", dbpath, "--log", "/dev/null"}
 	args = append(args, names...)
 	c := exutils.CommandWithStdio("fakeroot", args...)
 	if err := c.Run(); err != nil {
-		return "", fmt.Errorf("failed to download package: %w", err)
+		return nil, fmt.Errorf("failed to download package: %w", err)
 	}
 
 	repodbfiles, err := flist.Get(path.Join(dbpath, "sync"), flist.WithFileOnly(), flist.WithExactDepth(1), flist.WithExtOnly(".db"))
 	if err != nil {
-		return "", fmt.Errorf("failed to list db files: %w", err)
+		return nil, fmt.Errorf("failed to list db files: %w", err)
 	}
 	if len(*repodbfiles) == 0 {
-		return "", fmt.Errorf("no db files found in %s", dbpath)
+		return nil, fmt.Errorf("no db files found in %s", dbpath)
 	}
 
 	remoterepos := []*remote.RemoteRepo{}
@@ -75,7 +75,7 @@ func GetCleanPkgBinary(names ...string) (string, error) {
 	}
 
 	if len(remoterepos) == 0 {
-		return "", fmt.Errorf("no remote repositories found in db files")
+		return nil, fmt.Errorf("no remote repositories found in db files")
 	}
 
 	pkgs := make([]*pkg.Package, 0)
@@ -86,16 +86,18 @@ func GetCleanPkgBinary(names ...string) (string, error) {
 	}
 
 	if len(pkgs) == 0 {
-		return "", fmt.Errorf("no packages found in remote repositories")
+		return nil, fmt.Errorf("no packages found in remote repositories")
 	}
 
+	rt := make(([]string), len(pkgs))
 	for _, p := range pkgs {
 		for _, n := range names {
 			slog.Debug("Extract filename for package", "name", n)
-			p.MustPKGINFO()
+			d := p.MustDesc()
+			rt = append(rt, d.FileName)
 			// TODO: Support desc for sync
 		}
 	}
 
-	return "", nil
+	return rt, nil
 }

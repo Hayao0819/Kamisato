@@ -5,10 +5,43 @@ import (
 	"path/filepath"
 	"testing"
 
+	remote "github.com/Hayao0819/Kamisato/alpm/remoterepo"
 	"github.com/Hayao0819/Kamisato/raiou"
+	"github.com/Hayao0819/nahi/flist"
+	"github.com/Hayao0819/nahi/futils"
 )
 
-func TestParseAllDescFiles(t *testing.T) {
+func TestSyncParseAllDescFiles(t *testing.T) {
+	const localDBPath = "/var/lib/pacman/sync"
+
+	entries, err := flist.Get(localDBPath, flist.WithFileOnly(), flist.WithExtOnly(".db"), flist.WithExactDepth(1))
+	if err != nil {
+		t.Fatalf("failed to read %s: %v", localDBPath, err)
+	}
+
+	for _, entry := range *entries {
+		name := futils.BaseWithoutExt(entry)
+		rr, err := remote.GetRepoFromDBFile(name, entry)
+		if err != nil {
+			t.Errorf("failed to parse %s: %v", entry, err)
+			continue
+		}
+
+		// 未知のキーがある場合はテスト失敗
+		// if len(rr.Pkgs) > 0 {
+		// 	t.Errorf("unknown keys found in %s: %v", descPath, keysOf(desc.ExtraFields))
+		// }
+		for _, pkg := range rr.Pkgs {
+			pi := pkg.MustPKGINFO()
+			if pi == nil {
+				t.Errorf("failed to get PKGINFO")
+				continue
+			}
+		}
+	}
+}
+
+func TestLocalParseAllDescFiles(t *testing.T) {
 	const localDBPath = "/var/lib/pacman/local"
 
 	entries, err := os.ReadDir(localDBPath)

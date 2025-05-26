@@ -6,7 +6,7 @@ type RepoConfig struct {
 	Server      string `koanf:"server"`
 	InstallPkgs struct {
 		Files []string `koanf:"files"`
-		// Names []string `koanf:"names"`
+		Names []string `koanf:"names"`
 	} `koanf:"installpkgs"`
 	// AurPkgs    []string `koanf:"aurpkgs"`
 }

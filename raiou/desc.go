@@ -4,33 +4,42 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"strings"
 	"time"
 )
 
 type DESC struct {
-	Name        string              `json:"name" yml:"name" toml:"name"`
-	Version     string              `json:"version" yml:"version" toml:"version"`
-	Base        string              `json:"base" yml:"base" toml:"base"`
-	Description string              `json:"description" yml:"description" toml:"description"`
-	URL         string              `json:"url" yml:"url" toml:"url"`
-	Arch        string              `json:"arch" yml:"arch" toml:"arch"`
-	BuildDate   time.Time           `json:"builddate" yml:"builddate" toml:"builddate"`
-	InstallDate time.Time           `json:"installdate" yml:"installdate" toml:"installdate"`
-	Packager    string              `json:"packager" yml:"packager" toml:"packager"`
-	Size        int64               `json:"size" yml:"size" toml:"size"`
-	Reason      int64               `json:"reason" yml:"reason" toml:"reason"`
-	Groups      []string            `json:"groups" yml:"groups" toml:"groups"`
-	License     []string            `json:"license" yml:"license" toml:"license"`
-	Validation  string              `json:"validation" yml:"validation" toml:"validation"`
-	Replaces    []string            `json:"replaces" yml:"replaces" toml:"replaces"`
-	Depends     []string            `json:"depends" yml:"depends" toml:"depends"`
-	OptDepends  []string            `json:"optdepends" yml:"optdepends" toml:"optdepends"`
-	Conflicts   []string            `json:"conflicts" yml:"conflicts" toml:"conflicts"`
-	Provides    []string            `json:"provides" yml:"provides" toml:"provides"`
-	XData       []keyValue          `json:"xdata" yml:"xdata" toml:"xdata"`
-	ExtraFields map[string][]string `json:"extrafields" yml:"extrafields" toml:"extrafields"`
+	FileName     string              `json:"filename" yml:"filename" toml:"filename"`
+	Name         string              `json:"name" yml:"name" toml:"name"`
+	Version      string              `json:"version" yml:"version" toml:"version"`
+	Base         string              `json:"base" yml:"base" toml:"base"`
+	Description  string              `json:"description" yml:"description" toml:"description"`
+	URL          string              `json:"url" yml:"url" toml:"url"`
+	Arch         string              `json:"arch" yml:"arch" toml:"arch"`
+	BuildDate    time.Time           `json:"builddate" yml:"builddate" toml:"builddate"`
+	InstallDate  time.Time           `json:"installdate" yml:"installdate" toml:"installdate"`
+	Packager     string              `json:"packager" yml:"packager" toml:"packager"`
+	Size         int64               `json:"size" yml:"size" toml:"size"`
+	ISize        int64               `json:"isize" yml:"isize" toml:"isize"`
+	CSize        int64               `json:"csize" yml:"csize" toml:"csize"`
+	Reason       int64               `json:"reason" yml:"reason" toml:"reason"`
+	Groups       []string            `json:"groups" yml:"groups" toml:"groups"`
+	License      []string            `json:"license" yml:"license" toml:"license"`
+	Validation   string              `json:"validation" yml:"validation" toml:"validation"`
+	Replaces     []string            `json:"replaces" yml:"replaces" toml:"replaces"`
+	Depends      []string            `json:"depends" yml:"depends" toml:"depends"`
+	OptDepends   []string            `json:"optdepends" yml:"optdepends" toml:"optdepends"`
+	MakeDepends  []string            `json:"makedepends" yml:"makedepends" toml:"makedepends"`
+	CheckDepends []string            `json:"checkdepends" yml:"checkdepends" toml:"checkdepends"`
+	SHA256SUM    string              `json:"sha256sum" yml:"sha256sum" toml:"sha256sum"`
+	MD5SUM       string              `json:"md5sum" yml:"md5sum" toml:"md5sum"`
+	PGPSIG       string              `json:"pgpsig" yml:"pgpsig" toml:"pgpsig"`
+	Conflicts    []string            `json:"conflicts" yml:"conflicts" toml:"conflicts"`
+	Provides     []string            `json:"provides" yml:"provides" toml:"provides"`
+	XData        []keyValue          `json:"xdata" yml:"xdata" toml:"xdata"`
+	ExtraFields  map[string][]string `json:"extrafields" yml:"extrafields" toml:"extrafields"`
 }
 
 func NewDESC() *DESC {
@@ -73,6 +82,10 @@ func ParseDesc(r io.Reader) (*DESC, error) {
 		}
 
 		switch currentField {
+		case "FILENAME":
+			if len(buffer) > 0 {
+				desc.FileName = buffer[0]
+			}
 		case "NAME":
 			if len(buffer) > 0 {
 				desc.Name = buffer[0]
@@ -117,6 +130,30 @@ func ParseDesc(r io.Reader) (*DESC, error) {
 			} else {
 				desc.Size = s
 			}
+		case "ISIZE":
+			if s, err := parseInt(buffer); err != nil {
+				return fmt.Errorf("invalid ISIZE: %w", err)
+			} else {
+				desc.ISize = s
+			}
+		case "CSIZE":
+			if s, err := parseInt(buffer); err != nil {
+				return fmt.Errorf("invalid CSIZE: %w", err)
+			} else {
+				desc.CSize = s
+			}
+		case "SHA256SUM":
+			if len(buffer) > 0 {
+				desc.SHA256SUM = buffer[0]
+			}
+		case "MD5SUM":
+			if len(buffer) > 0 {
+				desc.MD5SUM = buffer[0]
+			}
+		case "PGPSIG":
+			if len(buffer) > 0 {
+				desc.PGPSIG = buffer[0]
+			}
 		case "REASON":
 			if r, err := parseInt(buffer); err != nil {
 				return fmt.Errorf("invalid REASON: %w", err)
@@ -137,6 +174,10 @@ func ParseDesc(r io.Reader) (*DESC, error) {
 			desc.Depends = append(desc.Depends, buffer...)
 		case "OPTDEPENDS":
 			desc.OptDepends = append(desc.OptDepends, buffer...)
+		case "MAKEDEPENDS":
+			desc.MakeDepends = append(desc.MakeDepends, buffer...)
+		case "CHECKDEPENDS":
+			desc.CheckDepends = append(desc.CheckDepends, buffer...)
 		case "CONFLICTS":
 			desc.Conflicts = append(desc.Conflicts, buffer...)
 		case "PROVIDES":
@@ -148,9 +189,11 @@ func ParseDesc(r io.Reader) (*DESC, error) {
 			}
 			desc.XData = kvPairs
 		default:
+			slog.Warn("unknown field in desc file", "field", currentField, "values", buffer)
 			desc.ExtraFields[currentField] = append(desc.ExtraFields[currentField], buffer...)
 		}
 		buffer = nil
+		// panic("finished")
 		return nil
 	}
 
