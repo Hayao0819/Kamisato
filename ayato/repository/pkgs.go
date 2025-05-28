@@ -33,7 +33,7 @@ func (r *Repository) PkgNames(repoName, archName string) ([]string, error) {
 }
 
 func (r *Repository) RemoteRepo(name, arch string) (*remote.RemoteRepo, error) {
-	db, err := r.pkgBinStore.FetchFile(name, arch, fmt.Sprintf("%s.db.tar.gz", name))
+	db, err := r.FetchDB(name, arch)
 	if err != nil {
 		return nil, err
 	}
@@ -55,4 +55,35 @@ func (r *Repository) RepoNames() ([]string, error) {
 		return nil, err
 	}
 	return names, nil
+}
+
+func (r *Repository) PkgFiles(repoName, archName, pkgName string) ([]string, error) {
+	db, err := r.FetchDB(repoName, archName)
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close()
+
+	rr, err := remote.GetRepo(repoName, db)
+	if err != nil {
+		return nil, err
+	}
+	if rr == nil {
+		return nil, fmt.Errorf("failed to get repository")
+	}
+
+	return nil, nil
+
+	// TODO: Implement this function
+
+	// pkg := rr.GetPkg(pkgName)
+	// if pkg == nil {
+	// 	return nil, fmt.Errorf("package %s not found in repository %s", pkgName, repoName)
+	// }
+
+	// files := make([]string, 0)
+	// for _, file := range pkg.Files {
+	// 	files = append(files, file.Name)
+	// }
+	// return files, nil
 }
