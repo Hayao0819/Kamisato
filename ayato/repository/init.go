@@ -5,7 +5,8 @@ import (
 
 	"github.com/Hayao0819/Kamisato/ayato/repository/binarystore/localfs"
 	"github.com/Hayao0819/Kamisato/ayato/repository/binarystore/s3"
-	"github.com/Hayao0819/Kamisato/ayato/repository/metastore/kv"
+	"github.com/Hayao0819/Kamisato/ayato/repository/metastore/cloudflarekv"
+	"github.com/Hayao0819/Kamisato/ayato/repository/metastore/localkv"
 	"github.com/Hayao0819/Kamisato/ayato/repository/metastore/sql"
 	"github.com/Hayao0819/Kamisato/conf"
 )
@@ -44,8 +45,11 @@ func initMetaStore(cfg *conf.AyatoConfig) (PkgNameStoreProvider, error) {
 	if cfg.Store.DBType == "external" {
 		slog.Warn("Using SQL is still experimental, please use with caution")
 		db, err = sql.NewSql(cfg.Store.SQL.Driver, dsn)
+	} else if cfg.Store.DBType == "cfkv" {
+		slog.Warn("Using Cloudflare KV is still experimental, please use with caution")
+		db, err = cloudflarekv.NewCloudflareKV(cfg.Store.CloudflareKV.AccountId, cfg.Store.CloudflareKV.Token, cfg.Store.CloudflareKV.Namespace)
 	} else {
-		db, err = kv.NewBadger(cfg.DbPath())
+		db, err = localkv.NewBadger(cfg.DbPath())
 	}
 	if err != nil {
 		return nil, err

@@ -22,12 +22,13 @@ type AuthConfig struct {
 }
 
 type StoreConfig struct {
-	DBType      string    `koanf:"dbtype"` // "external" or "badgerdb"
-	SQL         SqlConfig `koanf:"sql"`
-	StorageType string    `koanf:"storagetype"` // "localfs" or "s3"
-	RepoDir     string    `koanf:"repodir"`
-	AWSS3       S3Config  `koanf:"awss3"`
-	BadgerDB    string    `koanf:"badgerdb"`
+	DBType       string     `koanf:"dbtype"` // "external", "cfkv" or "badgerdb"
+	SQL          SqlConfig  `koanf:"sql"`
+	StorageType  string     `koanf:"storagetype"` // "localfs" or "s3"
+	RepoDir      string     `koanf:"repodir"`
+	AWSS3        S3Config   `koanf:"awss3"`
+	BadgerDB     string     `koanf:"badgerdb"`
+	CloudflareKV CFKVConfig `koanf:"cfkv"`
 }
 
 func LoadAyatoConfig(flags *pflag.FlagSet) (*AyatoConfig, error) {

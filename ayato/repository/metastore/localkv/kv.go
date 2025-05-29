@@ -1,8 +1,8 @@
 // File: https://github.com/BrenekH/blinky/blob/dc156eb662a6f52ab98c41ea792af17ed2e66b8a/keyvaluestore/kv.go
-package kv
+package localkv
 
 import (
-	"github.com/Hayao0819/Kamisato/ayato/repository/metastore/kv/logger"
+	"github.com/Hayao0819/Kamisato/ayato/repository/metastore/localkv/logger"
 	"github.com/dgraph-io/badger/v3"
 )
 
