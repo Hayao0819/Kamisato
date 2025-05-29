@@ -1,6 +1,7 @@
 package service
 
 import (
+	"errors"
 	"log/slog"
 
 	"github.com/Hayao0819/Kamisato/ayato/domain"
@@ -59,6 +60,22 @@ func (s *Service) PacmanRepoPkgs(repo, arch string) (*domain.PacmanPkgs, error) 
 	}
 
 	return &rt, nil
+}
+
+func (s *Service) PacmanRepoPkgDetail(repo, arch, pkgbase string) (*raiou.PKGINFO, error) {
+	rr, err := s.r.RemoteRepo(repo, arch)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, pkg := range rr.Pkgs {
+		if pkg.MustPKGINFO().PkgBase == pkgbase {
+			pi := pkg.MustPKGINFO()
+			return pi, nil
+		}
+	}
+
+	return nil, errors.New("package not found in the repository")
 }
 
 // RepoNames returns the names of all repositories.
