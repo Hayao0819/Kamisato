@@ -11,6 +11,8 @@ type PkgBinaryStoreProvider interface {
 	// StoreFile stores a file
 	StoreFile(repo string, arch string, stream stream.IFileSeekStream) error
 
+	StoreFileWithSignedURL(repo string, arch string, name string)(string, error)
+
 	// DeleteFile deletes a file from the database
 	DeleteFile(repo string, arch string, file string) error
 
