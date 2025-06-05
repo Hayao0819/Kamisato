@@ -4,7 +4,7 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/Hayao0819/Kamisato/conf"
+	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/aws/retry"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -29,7 +29,6 @@ func newS3Client(ctx context.Context, cfg *conf.S3Config) (*s3.Client, error) {
 	if err != nil {
 		return nil, err
 	}
-
 
 	// エンドポイントのカスタマイズ
 	options := s3.Options{

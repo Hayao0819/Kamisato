@@ -10,8 +10,9 @@ import (
 	"github.com/Hayao0819/Kamisato/ayato/repository"
 	"github.com/Hayao0819/Kamisato/ayato/router"
 	"github.com/Hayao0819/Kamisato/ayato/service"
-	"github.com/Hayao0819/Kamisato/conf"
-	"github.com/Hayao0819/Kamisato/utils"
+	utils "github.com/Hayao0819/Kamisato/internal"
+	"github.com/Hayao0819/Kamisato/internal/conf"
+	"github.com/cockroachdb/errors"
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/cobra"
 )
@@ -43,7 +44,7 @@ func RootCmd() *cobra.Command {
 			// Init
 			r, err := repository.New(cfg)
 			if err != nil {
-				return err
+				return errors.Wrap(err, "failed to initialize repository")
 			}
 			s := service.New(r)
 			h := handler.New(s, cfg)
@@ -54,14 +55,14 @@ func RootCmd() *cobra.Command {
 			engine.Use(gin.Recovery())
 			engine.Use(utils.GinLog())
 			router.SetRoute(engine, h, m)
+			slog.Info("Routes initialized successfully")
 
-			// Init pacman repository
-			// if err := r.Init(false, nil); err != nil {
-			// 	return err
-			// }
+			// Initialize package repository
 			if err := s.InitAll(); err != nil {
-				return err
+				// return err
+				return errors.Wrap(err, "failed to initialize services")
 			}
+			slog.Info("All services initialized successfully")
 
 			// Start server
 			log.Printf("Listening on port %d", cfg.Port)

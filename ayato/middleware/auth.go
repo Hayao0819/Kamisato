@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/Hayao0819/Kamisato/conf"
+	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/gin-gonic/gin"
 )
 

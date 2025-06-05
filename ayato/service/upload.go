@@ -6,8 +6,8 @@ import (
 	"log/slog"
 	"path"
 
-	"github.com/Hayao0819/Kamisato/alpm/pkg"
 	"github.com/Hayao0819/Kamisato/ayato/domain"
+	"github.com/Hayao0819/Kamisato/pkg/alpm/pkg"
 )
 
 func (s *Service) UploadPkgFile(repo string, files *domain.UploadFiles) error {

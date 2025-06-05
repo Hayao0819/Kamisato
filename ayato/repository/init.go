@@ -8,7 +8,7 @@ import (
 	"github.com/Hayao0819/Kamisato/ayato/repository/metastore/cloudflarekv"
 	"github.com/Hayao0819/Kamisato/ayato/repository/metastore/localkv"
 	"github.com/Hayao0819/Kamisato/ayato/repository/metastore/sql"
-	"github.com/Hayao0819/Kamisato/conf"
+	"github.com/Hayao0819/Kamisato/internal/conf"
 )
 
 func initPkgBinaryStore(cfg *conf.AyatoConfig) (PkgBinaryStoreProvider, error) {
@@ -42,7 +42,7 @@ func initMetaStore(cfg *conf.AyatoConfig) (PkgNameStoreProvider, error) {
 		slog.Debug("Failed to get DSN", "error", err)
 	}
 
-	if cfg.Store.DBType == "external" {
+	if cfg.Store.DBType == "sql" || cfg.Store.DBType == "external" {
 		slog.Warn("Using SQL is still experimental, please use with caution")
 		db, err = sql.NewSql(cfg.Store.SQL.Driver, dsn)
 	} else if cfg.Store.DBType == "cfkv" {

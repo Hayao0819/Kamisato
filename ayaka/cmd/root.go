@@ -3,8 +3,8 @@ package cmd
 import (
 	"log/slog"
 
-	"github.com/Hayao0819/Kamisato/conf"
-	"github.com/Hayao0819/Kamisato/utils"
+	utils "github.com/Hayao0819/Kamisato/internal"
+	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/nahi/cobrautils"
 	"github.com/spf13/cobra"
 )

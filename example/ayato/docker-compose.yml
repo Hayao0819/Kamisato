@@ -1,0 +1,17 @@
+services:
+  app:
+    build:
+      context: ../../
+      dockerfile: ../../Dockerfile
+    command: ayato
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    environment:
+      - AYATO_STORE_BADGERDB=/app/db
+      - AYATO_STORE_LOCALREPODIR=/app/repo
+
+    volumes:
+      - ./db:/app/db
+      - ./repo:/app/repo

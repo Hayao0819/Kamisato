@@ -5,7 +5,7 @@ import (
 	"log/slog"
 
 	"github.com/Hayao0819/Kamisato/ayato/domain"
-	"github.com/Hayao0819/Kamisato/raiou"
+	"github.com/Hayao0819/Kamisato/pkg/raiou"
 )
 
 func (s *Service) RepoFileList(repo, arch string) ([]string, error) {

@@ -6,8 +6,8 @@ import (
 	"os"
 	"path"
 
-	"github.com/Hayao0819/Kamisato/alpm/builder"
-	"github.com/Hayao0819/Kamisato/alpm/pkg"
+	"github.com/Hayao0819/Kamisato/pkg/alpm/builder"
+	"github.com/Hayao0819/Kamisato/pkg/alpm/pkg"
 	"github.com/samber/lo"
 )
 

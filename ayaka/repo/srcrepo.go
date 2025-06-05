@@ -4,8 +4,8 @@ import (
 	"errors"
 	"log/slog"
 
-	"github.com/Hayao0819/Kamisato/alpm/pkg"
-	"github.com/Hayao0819/Kamisato/conf"
+	"github.com/Hayao0819/Kamisato/internal/conf"
+	"github.com/Hayao0819/Kamisato/pkg/alpm/pkg"
 	"github.com/Hayao0819/nahi/flist"
 )
 

@@ -5,7 +5,7 @@ import (
 	"log/slog"
 	"path"
 
-	"github.com/Hayao0819/Kamisato/conf"
+	"github.com/Hayao0819/Kamisato/internal/conf"
 )
 
 type LocalPkgBinaryStore struct {

@@ -3,7 +3,7 @@ package repository
 import (
 	"fmt"
 
-	remote "github.com/Hayao0819/Kamisato/alpm/remoterepo"
+	remote "github.com/Hayao0819/Kamisato/pkg/alpm/remoterepo"
 )
 
 func (r *Repository) PkgNames(repoName, archName string) ([]string, error) {

@@ -3,7 +3,7 @@ package s3
 import (
 	"context"
 
-	"github.com/Hayao0819/Kamisato/conf"
+	"github.com/Hayao0819/Kamisato/internal/conf"
 	awss3 "github.com/aws/aws-sdk-go-v2/service/s3"
 )
 

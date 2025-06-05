@@ -3,11 +3,11 @@ package cmd
 import (
 	"log/slog"
 
-	"github.com/Hayao0819/Kamisato/alpm"
-	"github.com/Hayao0819/Kamisato/alpm/builder"
-	"github.com/Hayao0819/Kamisato/alpm/pkg"
-	remote "github.com/Hayao0819/Kamisato/alpm/remoterepo"
 	"github.com/Hayao0819/Kamisato/ayaka/repo"
+	"github.com/Hayao0819/Kamisato/pkg/alpm"
+	"github.com/Hayao0819/Kamisato/pkg/alpm/builder"
+	"github.com/Hayao0819/Kamisato/pkg/alpm/pkg"
+	remote "github.com/Hayao0819/Kamisato/pkg/alpm/remoterepo"
 	"github.com/cockroachdb/errors"
 	"github.com/spf13/cobra"
 )
@@ -51,7 +51,11 @@ func diffBuildCmd() *cobra.Command {
 				// cmp=0 -> src == remote
 				// cmp>0 -> local > remote // ローカルの方が新しい
 				// cmp<0 -> local < remote // リモートの方が新しい
-				cmp := alpm.VerCmp(pi.PkgVer, rp.MustPKGINFO().PkgVer)
+				cmp, err := alpm.VerCmp(pi.PkgVer, rp.MustPKGINFO().PkgVer)
+				if err != nil {
+					slog.Error("failed to compare package versions", "pkgbase", pi.PkgBase, "error", err)
+					return errors.Wrap(err, "failed to compare package versions")
+				}
 				if cmp > 0 {
 					// ローカルの方が新しい
 					slog.Debug("local package is newer", "pkgbase", pi.PkgBase, "local", pi.PkgVer, "remote", rp.MustPKGINFO().PkgVer)

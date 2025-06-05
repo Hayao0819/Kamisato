@@ -1,7 +1,7 @@
 package repository
 
 import (
-	"github.com/Hayao0819/Kamisato/conf"
+	"github.com/Hayao0819/Kamisato/internal/conf"
 )
 
 type Repository struct {

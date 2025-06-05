@@ -5,7 +5,7 @@ import (
 	"path"
 	"testing"
 
-	"github.com/Hayao0819/Kamisato/conf"
+	"github.com/Hayao0819/Kamisato/internal/conf"
 )
 
 func TestUploadFile(t *testing.T) {

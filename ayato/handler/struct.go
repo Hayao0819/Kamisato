@@ -2,7 +2,7 @@ package handler
 
 import (
 	"github.com/Hayao0819/Kamisato/ayato/service"
-	"github.com/Hayao0819/Kamisato/conf"
+	"github.com/Hayao0819/Kamisato/internal/conf"
 )
 
 // 最終的にServiceのみの依存にする

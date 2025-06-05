@@ -1,6 +1,6 @@
 package domain
 
-import "github.com/Hayao0819/Kamisato/raiou"
+import "github.com/Hayao0819/Kamisato/pkg/raiou"
 
 type PacmanRepo struct {
 	Name     string                `json:"name"`
