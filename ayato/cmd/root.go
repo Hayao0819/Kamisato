@@ -11,7 +11,7 @@ import (
 	"github.com/Hayao0819/Kamisato/ayato/router"
 	"github.com/Hayao0819/Kamisato/ayato/service"
 	"github.com/Hayao0819/Kamisato/conf"
-	"github.com/Hayao0819/Kamisato/internal/utils"
+	"github.com/Hayao0819/Kamisato/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/cobra"
 )

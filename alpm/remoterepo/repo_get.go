@@ -10,7 +10,7 @@ import (
 	"os"
 
 	"github.com/Hayao0819/Kamisato/alpm/pkg"
-	"github.com/Hayao0819/Kamisato/internal/utils"
+	"github.com/Hayao0819/Kamisato/utils"
 )
 
 // GetRepoFromURL fetches the remote repository from the given URL.

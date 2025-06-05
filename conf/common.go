@@ -4,7 +4,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/Hayao0819/Kamisato/internal/kfutils"
+	"github.com/Hayao0819/Kamisato/utils/kfutils"
 	"github.com/spf13/pflag"
 )
 

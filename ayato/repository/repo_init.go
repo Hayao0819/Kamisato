@@ -3,7 +3,7 @@ package repository
 import (
 	"fmt"
 
-	"github.com/Hayao0819/Kamisato/internal/utils"
+	"github.com/Hayao0819/Kamisato/utils"
 )
 
 func (r *Repository) Init(name string, useSignedDB bool, gnupgDir *string) error {

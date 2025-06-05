@@ -8,7 +8,7 @@ import (
 
 	"github.com/Hayao0819/Kamisato/alpm/builder"
 	"github.com/Hayao0819/Kamisato/ayaka/gpg"
-	"github.com/Hayao0819/Kamisato/internal/utils"
+	"github.com/Hayao0819/Kamisato/utils"
 	"github.com/Hayao0819/nahi/futils"
 	"github.com/cockroachdb/errors"
 )

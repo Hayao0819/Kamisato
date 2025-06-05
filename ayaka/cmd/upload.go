@@ -4,7 +4,7 @@ import (
 	"errors"
 	"log/slog"
 
-	"github.com/Hayao0819/Kamisato/internal/blinkyutils"
+	"github.com/Hayao0819/Kamisato/utils/blinkyutils"
 	"github.com/spf13/cobra"
 )
 
