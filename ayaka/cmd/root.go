@@ -44,8 +44,5 @@ func RootCmd() *cobra.Command {
 	cmd.PersistentFlags().StringP("repodir", "r", "", "repository directory")
 	cmd.PersistentFlags().BoolP("debug", "d", false, "enable debug mode")
 
-	// TODO: Implement it with koanf
-	// viper.BindPFlag("repodir", cmd.PersistentFlags().Lookup("repodir"))
-
 	return &cmd
 }

@@ -6,8 +6,8 @@ import (
 	remote "github.com/Hayao0819/Kamisato/alpm/remoterepo"
 )
 
-// TODO: implement this function
 func (r *Repository) PkgNames(repoName, archName string) ([]string, error) {
+	// FIXME: リクエスト来るたびに毎回DBを開くのは非効率
 	db, err := r.pkgBinStore.FetchFile(repoName, archName, fmt.Sprintf("%s.db.tar.gz", repoName))
 	if err != nil {
 		return nil, err
@@ -47,14 +47,6 @@ func (r *Repository) RemoteRepo(name, arch string) (*remote.RemoteRepo, error) {
 		return nil, fmt.Errorf("failed to get repository")
 	}
 	return rr, nil
-}
-
-func (r *Repository) RepoNames() ([]string, error) {
-	names, err := r.pkgBinStore.RepoNames()
-	if err != nil {
-		return nil, err
-	}
-	return names, nil
 }
 
 func (r *Repository) PkgFiles(repoName, archName, pkgName string) ([]string, error) {

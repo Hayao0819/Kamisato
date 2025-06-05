@@ -44,7 +44,7 @@ func (s *Service) UploadPkgFile(repo string, files *domain.UploadFiles) error {
 	}
 
 	// Update the package database
-	// TOOD: Support signed database
+	// TODO: Support signed database
 	useSignedDB := false
 	var gnupgDir *string // TODO: Check if the directory exists
 	if err := s.r.RepoAdd(repo, pi.Arch, pkgFileStream, nil, useSignedDB, gnupgDir); err != nil {

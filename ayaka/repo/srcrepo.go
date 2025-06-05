@@ -10,7 +10,7 @@ import (
 )
 
 type SourceRepo struct {
-	Config *conf.RepoConfig
+	Config *conf.SrcRepoConfig
 	Pkgs   []*pkg.Package
 }
 
@@ -25,7 +25,7 @@ func GetSrcDirs(repodir string) ([]string, error) {
 func GetSrcRepo(repodir string) (*SourceRepo, error) {
 	// repoconfig := new(conf.RepoConfig)
 	repo := new(SourceRepo)
-	repoconfig, err := conf.LoadRepoConfig(repodir)
+	repoconfig, err := conf.LoadSrcRepoConfig(repodir)
 	if err != nil {
 		slog.Error("load repo config failed", "dir", repodir, "err", err)
 		return nil, err

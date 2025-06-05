@@ -1,6 +1,6 @@
 package conf
 
-type RepoConfig struct {
+type SrcRepoConfig struct {
 	Name        string `koanf:"name"`
 	Maintainer  string `koanf:"maintainer"`
 	Server      string `koanf:"server"`
@@ -11,8 +11,8 @@ type RepoConfig struct {
 	// AurPkgs    []string `koanf:"aurpkgs"`
 }
 
-func LoadRepoConfig(repodir string) (*RepoConfig, error) {
-	return loadConfig[RepoConfig](
+func LoadSrcRepoConfig(repodir string) (*SrcRepoConfig, error) {
+	return loadConfig[SrcRepoConfig](
 		[]string{repodir},
 		[]string{"repo.json"},
 		nil,

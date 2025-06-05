@@ -5,7 +5,7 @@ import (
 )
 
 func (s *Service) InitAll() error {
-	repos, err := s.r.Repos()
+	repos, err := s.r.RepoNames()
 	if err != nil {
 		return err
 	}

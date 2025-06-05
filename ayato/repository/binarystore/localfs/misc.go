@@ -1,16 +1,18 @@
 package localfs
 
 import (
-	"fmt"
 	"os"
 	"path"
+
+	"github.com/Hayao0819/nahi/flist"
 )
 
 func (l *LocalPkgBinaryStore) RepoNames() ([]string, error) {
-	if l.cfg == nil {
-		return nil, fmt.Errorf("config is nil")
+	dirs, err := flist.Get(l.cfg.Store.LocalRepoDir, flist.WithDirOnly(), flist.WithExactDepth(1))
+	if err != nil {
+		return nil, err
 	}
-	return l.cfg.RepoNames, nil
+	return *dirs, nil
 }
 
 func (l *LocalPkgBinaryStore) FileList(name string, arch string) ([]string, error) {

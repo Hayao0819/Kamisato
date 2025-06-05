@@ -38,7 +38,7 @@ func RootCmd() *cobra.Command {
 				gin.SetMode(gin.ReleaseMode)
 			}
 
-			slog.Debug("Config loaded", "port", cfg.Port, "debug", cfg.Debug, "names", cfg.RepoNames, "maxsize", cfg.MaxSize, "dbtype", cfg.Store.DBType, "storagetype", cfg.Store.StorageType)
+			slog.Debug("Config loaded", "port", cfg.Port, "debug", cfg.Debug, "repos", cfg.Repos, "maxsize", cfg.MaxSize, "dbtype", cfg.Store.DBType, "storagetype", cfg.Store.StorageType)
 
 			// Init
 			r, err := repository.New(cfg)

@@ -8,11 +8,15 @@ func (r *Repository) StoreFile(repo string, arch string, stream stream.IFileSeek
 	return r.pkgBinStore.StoreFile(repo, arch, stream)
 }
 
+func (r *Repository) StoreFileWithSignedURL(repo string, arch string, name string) (string, error) {
+	return r.pkgBinStore.StoreFileWithSignedURL(repo, arch, name)
+}
+
 func (r *Repository) DeleteFile(repo string, arch string, file string) error {
 	return r.pkgBinStore.DeleteFile(repo, arch, file)
 }
 
-func (r *Repository) Repos() ([]string, error) {
+func (r *Repository) RepoNames() ([]string, error) {
 	return r.pkgBinStore.RepoNames()
 }
 func (r *Repository) Files(name string, arch string) ([]string, error) {
