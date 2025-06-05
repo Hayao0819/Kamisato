@@ -10,9 +10,9 @@ import (
 
 func TestUploadFile(t *testing.T) {
 
-	cfg, err := conf.LoadAyatoConfig(nil)
+	cfg, err := conf.LoadAyatoConfig(nil, "")
 	if err != nil {
-		t.Fatalf("Failed to load config: %v", err)
+		panic(err)
 	}
 
 	t.Log(cfg.Store.AWSS3.Endpoint)

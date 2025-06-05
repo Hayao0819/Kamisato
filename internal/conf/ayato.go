@@ -25,16 +25,24 @@ type BinRepoConfig struct {
 	Arches []string `koanf:"arches"`
 }
 
-func LoadAyatoConfig(flags *pflag.FlagSet) (*AyatoConfig, error) {
+func LoadAyatoConfig(flags *pflag.FlagSet, configFile string) (*AyatoConfig, error) {
 	// return loadConfig[AyatoConfig]("ayato_config.json")
 
 	if err := LoadEnv(); err != nil {
 		slog.Error("Failed to load env", "error", err)
 	}
 
+	dirs := commonConfigDirs()
+	files := []string{}
+	if configFile != "" {
+		files = append(files, configFile)
+	} else {
+		files = []string{"ayato_config.json", "ayato_config.toml", "ayato_config.yaml"}
+	}
+
 	return loadConfig[AyatoConfig](
-		commonConfigDirs(),
-		[]string{"ayato_config.json", "ayato_config.toml", "ayato_config.yaml"},
+		dirs,
+		files,
 		flags,
 		"AYATO",
 	)

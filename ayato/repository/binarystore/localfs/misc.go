@@ -1,6 +1,7 @@
 package localfs
 
 import (
+	"errors"
 	"os"
 	"path"
 
@@ -8,6 +9,10 @@ import (
 )
 
 func (l *LocalPkgBinaryStore) RepoNames() ([]string, error) {
+	if l.cfg.Store.LocalRepoDir == "" {
+		return nil, errors.New("local repository directory is not set")
+	}
+
 	dirs, err := flist.Get(l.cfg.Store.LocalRepoDir, flist.WithDirOnly(), flist.WithExactDepth(1))
 	if err != nil {
 		return nil, err

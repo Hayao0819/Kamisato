@@ -21,11 +21,20 @@ func RootCmd() *cobra.Command {
 	cmd := cobra.Command{
 		Use: "ayato",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// Load config
-			var err error
-			cfg, err := conf.LoadAyatoConfig(cmd.Flags())
+			// Load config file flag
+			configFile, err := cmd.Flags().GetString("config")
 			if err != nil {
 				return err
+			}
+
+			// Load config
+			cfg, err := conf.LoadAyatoConfig(cmd.Flags(), configFile)
+			if err != nil {
+				return err
+			}
+
+			if configFile != "" {
+				slog.Info("Loading config from file", "path", configFile)
 			}
 
 			// Init logger
@@ -73,6 +82,7 @@ func RootCmd() *cobra.Command {
 		},
 	}
 	cmd.PersistentFlags().BoolP("debug", "d", false, "Enable debug mode")
+	cmd.PersistentFlags().StringP("config", "c", "", "Config file")
 	cmd.SilenceErrors = true
 	cmd.SilenceUsage = true
 
