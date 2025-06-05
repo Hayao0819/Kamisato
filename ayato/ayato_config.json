@@ -1,5 +1,5 @@
 {
-    "debug": false,
+    "debug": true,
     "names": [
         "repo"
     ],
@@ -28,7 +28,7 @@
             "endpoint": "",
             "usepathstyle": true
         },
-        "badgerdb": "../example/srv/db",
-        "repodir": "../example/srv"
+        "badgerdb": "../test/ayato/db",
+        "repodir": "../test/ayato/srv"
     }
 }
