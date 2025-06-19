@@ -4,19 +4,21 @@ import (
 	"fmt"
 	"path"
 
+	"github.com/cockroachdb/errors"
+
 	"github.com/samber/lo"
 )
 
 func (r *Repository) VerifyPkgRepo(name string) error {
 	arches, err := r.Arches(name)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to get arches")
 	}
 
 	for _, arch := range arches {
 		files, err := r.Files(name, arch)
 		if err != nil {
-			return err
+			return errors.Wrap(err, fmt.Sprintf("failed to get files for arch %s", arch))
 		}
 
 		requiredFiles := []string{

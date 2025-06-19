@@ -4,13 +4,15 @@ import (
 	"github.com/Hayao0819/Kamisato/ayato/handler"
 	"github.com/Hayao0819/Kamisato/ayato/middleware"
 	"github.com/Hayao0819/Kamisato/ayato/view"
+
+	"github.com/cockroachdb/errors"
 	"github.com/gin-gonic/gin"
 )
 
 func SetRoute(e *gin.Engine, h *handler.Handler, m *middleware.Middleware) error {
 	// Set template
 	if err := view.Set(e); err != nil {
-		return err
+		return errors.Wrap(err, "failed to set view")
 	}
 
 	{

@@ -4,6 +4,7 @@ import (
 	"embed"
 	"html/template"
 
+	"github.com/cockroachdb/errors"
 	"github.com/gin-gonic/gin"
 )
 
@@ -17,7 +18,7 @@ func compile() (*template.Template, error) {
 func Set(e *gin.Engine) error {
 	t, err := compile()
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to compile template")
 	}
 	e.SetHTMLTemplate(t)
 	return nil

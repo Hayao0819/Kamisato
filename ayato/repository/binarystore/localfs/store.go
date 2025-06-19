@@ -6,6 +6,8 @@ import (
 	"os"
 	"path"
 
+	"github.com/cockroachdb/errors"
+
 	"github.com/Hayao0819/Kamisato/ayato/stream"
 )
 
@@ -17,7 +19,7 @@ func (l *LocalPkgBinaryStore) StoreFile(repo string, arch string, file stream.IF
 
 	repoPath := path.Join(repoDir, arch)
 	if err := os.MkdirAll(repoPath, os.ModePerm); err != nil {
-		return fmt.Errorf("mkdir %s err: %s", repoPath, err.Error())
+		return errors.Wrap(err, fmt.Sprintf("mkdir %s err", repoPath))
 	}
 
 	dstFilePath := path.Join(repoPath, file.FileName())

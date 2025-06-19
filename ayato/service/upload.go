@@ -40,6 +40,7 @@ func (s *Service) UploadPkgFile(repo string, files *domain.UploadFiles) error {
 
 	// Store package file to the repository directory
 	if err := s.r.StoreFile(repo, pi.Arch, pkgFileStream); err != nil {
+		slog.Debug("store file success", "repo", repo, "arch", pi.Arch, "filename", pkgFileStream.FileName())
 		return fmt.Errorf("store file err: %s", err.Error())
 	}
 
@@ -53,6 +54,7 @@ func (s *Service) UploadPkgFile(repo string, files *domain.UploadFiles) error {
 
 	// Store metadata to the kv store
 	if err := s.r.StorePkgFileName(pi.PkgName, path.Base(pkgFileStream.FileName())); err != nil {
+		slog.Debug("store pkg file name success", "pkgname", pi.PkgName, "filename", path.Base(pkgFileStream.FileName()))
 		return fmt.Errorf("store pkg file name err: %s", err.Error())
 	}
 

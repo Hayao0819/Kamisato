@@ -3,6 +3,7 @@ package repository
 import (
 	"fmt"
 
+	"github.com/cockroachdb/errors"
 	utils "github.com/Hayao0819/Kamisato/internal"
 )
 
@@ -11,7 +12,7 @@ func (r *Repository) Init(name string, useSignedDB bool, gnupgDir *string) error
 	// slog.Debug("init pkg repo", "name", name)
 	createdArches, err := r.Arches(name) // TODO: 設定ファイルから取得する
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to get arches")
 	}
 
 	repoconfig := r.cfg.Repo(name)

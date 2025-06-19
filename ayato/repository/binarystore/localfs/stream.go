@@ -5,6 +5,8 @@ import (
 	"os"
 	"path"
 
+	"github.com/cockroachdb/errors"
+
 	"github.com/Hayao0819/Kamisato/ayato/stream"
 )
 
@@ -12,18 +14,18 @@ func writeReadSeekerToFile(name string, stream io.Reader) error {
 	// Create the file
 	file, err := os.Create(name)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to create file")
 	}
 	defer file.Close()
 	// Write the stream to the file
 
 	if seeker, ok := stream.(io.ReadSeeker); ok {
 		if _, err = seeker.Seek(0, 0); err != nil {
-			return err
+			return errors.Wrap(err, "failed to seek stream")
 		}
 	}
 	if _, err := io.Copy(file, stream); err != nil {
-		return err
+		return errors.Wrap(err, "failed to copy stream to file")
 	}
 	if seeker, ok := stream.(io.ReadSeeker); ok {
 		seeker.Seek(0, 0)

@@ -7,6 +7,8 @@ import (
 	"os"
 	"path"
 
+	"github.com/cockroachdb/errors"
+
 	"github.com/Hayao0819/Kamisato/ayato/repository/pacman"
 	"github.com/Hayao0819/Kamisato/ayato/stream"
 )
@@ -72,7 +74,7 @@ func (s *S3) initRepo(repo, arch string, useSignedDB bool, gnupgDir *string) err
 
 	if err := s.putObject(dbkey, dbobj); err != nil {
 		slog.Error("putObject", "err", err)
-		return err
+		return errors.Wrap(err, "failed to put object")
 	}
 
 	return nil

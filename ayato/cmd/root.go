@@ -68,7 +68,6 @@ func RootCmd() *cobra.Command {
 
 			// Initialize package repository
 			if err := s.InitAll(); err != nil {
-				// return err
 				return errors.Wrap(err, "failed to initialize services")
 			}
 			slog.Info("All services initialized successfully")

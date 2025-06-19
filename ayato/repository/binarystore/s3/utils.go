@@ -6,6 +6,8 @@ import (
 	"os"
 	"strings"
 
+	"github.com/cockroachdb/errors"
+
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awss3 "github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/samber/lo"
@@ -64,7 +66,7 @@ func (s *S3) putFile(key, name string) error {
 	}
 	defer f.Close()
 	if err := s.putObject(key, f); err != nil {
-		return err
+		return errors.Wrap(err, "failed to put object")
 	}
 
 	return nil
