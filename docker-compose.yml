@@ -1,0 +1,12 @@
+services:
+  lumine:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    entrypoint: ["lumine"]
+
+  ayato:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    entrypoint: ["ayato"]
