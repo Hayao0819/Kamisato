@@ -1,11 +1,9 @@
-FROM marcaureln/volta:latest as web-builder
+FROM marcaureln/volta:latest AS web-builder
 WORKDIR /app
 RUN mkdir -p lumine/web
 COPY ./lumine/web/package.json lumine/web/package.json
 COPY ./lumine/web/pnpm-lock.yaml lumine/web/package-lock.yaml
-RUN volta install node@lts
-RUN volta install corepack
-
+RUN volta install node@lts corepack
 RUN cd ./lumine/web && pnpm install --no-frozen-lockfile --prod
 COPY . .
 RUN ./install.sh --bin "/bin" --no-ayaka --no-ayato --no-lumine-go
