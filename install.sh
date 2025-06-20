@@ -8,7 +8,7 @@ bin_dir="/bin"
 build_ayaka=true
 build_ayato=true
 build_lumine_go=true
-build_lumine_web=false
+build_lumine_web=true
 
 cd "$current_dir" || exit 1
 
