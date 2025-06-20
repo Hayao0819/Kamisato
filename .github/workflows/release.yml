@@ -1,0 +1,43 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+
+      - uses: volta-cli/action@v4
+        with:
+          node-version: '22'
+
+      - name: Install corepack
+        run: volta install corepack
+
+      - name: Set up QEMU (for cross-compilation)
+        uses: docker/setup-qemu-action@v3
+
+      - name: Install dependencies for Go cross build
+        run: sudo apt-get update && sudo apt-get install -y gcc-multilib
+
+      - name : Build Lumine Web
+        run: ./install.sh --no-ayaka --no-ayato --no-lumine-go
+
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v6
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          version: '~> v2'
+          args: release --clean --snapshot
