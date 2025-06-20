@@ -3,14 +3,13 @@ package repository
 import (
 	"fmt"
 
-	"github.com/cockroachdb/errors"
 	utils "github.com/Hayao0819/Kamisato/internal"
+	"github.com/cockroachdb/errors"
 )
 
 func (r *Repository) Init(name string, useSignedDB bool, gnupgDir *string) error {
 
-	// slog.Debug("init pkg repo", "name", name)
-	createdArches, err := r.Arches(name) // TODO: 設定ファイルから取得する
+	createdArches, err := r.Arches(name)
 	if err != nil {
 		return errors.Wrap(err, "failed to get arches")
 	}

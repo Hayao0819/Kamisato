@@ -29,6 +29,6 @@
             "usepathstyle": true
         },
         "badgerdb": "../test/ayato/db",
-        "repodir": "../test/ayato/srv"
+        "localrepodir": "../test/ayato/srv"
     }
 }

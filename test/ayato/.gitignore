@@ -1,3 +1,7 @@
 *
 !.gitkeep
 !.gitignore
+!db/
+!db/.gitkeep
+!srv/
+!srv/.gitkeep
