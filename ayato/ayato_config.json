@@ -1,7 +1,10 @@
 {
     "debug": true,
-    "names": [
-        "repo"
+    "repos": [
+        {
+            "name": "repo",
+            "arches": ["x86_64"]
+        }
     ],
     "port": 9000,
     "maxsize": 10000000000000000,
