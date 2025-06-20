@@ -60,7 +60,7 @@ export default function Home() {
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
                     <div>
                         <h1 className="text-2xl sm:text-3xl font-bold">
-                            Lumine (非公式) パッケージリポジトリ
+                            Lumine - Arch Linux パッケージリポジトリ
                         </h1>
                         <HelloStatus />
                     </div>
@@ -72,8 +72,7 @@ export default function Home() {
                     </Link>
                 </div>
                 <p className="text-sm sm:text-base text-muted-foreground">
-                    Arch Linux
-                    用の非公式パッケージリポジトリです。Lumine アプリケーションを通じて、パッケージを検索、ダウンロードできます。
+                    LumineはAyatoバックエンドを利用したArch Linux向けの非公式パッケージリポジトリWebフロントエンドです。パッケージの検索・ダウンロードが可能です。
                 </p>
                 <div className="mt-4">
                     <RepoArchSelector onSelect={handleRepoArchSelect} />
