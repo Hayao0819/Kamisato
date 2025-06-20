@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { ServerIcon } from "lucide-react";
 import { getAllPkgsEndpoint } from "@/lib/api";
 import { PackageInfo, PacmanPkgsResponse } from "@/lib/types";
+import { HelloStatus } from "@/components/hello-status";
 
 export default function Home() {
     const [selectedRepo, setSelectedRepo] = useState<string | null>(null);
@@ -57,9 +58,12 @@ export default function Home() {
         <div className="container mx-auto py-4 sm:py-8 px-4 sm:px-6">
             <header className="mb-6 sm:mb-8">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
-                    <h1 className="text-2xl sm:text-3xl font-bold">
-                        Lumine (非公式) パッケージリポジトリ
-                    </h1>
+                    <div>
+                        <h1 className="text-2xl sm:text-3xl font-bold">
+                            Lumine (非公式) パッケージリポジトリ
+                        </h1>
+                        <HelloStatus />
+                    </div>
                     <Link href="/server-status">
                         <Button variant="outline" className="w-full sm:w-auto">
                             <ServerIcon className="h-4 w-4 mr-2" />
