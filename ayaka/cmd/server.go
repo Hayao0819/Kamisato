@@ -8,12 +8,16 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func printServerInfo(n string, s blinky_utils.Server) {
+func printServerInfo(n string, s blinky_utils.Server, showPassword bool, prefix string) {
+	var serverInfo string
 	if s.Username == "" {
-		fmt.Printf("%s\n", n)
+		serverInfo = fmt.Sprintf("%s%s\n", prefix, n)
+	} else if showPassword {
+		serverInfo = fmt.Sprintf("%s%s(%s:%s)\n", prefix, n, s.Username, s.Password)
 	} else {
-		fmt.Printf("%s(%s)\n", n, s.Username)
+		serverInfo = fmt.Sprintf("%s%s(%s)\n", prefix, n, s.Username)
 	}
+	fmt.Print(serverInfo)
 }
 
 func serverCmd() *cobra.Command {
@@ -36,13 +40,21 @@ It can also be used to check the login information for a specific server.`,
 					if _, ok := serverDB.Servers[server]; !ok {
 						return errors.New("server not found in server database")
 					} else {
-						printServerInfo(server, serverDB.Servers[server])
+						if serverDB.DefaultServer == server {
+							printServerInfo(server, serverDB.Servers[server], true, "* ")
+						} else {
+							printServerInfo(server, serverDB.Servers[server], false, "  ")
+						}
 					}
 				}
 
 			} else {
 				for name, server := range serverDB.Servers {
-					printServerInfo(name, server)
+					if serverDB.DefaultServer == name {
+						printServerInfo(name, server, true, "* ")
+					} else {
+						printServerInfo(name, server, false, "  ")
+					}
 				}
 			}
 
