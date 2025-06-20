@@ -73,7 +73,7 @@ func buildCmd() *cobra.Command {
 				InstallPkgs: append(repo.Config.InstallPkgs.Files, pkgs...),
 			}
 
-			// TODO: DestDirにメタデータを作る
+			// TODO: DestDirにメタデータを作る ←何のためだっけ
 			outDir := path.Join(destDir, repo.Config.Name)
 
 			slog.Info("building packages", "repo", config.RepoDir, "outdir", outDir, "gpgkey", gpgkey)

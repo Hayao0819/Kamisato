@@ -7,12 +7,13 @@ import (
 )
 
 type AyatoConfig struct {
-	Debug   bool            `koanf:"debug"`
-	Port    int             `koanf:"port"`
-	MaxSize int             `koanf:"maxsize"`
-	Repos   []BinRepoConfig `koanf:"repos"`
-	Auth    AuthConfig      `koanf:"auth"`
-	Store   StoreConfig     `koanf:"store"`
+	Debug       bool            `koanf:"debug"`
+	RequireSign bool            `koanf:"require_sign"`
+	Port        int             `koanf:"port"`
+	MaxSize     int             `koanf:"maxsize"`
+	Repos       []BinRepoConfig `koanf:"repos"`
+	Auth        AuthConfig      `koanf:"auth"`
+	Store       StoreConfig     `koanf:"store"`
 }
 
 type AuthConfig struct {
