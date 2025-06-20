@@ -13,6 +13,7 @@ WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
 COPY --from=web-builder /app/lumine/embed/out /app/lumine/embed/out
+RUN apk add --no-cache binutils
 COPY . .
 RUN ./install.sh --bin "/bin" --no-lumine-web
 
