@@ -55,7 +55,7 @@ func RootCmd() *cobra.Command {
 			if err != nil {
 				return errors.Wrap(err, "failed to initialize repository")
 			}
-			s := service.New(r)
+			s := service.New(r, cfg)
 			h := handler.New(s, cfg)
 			m := middleware.New(cfg)
 
