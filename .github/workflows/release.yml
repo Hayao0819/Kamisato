@@ -40,4 +40,4 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           version: '~> v2'
-          args: release --clean --snapshot
+          args: release --clean
