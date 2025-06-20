@@ -23,8 +23,15 @@ func (h *Handler) BlinkyUploadHandler(ctx *gin.Context) {
 		return
 	}
 
+	// ここの数値はいい感じに調整する
+	if err := ctx.Request.ParseMultipartForm(10 << 20); err != nil {
+		ctx.String(http.StatusBadRequest, fmt.Sprintf("parse form err: %s", err.Error()))
+		return
+	}
+
 	// Check multipart form
 	names := utils.MultipartFormNames(ctx.Request)
+	slog.Debug("BlinkyUploadHandler", "repo", repoName, "form names", names)
 	if !lo.Contains(names, "package") {
 		ctx.String(http.StatusBadRequest, "no package file found in the request")
 		return
