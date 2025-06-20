@@ -104,10 +104,13 @@ parse_args() {
 }
 
 build_go() {
+    binary_file="$bin_dir/$(basename "$1")"
     (
         cd "$1" || exit 1
-        go build -o "$bin_dir/$(basename "$1")" .
+        go build -ldflags="-s -w" -trimpath -o "$binary_file" .
+        strip "$binary_file"
     )
+    unset binary_file
 }
 
 build_ayaka() {
