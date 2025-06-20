@@ -6,10 +6,12 @@ import (
 
 	"github.com/cockroachdb/errors"
 )
+
 func (s *Service) InitAll() error {
-	repos, err := s.r.RepoNames()
-	if err != nil {
-		return errors.Wrap(err, "failed to get repo names")
+	repos := s.cfg.RepoNames()
+	if len(repos) == 0 {
+		slog.Warn("no repositories found in config, skipping initialization")
+		return nil
 	}
 	slog.Debug("init all pkg repo", "repos", repos)
 
