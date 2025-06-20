@@ -27,6 +27,7 @@ func initPkgBinaryStore(cfg *conf.AyatoConfig) (PkgBinaryStoreProvider, error) {
 
 	// Fallback to localfs if S3 is not enabled
 	if bin == nil {
+		slog.Info("Using local file system as the binary store")
 		bin = localfs.NewLocalPkgBinaryStore(cfg)
 	}
 
@@ -37,18 +38,25 @@ func initMetaStore(cfg *conf.AyatoConfig) (PkgNameStoreProvider, error) {
 	var db PkgNameStoreProvider
 	var err error
 
-	dsn, err := cfg.Store.SQL.DSN()
-	if err != nil {
-		slog.Debug("Failed to get DSN", "error", err)
-	}
-
 	if cfg.Store.DBType == "sql" || cfg.Store.DBType == "external" {
+
 		slog.Warn("Using SQL is still experimental, please use with caution")
+
+		dsn, dsnerr := cfg.Store.SQL.DSN()
+		if dsnerr != nil {
+			slog.Debug("Failed to get DSN", "error", err)
+		}
+
 		db, err = sql.NewSql(cfg.Store.SQL.Driver, dsn)
 	} else if cfg.Store.DBType == "cfkv" {
+
 		slog.Warn("Using Cloudflare KV is still experimental, please use with caution")
+
 		db, err = cloudflarekv.NewCloudflareKV(cfg.Store.CloudflareKV.AccountId, cfg.Store.CloudflareKV.Token, cfg.Store.CloudflareKV.Namespace)
 	} else {
+
+		slog.Info("Using local BadgerDB as the default meta store")
+
 		db, err = localkv.NewBadger(cfg.DbPath())
 	}
 	if err != nil {
