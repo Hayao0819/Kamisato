@@ -17,8 +17,10 @@ func (l *LocalPkgBinaryStore) repoAdd(name string, arch string, fileName string,
 	if err != nil {
 		return err
 	}
-
 	repoPath := path.Join(repoDir, arch)
+
+	slog.Info("repoAdd", "repoPath", repoPath, "name", name, "arch", arch, "fileName", fileName, "useSignedDB", useSignedDB)
+
 	if err := os.MkdirAll(repoPath, os.ModePerm); err != nil {
 		return fmt.Errorf("mkdir %s err: %s", repoPath, err.Error())
 	}
