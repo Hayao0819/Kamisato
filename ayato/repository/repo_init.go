@@ -4,14 +4,13 @@ import (
 	"fmt"
 
 	utils "github.com/Hayao0819/Kamisato/internal"
-	"github.com/cockroachdb/errors"
 )
 
 func (r *Repository) Init(name string, useSignedDB bool, gnupgDir *string) error {
 
 	createdArches, err := r.Arches(name)
 	if err != nil {
-		return errors.Wrap(err, "failed to get arches")
+		createdArches = []string{}
 	}
 
 	repoconfig := r.cfg.Repo(name)
