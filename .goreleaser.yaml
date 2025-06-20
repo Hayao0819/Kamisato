@@ -1,0 +1,70 @@
+version: 2
+
+project_name: ayaka-project
+
+dist: dist
+
+builds:
+  - id: ayaka
+    main: ./ayaka
+    binary: ayaka
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+
+  - id: ayato
+    main: ./ayato
+    binary: ayato
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+
+  - id: lumine
+    main: ./lumine
+    binary: lumine
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+
+archives:
+  - id: default
+    builds:
+      - ayaka
+      - ayato
+      - lumine
+    format: tar.gz
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - LICENSE.txt
+      - README.md
+    format_overrides:
+      - goos: windows
+        format: zip
+    allow_different_binary_count: true
+
+checksum:
+  name_template: "checksums.txt"
+
+snapshot:
+  name_template: "{{ .Tag }}"
+
+changelog:
+  sort: desc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
