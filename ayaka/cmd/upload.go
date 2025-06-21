@@ -13,6 +13,10 @@ func uploadCmd() *cobra.Command {
 	cmd := cobra.Command{
 		Use:  "upload server",
 		Args: cobra.MinimumNArgs(2),
+		PreRun: func(cmd *cobra.Command, args []string) {
+			slog.Warn("Upload command is still in development, use with caution")
+			slog.Warn("Please use blinky command for stable usage")
+		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			reponame := args[0]
 			pkgs := args[1:]
