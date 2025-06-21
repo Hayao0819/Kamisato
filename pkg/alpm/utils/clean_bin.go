@@ -80,9 +80,10 @@ func GetCleanPkgBinary(names ...string) ([]string, error) {
 
 	pkgs := make([]*pkg.Package, 0)
 	for _, rr := range remoterepos {
-		for _, pkg := range rr.Pkgs {
-			pkgs = append(pkgs, pkg)
-		}
+		// for _, pkg := range rr.Pkgs {
+		// 	pkgs = append(pkgs, pkg)
+		// }
+		pkgs = append(pkgs, rr.Pkgs...)
 	}
 
 	if len(pkgs) == 0 {
