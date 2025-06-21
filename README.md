@@ -37,7 +37,13 @@ status and searches for packages.
 - Display Ayato backend server status
 - Bug reporting for packages (mock function)
 
-### About Docker Images
+### Todo
+
+- Implement inquiry sending
+- Repository selection
+- Support for multiple servers
+
+## About Docker Images
 
 The [Dockerfile](./Dockerfile) provides an Alpine Linux-based image with Project
 Kamisato binaries pre-installed.
@@ -51,12 +57,6 @@ These image files are published on the following image registries:
 - [`ghcr.io/hayao0819/kamisato`](https://github.com/Hayao0819/Kamisato/pkgs/container/kamisato)
 
 For example configurations, see the [example](./example/) directory.
-
-### Todo
-
-- Implement inquiry sending
-- Repository selection
-- Support for multiple servers
 
 ## Special thanks
 
