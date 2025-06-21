@@ -1,19 +1,23 @@
-import { StatusCard } from "@/components/status-card";
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { ArrowLeft } from "lucide-react";
-import { getHelloEndpoint, getTeapotEndpoint } from "@/lib/api";
 import { RefreshButton } from "@/components/refresh-button";
+import { StatusCard } from "@/components/status-card";
+import { Button } from "@/components/ui/button";
+import { getHelloEndpoint, getTeapotEndpoint } from "@/lib/api";
+import { ArrowLeft } from "lucide-react";
+import Link from "next/link";
 
 async function checkServerStatus() {
-  const helloStatus = await fetch(getHelloEndpoint()).then(res => res.ok ? "Online" : "Offline").catch(() => "Offline");
-  const teapotStatus = await fetch(getTeapotEndpoint()).then(res => res.ok ? "Online" : "Offline").catch(() => "Offline");
+    const helloStatus = await fetch(getHelloEndpoint())
+        .then((res) => (res.ok ? "Online" : "Offline"))
+        .catch(() => "Offline");
+    const teapotStatus = await fetch(getTeapotEndpoint())
+        .then((res) => (res.ok ? "Online" : "Offline"))
+        .catch(() => "Offline");
 
-  return [
-    { id: "hello", name: "Hello Endpoint", status: helloStatus },
-    { id: "teapot", name: "Teapot Endpoint", status: teapotStatus },
-    // Add other relevant endpoints to check as needed
-  ];
+    return [
+        { id: "hello", name: "Hello Endpoint", status: helloStatus },
+        { id: "teapot", name: "Teapot Endpoint", status: teapotStatus },
+        // Add other relevant endpoints to check as needed
+    ];
 }
 
 export default async function ServerStatus() {

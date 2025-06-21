@@ -1,6 +1,6 @@
-import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
+import Link from "next/link";
 
 export default function About() {
     return (
@@ -18,27 +18,45 @@ export default function About() {
                     </Link>
                 </div>
                 <p className="text-sm sm:text-base text-muted-foreground">
-                    Lumine は、非公式の Arch Linux パッケージリポジトリのフロントエンドアプリケーションです。
+                    Lumine は、非公式の Arch Linux
+                    パッケージリポジトリのフロントエンドアプリケーションです。
                     Ayaka バックエンドと連携して動作します。
                 </p>
             </header>
 
             <main className="space-y-6">
                 <div>
-                    <h2 className="text-xl sm:text-2xl font-semibold mb-2">リンク</h2>
+                    <h2 className="text-xl sm:text-2xl font-semibold mb-2">
+                        リンク
+                    </h2>
                     <ul className="list-disc list-inside space-y-1">
                         <li>
-                            <Link href="https://www.hayao0819.com" className="text-blue-600 hover:underline" target="_blank" rel="noopener noreferrer">
+                            <Link
+                                href="https://www.hayao0819.com"
+                                className="text-blue-600 hover:underline"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                            >
                                 山田ハヤオのホームページ
                             </Link>
                         </li>
                         <li>
-                            <Link href="https://github.com/Hayao0819/Kamisato" className="text-blue-600 hover:underline" target="_blank" rel="noopener noreferrer">
+                            <Link
+                                href="https://github.com/Hayao0819/Kamisato"
+                                className="text-blue-600 hover:underline"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                            >
                                 ソースコード (GitHub)
                             </Link>
                         </li>
                         <li>
-                            <Link href="https://twitter.com/Hayao0819" className="text-blue-600 hover:underline" target="_blank" rel="noopener noreferrer">
+                            <Link
+                                href="https://twitter.com/Hayao0819"
+                                className="text-blue-600 hover:underline"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                            >
                                 Twitter (@Hayao0819)
                             </Link>
                         </li>

@@ -1,15 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import type { PackageInfo } from "@/lib/types";
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -18,20 +11,27 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Button } from "@/components/ui/button";
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from "@/components/ui/table";
+import { useMobile } from "@/hooks/use-mobile";
 import { getRepoFileEndpoint } from "@/lib/api";
+import type { PackageInfo } from "@/lib/types";
+import {
+    Calendar,
+    Download,
+    Info,
+    MoreVertical,
+    PackageIcon,
+} from "lucide-react";
+import { useState } from "react";
 import { BugReportDialog } from "./bug-report-dialog";
 import { SearchBar } from "./search-bar";
-import {
-    Download,
-    MoreVertical,
-    Info,
-    PackageIcon,
-    Calendar,
-} from "lucide-react";
-import { Card, CardContent, CardFooter } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { useMobile } from "@/hooks/use-mobile";
 
 interface PackageTableProps {
     packages: PackageInfo[];
@@ -115,8 +115,16 @@ export function PackageTable({ packages: initialPackages }: PackageTableProps) {
                                         <DropdownMenuItem
                                             onSelect={() => {
                                                 // TODO: Get repo and arch dynamically
-                                                const downloadUrl = getRepoFileEndpoint("repo", "x86_64", `${pkg.pkgname}-${pkg.pkgver}.pkg.tar.zst`);
-                                                window.open(downloadUrl, "_blank");
+                                                const downloadUrl =
+                                                    getRepoFileEndpoint(
+                                                        "repo",
+                                                        "x86_64",
+                                                        `${pkg.pkgname}-${pkg.pkgver}.pkg.tar.zst`,
+                                                    );
+                                                window.open(
+                                                    downloadUrl,
+                                                    "_blank",
+                                                );
                                             }}
                                         >
                                             <Download className="h-4 w-4 mr-2" />
@@ -171,7 +179,9 @@ export function PackageTable({ packages: initialPackages }: PackageTableProps) {
                                     </TableCell>
                                     <TableCell>{pkg.pkgver}</TableCell>
                                     <TableCell>{pkg.pkgdesc}</TableCell>
-                                    <TableCell>{formatDate(pkg.builddate)}</TableCell>
+                                    <TableCell>
+                                        {formatDate(pkg.builddate)}
+                                    </TableCell>
                                     <TableCell className="text-right">
                                         <div className="flex justify-end gap-2">
                                             <BugReportDialog
@@ -202,8 +212,16 @@ export function PackageTable({ packages: initialPackages }: PackageTableProps) {
                                                     <DropdownMenuItem
                                                         onSelect={() => {
                                                             // TODO: Get repo and arch dynamically
-                                                            const downloadUrl = getRepoFileEndpoint("repo", "x86_64", `${pkg.pkgname}-${pkg.pkgver}.pkg.tar.zst`);
-                                                            window.open(downloadUrl, "_blank");
+                                                            const downloadUrl =
+                                                                getRepoFileEndpoint(
+                                                                    "repo",
+                                                                    "x86_64",
+                                                                    `${pkg.pkgname}-${pkg.pkgver}.pkg.tar.zst`,
+                                                                );
+                                                            window.open(
+                                                                downloadUrl,
+                                                                "_blank",
+                                                            );
                                                         }}
                                                     >
                                                         <Download className="h-4 w-4 mr-2" />

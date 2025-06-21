@@ -1,14 +1,14 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { HelloStatus } from "@/components/hello-status";
 import { PackageTable } from "@/components/package-table";
 import { RepoArchSelector } from "@/components/repo-arch-selector";
-import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { ServerIcon } from "lucide-react";
 import { getAllPkgsEndpoint } from "@/lib/api";
-import { PackageInfo, PacmanPkgsResponse } from "@/lib/types";
-import { HelloStatus } from "@/components/hello-status";
+import type { PackageInfo, PacmanPkgsResponse } from "@/lib/types";
+import { ServerIcon } from "lucide-react";
+import Link from "next/link";
+import { useEffect, useState } from "react";
 
 export default function Home() {
     const [selectedRepo, setSelectedRepo] = useState<string | null>(null);
@@ -28,13 +28,20 @@ export default function Home() {
                 setLoading(true);
                 setError(null);
                 try {
-                    const res = await fetch(getAllPkgsEndpoint(selectedRepo, selectedArch));
+                    const res = await fetch(
+                        getAllPkgsEndpoint(selectedRepo, selectedArch),
+                    );
                     if (!res.ok) {
-                        throw new Error(`Failed to fetch packages: ${res.statusText}`);
+                        throw new Error(
+                            `Failed to fetch packages: ${res.statusText}`,
+                        );
                     }
                     const data: PacmanPkgsResponse = await res.json();
                     if (!Array.isArray(data.packages)) {
-                        console.error("Fetched data.packages is not an array:", data.packages);
+                        console.error(
+                            "Fetched data.packages is not an array:",
+                            data.packages,
+                        );
                         setPackages([]);
                     } else {
                         setPackages(data.packages);
@@ -72,7 +79,8 @@ export default function Home() {
                     </Link>
                 </div>
                 <p className="text-sm sm:text-base text-muted-foreground">
-                    LumineはAyatoバックエンドを利用したArch Linux向けの非公式パッケージリポジトリWebフロントエンドです。パッケージの検索・ダウンロードが可能です。
+                    LumineはAyatoバックエンドを利用したArch
+                    Linux向けの非公式パッケージリポジトリWebフロントエンドです。パッケージの検索・ダウンロードが可能です。
                 </p>
                 <div className="mt-4">
                     <RepoArchSelector onSelect={handleRepoArchSelect} />
@@ -80,13 +88,19 @@ export default function Home() {
             </header>
 
             <main>
-                {loading && <div className="text-center">Loading packages...</div>}
-                {error && <div className="text-center text-red-500">Error: {error}</div>}
+                {loading && (
+                    <div className="text-center">Loading packages...</div>
+                )}
+                {error && (
+                    <div className="text-center text-red-500">
+                        Error: {error}
+                    </div>
+                )}
                 {!loading && !error && <PackageTable packages={packages} />}
             </main>
 
             <footer className="mt-8 sm:mt-12 text-center text-xs sm:text-sm text-muted-foreground py-4">
-                <p>© 2023 山田ハヤオ / Lumine</p>
+                <p>© 2025 山田ハヤオ / Kamisato Project</p>
             </footer>
         </div>
     );

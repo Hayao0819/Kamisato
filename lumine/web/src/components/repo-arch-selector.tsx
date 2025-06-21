@@ -1,7 +1,5 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { getReposEndpoint, getArchesEndpoint } from "@/lib/api";
 import {
     Select,
     SelectContent,
@@ -9,6 +7,8 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import { getArchesEndpoint, getReposEndpoint } from "@/lib/api";
+import { useEffect, useState } from "react";
 
 interface RepoArchSelectorProps {
     onSelect: (repo: string, arch: string) => void;
@@ -47,9 +47,13 @@ export function RepoArchSelector({ onSelect }: RepoArchSelectorProps) {
         if (selectedRepo) {
             const fetchArches = async () => {
                 try {
-                    const response = await fetch(getArchesEndpoint(selectedRepo));
+                    const response = await fetch(
+                        getArchesEndpoint(selectedRepo),
+                    );
                     if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
+                        throw new Error(
+                            `HTTP error! status: ${response.status}`,
+                        );
                     }
                     const data: string[] = await response.json();
                     setArches(data);
@@ -59,7 +63,10 @@ export function RepoArchSelector({ onSelect }: RepoArchSelectorProps) {
                         setSelectedArch(null);
                     }
                 } catch (error) {
-                    console.error(`Failed to fetch architectures for ${selectedRepo}:`, error);
+                    console.error(
+                        `Failed to fetch architectures for ${selectedRepo}:`,
+                        error,
+                    );
                     setArches([]);
                     setSelectedArch(null);
                     // TODO: Display error message to user

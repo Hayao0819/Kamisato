@@ -2,10 +2,10 @@
 
 import type React from "react";
 
-import { useState } from "react";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
+import { useState } from "react";
 
 interface SearchBarProps {
     onSearch: (query: string) => void;
