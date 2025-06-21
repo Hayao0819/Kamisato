@@ -1,0 +1,28 @@
+name: Biome Lint
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: 'Run Biome'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - uses: volta-cli/action@v4
+        with:
+          node-version: '22'
+
+      - name: Install corepack
+        run: volta install corepack
+
+      - name: Install dependencies
+        working-directory: ./lumine/web
+        run: pnpm install
+
+      - name: Run Biome
+        run: pnpm run check
