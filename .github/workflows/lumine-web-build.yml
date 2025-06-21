@@ -1,0 +1,33 @@
+name: Build Lumine Web
+
+on:
+  push:
+    paths:
+      - 'lumine/web/**'
+      - '.github/workflows/lumine-web-build.yml'
+  pull_request:
+    paths:
+      - 'lumine/web/**'
+      - '.github/workflows/lumine-web-build.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - uses: volta-cli/action@v4
+        with:
+          node-version: '22'
+
+      - name: Install corepack
+        run: volta install corepack
+
+      - name: Install dependencies
+        working-directory: ./lumine/web
+        run: pnpm install
+
+      - name: Build (pnpm run build)
+        working-directory: ./lumine/web
+        run: pnpm run build
