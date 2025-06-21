@@ -39,6 +39,9 @@ jobs:
       - name: Install staticcheck
         run: go install honnef.co/go/tools/cmd/staticcheck@latest
 
+      - name: Prepare dummy web
+        run: mkdir -p lumine/embed/out && touch lumine/embed/out/index.html
+
       - name: Run staticcheck
         run: $(go env GOPATH)/bin/staticcheck ./...
 
