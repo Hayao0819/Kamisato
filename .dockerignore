@@ -4,3 +4,7 @@
 ./LICENSE.txt
 ./lumine/web/.next
 ./lumine/web/node_modules
+./Kamisato
+./out
+./dist
+

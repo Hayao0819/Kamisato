@@ -1,5 +1,5 @@
 services:
-  app:
+  ayato:
     build:
       context: ../../
       dockerfile: ../../Dockerfile
