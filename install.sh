@@ -9,6 +9,7 @@ build_ayaka=true
 build_ayato=true
 build_lumine_go=true
 build_lumine_web=true
+enable_upx=true
 
 cd "$current_dir" || exit 1
 
@@ -74,20 +75,48 @@ parse_args() {
             bin_dir="$(cd "$2" && pwd)"
             shift 2
             ;;
+        --lumine-web)
+            build_lumine_web=true
+            shift
+            ;;
         --no-lumine-web)
             build_lumine_web=false
+            shift
+            ;;
+        --lumine-go)
+            build_lumine_go=true
             shift
             ;;
         --no-lumine-go)
             build_lumine_go=false
             shift
             ;;
+        --ayaka)
+            build_ayaka=true
+            shift
+            ;;
         --no-ayaka)
             build_ayaka=false
             shift
             ;;
+        --ayato)
+            build_ayato=true
+            shift
+            ;;
         --no-ayato)
             build_ayato=false
+            shift
+            ;;
+        --upx)
+            if ! command -v upx >/dev/null 2>&1; then
+                echo "Error: upx is not installed. Please install upx to proceed."
+                return 1
+            fi
+            enable_upx=true
+            shift
+            ;;
+        --no-upx)
+            enable_upx=false
             shift
             ;;
         --help | -h)
@@ -109,6 +138,11 @@ build_go() {
         cd "$1" || exit 1
         go build -ldflags="-s -w" -trimpath -o "$binary_file" .
         strip "$binary_file"
+        if [ "$enable_upx" = true ]; then
+            upx --best --lzma "$binary_file" || {
+                echo "Warning: UPX compression failed for $binary_file. Continuing without compression."
+            }
+        fi
     )
     unset binary_file
 }

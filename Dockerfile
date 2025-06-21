@@ -13,9 +13,9 @@ COPY go.mod go.sum ./
 RUN go mod download
 COPY --from=web-builder /app/lumine/embed/out /app/lumine/embed/out
 # hadolint ignore=DL3018
-RUN apk add --no-cache binutils
+RUN apk add --no-cache binutils upx
 COPY . .
-RUN ./install.sh --bin "/bin" --no-lumine-web
+RUN ./install.sh --bin "/bin" --no-lumine-web --upx
 
 # hadolint ignore=DL3007
 FROM alpine:latest
