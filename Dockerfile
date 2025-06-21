@@ -18,6 +18,7 @@ COPY . .
 RUN ./install.sh --bin "/bin" --no-lumine-web
 
 FROM alpine:latest
+RUN apk add --no-cache pacman
 COPY --from=builder /bin/ayaka /usr/local/bin/ayaka
 COPY --from=builder /bin/ayato /usr/local/bin/ayato
 COPY --from=builder /bin/lumine /usr/local/bin/lumine
