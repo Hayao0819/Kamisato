@@ -1,8 +1,6 @@
 module github.com/Hayao0819/Kamisato
 
-go 1.23.0
-
-toolchain go1.24.2
+go 1.24.2
 
 require (
 	github.com/BrenekH/blinky v0.0.0-20250521044104-66006d341e49
