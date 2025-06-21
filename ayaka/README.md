@@ -10,19 +10,20 @@ to Ayato or Blinky.
 - Ayaka works as client of blinkyd
 - Signing packages with GPG key
 
-## 動作環境
+## Supported Environment
 
-AyakaはArchLinux環境下でのみ動作します。Manjaroでの動作はテストしていません。CachyOS版のPacmanでは動作しません。
+Ayaka works only on ArchLinux. Operation on Manjaro is not tested. It does not
+work with Pacman from CachyOS.
 
-## 使い方
+## Usage
 
-### 設定ファイル
+### Configuration files
 
-`ayaka`は2つの設定ファイルで動作が決定されます。
+`ayaka` is configured by two files.
 
 #### `.ayakarc.json`
 
-CLI設定のためのファイル
+File for CLI configuration
 
 ```json
 {
@@ -33,7 +34,7 @@ CLI設定のためのファイル
 
 #### `repo.json`
 
-リポジトリ設定のためのファイル
+File for repository configuration
 
 ```json
 {
@@ -43,12 +44,12 @@ CLI設定のためのファイル
 }
 ```
 
-サンプルは[../example/src/myrepo/repo.json](../example/src/myrepo/repo.json)にあります。
+Sample is available at [../example/src/myrepo/repo.json](../example/src/myrepo/repo.json).
 
-### サブコマンド
+### Subcommands
 
-- `build` 全てのパッケージをchroot環境内でビルドします
-- `list` パッケージの一覧を表示します
+- `build` Build all packages in chroot environment
+- `list` Show package list
 
 ## Todo
 

@@ -1,7 +1,9 @@
 # Example
 
-リポジトリのソースコードと、実際にBlinky(Ayato)で構築されるサーバーの動作例です。
+This directory contains repository source code and examples of servers actually
+built with Blinky (Ayato).
 
 ## ayaka
 
-リポジトリソースコードの例です。`PKGBUILD`が格納された各ディレクトリと同じ階層に`repo.json`があります。
+This is an example of repository source code. Each directory containing a `PKGBUILD`
+also has a `repo.json` at the same level.

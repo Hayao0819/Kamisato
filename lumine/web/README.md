@@ -1,61 +1,64 @@
+
 # Lumine Web
 
-Lumine Web は、Ayaka バックエンドのArch Linux パッケージリポジトリのためのフロントエンドアプリケーションです。
+Lumine Web is a frontend application for the Arch Linux package repository backend
+(Ayaka).
 
-## 機能
+## Features
 
-- パッケージ一覧の表示
-- パッケージの検索
-- Ayaka バックエンドのサーバーステータス表示
-- パッケージに関するバグ報告（モック機能）
+- Display package list
+- Search packages
+- Show Ayaka backend server status
+- Bug reporting for packages (mock function)
 
-## 使用技術
+## Technologies Used
 
 - Next.js
 - React
 - TypeScript
 - Tailwind CSS
 - shadcn/ui
-- Lucide React (アイコン)
-- next-themes (テーマ切り替え)
-- embla-carousel-react (カルーセル)
-- sonner (トースト通知)
-- class-variance-authority (スタイルユーティリティ)
-- @radix-ui/react-* (UI プリミティブ)
+- Lucide React (icons)
+- next-themes (theme switching)
+- embla-carousel-react (carousel)
+- sonner (toast notification)
+- class-variance-authority (style utility)
+- @radix-ui/react-* (UI primitives)
 
-## セットアップ
+## Setup
 
-1. このリポジトリをクローンします。
-2. `lumine/web` ディレクトリに移動します。
+1. Clone this repository.
+2. Move to the `lumine/web` directory.
 
     ```bash
     cd lumine/web
     ```
 
-3. 依存関係をインストールします。pnpm を使用している場合:
+3. Install dependencies. If you use pnpm:
 
     ```bash
     pnpm install
     ```
 
-    npm または yarn を使用している場合は、それぞれのコマンドを使用してください。
-4. 環境変数を設定します。`.env.local` ファイルを作成し、Ayaka バックエンドの URL を設定します。
+    If you use npm or yarn, use the appropriate command.
+4. Set environment variables. Create a `.env.local` file and set the URL of the
+Ayaka backend.
 
     ```env
     NEXT_PUBLIC_API_BASE_URL=http://localhost:9000
     ```
 
-    必要に応じて URL を変更してください。
+    Change the URL as needed.
 
-## 開発サーバーの起動
+## Start Development Server
 
-開発サーバーを起動するには、以下のコマンドを実行します。
+To start the development server, run:
 
 ```bash
 pnpm dev
 ```
 
-または
+or
 
 ```bash
 npm run dev
@@ -65,25 +68,25 @@ npm run dev
 yarn dev
 ```
 
-アプリケーションは `http://localhost:3000` で利用可能になります。
+The application will be available at `http://localhost:3000`.
 
-## プロジェクト構造
+## Project Structure
 
-- `app/`: Next.js の App Router によるページルーティング
-  - `layout.tsx`: ルートレイアウト
-  - `page.tsx`: パッケージ一覧ページ
-  - `about/page.tsx`: Lumine についてのページ
-  - `server-status/page.tsx`: サーバーステータス表示ページ
-- `components/`: 再利用可能なコンポーネント
-  - `ui/`: shadcn/ui から取得した UI コンポーネント
-  - その他のコンポーネント（`package-table.tsx`, `search-bar.tsx` など）
-- `hooks/`: カスタムフック
-- `lib/`: ユーティリティ関数や型定義
-  - `api.ts`: バックエンド API 関連
-  - `types.ts`: 型定義
-  - `utils.ts`: その他のユーティリティ
-- `styles/`: グローバルスタイル
+- `app/`: Page routing with Next.js App Router
+  - `layout.tsx`: Root layout
+  - `page.tsx`: Package list page
+  - `about/page.tsx`: About Lumine page
+  - `server-status/page.tsx`: Server status page
+- `components/`: Reusable components
+  - `ui/`: UI components from shadcn/ui
+  - Other components (`package-table.tsx`, `search-bar.tsx`, etc.)
+- `hooks/`: Custom hooks
+- `lib/`: Utility functions and type definitions
+  - `api.ts`: Backend API
+  - `types.ts`: Type definitions
+  - `utils.ts`: Other utilities
+- `styles/`: Global styles
 
-## ライセンス
+## License
 
-[LICENSE.txt](https://github.com/Hayao0819/Kamisato/blob/main/LICENSE.txt) を参照してください。
+See [LICENSE.txt](https://github.com/Hayao0819/Kamisato/blob/main/LICENSE.txt).

@@ -35,10 +35,11 @@ status and searches for packages.
 
 ### Todo
 
-- 問い合わせの送信の実装
-- リポジトリの選択
-- 複数サーバーへの対応
+- Implement inquiry sending
+- Repository selection
+- Support for multiple servers
 
 ## Special thanks
 
 - <https://genshin.hoyoverse.com/ja/character/inazuma?char=0>
+- [BrenekH/blinky](https://github.com/BrenekH/blinky)

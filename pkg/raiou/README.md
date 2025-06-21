@@ -1,4 +1,4 @@
-# 雷櫻(Raiou)
+# Raiou
 
 Raiou is a library for parsing ALPM metadata.
 
