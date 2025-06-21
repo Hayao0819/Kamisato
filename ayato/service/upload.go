@@ -29,7 +29,9 @@ func (s *Service) UploadPkgFile(repo string, files *domain.UploadFiles) error {
 	if err != nil {
 		return fmt.Errorf("get pkg from bin err: %s", err.Error())
 	}
-	pkgFileStream.Seek(0, io.SeekStart)
+	if _, err := pkgFileStream.Seek(0, io.SeekStart); err != nil {
+		return fmt.Errorf("seek pkg file err: %s", err.Error())
+	}
 
 	// Get package information
 	pi, err := p.PKGINFO()

@@ -24,7 +24,7 @@ func uploadCmd() *cobra.Command {
 			}
 
 			for _, pkg := range pkgs {
-				blinkyutils.UploadToBlinky(server, reponame, pkg)
+				_ = blinkyutils.UploadToBlinky(server, reponame, pkg)
 			}
 
 			return nil

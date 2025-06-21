@@ -17,7 +17,11 @@ func OpenFileStreamWithTypeDetection(filePath string) (*FileStream, error) {
 	if err != nil {
 		return nil, err
 	}
-	file.Seek(0, io.SeekStart) // Reset the file pointer to the beginning
+	// Reset the file pointer to the beginning
+	if _, err := file.Seek(0, io.SeekStart); err != nil {
+		file.Close()
+		return nil, err
+	}
 
 	return NewFileStream(file.Name(), mt.String(), file), nil
 }

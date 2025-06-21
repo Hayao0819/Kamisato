@@ -63,7 +63,9 @@ func RootCmd() *cobra.Command {
 			engine := gin.New()
 			engine.Use(gin.Recovery())
 			engine.Use(utils.GinLog())
-			router.SetRoute(engine, h, m)
+			if err := router.SetRoute(engine, h, m); err != nil {
+				return errors.Wrap(err, "failed to set routes")
+			}
 			slog.Info("Routes initialized successfully")
 
 			// Initialize package repository

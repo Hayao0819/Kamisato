@@ -35,7 +35,9 @@ func NewSql(driver string, dsn string) (*Sql, error) {
 	if err != nil {
 		return nil, err
 	}
-	db.AutoMigrate(&PackageFile{})
+	if err := db.AutoMigrate(&PackageFile{}); err != nil {
+		return nil, fmt.Errorf("failed to auto migrate: %w", err)
+	}
 	return &Sql{
 		db: db,
 	}, nil

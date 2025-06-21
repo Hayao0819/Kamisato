@@ -28,7 +28,9 @@ func writeReadSeekerToFile(name string, stream io.Reader) error {
 		return errors.Wrap(err, "failed to copy stream to file")
 	}
 	if seeker, ok := stream.(io.ReadSeeker); ok {
-		seeker.Seek(0, 0)
+		if _, err := seeker.Seek(0, 0); err != nil {
+			return errors.Wrap(err, "failed to seek stream after writing to file")
+		}
 	}
 	return nil
 }
