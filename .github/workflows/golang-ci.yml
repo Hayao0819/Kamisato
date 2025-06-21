@@ -56,6 +56,9 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version-file: 'go.mod'
+    
+      - name: Prepare dummy web
+        run: mkdir -p lumine/embed/out && touch lumine/embed/out/index.html
 
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v4
