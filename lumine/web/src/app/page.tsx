@@ -6,12 +6,13 @@ import { RepoArchSelector } from "@/components/repo-arch-selector";
 import { Button } from "@/components/ui/button";
 import { Footer } from "@/components/footer";
 import { ArrowRight } from "lucide-react";
-import { getAllPkgsEndpoint } from "@/lib/api";
+// import { getAllPkgsEndpoint } from "@/lib/api";
 import type { PackageInfo, PacmanPkgsResponse } from "@/lib/types";
 import { ServerIcon } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { useAPIClient } from "@/components/lumine-provider";
 
 export default function Home() {
     const [selectedRepo, setSelectedRepo] = useState<string | null>(null);
@@ -26,26 +27,18 @@ export default function Home() {
         setSelectedArch(arch);
     };
 
+    const api = useAPIClient();
+
     useEffect(() => {
+        if (!api.endpoints.executable) return;
         if (selectedRepo && selectedArch) {
             const fetchPackages = async () => {
                 setLoading(true);
                 setError(null);
                 try {
-                    const res = await fetch(
-                        getAllPkgsEndpoint(selectedRepo, selectedArch),
-                    );
-                    if (!res.ok) {
-                        throw new Error(
-                            `Failed to fetch packages: ${res.statusText}`,
-                        );
-                    }
-                    const data: PacmanPkgsResponse = await res.json();
+                    const data: PacmanPkgsResponse = await api.fetchAllPkgs(selectedRepo, selectedArch);
                     if (!Array.isArray(data.packages)) {
-                        console.error(
-                            "Fetched data.packages is not an array:",
-                            data.packages,
-                        );
+                        console.error("Fetched data.packages is not an array:", data.packages);
                         setPackages([]);
                     } else {
                         setPackages(data.packages);
@@ -63,12 +56,11 @@ export default function Home() {
                     setLoading(false);
                 }
             };
-
             fetchPackages();
         } else {
             setPackages([]);
         }
-    }, [selectedRepo, selectedArch, toast]);
+    }, [selectedRepo, selectedArch, toast, api.endpoints.executable]);
 
     return (
         <div className="container mx-auto py-4 sm:py-8 px-4 sm:px-6 flex flex-col">

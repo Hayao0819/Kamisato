@@ -1,27 +1,41 @@
+"use client";
+import { useAPIClient } from "@/components/lumine-provider";
+import { useEffect, useState } from "react";
 import { RefreshButton } from "@/components/refresh-button";
 import { StatusCard } from "@/components/status-card";
 import { Button } from "@/components/ui/button";
-import { getHelloEndpoint, getTeapotEndpoint } from "@/lib/api";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 
-async function checkServerStatus() {
-    const helloStatus = await fetch(getHelloEndpoint())
-        .then((res) => (res.ok || res.status === 418 ? "Online" : "Offline"))
-        .catch(() => "Offline");
-    const teapotStatus = await fetch(getTeapotEndpoint())
-        .then((res) => (res.ok || res.status === 418 ? "Online" : "Offline"))
-        .catch(() => "Offline");
+export default function ServerStatus() {
+    const api = useAPIClient();
+    const [servers, setServers] = useState([
+        { id: "hello", name: "Hello Endpoint", status: "loading" },
+        { id: "teapot", name: "Teapot Endpoint", status: "loading" },
+    ]);
 
-    return [
-        { id: "hello", name: "Hello Endpoint", status: helloStatus },
-        { id: "teapot", name: "Teapot Endpoint", status: teapotStatus },
-        // Add other relevant endpoints to check as needed
-    ];
-}
-
-export default async function ServerStatus() {
-    const servers = await checkServerStatus();
+    useEffect(() => {
+        if (!api.endpoints.executable) return;
+        let ignore = false;
+        const fetchStatuses = async () => {
+            const helloStatus = await api.fetchHello()
+                .then((res) => (res.ok || res.status === 418 ? "Online" : "Offline"))
+                .catch(() => "Offline");
+            const teapotStatus = await api.fetchTeapot()
+                .then((res) => (res.ok || res.status === 418 ? "Online" : "Offline"))
+                .catch(() => "Offline");
+            if (!ignore) {
+                setServers([
+                    { id: "hello", name: "Hello Endpoint", status: helloStatus },
+                    { id: "teapot", name: "Teapot Endpoint", status: teapotStatus },
+                ]);
+            }
+        };
+        fetchStatuses();
+        return () => {
+            ignore = true;
+        };
+    }, [api, api.endpoints.executable]);
 
     return (
         <div className="container mx-auto py-4 sm:py-8 px-4 sm:px-6">

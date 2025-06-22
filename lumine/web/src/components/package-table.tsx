@@ -20,7 +20,7 @@ import {
     TableRow,
 } from "@/components/ui/table";
 import { useMobile } from "@/hooks/use-mobile";
-import { getRepoFileEndpoint } from "@/lib/api";
+// import { getRepoFileEndpoint } from "@/lib/api";
 import type { PackageInfo } from "@/lib/types";
 import {
     Calendar,
@@ -32,6 +32,7 @@ import {
 import { useState } from "react";
 import { BugReportDialog } from "./bug-report-dialog";
 import { SearchBar } from "./search-bar";
+import { useAPIClient } from "./lumine-provider";
 
 interface PackageTableProps {
     packages: PackageInfo[];
@@ -46,6 +47,7 @@ export function PackageTable({
 }: PackageTableProps) {
     const [packages, setPackages] = useState<PackageInfo[]>(initialPackages);
     const isMobile = useMobile();
+    const api = useAPIClient();
 
     const handleSearch = (query: string) => {
         if (!query.trim()) {
@@ -138,7 +140,7 @@ export function PackageTable({
                                             onSelect={() => {
                                                 if (!repo || !arch) return;
                                                 const downloadUrl =
-                                                    getRepoFileEndpoint(
+                                                    api.endpoints.repoFile(
                                                         repo,
                                                         arch,
                                                         `${pkg.pkgname}-${pkg.pkgver}.pkg.tar.zst`,
@@ -254,7 +256,7 @@ export function PackageTable({
                                                             if (!repo || !arch)
                                                                 return;
                                                             const downloadUrl =
-                                                                getRepoFileEndpoint(
+                                                                api.endpoints.repoFile(
                                                                     repo,
                                                                     arch,
                                                                     `${pkg.pkgname}-${pkg.pkgver}.pkg.tar.zst`,

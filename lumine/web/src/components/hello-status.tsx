@@ -1,18 +1,21 @@
 "use client";
 
-import { getHelloEndpoint } from "@/lib/api";
 import { useEffect, useState } from "react";
+import { useAPIClient } from "./lumine-provider";
 
 export function HelloStatus() {
     const [status, setStatus] = useState<"success" | "error" | "loading">(
         "loading",
     );
 
+    const api = useAPIClient();
+
     useEffect(() => {
+        if (!api.endpoints.executable) return;
         const checkHello = async () => {
             setStatus("loading");
             try {
-                const res = await fetch(getHelloEndpoint());
+                const res = await api.fetchHello();
                 if (res.ok) {
                     setStatus("success");
                 } else {
@@ -23,7 +26,7 @@ export function HelloStatus() {
             }
         };
         checkHello();
-    }, []);
+    }, [api.endpoints.executable]);
 
     return (
         <div className="flex items-center gap-2">

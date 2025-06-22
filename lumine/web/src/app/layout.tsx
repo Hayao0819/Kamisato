@@ -3,8 +3,7 @@ import "@/styles/globals.css";
 import { Header } from "@/components/header";
 import { ToastProvider, ToastViewport } from "@/components/ui/toast";
 import { Footer } from "@/components/footer";
-import { useEffect } from "react";
-import { fetchLumineEnv } from "@/lib/api";
+import LumineProvider from "@/components/lumine-provider";
 
 export const metadata: Metadata = {
     title: "Lumine - Arch Linux パッケージリポジトリ",
@@ -17,10 +16,6 @@ export default function RootLayout({
 }: Readonly<{
     children: React.ReactNode;
 }>) {
-    useEffect(() => {
-        fetchLumineEnv();
-    }, []);
-
     return (
         <html lang="ja">
             <head>
@@ -31,14 +26,16 @@ export default function RootLayout({
                 />
             </head>
             <ToastProvider>
-                <body className="h-screen flex flex-col">
-                    <Header />
-                    <main className="grow overflow-scroll hidden-scrollbar">
-                        {children}
-                    </main>
-                    <Footer />
-                    <ToastViewport className="fixed top-16 left-1/2 -translate-x-1/2 z-[100] w-full max-w-md flex flex-col items-center" />
-                </body>
+                <LumineProvider>
+                    <body className="h-screen flex flex-col">
+                        <Header />
+                        <main className="grow overflow-scroll hidden-scrollbar">
+                            {children}
+                        </main>
+                        <Footer />
+                        <ToastViewport className="fixed top-16 left-1/2 -translate-x-1/2 z-[100] w-full max-w-md flex flex-col items-center" />
+                    </body>
+                </LumineProvider>
             </ToastProvider>
         </html>
     );

@@ -1,5 +1,6 @@
-/** @type {import('next').NextConfig} */
+
 const isDev = process.env.NODE_ENV === "development";
+/** @type {import('next').NextConfig} */
 const nextConfig = {
     eslint: {
         ignoreDuringBuilds: true,
@@ -12,6 +13,7 @@ const nextConfig = {
     },
     distDir: isDev ? ".next" : "../embed/out",
     output: "export",
+    trailingSlash: true,
 };
 
 export default nextConfig;

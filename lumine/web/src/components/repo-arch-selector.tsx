@@ -7,9 +7,9 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { getArchesEndpoint, getReposEndpoint } from "@/lib/api";
 import { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { useAPIClient } from "./lumine-provider";
 
 interface RepoArchSelectorProps {
     onSelect: (repo: string, arch: string) => void;
@@ -22,28 +22,18 @@ export function RepoArchSelector({ onSelect }: RepoArchSelectorProps) {
     const [selectedArch, setSelectedArch] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
     const { toast } = useToast();
+    const api = useAPIClient();
 
     // Fetch repositories on component mount
     useEffect(() => {
+        if (!api.endpoints.executable) return;
         const fetchRepos = async () => {
             try {
-                const response = await fetch(getReposEndpoint());
-                if (!response.ok) {
-                    setError("リポジトリ一覧の取得に失敗しました");
-                    setRepos([]);
-                    setSelectedRepo(null);
-                    toast({
-                        title: "リポジトリ取得エラー",
-                        description: `HTTP error! status: ${response.status}`,
-                        variant: "destructive",
-                    });
-                    return;
-                }
-                const data: string[] = await response.json();
+                const data: string[] = await api.fetchRepos();
                 setRepos(data);
                 setError(null);
                 if (data.length > 0) {
-                    setSelectedRepo(data[0]); // Select the first repo by default
+                    setSelectedRepo(data[0]);
                 }
             } catch (error) {
                 setError("リポジトリ一覧の取得に失敗しました");
@@ -58,32 +48,19 @@ export function RepoArchSelector({ onSelect }: RepoArchSelectorProps) {
             }
         };
         fetchRepos();
-    }, [toast]);
+    }, [toast, api.endpoints.executable]);
 
     // Fetch architectures when selectedRepo changes
     useEffect(() => {
+        if (!api.endpoints.executable) return;
         if (selectedRepo) {
             const fetchArches = async () => {
                 try {
-                    const response = await fetch(
-                        getArchesEndpoint(selectedRepo),
-                    );
-                    if (!response.ok) {
-                        setError("アーキテクチャ一覧の取得に失敗しました");
-                        setArches([]);
-                        setSelectedArch(null);
-                        toast({
-                            title: "アーキテクチャ取得エラー",
-                            description: `HTTP error! status: ${response.status}`,
-                            variant: "destructive",
-                        });
-                        return;
-                    }
-                    const data: string[] = await response.json();
+                    const data: string[] = await api.fetchArches(selectedRepo);
                     setArches(data);
                     setError(null);
                     if (data.length > 0) {
-                        setSelectedArch(data[0]); // Select the first arch by default
+                        setSelectedArch(data[0]);
                     } else {
                         setSelectedArch(null);
                     }
@@ -94,9 +71,7 @@ export function RepoArchSelector({ onSelect }: RepoArchSelectorProps) {
                     toast({
                         title: "アーキテクチャ取得エラー",
                         description:
-                            error instanceof Error
-                                ? error.message
-                                : String(error),
+                            error instanceof Error ? error.message : String(error),
                         variant: "destructive",
                     });
                 }
@@ -106,7 +81,7 @@ export function RepoArchSelector({ onSelect }: RepoArchSelectorProps) {
             setArches([]);
             setSelectedArch(null);
         }
-    }, [selectedRepo, toast]);
+    }, [selectedRepo, toast, api.endpoints.executable]);
 
     // Call onSelect when both repo and arch are selected
     useEffect(() => {

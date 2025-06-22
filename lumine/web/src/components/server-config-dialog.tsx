@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { SERVER_CONFIGURABLE } from "@/lib/api";
+// import { SERVER_CONFIGURABLE } from "@/lib/api";
 import {
     Dialog,
     DialogContent,
@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Settings } from "lucide-react";
+import { useAPIClient } from "./lumine-provider";
 
 const STORAGE_KEY = "lumine_api_base_url";
 
@@ -23,9 +24,10 @@ export function ServerConfigDialog() {
     const [open, setOpen] = useState(false);
     const [url, setUrl] = useState("");
     const { toast } = useToast();
+    const api = useAPIClient();
 
     useEffect(() => {
-        if (!SERVER_CONFIGURABLE) return;
+        if (!api.lumineEnv.SERVER_CONFIGURABLE) return;
         const saved = localStorage.getItem(STORAGE_KEY);
         if (saved) setUrl(saved);
     }, [open]);
@@ -37,7 +39,9 @@ export function ServerConfigDialog() {
         window.location.reload(); // 設定反映のためリロード
     };
 
-    if (!SERVER_CONFIGURABLE) {
+    // console.log(api)
+
+    if (!api.lumineEnv || !api.lumineEnv.SERVER_CONFIGURABLE) {
         // 編集不可の場合はボタンをdisabledに
         return (
             <Button

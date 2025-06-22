@@ -3,29 +3,26 @@ import { ServerConfigDialog } from "@/components/server-config-dialog";
 import { Button } from "@/components/ui/button";
 import { ServerIcon } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
+import { useAPIClient } from "./lumine-provider";
+// import { getHelloEndpoint } from "@/lib/api";
 
 export function Header() {
     const [status, setStatus] = useState<
         "success" | "error" | "loading" | "unset"
     >("loading");
+    const api = useAPIClient();
+    const apiRef = useRef(api);
     useEffect(() => {
+        apiRef.current = api;
+    }, [api]);
+    useEffect(() => {
+        if (!api.endpoints.executable) return;
         let ignore = false;
         const check = async () => {
-            // localStorageからAPI URLを取得
-            let apiBase = undefined;
-            if (typeof window !== "undefined") {
-                apiBase = window.localStorage
-                    .getItem("lumine_api_base_url")
-                    ?.trim();
-            }
-            if (!apiBase) {
-                setStatus("unset");
-                return;
-            }
             setStatus("loading");
             try {
-                const res = await fetch(apiBase + "/api/unstable/hello");
+                const res = await apiRef.current.fetchHello();
                 // 418もsuccess扱い
                 if (!ignore)
                     setStatus(
@@ -41,7 +38,7 @@ export function Header() {
             ignore = true;
             clearInterval(timer);
         };
-    }, []);
+    }, [api.endpoints.executable]);
     return (
         <header className="w-full bg-background/80 border-b sticky top-0 z-40 backdrop-blur">
             <div className="container mx-auto flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 py-3 px-4">
