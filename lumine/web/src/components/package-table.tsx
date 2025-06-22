@@ -31,8 +31,8 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { BugReportDialog } from "./bug-report-dialog";
-import { SearchBar } from "./search-bar";
 import { useAPIClient } from "./lumine-provider";
+import { SearchBar } from "./search-bar";
 
 interface PackageTableProps {
     packages: PackageInfo[];

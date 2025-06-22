@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
 // import { SERVER_CONFIGURABLE } from "@/lib/api";
 import {
     Dialog,
@@ -12,10 +12,10 @@ import {
     DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Settings } from "lucide-react";
+import { useEffect, useState } from "react";
 import { useAPIClient } from "./lumine-provider";
 
 const STORAGE_KEY = "lumine_api_base_url";
@@ -30,7 +30,7 @@ export function ServerConfigDialog() {
         if (!api.lumineEnv.SERVER_CONFIGURABLE) return;
         const saved = localStorage.getItem(STORAGE_KEY);
         if (saved) setUrl(saved);
-    }, [open]);
+    }, [api.lumineEnv.SERVER_CONFIGURABLE]);
 
     const handleSave = () => {
         localStorage.setItem(STORAGE_KEY, url);

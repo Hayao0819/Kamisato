@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import "@/styles/globals.css";
-import { Header } from "@/components/header";
-import { ToastProvider, ToastViewport } from "@/components/ui/toast";
 import { Footer } from "@/components/footer";
+import { Header } from "@/components/header";
 import LumineProvider from "@/components/lumine-provider";
+import { ToastProvider, ToastViewport } from "@/components/ui/toast";
 
 export const metadata: Metadata = {
     title: "Lumine - Arch Linux パッケージリポジトリ",

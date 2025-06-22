@@ -18,5 +18,10 @@
   },
   "[dockerfile]": {
     "editor.defaultFormatter": "foxundermoon.shell-format"
-  }
+  },
+
+  "biome.enabled": true,
+  "biome.configurationPath": "./lumine/web/biome.json",
+  "biome.lsp.bin": "./lumine/web/node_modules/@biomejs/biome/bin/biome",
+  "biome.lsp.trace.server": "verbose"
 }

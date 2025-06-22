@@ -3,7 +3,7 @@ import { ServerConfigDialog } from "@/components/server-config-dialog";
 import { Button } from "@/components/ui/button";
 import { ServerIcon } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAPIClient } from "./lumine-provider";
 // import { getHelloEndpoint } from "@/lib/api";
 

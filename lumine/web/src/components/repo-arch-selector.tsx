@@ -7,8 +7,8 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { useEffect, useState } from "react";
 import { useAPIClient } from "./lumine-provider";
 
 interface RepoArchSelectorProps {
@@ -48,7 +48,7 @@ export function RepoArchSelector({ onSelect }: RepoArchSelectorProps) {
             }
         };
         fetchRepos();
-    }, [toast, api.endpoints.executable]);
+    }, [toast, api.endpoints.executable, api.fetchRepos]);
 
     // Fetch architectures when selectedRepo changes
     useEffect(() => {
@@ -83,7 +83,7 @@ export function RepoArchSelector({ onSelect }: RepoArchSelectorProps) {
             setArches([]);
             setSelectedArch(null);
         }
-    }, [selectedRepo, toast, api.endpoints.executable]);
+    }, [selectedRepo, toast, api.endpoints.executable, api.fetchArches]);
 
     // Call onSelect when both repo and arch are selected
     useEffect(() => {

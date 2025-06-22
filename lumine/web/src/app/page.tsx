@@ -1,15 +1,10 @@
 "use client";
-
-import { HelloStatus } from "@/components/hello-status";
+import { useAPIClient } from "@/components/lumine-provider";
 import { PackageTable } from "@/components/package-table";
 import { RepoArchSelector } from "@/components/repo-arch-selector";
-import { Button } from "@/components/ui/button";
-import { Footer } from "@/components/footer";
-import type { PackageInfo, PacmanPkgsResponse } from "@/lib/types";
-import Link from "next/link";
-import { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { useAPIClient } from "@/components/lumine-provider";
+import type { PackageInfo, PacmanPkgsResponse } from "@/lib/types";
+import { useEffect, useState } from "react";
 
 export default function Home() {
     const [selectedRepo, setSelectedRepo] = useState<string | null>(null);
@@ -46,13 +41,17 @@ export default function Home() {
                     } else {
                         setPackages(data.packages);
                     }
-                } catch (err: any) {
+                } catch (err: unknown) {
                     console.error("Failed to fetch packages:", err);
-                    setError(err.message);
+                    let message = "API通信に失敗しました。";
+                    if (err instanceof Error) {
+                        message = err.message;
+                    }
+                    setError(message);
                     setPackages([]);
                     toast({
                         title: "パッケージ取得エラー",
-                        description: err.message || "API通信に失敗しました。",
+                        description: message,
                         variant: "destructive",
                     });
                 } finally {
@@ -63,7 +62,13 @@ export default function Home() {
         } else {
             setPackages([]);
         }
-    }, [selectedRepo, selectedArch, toast, api.endpoints.executable]);
+    }, [
+        selectedRepo,
+        selectedArch,
+        toast,
+        api.endpoints.executable,
+        api.fetchAllPkgs,
+    ]);
 
     return (
         <div className="container mx-auto py-4 sm:py-8 px-4 sm:px-6 flex flex-col">

@@ -25,4 +25,5 @@ jobs:
         run: pnpm install
 
       - name: Run Biome
+        working-directory: ./lumine/web
         run: pnpm run check

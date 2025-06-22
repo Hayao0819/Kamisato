@@ -26,7 +26,7 @@ export function HelloStatus() {
             }
         };
         checkHello();
-    }, [api.endpoints.executable]);
+    }, [api.endpoints.executable, api.fetchHello]);
 
     return (
         <div className="flex items-center gap-2">

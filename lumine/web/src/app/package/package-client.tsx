@@ -1,16 +1,16 @@
 "use client";
-import { useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
-import Link from "next/link";
+import { useAPIClient } from "@/components/lumine-provider";
 import { Button } from "@/components/ui/button";
 import {
     Table,
     TableBody,
-    TableRow,
-    TableHead,
     TableCell,
+    TableHead,
+    TableRow,
 } from "@/components/ui/table";
-import { useAPIClient } from "@/components/lumine-provider";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
 
 interface PackageDetail {
     pkgname: string;
@@ -60,14 +60,18 @@ export default function ClientPackageDetailPage() {
             try {
                 const data = await api.fetchPackageDetail(repo, arch, pkgbase);
                 setPkg(data);
-            } catch (e: any) {
-                setError(e.message);
+            } catch (e: unknown) {
+                if (e instanceof Error) {
+                    setError(e.message);
+                } else {
+                    setError(String(e));
+                }
             } finally {
                 setLoading(false);
             }
         };
         fetchDetail();
-    }, [repo, arch, pkgbase, api.endpoints.executable]);
+    }, [repo, arch, pkgbase, api.endpoints.executable, api.fetchPackageDetail]);
 
     if (loading) return <div className="p-8 text-center">読み込み中...</div>;
     if (error)
