@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { SERVER_CONFIGURABLE } from "@/lib/api";
 import {
     Dialog,
     DialogContent,
@@ -24,6 +25,7 @@ export function ServerConfigDialog() {
     const { toast } = useToast();
 
     useEffect(() => {
+        if (!SERVER_CONFIGURABLE) return;
         const saved = localStorage.getItem(STORAGE_KEY);
         if (saved) setUrl(saved);
     }, [open]);
@@ -35,6 +37,20 @@ export function ServerConfigDialog() {
         window.location.reload(); // 設定反映のためリロード
     };
 
+    if (!SERVER_CONFIGURABLE) {
+        // 編集不可の場合はボタンをdisabledに
+        return (
+            <Button
+                variant="ghost"
+                size="icon"
+                aria-label="サーバー設定"
+                disabled
+                title="サーバーURLは固定されています"
+            >
+                <Settings className="h-5 w-5" />
+            </Button>
+        );
+    }
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>

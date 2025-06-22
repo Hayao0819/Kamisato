@@ -4,7 +4,13 @@ import { useEffect, useState } from "react";
 import { getPackageDetailEndpoint } from "@/lib/api";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Table, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
+import {
+    Table,
+    TableBody,
+    TableRow,
+    TableHead,
+    TableCell,
+} from "@/components/ui/table";
 
 interface PackageDetail {
     pkgname: string;
@@ -49,7 +55,9 @@ export default function PackageDetailPage() {
             setLoading(true);
             setError(null);
             try {
-                const res = await fetch(getPackageDetailEndpoint(repo, arch, pkgbase));
+                const res = await fetch(
+                    getPackageDetailEndpoint(repo, arch, pkgbase),
+                );
                 if (!res.ok)
                     throw new Error("パッケージ情報の取得に失敗しました");
                 const data = await res.json();
@@ -75,7 +83,9 @@ export default function PackageDetailPage() {
                     <Button variant="outline">一覧に戻る</Button>
                 </Link>
                 <span className="text-lg font-bold">{pkg.pkgname}</span>
-                <span className="text-sm text-muted-foreground">({pkg.arch})</span>
+                <span className="text-sm text-muted-foreground">
+                    ({pkg.arch})
+                </span>
             </div>
             <div className="mb-4">
                 <div className="text-xl font-bold mb-1">
@@ -113,7 +123,9 @@ export default function PackageDetailPage() {
                     </TableRow>
                     <TableRow>
                         <TableHead>ビルド日</TableHead>
-                        <TableCell>{new Date(pkg.builddate * 1000).toLocaleString()}</TableCell>
+                        <TableCell>
+                            {new Date(pkg.builddate * 1000).toLocaleString()}
+                        </TableCell>
                     </TableRow>
                     <TableRow>
                         <TableHead>サイズ</TableHead>
@@ -125,11 +137,17 @@ export default function PackageDetailPage() {
                     </TableRow>
                     <TableRow>
                         <TableHead>依存関係</TableHead>
-                        <TableCell>{pkg.depend.length ? pkg.depend.join(", ") : "なし"}</TableCell>
+                        <TableCell>
+                            {pkg.depend.length ? pkg.depend.join(", ") : "なし"}
+                        </TableCell>
                     </TableRow>
                     <TableRow>
                         <TableHead>提供</TableHead>
-                        <TableCell>{pkg.provides.length ? pkg.provides.join(", ") : "なし"}</TableCell>
+                        <TableCell>
+                            {pkg.provides.length
+                                ? pkg.provides.join(", ")
+                                : "なし"}
+                        </TableCell>
                     </TableRow>
                 </TableBody>
             </Table>

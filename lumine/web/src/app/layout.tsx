@@ -3,6 +3,8 @@ import "@/styles/globals.css";
 import { Header } from "@/components/header";
 import { ToastProvider, ToastViewport } from "@/components/ui/toast";
 import { Footer } from "@/components/footer";
+import { useEffect } from "react";
+import { fetchLumineEnv } from "@/lib/api";
 
 export const metadata: Metadata = {
     title: "Lumine - Arch Linux パッケージリポジトリ",
@@ -15,6 +17,10 @@ export default function RootLayout({
 }: Readonly<{
     children: React.ReactNode;
 }>) {
+    useEffect(() => {
+        fetchLumineEnv();
+    }, []);
+
     return (
         <html lang="ja">
             <head>
