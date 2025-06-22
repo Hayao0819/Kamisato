@@ -3,7 +3,7 @@ import { APIClient } from "@/lib/api";
 import { type ReactNode, useContext, useEffect, useState } from "react";
 import { createContext } from "react";
 
-const APIClientContext = createContext<APIClient |null>(null);
+const APIClientContext = createContext<APIClient | null>(null);
 
 export function useAPIClient() {
     const ctx = useContext(APIClientContext);
@@ -21,20 +21,24 @@ export default function LumineProvider({
         console.log("Initializing APIClient...");
         APIClient.init()
             .then((client) => {
-
                 setClient(client);
             })
             .catch((err) => {
                 console.error("APIClient initialization failed:", err);
             });
     }, []);
-    useEffect(()=>{
+    useEffect(() => {
         if (client.lumineEnv.FALLBACK)
-            console.warn("APIClient is using fallback mode. Some features may not work as expected.");
+            console.warn(
+                "APIClient is using fallback mode. Some features may not work as expected.",
+            );
         else
-            console.log("APIClient initialized successfully with environment:", client.lumineEnv);
-    },[client])
-    return (    
+            console.log(
+                "APIClient initialized successfully with environment:",
+                client.lumineEnv,
+            );
+    }, [client]);
+    return (
         <APIClientContext.Provider value={client}>
             {children}
         </APIClientContext.Provider>

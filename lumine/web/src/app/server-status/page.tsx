@@ -1,6 +1,6 @@
 "use client";
 import { useAPIClient } from "@/components/lumine-provider";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { RefreshButton } from "@/components/refresh-button";
 import { StatusCard } from "@/components/status-card";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,10 @@ import Link from "next/link";
 
 export default function ServerStatus() {
     const api = useAPIClient();
+    const apiRef = useRef(api);
+    useEffect(() => {
+        apiRef.current = api;
+    }, [api]);
     const [servers, setServers] = useState([
         { id: "hello", name: "Hello Endpoint", status: "loading" },
         { id: "teapot", name: "Teapot Endpoint", status: "loading" },
@@ -18,24 +22,40 @@ export default function ServerStatus() {
         if (!api.endpoints.executable) return;
         let ignore = false;
         const fetchStatuses = async () => {
-            const helloStatus = await api.fetchHello()
-                .then((res) => (res.ok || res.status === 418 ? "Online" : "Offline"))
+            const helloStatus = await apiRef.current
+                .fetchHello()
+                .then((res) =>
+                    res.ok || res.status === 418 ? "Online" : "Offline",
+                )
                 .catch(() => "Offline");
-            const teapotStatus = await api.fetchTeapot()
-                .then((res) => (res.ok || res.status === 418 ? "Online" : "Offline"))
+            const teapotStatus = await apiRef.current
+                .fetchTeapot()
+                .then((res) =>
+                    res.ok || res.status === 418 ? "Online" : "Offline",
+                )
                 .catch(() => "Offline");
             if (!ignore) {
                 setServers([
-                    { id: "hello", name: "Hello Endpoint", status: helloStatus },
-                    { id: "teapot", name: "Teapot Endpoint", status: teapotStatus },
+                    {
+                        id: "hello",
+                        name: "Hello Endpoint",
+                        status: helloStatus,
+                    },
+                    {
+                        id: "teapot",
+                        name: "Teapot Endpoint",
+                        status: teapotStatus,
+                    },
                 ]);
             }
         };
         fetchStatuses();
+        const timer = setInterval(fetchStatuses, 10000);
         return () => {
             ignore = true;
+            clearInterval(timer);
         };
-    }, [api, api.endpoints.executable]);
+    }, [api.endpoints.executable]);
 
     return (
         <div className="container mx-auto py-4 sm:py-8 px-4 sm:px-6">

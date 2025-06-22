@@ -1,5 +1,5 @@
 type LumineEnv = {
-    AYATO_URL: string|null;
+    AYATO_URL: string | null;
     SERVER_CONFIGURABLE: boolean;
     FALLBACK: boolean;
 };
@@ -14,25 +14,34 @@ export class APIClient {
     // APIリクエストラッパー
     async fetchAllPkgs(repo: string, arch: string) {
         const res = await fetch(this.endpoints.allPkgs(repo, arch));
-        if (!res.ok) throw new Error(`Failed to fetch packages: ${res.statusText}`);
+        if (!res.ok)
+            throw new Error(`Failed to fetch packages: ${res.statusText}`);
         return res.json();
     }
 
     async fetchPackageDetail(repo: string, arch: string, pkgbase: string) {
-        const res = await fetch(this.endpoints.packageDetail(repo, arch, pkgbase));
+        const res = await fetch(
+            this.endpoints.packageDetail(repo, arch, pkgbase),
+        );
         if (!res.ok) throw new Error("パッケージ情報の取得に失敗しました");
         return res.json();
     }
 
     async fetchRepos() {
         const res = await fetch(this.endpoints.repos());
-        if (!res.ok) throw new Error(`リポジトリ一覧の取得に失敗しました: ${res.status}`);
+        if (!res.ok)
+            throw new Error(
+                `リポジトリ一覧の取得に失敗しました: ${res.status}`,
+            );
         return res.json();
     }
 
     async fetchArches(repo: string) {
         const res = await fetch(this.endpoints.arches(repo));
-        if (!res.ok) throw new Error(`アーキテクチャ一覧の取得に失敗しました: ${res.status}`);
+        if (!res.ok)
+            throw new Error(
+                `アーキテクチャ一覧の取得に失敗しました: ${res.status}`,
+            );
         return res.json();
     }
 
@@ -69,7 +78,7 @@ export class APIClient {
         return new APIClient(fallbackLumineEnv);
     }
 
-    get serverUrl(): (string|null) {
+    get serverUrl(): string | null {
         const env = this.lumineEnv;
         if (env.SERVER_CONFIGURABLE && typeof window !== "undefined") {
             const localUrl = window.localStorage.getItem("lumine_api_base_url");
@@ -84,7 +93,7 @@ class APIEndpoints {
     constructor(base: string | null) {
         this.base = base;
     }
-    get executable():boolean {
+    get executable(): boolean {
         return this.base !== null;
     }
     get apiUnstableUrl(): string {

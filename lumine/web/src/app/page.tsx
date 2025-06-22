@@ -5,10 +5,7 @@ import { PackageTable } from "@/components/package-table";
 import { RepoArchSelector } from "@/components/repo-arch-selector";
 import { Button } from "@/components/ui/button";
 import { Footer } from "@/components/footer";
-import { ArrowRight } from "lucide-react";
-// import { getAllPkgsEndpoint } from "@/lib/api";
 import type { PackageInfo, PacmanPkgsResponse } from "@/lib/types";
-import { ServerIcon } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
@@ -36,9 +33,15 @@ export default function Home() {
                 setLoading(true);
                 setError(null);
                 try {
-                    const data: PacmanPkgsResponse = await api.fetchAllPkgs(selectedRepo, selectedArch);
+                    const data: PacmanPkgsResponse = await api.fetchAllPkgs(
+                        selectedRepo,
+                        selectedArch,
+                    );
                     if (!Array.isArray(data.packages)) {
-                        console.error("Fetched data.packages is not an array:", data.packages);
+                        console.error(
+                            "Fetched data.packages is not an array:",
+                            data.packages,
+                        );
                         setPackages([]);
                     } else {
                         setPackages(data.packages);

@@ -71,7 +71,9 @@ export function RepoArchSelector({ onSelect }: RepoArchSelectorProps) {
                     toast({
                         title: "アーキテクチャ取得エラー",
                         description:
-                            error instanceof Error ? error.message : String(error),
+                            error instanceof Error
+                                ? error.message
+                                : String(error),
                         variant: "destructive",
                     });
                 }
