@@ -4,11 +4,14 @@ import { HelloStatus } from "@/components/hello-status";
 import { PackageTable } from "@/components/package-table";
 import { RepoArchSelector } from "@/components/repo-arch-selector";
 import { Button } from "@/components/ui/button";
+import { Footer } from "@/components/footer";
+import { ArrowRight } from "lucide-react";
 import { getAllPkgsEndpoint } from "@/lib/api";
 import type { PackageInfo, PacmanPkgsResponse } from "@/lib/types";
 import { ServerIcon } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Home() {
     const [selectedRepo, setSelectedRepo] = useState<string | null>(null);
@@ -16,6 +19,7 @@ export default function Home() {
     const [packages, setPackages] = useState<PackageInfo[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const { toast } = useToast();
 
     const handleRepoArchSelect = (repo: string, arch: string) => {
         setSelectedRepo(repo);
@@ -50,6 +54,11 @@ export default function Home() {
                     console.error("Failed to fetch packages:", err);
                     setError(err.message);
                     setPackages([]);
+                    toast({
+                        title: "パッケージ取得エラー",
+                        description: err.message || "API通信に失敗しました。",
+                        variant: "destructive",
+                    });
                 } finally {
                     setLoading(false);
                 }
@@ -59,33 +68,14 @@ export default function Home() {
         } else {
             setPackages([]);
         }
-    }, [selectedRepo, selectedArch]);
+    }, [selectedRepo, selectedArch, toast]);
+
 
     return (
         <div className="container mx-auto py-4 sm:py-8 px-4 sm:px-6">
-            <header className="mb-6 sm:mb-8">
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
-                    <div>
-                        <h1 className="text-2xl sm:text-3xl font-bold">
-                            Lumine - Arch Linux パッケージリポジトリ
-                        </h1>
-                        <HelloStatus />
-                    </div>
-                    <Link href="/server-status">
-                        <Button variant="outline" className="w-full sm:w-auto">
-                            <ServerIcon className="h-4 w-4 mr-2" />
-                            サーバーステータス
-                        </Button>
-                    </Link>
-                </div>
-                <p className="text-sm sm:text-base text-muted-foreground">
-                    LumineはAyatoバックエンドを利用したArch
-                    Linux向けの非公式パッケージリポジトリWebフロントエンドです。パッケージの検索・ダウンロードが可能です。
-                </p>
-                <div className="mt-4">
-                    <RepoArchSelector onSelect={handleRepoArchSelect} />
-                </div>
-            </header>
+            <div className="mt-4 mb-6 sm:mb-8">
+                <RepoArchSelector onSelect={handleRepoArchSelect} />
+            </div>
 
             <main>
                 {loading && (
@@ -99,9 +89,7 @@ export default function Home() {
                 {!loading && !error && <PackageTable packages={packages} />}
             </main>
 
-            <footer className="mt-8 sm:mt-12 text-center text-xs sm:text-sm text-muted-foreground py-4">
-                <p>© 2025 山田ハヤオ / Kamisato Project</p>
-            </footer>
+            <Footer />
         </div>
     );
 }

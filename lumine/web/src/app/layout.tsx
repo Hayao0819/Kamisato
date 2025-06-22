@@ -1,5 +1,8 @@
+
 import type { Metadata } from "next";
 import "@/styles/globals.css";
+import { Header } from "@/components/header";
+import { ToastProvider, ToastViewport } from "@/components/ui/toast";
 
 export const metadata: Metadata = {
     title: "Lumine - Arch Linux パッケージリポジトリ",
@@ -14,7 +17,14 @@ export default function RootLayout({
 }>) {
     return (
         <html lang="en">
-            <body>{children}</body>
+            <body>
+                <ToastProvider>
+                    <Header />
+                    {children}
+                    {/* トースト通知を画面上部中央に表示 */}
+                    <ToastViewport className="fixed top-16 left-1/2 -translate-x-1/2 z-[100] w-full max-w-md flex flex-col items-center" />
+                </ToastProvider>
+            </body>
         </html>
     );
 }

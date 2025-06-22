@@ -1,11 +1,12 @@
 package service
 
 import (
-	"errors"
 	"log/slog"
+	"slices"
 
 	"github.com/Hayao0819/Kamisato/ayato/domain"
 	"github.com/Hayao0819/Kamisato/pkg/raiou"
+	"github.com/cockroachdb/errors"
 )
 
 func (s *Service) RepoFileList(repo, arch string) ([]string, error) {
@@ -86,4 +87,26 @@ func (s *Service) RepoNames() ([]string, error) {
 // Arches returns the architectures of a repository.
 func (s *Service) Arches(repo string) ([]string, error) {
 	return s.r.Arches(repo)
+}
+
+func (s *Service) ValidateRepoName(repo string) error {
+	if repo == "" {
+		return nil
+	}
+
+	configuredRepos, err := s.r.RepoNames()
+	if err != nil {
+		return errors.Wrap(err, "failed to get repository names")
+	}
+
+	if slices.Contains(configuredRepos, repo) {
+		return nil
+	}
+
+	if slices.Contains(s.cfg.RepoNames(), repo) {
+		slog.Warn("repository found but failed to initialize", "repo", repo)
+		return errors.New(repo + " found but failed to initialize")
+	}
+
+	return errors.New(repo + " not found in configured repositories")
 }

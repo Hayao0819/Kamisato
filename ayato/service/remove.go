@@ -3,15 +3,15 @@ package service
 import (
 	"fmt"
 	"log/slog"
+
+	"github.com/cockroachdb/errors"
 )
 
 func (s *Service) RemovePkgFile(rname string, arch string, pkgname string) error {
-	// Verify repository directory
-	if s.r.VerifyPkgRepo(rname) != nil {
-		slog.Warn("repository directory not found", "repo", rname)
-		if err := s.r.Init(arch, false, nil); err != nil {
-			return fmt.Errorf("init repo err: %s", err.Error())
-		}
+
+	if err := s.ValidateRepoName(rname); err != nil {
+		slog.Error("validate repo name failed", "repo", rname, "error", err.Error())
+		return errors.Wrap(err, "validate repo name failed")
 	}
 
 	// Package file
