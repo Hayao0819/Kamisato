@@ -70,26 +70,28 @@ export default function Home() {
         }
     }, [selectedRepo, selectedArch, toast]);
 
-
     return (
-        <div className="container mx-auto py-4 sm:py-8 px-4 sm:px-6">
+        <div className="container mx-auto py-4 sm:py-8 px-4 sm:px-6 flex flex-col">
             <div className="mt-4 mb-6 sm:mb-8">
                 <RepoArchSelector onSelect={handleRepoArchSelect} />
             </div>
 
-            <main>
-                {loading && (
-                    <div className="text-center">Loading packages...</div>
-                )}
-                {error && (
-                    <div className="text-center text-red-500">
-                        Error: {error}
-                    </div>
-                )}
-                {!loading && !error && <PackageTable packages={packages} />}
-            </main>
-
-            <Footer />
+            {loading && <div className="text-center">Loading packages...</div>}
+            {error && (
+                <div className="text-center text-red-500">Error: {error}</div>
+            )}
+            {!loading && !error && selectedRepo && selectedArch && (
+                <PackageTable
+                    packages={packages}
+                    repo={selectedRepo}
+                    arch={selectedArch}
+                />
+            )}
+            {!loading && !error && (!selectedRepo || !selectedArch) && (
+                <div className="text-center text-muted-foreground py-12">
+                    上部のリポジトリ・アーキテクチャを選択してください。
+                </div>
+            )}
         </div>
     );
 }

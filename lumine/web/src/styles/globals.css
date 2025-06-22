@@ -12,6 +12,17 @@ body {
     }
 }
 
+@layer utilities {
+    .hidden-scrollbar {
+        -ms-overflow-style: none; /* IE, Edge 対応 */
+        scrollbar-width: none; /* Firefox 対応 */
+    }
+    .hidden-scrollbar::-webkit-scrollbar {
+        /* Chrome, Safari 対応 */
+        display: none;
+    }
+}
+
 @layer base {
     :root {
         --background: 0 0% 100%;

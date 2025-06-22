@@ -7,10 +7,10 @@ import Link from "next/link";
 
 async function checkServerStatus() {
     const helloStatus = await fetch(getHelloEndpoint())
-        .then((res) => (res.ok ? "Online" : "Offline"))
+        .then((res) => (res.ok || res.status === 418 ? "Online" : "Offline"))
         .catch(() => "Offline");
     const teapotStatus = await fetch(getTeapotEndpoint())
-        .then((res) => (res.ok ? "Online" : "Offline"))
+        .then((res) => (res.ok || res.status === 418 ? "Online" : "Offline"))
         .catch(() => "Offline");
 
     return [

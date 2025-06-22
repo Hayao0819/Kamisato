@@ -54,7 +54,7 @@ export function ServerConfigDialog() {
                     <Input
                         id="server-url"
                         value={url}
-                        onChange={e => setUrl(e.target.value)}
+                        onChange={(e) => setUrl(e.target.value)}
                         placeholder="http://localhost:9000"
                     />
                 </div>

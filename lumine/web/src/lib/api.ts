@@ -1,4 +1,6 @@
-
+// パッケージ詳細取得用エンドポイント
+export const getPackageDetailEndpoint = (repo: string, arch: string, pkgbase: string) =>
+    `${getApiBaseUrl()}/api/unstable/${repo}/${arch}/package/${pkgbase}`;
 function getApiBaseUrl(): string {
     if (typeof window !== "undefined") {
         return (
@@ -11,7 +13,6 @@ function getApiBaseUrl(): string {
 }
 
 export const API_BASE_URL = getApiBaseUrl();
-
 
 export const getHelloEndpoint = () => `${getApiBaseUrl()}/api/unstable/hello`;
 export const getTeapotEndpoint = () => `${getApiBaseUrl()}/api/unstable/teapot`;

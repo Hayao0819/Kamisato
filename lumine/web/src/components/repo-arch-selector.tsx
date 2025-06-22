@@ -51,7 +51,8 @@ export function RepoArchSelector({ onSelect }: RepoArchSelectorProps) {
                 setSelectedRepo(null);
                 toast({
                     title: "リポジトリ取得エラー",
-                    description: error instanceof Error ? error.message : String(error),
+                    description:
+                        error instanceof Error ? error.message : String(error),
                     variant: "destructive",
                 });
             }
@@ -64,7 +65,9 @@ export function RepoArchSelector({ onSelect }: RepoArchSelectorProps) {
         if (selectedRepo) {
             const fetchArches = async () => {
                 try {
-                    const response = await fetch(getArchesEndpoint(selectedRepo));
+                    const response = await fetch(
+                        getArchesEndpoint(selectedRepo),
+                    );
                     if (!response.ok) {
                         setError("アーキテクチャ一覧の取得に失敗しました");
                         setArches([]);
@@ -90,7 +93,10 @@ export function RepoArchSelector({ onSelect }: RepoArchSelectorProps) {
                     setSelectedArch(null);
                     toast({
                         title: "アーキテクチャ取得エラー",
-                        description: error instanceof Error ? error.message : String(error),
+                        description:
+                            error instanceof Error
+                                ? error.message
+                                : String(error),
                         variant: "destructive",
                     });
                 }

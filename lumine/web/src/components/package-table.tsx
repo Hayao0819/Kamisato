@@ -35,9 +35,15 @@ import { SearchBar } from "./search-bar";
 
 interface PackageTableProps {
     packages: PackageInfo[];
+    repo?: string;
+    arch?: string;
 }
 
-export function PackageTable({ packages: initialPackages }: PackageTableProps) {
+export function PackageTable({
+    packages: initialPackages,
+    repo,
+    arch,
+}: PackageTableProps) {
     const [packages, setPackages] = useState<PackageInfo[]>(initialPackages);
     const isMobile = useMobile();
 
@@ -76,9 +82,16 @@ export function PackageTable({ packages: initialPackages }: PackageTableProps) {
                                 <div className="flex items-start justify-between">
                                     <div className="flex items-center">
                                         <PackageIcon className="h-4 w-4 mr-2 text-muted-foreground" />
-                                        <h3 className="font-medium">
+                                        <a
+                                            href={
+                                                repo && arch
+                                                    ? `/package?repo=${encodeURIComponent(repo)}&arch=${encodeURIComponent(arch)}&pkgbase=${encodeURIComponent(pkg.pkgbase)}`
+                                                    : undefined
+                                            }
+                                            className="font-medium hover:underline"
+                                        >
                                             {pkg.pkgname}
-                                        </h3>
+                                        </a>
                                     </div>
                                     <Badge variant="outline">
                                         {pkg.pkgver}
@@ -108,17 +121,26 @@ export function PackageTable({ packages: initialPackages }: PackageTableProps) {
                                             アクション
                                         </DropdownMenuLabel>
                                         <DropdownMenuSeparator />
-                                        <DropdownMenuItem>
-                                            <Info className="h-4 w-4 mr-2" />
-                                            詳細を表示
+                                        <DropdownMenuItem asChild>
+                                            <a
+                                                href={
+                                                    repo && arch
+                                                        ? `/package?repo=${encodeURIComponent(repo)}&arch=${encodeURIComponent(arch)}&pkgbase=${encodeURIComponent(pkg.pkgbase)}`
+                                                        : undefined
+                                                }
+                                                className="flex items-center"
+                                            >
+                                                <Info className="h-4 w-4 mr-2" />
+                                                詳細を表示
+                                            </a>
                                         </DropdownMenuItem>
                                         <DropdownMenuItem
                                             onSelect={() => {
-                                                // TODO: Get repo and arch dynamically
+                                                if (!repo || !arch) return;
                                                 const downloadUrl =
                                                     getRepoFileEndpoint(
-                                                        "repo",
-                                                        "x86_64",
+                                                        repo,
+                                                        arch,
                                                         `${pkg.pkgname}-${pkg.pkgver}.pkg.tar.zst`,
                                                     );
                                                 window.open(
@@ -174,7 +196,16 @@ export function PackageTable({ packages: initialPackages }: PackageTableProps) {
                                     <TableCell className="font-medium">
                                         <div className="flex items-center">
                                             <PackageIcon className="h-4 w-4 mr-2 text-muted-foreground" />
-                                            {pkg.pkgname}
+                                            <a
+                                                href={
+                                                    repo && arch
+                                                        ? `/package?repo=${encodeURIComponent(repo)}&arch=${encodeURIComponent(arch)}&pkgbase=${encodeURIComponent(pkg.pkgbase)}`
+                                                        : undefined
+                                                }
+                                                className="hover:underline"
+                                            >
+                                                {pkg.pkgname}
+                                            </a>
                                         </div>
                                     </TableCell>
                                     <TableCell>{pkg.pkgver}</TableCell>
@@ -205,17 +236,27 @@ export function PackageTable({ packages: initialPackages }: PackageTableProps) {
                                                         アクション
                                                     </DropdownMenuLabel>
                                                     <DropdownMenuSeparator />
-                                                    <DropdownMenuItem>
-                                                        <Info className="h-4 w-4 mr-2" />
-                                                        詳細を表示
+                                                    <DropdownMenuItem asChild>
+                                                        <a
+                                                            href={
+                                                                repo && arch
+                                                                    ? `/package?repo=${encodeURIComponent(repo)}&arch=${encodeURIComponent(arch)}&pkgbase=${encodeURIComponent(pkg.pkgbase)}`
+                                                                    : undefined
+                                                            }
+                                                            className="flex items-center"
+                                                        >
+                                                            <Info className="h-4 w-4 mr-2" />
+                                                            詳細を表示
+                                                        </a>
                                                     </DropdownMenuItem>
                                                     <DropdownMenuItem
                                                         onSelect={() => {
-                                                            // TODO: Get repo and arch dynamically
+                                                            if (!repo || !arch)
+                                                                return;
                                                             const downloadUrl =
                                                                 getRepoFileEndpoint(
-                                                                    "repo",
-                                                                    "x86_64",
+                                                                    repo,
+                                                                    arch,
                                                                     `${pkg.pkgname}-${pkg.pkgver}.pkg.tar.zst`,
                                                                 );
                                                             window.open(
