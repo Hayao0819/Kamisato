@@ -91,6 +91,11 @@ parse_args() {
             build_lumine_go=false
             shift
             ;;
+        --lumine)
+            build_lumine_go=true
+            build_lumine_web=true
+            shift
+            ;;
         --ayaka)
             build_ayaka=true
             shift
@@ -105,6 +110,13 @@ parse_args() {
             ;;
         --no-ayato)
             build_ayato=false
+            shift
+            ;;
+        --disable-all)
+            build_ayaka=false
+            build_ayato=false
+            build_lumine_go=false
+            build_lumine_web=false
             shift
             ;;
         --upx)
