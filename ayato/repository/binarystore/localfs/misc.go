@@ -6,6 +6,7 @@ import (
 	"path"
 
 	"github.com/Hayao0819/nahi/flist"
+	"github.com/samber/lo"
 )
 
 func (l *LocalPkgBinaryStore) RepoNames() ([]string, error) {
@@ -17,7 +18,9 @@ func (l *LocalPkgBinaryStore) RepoNames() ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	return *dirs, nil
+	return lo.Map(*dirs,func (item string,index int)string{
+		return path.Base(item)
+	}), nil
 }
 
 func (l *LocalPkgBinaryStore) FileList(name string, arch string) ([]string, error) {

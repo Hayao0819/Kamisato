@@ -24,7 +24,7 @@ func SetRoute(e *gin.Engine, h *handler.Handler, m *middleware.Middleware) error
 			api.GET("/repos", h.ReposHandler)
 			api.GET("/repos/:repo/archs", h.ArchesHandler)
 			api.GET("/:repo/:arch/package", h.AllPkgsHandler)
-			api.GET("/:repo/:arch/package/:name") // TODO: Implement this
+			api.GET("/:repo/:arch/package/:name", h.PkgDetailHandler) // TODO: Implement this
 			api.GET("/:repo/:arch/package/:name/files", h.PkgFilesHandler)
 		}
 

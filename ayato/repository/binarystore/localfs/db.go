@@ -31,6 +31,7 @@ func (l *LocalPkgBinaryStore) repoAdd(name string, arch string, fileName string,
 		pkgFilePath = path.Join(repoPath, fileName)
 	}
 	if err := pacman.RepoAdd(repoDbPath, pkgFilePath, useSignedDB, gnupgDir); err != nil {
+		slog.Error("repoAdd", "err", err)
 		return fmt.Errorf("repo-add err: %s", err.Error())
 	}
 
@@ -49,27 +50,20 @@ func (s *LocalPkgBinaryStore) RepoAdd(repo, arch string, pkgfile, sigfile stream
 		return err
 	}
 
+	_, err = writeStreamToFile(t, sigfile)
+	if err != nil {
+		return err
+	}
+
 	repoDir, err := s.getRepoDir(repo)
 	if err != nil {
 		return err
 	}
-	repoDir = path.Join(repoDir, arch)
 
-	dbpath := path.Join(repoDir, repo+".db.tar.gz")
-	dbfile, err := stream.OpenFileStreamWithTypeDetection(dbpath)
-	if err != nil {
-		// if s3shared.
-		return fmt.Errorf("failed to open file %s: %w", dbpath, err)
-	}
-	defer dbfile.Close()
+	dbpath := path.Join(repoDir, arch, repo+".db.tar.gz")
+	return pacman.RepoAdd(dbpath, pkgPath, useSignedDB, gnupgDir)
 
-	dbPath, err := writeStreamToFile(t, dbfile)
-	if err != nil {
-		return err
-		// slog.Error("writeStreamToFile", "err", err)
-	}
-
-	return pacman.RepoAdd(dbPath, pkgPath, useSignedDB, gnupgDir)
+	// return  s.repoAdd(repo, arch, pkgPath, )
 }
 
 func (s *LocalPkgBinaryStore) RepoRemove(repo string, arch string, pkg string, useSignedDB bool, gnupgDir *string) error {

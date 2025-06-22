@@ -30,6 +30,33 @@ func (h *Handler) AllPkgsHandler(ctx *gin.Context) {
 
 }
 
+func (h *Handler) PkgDetailHandler(ctx *gin.Context) {
+	repoName := ctx.Param("repo")
+	archName := ctx.Param("arch")
+	pkgName := ctx.Param("name")
+	if repoName == "" {
+		ctx.String(http.StatusBadRequest, "Repository name is required")
+		return
+	}
+	if archName == "" {
+		ctx.String(http.StatusBadRequest, "Arch name is required")
+		return
+	}
+	if pkgName == "" {
+		ctx.String(http.StatusBadRequest, "Package name is required")
+		return
+	}
+
+	pkgDetail, err := h.s.PacmanRepoPkgDetail(repoName, archName, pkgName)
+	if err != nil {
+		slog.Error("Failed to get package detail", "error", err)
+		ctx.String(http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	ctx.JSON(http.StatusOK, pkgDetail)
+}
+
 func (h *Handler) PkgFilesHandler(ctx *gin.Context) {
 	repoName := ctx.Param("repo")
 	archName := ctx.Param("arch")
