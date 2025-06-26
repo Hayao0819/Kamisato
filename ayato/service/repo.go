@@ -13,7 +13,7 @@ func (s *Service) RepoFileList(repo, arch string) ([]string, error) {
 	return s.r.Files(repo, arch)
 }
 
-func (s *Service) PacmanRepo(repo string) (*domain.PacmanRepo, error) {
+func (s *Service) Repo(repo string) (*domain.PacmanRepo, error) {
 	arches, err := s.r.Arches(repo)
 	if err != nil {
 		return nil, err
@@ -21,7 +21,7 @@ func (s *Service) PacmanRepo(repo string) (*domain.PacmanRepo, error) {
 
 	pkgsgroup := make(map[string]domain.PacmanPkgs, len(arches))
 	for _, arch := range arches {
-		pkgs, err := s.PacmanRepoPkgs(repo, arch)
+		pkgs, err := s.Pkgs(repo, arch)
 		if err != nil {
 			return nil, err
 		}
@@ -37,7 +37,7 @@ func (s *Service) PacmanRepo(repo string) (*domain.PacmanRepo, error) {
 
 }
 
-func (s *Service) PacmanRepoPkgs(repo, arch string) (*domain.PacmanPkgs, error) {
+func (s *Service) Pkgs(repo, arch string) (*domain.PacmanPkgs, error) {
 	rr, err := s.r.RemoteRepo(repo, arch)
 	if err != nil {
 		return nil, err
@@ -63,7 +63,7 @@ func (s *Service) PacmanRepoPkgs(repo, arch string) (*domain.PacmanPkgs, error) 
 	return &rt, nil
 }
 
-func (s *Service) PacmanRepoPkgDetail(repo, arch, pkgbase string) (*raiou.PKGINFO, error) {
+func (s *Service) PkgDetail(repo, arch, pkgbase string) (*raiou.PKGINFO, error) {
 	rr, err := s.r.RemoteRepo(repo, arch)
 	if err != nil {
 		return nil, err

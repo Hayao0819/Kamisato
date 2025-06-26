@@ -7,7 +7,7 @@ import (
 	"github.com/cockroachdb/errors"
 )
 
-func (s *Service) RemovePkgFile(rname string, arch string, pkgname string) error {
+func (s *Service) RemovePkg(rname string, arch string, pkgname string) error {
 
 	if err := s.ValidateRepoName(rname); err != nil {
 		slog.Error("validate repo name failed", "repo", rname, "error", err.Error())

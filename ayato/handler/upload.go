@@ -95,7 +95,7 @@ func (h *Handler) BlinkyUploadHandler(ctx *gin.Context) {
 	if sigStream != nil {
 		files.SigFile = sigStream
 	}
-	if err := h.s.UploadPkgFile(repoName, &files); err != nil {
+	if err := h.s.UploadFile(repoName, &files); err != nil {
 		ctx.String(http.StatusInternalServerError, fmt.Sprintf("upload file err: %s", err.Error()))
 		return
 	}

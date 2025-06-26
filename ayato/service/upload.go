@@ -10,7 +10,7 @@ import (
 	"github.com/Hayao0819/Kamisato/pkg/alpm/pkg"
 )
 
-func (s *Service) UploadPkgFile(repo string, files *domain.UploadFiles) error {
+func (s *Service) UploadFile(repo string, files *domain.UploadFiles) error {
 	slog.Info("upload pkg file", "file", files.PkgFile.FileName())
 
 	// Verify repository directory

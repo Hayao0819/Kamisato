@@ -20,7 +20,7 @@ func (h *Handler) BlinkyRemoveHandler(ctx *gin.Context) {
 		return
 	}
 
-	if err := h.s.RemovePkgFile(repoName, archName, packageName); err != nil {
+	if err := h.s.RemovePkg(repoName, archName, packageName); err != nil {
 		ctx.String(http.StatusInternalServerError, fmt.Sprintf("Remove package file err: %s", err.Error()))
 		return
 	}

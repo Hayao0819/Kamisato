@@ -66,7 +66,7 @@ func initMetaStore(cfg *conf.AyatoConfig) (PkgNameStoreProvider, error) {
 	return db, nil
 }
 
-func New(cfg *conf.AyatoConfig) (*Repository, error) {
+func New(cfg *conf.AyatoConfig) (IRepository, error) {
 	// Initialize the database
 	db, err := initMetaStore(cfg)
 	if err != nil {

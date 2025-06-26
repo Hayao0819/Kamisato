@@ -19,7 +19,7 @@ func (h *Handler) AllPkgsHandler(ctx *gin.Context) {
 		return
 	}
 
-	pkgs, err := h.s.PacmanRepoPkgs(repoName, archName)
+	pkgs, err := h.s.Pkgs(repoName, archName)
 	if err != nil {
 		slog.Error("Failed to get packages", "error", err)
 		ctx.String(http.StatusInternalServerError, err.Error())
@@ -47,7 +47,7 @@ func (h *Handler) PkgDetailHandler(ctx *gin.Context) {
 		return
 	}
 
-	pkgDetail, err := h.s.PacmanRepoPkgDetail(repoName, archName, pkgName)
+	pkgDetail, err := h.s.PkgDetail(repoName, archName, pkgName)
 	if err != nil {
 		slog.Error("Failed to get package detail", "error", err)
 		ctx.String(http.StatusInternalServerError, err.Error())
@@ -74,7 +74,7 @@ func (h *Handler) PkgFilesHandler(ctx *gin.Context) {
 		return
 	}
 
-	files, err := h.s.PacmanRepoPkgFiles(repoName, archName, pkgName)
+	files, err := h.s.PkgFiles(repoName, archName, pkgName)
 	if err != nil {
 		slog.Error("Failed to get package files", "error", err)
 		ctx.String(http.StatusInternalServerError, err.Error())
@@ -100,7 +100,7 @@ func (h *Handler) PkgDetailFile(ctx *gin.Context) {
 		ctx.String(http.StatusBadRequest, "Package name is required")
 		return
 	}
-	pkgDetail, err := h.s.PacmanRepoPkgDetail(repoName, archName, pkgName)
+	pkgDetail, err := h.s.PkgDetail(repoName, archName, pkgName)
 	if err != nil {
 		slog.Error("Failed to get package detail", "error", err)
 		ctx.String(http.StatusInternalServerError, err.Error())

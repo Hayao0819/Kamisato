@@ -9,7 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func SetRoute(e *gin.Engine, h *handler.Handler, m *middleware.Middleware) error {
+func SetRoute(e *gin.Engine, h handler.IHandler, m *middleware.Middleware) error {
 	// Set template
 	if err := view.Set(e); err != nil {
 		return errors.Wrap(err, "failed to set view")
