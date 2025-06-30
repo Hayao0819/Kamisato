@@ -8,9 +8,9 @@ import (
 	"log/slog"
 
 	"github.com/Hayao0819/Kamisato/ayaka/gpg"
-	"github.com/Hayao0819/Kamisato/ayaka/repo"
-	"github.com/Hayao0819/Kamisato/pkg/alpm/builder"
-	"github.com/Hayao0819/Kamisato/pkg/alpm/utils"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/package/builder"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/utils"
 	"github.com/cockroachdb/errors"
 	"github.com/spf13/cobra"
 )

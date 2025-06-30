@@ -1,3 +1,4 @@
+// パッケージメタ情報関連
 package pkg
 
 import (
@@ -11,7 +12,6 @@ import (
 )
 
 func (p *Package) Names() []string {
-
 	names := make([]string, 0)
 	if p.pkginfo != nil {
 		names = append(names, p.pkginfo.PkgBase, p.pkginfo.PkgName)
@@ -24,14 +24,12 @@ func (p *Package) Names() []string {
 	}
 	names = lo.Uniq(names)
 	return names
-
 }
 
 func (p *Package) GetPkgFileNames() ([]string, error) {
 	stdout := new(bytes.Buffer)
 	cmd := exec.Command("makepkg", "--packagelist", "OPTIONS=-debug")
 	cmd.Dir = p.srcdir
-
 	cmd.Stdout = stdout
 	err := cmd.Run()
 	if err != nil {
@@ -45,6 +43,5 @@ func (p *Package) GetPkgFileNames() ([]string, error) {
 	for i, pkg := range l {
 		pkgs[i] = path.Base(strings.TrimSpace(pkg))
 	}
-
 	return pkgs, nil
 }

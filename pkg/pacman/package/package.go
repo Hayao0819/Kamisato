@@ -1,3 +1,4 @@
+// Package型とその操作
 package pkg
 
 import (
@@ -21,15 +22,16 @@ type Package struct {
 	bin      string
 	srcinfo  *raiou.SRCINFO
 	pkginfo  *raiou.PKGINFO
-	desc     *raiou.DESC
+	// desc     *raiou.DESC
 	onmemory bool
 }
 
-func (p *Package) SRCINFO() (*raiou.SRCINFO, error) {
-	if p.srcinfo == nil {
-		return nil, fmt.Errorf("srcinfo not found")
+func (p *Package) MustPKGINFO() *raiou.PKGINFO {
+	info, err := p.PKGINFO()
+	if err != nil {
+		panic("failed to get pkginfo: " + err.Error())
 	}
-	return p.srcinfo, nil
+	return info
 }
 
 func (p *Package) PKGINFO() (*raiou.PKGINFO, error) {
@@ -39,33 +41,11 @@ func (p *Package) PKGINFO() (*raiou.PKGINFO, error) {
 	return p.pkginfo, nil
 }
 
-func (p *Package) MustSRCINFO() *raiou.SRCINFO {
-	info, err := p.SRCINFO()
-	if err != nil {
-		panic("failed to get srcinfo: " + err.Error())
+func (p *Package) SRCINFO() (*raiou.SRCINFO, error) {
+	if p.srcinfo == nil {
+		return nil, fmt.Errorf("srcinfo not found")
 	}
-	return info
-}
-func (p *Package) MustPKGINFO() *raiou.PKGINFO {
-	info, err := p.PKGINFO()
-	if err != nil {
-		panic("failed to get pkginfo: " + err.Error())
-	}
-	return info
-}
-
-func (p *Package) Desc() (*raiou.DESC, error) {
-	if p.desc == nil {
-		return nil, fmt.Errorf("desc not found")
-	}
-	return p.desc, nil
-}
-func (p *Package) MustDesc() *raiou.DESC {
-	desc, err := p.Desc()
-	if err != nil {
-		panic("failed to get desc: " + err.Error())
-	}
-	return desc
+	return p.srcinfo, nil
 }
 
 func GetPkgFromSrc(dir string) (*Package, error) {
@@ -157,34 +137,34 @@ func GetPkgFromBin(bin string, r io.Reader) (*Package, error) {
 	return pkg, nil
 }
 
-func GetPkgFromPkginfoString(bin string, pkginfoData string) (*Package, error) {
-	info, err := raiou.ParsePkginfoString(pkginfoData)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse srcinfo: %w", err)
-	}
+// func GetPkgFromPkginfoString(bin string, pkginfoData string) (*Package, error) {
+// 	info, err := raiou.ParsePkginfoString(pkginfoData)
+// 	if err != nil {
+// 		return nil, fmt.Errorf("failed to parse srcinfo: %w", err)
+// 	}
 
-	pkg := new(Package)
-	pkg.bin = bin
-	pkg.pkginfo = info
-	pkg.onmemory = true
+// 	pkg := new(Package)
+// 	pkg.bin = bin
+// 	pkg.pkginfo = info
+// 	pkg.onmemory = true
 
-	return pkg, nil
-}
+// 	return pkg, nil
+// }
 
-func GetPkgFromDesc(d io.Reader) (*Package, error) {
-	desc, err := raiou.ParseDesc(d)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse desc: %w", err)
-	}
+// func GetPkgFromDesc(d io.Reader) (*Package, error) {
+// 	desc, err := raiou.ParseDesc(d)
+// 	if err != nil {
+// 		return nil, fmt.Errorf("failed to parse desc: %w", err)
+// 	}
 
-	info, err := desc.ToPKGINFO()
-	if err != nil {
-		return nil, fmt.Errorf("failed to convert desc to pkginfo: %w", err)
-	}
+// 	info, err := desc.ToPKGINFO()
+// 	if err != nil {
+// 		return nil, fmt.Errorf("failed to convert desc to pkginfo: %w", err)
+// 	}
 
-	pkg := new(Package)
-	pkg.pkginfo = info
-	pkg.onmemory = true
+// 	pkg := new(Package)
+// 	pkg.pkginfo = info
+// 	pkg.onmemory = true
 
-	return pkg, nil
-}
+// 	return pkg, nil
+// }

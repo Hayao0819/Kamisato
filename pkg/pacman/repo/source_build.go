@@ -1,3 +1,4 @@
+// SourceRepoのビルド処理
 package repo
 
 import (
@@ -6,8 +7,8 @@ import (
 	"os"
 	"path"
 
-	"github.com/Hayao0819/Kamisato/pkg/alpm/builder"
-	"github.com/Hayao0819/Kamisato/pkg/alpm/pkg"
+	pkg "github.com/Hayao0819/Kamisato/pkg/pacman/package"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/package/builder"
 	"github.com/samber/lo"
 )
 
@@ -20,18 +21,18 @@ func (r *SourceRepo) Build(t *builder.Target, dest string, pkgs ...string) error
 
 	var targetPkgs []*pkg.Package
 	if len(pkgs) > 0 {
-		for _, pkg := range pkgs {
-			slog.Info("searching for package", "pkg", pkg)
+		for _, name := range pkgs {
+			slog.Info("searching for package", "pkg", name)
 			for _, p := range r.Pkgs {
 				pi, err := p.SRCINFO()
 				if err != nil {
-					slog.Error("get pkginfo failed", "pkg", pkg, "err", err)
+					slog.Error("get pkginfo failed", "pkg", name, "err", err)
 					continue
 				}
 				slog.Info("found package", "pkg", pi.PkgBase, "pkgver", pi.PkgVer)
 
 				names := p.Names()
-				if pkg == pi.PkgBase || lo.Contains(names, pkg) {
+				if name == pi.PkgBase || lo.Contains(names, name) {
 					targetPkgs = append(targetPkgs, p)
 					break
 				}
@@ -45,10 +46,10 @@ func (r *SourceRepo) Build(t *builder.Target, dest string, pkgs ...string) error
 		return fmt.Errorf("no packages found")
 	}
 
-	for _, pkg := range targetPkgs {
-		slog.Info("building package", "pkg", pkg.Names())
-		if err := pkg.Build(t, fulldstdir); err != nil {
-			slog.Error("build package failed", "pkg", pkg.Names(), "err", err)
+	for _, p := range targetPkgs {
+		slog.Info("building package", "pkg", p.Names())
+		if err := p.Build(t, fulldstdir); err != nil {
+			slog.Error("build package failed", "pkg", p.Names(), "err", err)
 			errs = append(errs, err)
 		}
 	}

@@ -1,3 +1,4 @@
+// ビルダー定義
 package builder
 
 type Target struct {

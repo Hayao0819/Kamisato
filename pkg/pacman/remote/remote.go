@@ -1,28 +1,28 @@
-package remoterepo
+// リモートリポジトリ型
+package remote
 
-import "github.com/Hayao0819/Kamisato/pkg/alpm/pkg"
+import pkg "github.com/Hayao0819/Kamisato/pkg/pacman/package"
 
 type RemoteRepo struct {
 	Name string
-	// Url  string
 	Pkgs []*pkg.Package
 }
 
 func (r *RemoteRepo) PkgByPkgName(pkgname string) *pkg.Package {
-	for _, pkg := range r.Pkgs {
-		pi := pkg.MustPKGINFO()
+	for _, p := range r.Pkgs {
+		pi := p.MustPKGINFO()
 		if pi.PkgName == pkgname {
-			return pkg
+			return p
 		}
 	}
 	return nil
 }
 
 func (r *RemoteRepo) PkgByPkgBase(pkgbase string) *pkg.Package {
-	for _, pkg := range r.Pkgs {
-		pi := pkg.MustPKGINFO()
+	for _, p := range r.Pkgs {
+		pi := p.MustPKGINFO()
 		if pi.PkgBase == pkgbase {
-			return pkg
+			return p
 		}
 	}
 	return nil

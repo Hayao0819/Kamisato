@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	remote "github.com/Hayao0819/Kamisato/pkg/alpm/remoterepo"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/remote"
 	"github.com/Hayao0819/Kamisato/pkg/raiou"
 	"github.com/Hayao0819/nahi/flist"
 	"github.com/Hayao0819/nahi/futils"

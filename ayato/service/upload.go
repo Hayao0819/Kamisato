@@ -7,7 +7,7 @@ import (
 	"path"
 
 	"github.com/Hayao0819/Kamisato/ayato/domain"
-	"github.com/Hayao0819/Kamisato/pkg/alpm/pkg"
+	pkg "github.com/Hayao0819/Kamisato/pkg/pacman/package"
 )
 
 func (s *Service) UploadFile(repo string, files *domain.UploadFiles) error {

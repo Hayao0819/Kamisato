@@ -1,3 +1,4 @@
+// x86_64用ビルダー
 package builder
 
 import (

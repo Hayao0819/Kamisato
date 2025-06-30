@@ -1,3 +1,4 @@
+// SourceRepo型と関連処理
 package repo
 
 import (
@@ -5,7 +6,7 @@ import (
 	"log/slog"
 
 	"github.com/Hayao0819/Kamisato/internal/conf"
-	"github.com/Hayao0819/Kamisato/pkg/alpm/pkg"
+	pkg "github.com/Hayao0819/Kamisato/pkg/pacman/package"
 	"github.com/Hayao0819/nahi/flist"
 )
 
@@ -23,7 +24,6 @@ func GetSrcDirs(repodir string) ([]string, error) {
 }
 
 func GetSrcRepo(repodir string) (*SourceRepo, error) {
-	// repoconfig := new(conf.RepoConfig)
 	repo := new(SourceRepo)
 	repoconfig, err := conf.LoadSrcRepoConfig(repodir)
 	if err != nil {
@@ -44,14 +44,13 @@ func GetSrcRepo(repodir string) (*SourceRepo, error) {
 
 	for _, dir := range dirs {
 		slog.Info("get pkg from src", "dir", dir)
-		pkg, err := pkg.GetPkgFromSrc(dir)
+		p, err := pkg.GetPkgFromSrc(dir)
 		if err != nil {
 			slog.Error("get pkg from src failed", "dir", dir, "err", err)
 			continue
 		}
-		repo.Pkgs = append(repo.Pkgs, pkg)
+		repo.Pkgs = append(repo.Pkgs, p)
 	}
 
 	return repo, nil
-
 }

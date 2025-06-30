@@ -3,11 +3,11 @@ package cmd
 import (
 	"log/slog"
 
-	"github.com/Hayao0819/Kamisato/ayaka/repo"
-	"github.com/Hayao0819/Kamisato/pkg/alpm"
-	"github.com/Hayao0819/Kamisato/pkg/alpm/builder"
-	"github.com/Hayao0819/Kamisato/pkg/alpm/pkg"
-	remote "github.com/Hayao0819/Kamisato/pkg/alpm/remoterepo"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/package/builder"
+	pkg "github.com/Hayao0819/Kamisato/pkg/pacman/package"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/remote"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/utils"
 	"github.com/cockroachdb/errors"
 	"github.com/spf13/cobra"
 )
@@ -51,7 +51,7 @@ func diffBuildCmd() *cobra.Command {
 				// cmp=0 -> src == remote
 				// cmp>0 -> local > remote // ローカルの方が新しい
 				// cmp<0 -> local < remote // リモートの方が新しい
-				cmp, err := alpm.VerCmp(pi.PkgVer, rp.MustPKGINFO().PkgVer)
+				cmp, err := utils.VerCmp(pi.PkgVer, rp.MustPKGINFO().PkgVer)
 				if err != nil {
 					slog.Error("failed to compare package versions", "pkgbase", pi.PkgBase, "error", err)
 					return errors.Wrap(err, "failed to compare package versions")

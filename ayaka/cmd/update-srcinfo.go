@@ -5,7 +5,7 @@ import (
 	"os/exec"
 	"path"
 
-	"github.com/Hayao0819/Kamisato/ayaka/repo"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
 	"github.com/spf13/cobra"
 )
 

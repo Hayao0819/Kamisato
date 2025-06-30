@@ -2,7 +2,7 @@ package repository
 
 import (
 	"github.com/Hayao0819/Kamisato/ayato/stream"
-	remote "github.com/Hayao0819/Kamisato/pkg/alpm/remoterepo"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/remote"
 )
 
 //go:generate mockgen -source=irepository.go -destination=../test/mocks/repository.go -package=mocks
