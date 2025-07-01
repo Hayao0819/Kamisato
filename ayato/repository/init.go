@@ -38,8 +38,8 @@ func initMetaStore(cfg *conf.AyatoConfig) (PkgNameStoreProvider, error) {
 	var db PkgNameStoreProvider
 	var err error
 
-	if cfg.Store.DBType == "sql" || cfg.Store.DBType == "external" {
-
+	switch cfg.Store.DBType {
+	case "sql", "external":
 		slog.Warn("Using SQL is still experimental, please use with caution")
 
 		dsn, dsnerr := cfg.Store.SQL.DSN()
@@ -48,13 +48,11 @@ func initMetaStore(cfg *conf.AyatoConfig) (PkgNameStoreProvider, error) {
 		}
 
 		db, err = sql.NewSql(cfg.Store.SQL.Driver, dsn)
-	} else if cfg.Store.DBType == "cfkv" {
-
+	case "cfkv":
 		slog.Warn("Using Cloudflare KV is still experimental, please use with caution")
 
 		db, err = cloudflarekv.NewCloudflareKV(cfg.Store.CloudflareKV.AccountId, cfg.Store.CloudflareKV.Token, cfg.Store.CloudflareKV.Namespace)
-	} else {
-
+	default:
 		slog.Info("Using local BadgerDB as the default meta store")
 
 		db, err = localkv.NewBadger(cfg.DbPath())
