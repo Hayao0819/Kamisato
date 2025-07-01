@@ -3,12 +3,12 @@ package cmd
 import (
 	"log/slog"
 
-	"github.com/Hayao0819/Kamisato/pkg/pacman/package/builder"
+	utils "github.com/Hayao0819/Kamisato/internal/utils"
 	pkg "github.com/Hayao0819/Kamisato/pkg/pacman/package"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/package/builder"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/remote"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/utils"
-	"github.com/cockroachdb/errors"
+	pacman_utils "github.com/Hayao0819/Kamisato/pkg/pacman/utils"
 	"github.com/spf13/cobra"
 )
 
@@ -23,7 +23,7 @@ func diffBuildCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			srcrepo, err := repo.GetSrcRepo(config.RepoDir)
 			if err != nil {
-				return errors.Wrap(err, "failed to get source repository")
+				return utils.WrapErr(err, "failed to get source repository")
 			}
 
 			if server == "" {
@@ -33,7 +33,7 @@ func diffBuildCmd() *cobra.Command {
 			slog.Debug("getting diff build", "repo", srcrepo.Config.Name, "server", server)
 			rr, err := remote.GetRepoFromURL(server, srcrepo.Config.Name)
 			if err != nil {
-				return errors.Wrap(err, "failed to get remote repository")
+				return utils.WrapErr(err, "failed to get remote repository")
 			}
 
 			shoubuild := []*pkg.Package{}
@@ -51,10 +51,10 @@ func diffBuildCmd() *cobra.Command {
 				// cmp=0 -> src == remote
 				// cmp>0 -> local > remote // ローカルの方が新しい
 				// cmp<0 -> local < remote // リモートの方が新しい
-				cmp, err := utils.VerCmp(pi.PkgVer, rp.MustPKGINFO().PkgVer)
+				cmp, err := pacman_utils.VerCmp(pi.PkgVer, rp.MustPKGINFO().PkgVer)
 				if err != nil {
 					slog.Error("failed to compare package versions", "pkgbase", pi.PkgBase, "error", err)
-					return errors.Wrap(err, "failed to compare package versions")
+					return utils.WrapErr(err, "failed to compare package versions")
 				}
 				if cmp > 0 {
 					// ローカルの方が新しい
@@ -84,7 +84,7 @@ func diffBuildCmd() *cobra.Command {
 				slog.Debug("building package", "pkgbase", pkgbase)
 				if err := pkg.Build(&t, config.DestDir); err != nil {
 					slog.Error("failed to build package", "pkgbase", pkgbase, "error", err)
-					return errors.Wrap(err, "failed to build package")
+					return utils.WrapErr(err, "failed to build package")
 				}
 				slog.Debug("package built", "pkgbase", pkgbase)
 			}

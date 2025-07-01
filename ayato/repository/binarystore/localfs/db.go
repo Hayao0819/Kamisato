@@ -6,10 +6,9 @@ import (
 	"os"
 	"path"
 
-	"github.com/cockroachdb/errors"
-
 	"github.com/Hayao0819/Kamisato/ayato/repository/pacman"
 	"github.com/Hayao0819/Kamisato/ayato/stream"
+	"github.com/Hayao0819/Kamisato/internal/utils"
 )
 
 func (l *LocalPkgBinaryStore) repoAdd(name string, arch string, fileName string, useSignedDB bool, gnupgDir *string) error {
@@ -94,7 +93,7 @@ func (s *LocalPkgBinaryStore) RepoRemove(repo string, arch string, pkg string, u
 
 	if err := pacman.RepoRemove(dbPath, pkg, useSignedDB, gnupgDir); err != nil {
 		slog.Error("RepoRemove", "err", err)
-		return errors.Wrap(err, "failed to remove repo")
+		return utils.WrapErr(err, "failed to remove repo")
 	}
 
 	return nil

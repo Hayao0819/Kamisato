@@ -7,10 +7,9 @@ import (
 	"os"
 	"path"
 
-	utils "github.com/Hayao0819/Kamisato/internal"
+	utils "github.com/Hayao0819/Kamisato/internal/utils"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/gpg"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/package/builder"
-	"github.com/cockroachdb/errors"
 )
 
 func (p *Package) Build(target *builder.Target, dest string) error {
@@ -33,19 +32,19 @@ func (p *Package) Build(target *builder.Target, dest string) error {
 	}
 
 	if err := builder.Build(tmpdir, target); err != nil {
-		return errors.Wrap(err, "failed to build package")
+		return utils.WrapErr(err, "failed to build package")
 	}
 
 	names, err := p.GetPkgFileNames()
 	if err != nil {
-		return errors.Wrap(err, "failed to get package file names")
+		return utils.WrapErr(err, "failed to get package file names")
 	}
 
 	if target.SignKey != "" {
 		for _, name := range names {
 			src := path.Join(tmpdir, name)
 			if err := gpg.SignFile(target.SignKey, "", src); err != nil {
-				return errors.Wrap(err, "failed to sign file: "+src)
+				return utils.WrapErr(err, "failed to sign file: "+src)
 			}
 		}
 	}

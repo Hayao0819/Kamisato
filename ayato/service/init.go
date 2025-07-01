@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/cockroachdb/errors"
+	"github.com/Hayao0819/Kamisato/internal/utils"
 )
 
 func (s *Service) InitAll() error {
@@ -18,7 +18,7 @@ func (s *Service) InitAll() error {
 	for _, repo := range repos {
 		slog.Debug("init pkg repo", "name", repo)
 		if err := s.r.Init(repo, false, nil); err != nil {
-			return errors.Wrap(err, fmt.Sprintf("failed to init repo %s", repo))
+			return utils.WrapErr(err, fmt.Sprintf("failed to init repo %s", repo))
 		}
 	}
 

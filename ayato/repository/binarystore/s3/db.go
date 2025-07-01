@@ -7,10 +7,9 @@ import (
 	"os"
 	"path"
 
-	"github.com/cockroachdb/errors"
-
 	"github.com/Hayao0819/Kamisato/ayato/repository/pacman"
 	"github.com/Hayao0819/Kamisato/ayato/stream"
+	"github.com/Hayao0819/Kamisato/internal/utils"
 )
 
 func writeReadSeekerToFile(name string, stream io.Reader) error {
@@ -32,7 +31,7 @@ func writeReadSeekerToFile(name string, stream io.Reader) error {
 	}
 	if seeker, ok := stream.(io.ReadSeeker); ok {
 		if _, err := seeker.Seek(0, 0); err != nil {
-			return errors.Wrap(err, "failed to seek stream after writing to file")
+			return utils.WrapErr(err, "failed to seek stream after writing to file")
 		}
 	}
 	return nil
@@ -76,7 +75,7 @@ func (s *S3) initRepo(repo, arch string, useSignedDB bool, gnupgDir *string) err
 
 	if err := s.putObject(dbkey, dbobj); err != nil {
 		slog.Error("putObject", "err", err)
-		return errors.Wrap(err, "failed to put object")
+		return utils.WrapErr(err, "failed to put object")
 	}
 
 	return nil

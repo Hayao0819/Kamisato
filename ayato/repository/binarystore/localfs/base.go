@@ -6,8 +6,8 @@ import (
 	"os"
 	"path"
 
-	utils "github.com/Hayao0819/Kamisato/internal"
 	"github.com/Hayao0819/Kamisato/internal/conf"
+	utils "github.com/Hayao0819/Kamisato/internal/utils"
 )
 
 type LocalPkgBinaryStore struct {

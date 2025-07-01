@@ -1,8 +1,8 @@
 package localkv
 
 import (
-	"github.com/cockroachdb/errors"
 	"github.com/dgraph-io/badger/v3"
+	"github.com/Hayao0819/Kamisato/internal/utils"
 )
 
 func (b *Badger) PackageFile(packageName string) (string, error) {
@@ -17,10 +17,10 @@ func (b *Badger) PackageFile(packageName string) (string, error) {
 		}
 
 		dstBuf, err = item.ValueCopy(nil)
-		return errors.Wrap(err, "failed to get item")
+		return utils.WrapErr(err, "failed to get item")
 	})
 	if err != nil {
-		return "", errors.Wrap(err, "badger.PackageFile view")
+		return "", utils.WrapErr(err, "badger.PackageFile view")
 	}
 
 	return string(dstBuf), nil

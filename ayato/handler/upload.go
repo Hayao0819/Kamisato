@@ -7,7 +7,7 @@ import (
 
 	"github.com/Hayao0819/Kamisato/ayato/domain"
 	"github.com/Hayao0819/Kamisato/ayato/stream"
-	utils "github.com/Hayao0819/Kamisato/internal"
+	utils "github.com/Hayao0819/Kamisato/internal/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/samber/lo"
 )

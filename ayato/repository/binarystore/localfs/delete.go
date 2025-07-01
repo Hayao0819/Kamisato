@@ -5,7 +5,7 @@ import (
 	"os"
 	"path"
 
-	"github.com/cockroachdb/errors"
+	"github.com/Hayao0819/Kamisato/internal/utils"
 )
 
 func (l *LocalPkgBinaryStore) DeleteFile(repo string, arch string, file string) error {
@@ -19,7 +19,7 @@ func (l *LocalPkgBinaryStore) DeleteFile(repo string, arch string, file string) 
 	slog.Info("remove pkg file", "file", pkgPath)
 	if err := os.Remove(pkgPath); err != nil {
 		slog.Warn("remove pkg file err", "err", err)
-		return errors.Wrap(err, "failed to remove pkg file")
+		return utils.WrapErr(err, "failed to remove pkg file")
 	}
 
 	return nil

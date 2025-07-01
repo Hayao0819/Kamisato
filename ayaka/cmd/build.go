@@ -8,10 +8,10 @@ import (
 	"log/slog"
 
 	"github.com/Hayao0819/Kamisato/ayaka/gpg"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
+	"github.com/Hayao0819/Kamisato/internal/utils"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/package/builder"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/utils"
-	"github.com/cockroachdb/errors"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
+	pacman_utils "github.com/Hayao0819/Kamisato/pkg/pacman/utils"
 	"github.com/spf13/cobra"
 )
 
@@ -28,19 +28,19 @@ func buildCmd() *cobra.Command {
 			slog.Info("gpgkey", "key", gpgkey)
 			tmpDir, err := os.MkdirTemp("", "ayaka-")
 			if err != nil {
-				return errors.Wrap(err, "failed to create temp directory")
+				return utils.WrapErr(err, "failed to create temp directory")
 			}
 			defer os.RemoveAll(tmpDir)
 
 			// Create dummy text file
 			dummyFile := path.Join(tmpDir, "dummy.txt")
 			if err := os.WriteFile(dummyFile, []byte("dummy"), 0644); err != nil {
-				return errors.Wrap(err, "failed to create dummy file")
+				return utils.WrapErr(err, "failed to create dummy file")
 			}
 
 			// Sign the dummy file
 			if err := gpg.SignFile(gpgkey, "", dummyFile); err != nil {
-				return errors.Wrap(err, "failed to sign dummy file")
+				return utils.WrapErr(err, "failed to sign dummy file")
 			}
 
 			return nil
@@ -49,22 +49,22 @@ func buildCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			destDir, err := filepath.Abs(config.DestDir)
 			if err != nil {
-				return errors.Wrap(err, "failed to get absolute path")
+				return utils.WrapErr(err, "failed to get absolute path")
 			}
 
 			repoDir, err := filepath.Abs(config.RepoDir)
 			if err != nil {
-				return errors.Wrap(err, "failed to get absolute path")
+				return utils.WrapErr(err, "failed to get absolute path")
 			}
 
 			repo, err := repo.GetSrcRepo(repoDir)
 			if err != nil {
-				return errors.Wrap(err, "failed to get source repository")
+				return utils.WrapErr(err, "failed to get source repository")
 			}
 
-			pkgs, err := utils.GetCleanPkgBinary(repo.Config.InstallPkgs.Names...)
+			pkgs, err := pacman_utils.GetCleanPkgBinary(repo.Config.InstallPkgs.Names...)
 			if err != nil {
-				return errors.Wrap(err, "failed to get clean package binary")
+				return utils.WrapErr(err, "failed to get clean package binary")
 			}
 
 			t := builder.Target{
@@ -78,7 +78,7 @@ func buildCmd() *cobra.Command {
 
 			slog.Info("building packages", "repo", config.RepoDir, "outdir", outDir, "gpgkey", gpgkey)
 			if err := repo.Build(&t, outDir, args...); err != nil {
-				return errors.Wrap(err, "failed to build packages")
+				return utils.WrapErr(err, "failed to build packages")
 			}
 			slog.Debug("build done", "outdir", outDir)
 			return nil

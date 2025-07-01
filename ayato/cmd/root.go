@@ -10,9 +10,8 @@ import (
 	"github.com/Hayao0819/Kamisato/ayato/repository"
 	"github.com/Hayao0819/Kamisato/ayato/router"
 	"github.com/Hayao0819/Kamisato/ayato/service"
-	utils "github.com/Hayao0819/Kamisato/internal"
 	"github.com/Hayao0819/Kamisato/internal/conf"
-	"github.com/cockroachdb/errors"
+	utils "github.com/Hayao0819/Kamisato/internal/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/cobra"
 )
@@ -53,7 +52,7 @@ func RootCmd() *cobra.Command {
 			// Init
 			r, err := repository.New(cfg)
 			if err != nil {
-				return errors.Wrap(err, "failed to initialize repository")
+				return utils.WrapErr(err, "failed to initialize repository")
 			}
 			s := service.New(r, cfg)
 			h := handler.New(s, cfg)
@@ -64,13 +63,13 @@ func RootCmd() *cobra.Command {
 			engine.Use(gin.Recovery())
 			engine.Use(utils.GinLog())
 			if err := router.SetRoute(engine, h, m); err != nil {
-				return errors.Wrap(err, "failed to set routes")
+				return utils.WrapErr(err, "failed to set routes")
 			}
 			slog.Info("Routes initialized successfully")
 
 			// Initialize package repository
 			if err := s.InitAll(); err != nil {
-				return errors.Wrap(err, "failed to initialize services")
+				return utils.WrapErr(err, "failed to initialize services")
 			}
 			slog.Info("All services initialized successfully")
 

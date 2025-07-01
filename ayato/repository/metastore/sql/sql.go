@@ -3,7 +3,7 @@ package sql
 import (
 	"fmt"
 
-	utils "github.com/Hayao0819/Kamisato/internal"
+	utils "github.com/Hayao0819/Kamisato/internal/utils"
 	_ "github.com/lib/pq"
 	"gorm.io/driver/mysql"
 	"gorm.io/driver/postgres"

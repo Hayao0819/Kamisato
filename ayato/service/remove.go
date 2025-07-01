@@ -4,14 +4,14 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/cockroachdb/errors"
+	"github.com/Hayao0819/Kamisato/internal/utils"
 )
 
 func (s *Service) RemovePkg(rname string, arch string, pkgname string) error {
 
 	if err := s.ValidateRepoName(rname); err != nil {
 		slog.Error("validate repo name failed", "repo", rname, "error", err.Error())
-		return errors.Wrap(err, "validate repo name failed")
+		return utils.WrapErr(err, "validate repo name failed")
 	}
 
 	// Package file

@@ -8,7 +8,7 @@ import (
 	"net/url"
 	"os"
 
-	utils "github.com/Hayao0819/Kamisato/internal"
+	utils "github.com/Hayao0819/Kamisato/internal/utils"
 	pkg "github.com/Hayao0819/Kamisato/pkg/pacman/package"
 )
 

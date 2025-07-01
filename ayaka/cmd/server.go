@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	blinky_utils "github.com/BrenekH/blinky/cmd/blinky/util"
+	"github.com/Hayao0819/Kamisato/internal/utils"
 	"github.com/cockroachdb/errors"
 	"github.com/spf13/cobra"
 )
@@ -32,7 +33,7 @@ It can also be used to check the login information for a specific server.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			serverDB, err := blinky_utils.ReadServerDB()
 			if err != nil {
-				return errors.Wrap(err, "failed to read server database")
+				return utils.WrapErr(err, "failed to read server database")
 			}
 
 			if len(args) > 0 {

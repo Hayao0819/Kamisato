@@ -1,9 +1,8 @@
 package cloudflarekv
 
 import (
+	utils "github.com/Hayao0819/Kamisato/internal/utils"
 	"github.com/cloudflare/cloudflare-go"
-
-	"github.com/cockroachdb/errors"
 )
 
 func (c *CloudflareKV) DeletePackageFileEntry(packageName string) error {
@@ -12,5 +11,5 @@ func (c *CloudflareKV) DeletePackageFileEntry(packageName string) error {
 		NamespaceID: c.namespaceId,
 		Key:         key,
 	})
-	return errors.Wrap(err, "failed to delete worker KV entry")
+	return utils.WrapErr(err, "failed to delete worker KV entry")
 }
