@@ -3,6 +3,7 @@ package handler
 import (
 	"fmt"
 	"log/slog"
+	"mime/multipart"
 	"net/http"
 
 	"github.com/Hayao0819/Kamisato/ayato/domain"
@@ -12,7 +13,23 @@ import (
 	"github.com/samber/lo"
 )
 
-// TODO: Test uploading signature file
+func formFileWithValidate(ctx *gin.Context, name string, maxsize int) (*multipart.FileHeader, error) {
+	pkgHeader, err := ctx.FormFile(name)
+	if err != nil {
+		// ctx.String(http.StatusBadRequest, fmt.Sprintf("get form err: %s", err.Error()))
+		return nil, fmt.Errorf("get form err: %w", err)
+	}
+	if pkgHeader.Size == 0 {
+		// ctx.String(http.StatusBadRequest, "file is empty")
+		return nil, fmt.Errorf("file is empty")
+	}
+	if maxsize > 0 && pkgHeader.Size > int64(maxsize) {
+		// ctx.String(http.StatusBadRequest, "file is too large")
+		return nil, fmt.Errorf("file is too large")
+	}
+	return pkgHeader, nil
+
+}
 
 func (h *Handler) BlinkyUploadHandler(ctx *gin.Context) {
 	// Check if the request contains a file
@@ -42,17 +59,9 @@ func (h *Handler) BlinkyUploadHandler(ctx *gin.Context) {
 	}
 
 	// Validate the file
-	pkgHeader, err := ctx.FormFile("package")
+	pkgHeader, err := formFileWithValidate(ctx, "package", h.cfg.MaxSize)
 	if err != nil {
-		ctx.String(http.StatusBadRequest, fmt.Sprintf("get form err: %s", err.Error()))
-		return
-	}
-	if pkgHeader.Size == 0 {
-		ctx.String(http.StatusBadRequest, "file is empty")
-		return
-	}
-	if pkgHeader.Size > int64(h.cfg.MaxSize) {
-		ctx.String(http.StatusBadRequest, "file is too large")
+		ctx.String(http.StatusBadRequest, fmt.Sprintf("get package form err: %s", err.Error()))
 		return
 	}
 
