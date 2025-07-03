@@ -10,18 +10,18 @@ import (
 	"path"
 	"strings"
 
+	"github.com/Hayao0819/Kamisato/internal/utils"
 	"github.com/Hayao0819/Kamisato/pkg/raiou"
 	"github.com/Hayao0819/nahi/futils"
-	"github.com/klauspost/compress/zstd"
 )
 
 var ErrSRCINFONotFound = fmt.Errorf(".SRCINFO not found")
 
 type Package struct {
-	srcdir   string
-	bin      string
-	srcinfo  *raiou.SRCINFO
-	pkginfo  *raiou.PKGINFO
+	srcdir  string
+	bin     string
+	srcinfo *raiou.SRCINFO
+	pkginfo *raiou.PKGINFO
 	// desc     *raiou.DESC
 	onmemory bool
 }
@@ -86,14 +86,14 @@ func GetPkgFromBinFile(bin string) (*Package, error) {
 func GetPkgFromBin(bin string, r io.Reader) (*Package, error) {
 
 	// zstdデコーダーを作成
-	zstdDecoder, err := zstd.NewReader(r)
+	decoder, _, err := utils.DetectCompression(r)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create zstd decoder: %w", err)
 	}
-	defer zstdDecoder.Close()
+	defer decoder.Close()
 
 	// tarリーダーを作成
-	tarReader := tar.NewReader(zstdDecoder)
+	tarReader := tar.NewReader(decoder)
 
 	// .BININFOファイルを探す
 

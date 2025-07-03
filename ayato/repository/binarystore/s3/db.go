@@ -66,7 +66,7 @@ func (s *S3) initRepo(repo, arch string, useSignedDB bool, gnupgDir *string) err
 	}
 
 	dbkey := key(repo, arch, repo+".db.tar.gz")
-	dbobj, err := stream.OpenFileStreamWithTypeDetection(dbpath)
+	dbobj, err := stream.OpenFileWithType(dbpath)
 	if err != nil {
 		slog.Error("OpenFileStreamWithTypeDetection", "err", err)
 		return err

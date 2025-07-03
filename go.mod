@@ -16,6 +16,7 @@ require (
 	github.com/gabriel-vasile/mimetype v1.4.9
 	github.com/gin-contrib/cors v1.7.5
 	github.com/gin-gonic/gin v1.10.1
+	github.com/jarxorg/io2 v0.7.1
 	github.com/joho/godotenv v1.5.1
 	github.com/klauspost/compress v1.18.0
 	github.com/knadh/koanf/parsers/json v1.0.0

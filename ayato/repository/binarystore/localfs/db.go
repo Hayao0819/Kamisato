@@ -79,7 +79,7 @@ func (s *LocalPkgBinaryStore) RepoRemove(repo string, arch string, pkg string, u
 	repoDir = path.Join(repoDir, arch)
 
 	dbpath := path.Join(repoDir, repo+".db.tar.gz")
-	dbfile, err := stream.OpenFileStreamWithTypeDetection(dbpath)
+	dbfile, err := stream.OpenFileWithType(dbpath)
 	if err != nil {
 		// if s3shared.
 		return fmt.Errorf("failed to open file %s: %w", dbpath, err)

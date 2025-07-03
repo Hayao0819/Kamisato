@@ -22,7 +22,7 @@ func (l *LocalPkgBinaryStore) FetchFile(repo string, arch string, file string) (
 	}
 	slog.Info("fetch pkg file", "file", pkgPath)
 
-	streamFile, err := stream.OpenFileStreamWithTypeDetection(pkgPath)
+	streamFile, err := stream.OpenFileWithType(pkgPath)
 	if err != nil {
 		return nil, err
 	}
