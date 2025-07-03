@@ -28,7 +28,7 @@ func NewFileStreamWithType(filename string, file io.ReadSeekCloser) (*FileStream
 		return nil, os.ErrInvalid
 	}
 
-	mt, file, err := utils.ReadSeekCloserWithMimeType(file)
+	mt, file, err := utils.ReadSeekerWithMimeType(file)
 	if err != nil {
 		return nil, err
 	}
