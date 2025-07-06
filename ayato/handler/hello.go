@@ -7,5 +7,7 @@ import (
 )
 
 func (h *Handler) HelloHandler(ctx *gin.Context) {
-	ctx.String(http.StatusOK, "Hello, Ayato!")
+	ctx.JSON(http.StatusOK, gin.H{
+		"message": "Hello, Ayato!",
+	})
 }

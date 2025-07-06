@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/Hayao0819/Kamisato/ayato/domain"
 	"github.com/gin-gonic/gin"
 )
 
@@ -12,16 +13,19 @@ func (h *Handler) BlinkyRemoveHandler(ctx *gin.Context) {
 	packageName := ctx.Param("name")
 	archName := "x86_64"
 	if packageName == "" {
-		ctx.String(http.StatusBadRequest, "Package name is required")
+		ctx.JSON(http.StatusBadRequest, domain.APIError{Message: "Package name is required"})
 		return
 	}
 	if repoName == "" {
-		ctx.String(http.StatusBadRequest, "Repository name is required")
+		ctx.JSON(http.StatusBadRequest, domain.APIError{Message: "Repository name is required"})
 		return
 	}
 
 	if err := h.s.RemovePkg(repoName, archName, packageName); err != nil {
-		ctx.String(http.StatusInternalServerError, fmt.Sprintf("Remove package file err: %s", err.Error()))
+		ctx.JSON(http.StatusInternalServerError, domain.APIError{
+			Message: "Remove package file err",
+			Reason:  err,
+		})
 		return
 	}
 

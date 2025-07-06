@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 
+	"github.com/Hayao0819/Kamisato/ayato/domain"
 	"github.com/gin-gonic/gin"
 )
 
@@ -18,7 +19,10 @@ func (h *Handler) RepoFileHandler(ctx *gin.Context) {
 
 	s, err := h.s.GetFile(repoName, arch, fileName)
 	if err != nil {
-		ctx.String(http.StatusNotFound, "failed to serve %s", repoName)
+		ctx.JSON(http.StatusNotFound, domain.APIError{
+			Message: "failed to serve " + fileName,
+			Reason:  err,
+		})
 		return
 	}
 	defer s.Close()

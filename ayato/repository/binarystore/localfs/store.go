@@ -42,5 +42,5 @@ func (l *LocalPkgBinaryStore) StoreFile(repo string, arch string, file stream.IF
 }
 
 func (l *LocalPkgBinaryStore) StoreFileWithSignedURL(repo string, arch string, name string) (string, error) {
-	return "", fmt.Errorf("StoreFileWithSignedURL is not implemented for localfs")
+	return "", nil
 }

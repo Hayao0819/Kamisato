@@ -28,6 +28,8 @@ type IFileService interface {
 	UploadFile(repo string, files *domain.UploadFiles) error
 	// パッケージファイルを削除します
 	RemovePkg(rname string, arch string, pkgname string) error
+	// SignedURLでアップロードします
+	SignedURL(repo string, arch string, name string) (string, error)
 }
 
 type IPacmanRepoService interface {

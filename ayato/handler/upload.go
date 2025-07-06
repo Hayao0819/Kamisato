@@ -36,13 +36,13 @@ func (h *Handler) BlinkyUploadHandler(ctx *gin.Context) {
 	repoName := ctx.Param("repo")
 	// Validate the repository
 	if repoName == "" {
-		ctx.String(http.StatusBadRequest, "repository name is required")
+		ctx.JSON(http.StatusBadRequest, domain.APIError{Message: "repository name is required"})
 		return
 	}
 
 	// ここの数値はいい感じに調整する
 	if err := ctx.Request.ParseMultipartForm(10 << 20); err != nil {
-		ctx.String(http.StatusBadRequest, fmt.Sprintf("parse form err: %s", err.Error()))
+		ctx.JSON(http.StatusBadRequest, domain.APIError{Message: fmt.Sprintf("parse form err: %s", err.Error())})
 		return
 	}
 
@@ -50,18 +50,18 @@ func (h *Handler) BlinkyUploadHandler(ctx *gin.Context) {
 	names := utils.MultipartFormNames(ctx.Request)
 	slog.Debug("BlinkyUploadHandler", "repo", repoName, "form names", names)
 	if !lo.Contains(names, "package") {
-		ctx.String(http.StatusBadRequest, "no package file found in the request")
+		ctx.JSON(http.StatusBadRequest, domain.APIError{Message: "no package file found in the request"})
 		return
 	}
 	if !lo.Contains(names, "signature") && h.cfg.RequireSign {
-		ctx.String(http.StatusBadRequest, "signature file is required")
+		ctx.JSON(http.StatusBadRequest, domain.APIError{Message: "signature file is required"})
 		return
 	}
 
 	// Validate the file
 	pkgHeader, err := formFileWithValidate(ctx, "package", h.cfg.MaxSize)
 	if err != nil {
-		ctx.String(http.StatusBadRequest, fmt.Sprintf("get package form err: %s", err.Error()))
+		ctx.JSON(http.StatusBadRequest, domain.APIError{Message: fmt.Sprintf("get package form err: %s", err.Error())})
 		return
 	}
 
@@ -69,7 +69,7 @@ func (h *Handler) BlinkyUploadHandler(ctx *gin.Context) {
 	sigHeader, err := ctx.FormFile("signature")
 	if err != nil {
 		if h.cfg.RequireSign {
-			ctx.String(http.StatusBadRequest, fmt.Sprintf("get signature form err: %s", err.Error()))
+			ctx.JSON(http.StatusBadRequest, domain.APIError{Message: fmt.Sprintf("get signature form err: %s", err.Error())})
 			return
 		} else {
 			sigHeader = nil // Signature is optional if not required
@@ -79,7 +79,7 @@ func (h *Handler) BlinkyUploadHandler(ctx *gin.Context) {
 
 	pkgStream, err := formFileStream(pkgHeader)
 	if err != nil {
-		ctx.String(http.StatusBadRequest, fmt.Sprintf("open file err: %s", err.Error()))
+		ctx.JSON(http.StatusBadRequest, domain.APIError{Message: fmt.Sprintf("open file err: %s", err.Error())})
 		return
 	}
 
@@ -88,7 +88,7 @@ func (h *Handler) BlinkyUploadHandler(ctx *gin.Context) {
 		sigStream, err = formFileStream(sigHeader)
 		if err != nil {
 			if h.cfg.RequireSign {
-				ctx.String(http.StatusBadRequest, fmt.Sprintf("open signature file err: %s", err.Error()))
+				ctx.JSON(http.StatusBadRequest, domain.APIError{Message: fmt.Sprintf("open signature file err: %s", err.Error())})
 				return
 			} else {
 				sigStream = nil // Signature is optional if not required
@@ -105,7 +105,7 @@ func (h *Handler) BlinkyUploadHandler(ctx *gin.Context) {
 		files.SigFile = sigStream
 	}
 	if err := h.s.UploadFile(repoName, &files); err != nil {
-		ctx.String(http.StatusInternalServerError, fmt.Sprintf("upload file err: %s", err.Error()))
+		ctx.JSON(http.StatusInternalServerError, domain.APIError{Message: fmt.Sprintf("upload file err: %s", err.Error())})
 		return
 	}
 

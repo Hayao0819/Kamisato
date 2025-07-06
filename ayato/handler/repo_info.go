@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"net/http"
 
+	"github.com/Hayao0819/Kamisato/ayato/domain"
 	"github.com/gin-gonic/gin"
 )
 
@@ -12,7 +13,7 @@ func (h *Handler) ReposHandler(ctx *gin.Context) {
 	repoNames, err := h.s.RepoNames() // Assuming a service method exists
 	if err != nil {
 		slog.Error("Failed to get repository names", "error", err)
-		ctx.String(http.StatusInternalServerError, err.Error())
+		ctx.JSON(http.StatusInternalServerError, domain.APIError{Message: err.Error()})
 		return
 	}
 
@@ -23,14 +24,14 @@ func (h *Handler) ReposHandler(ctx *gin.Context) {
 func (h *Handler) ArchesHandler(ctx *gin.Context) {
 	repoName := ctx.Param("repo")
 	if repoName == "" {
-		ctx.String(http.StatusBadRequest, "Repository name is required")
+		ctx.JSON(http.StatusBadRequest, domain.APIError{Message: "Repository name is required"})
 		return
 	}
 
 	archNames, err := h.s.Arches(repoName) // Assuming a service method exists
 	if err != nil {
 		slog.Error("Failed to get architectures for repository", "repo", repoName, "error", err)
-		ctx.String(http.StatusInternalServerError, err.Error())
+		ctx.JSON(http.StatusInternalServerError, domain.APIError{Message: err.Error()})
 		return
 	}
 
