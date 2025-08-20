@@ -22,6 +22,8 @@ func printServerInfo(n string, s blinky_utils.Server, showPassword bool, prefix 
 }
 
 func serverCmd() *cobra.Command {
+	showSecret := false
+	showRawConfig := false
 	var serverCmd = cobra.Command{
 		Use:   "server [server_url...]",
 		Short: "Manage Blinky servers",
@@ -31,6 +33,7 @@ It can also be used to check the login information for a specific server.`,
 		Args:   cobra.ArbitraryArgs,
 		PreRun: func(cmd *cobra.Command, args []string) {},
 		RunE: func(cmd *cobra.Command, args []string) error {
+
 			serverDB, err := blinky_utils.ReadServerDB()
 			if err != nil {
 				return utils.WrapErr(err, "failed to read server database")
@@ -42,9 +45,17 @@ It can also be used to check the login information for a specific server.`,
 						return errors.New("server not found in server database")
 					} else {
 						if serverDB.DefaultServer == server {
-							printServerInfo(server, serverDB.Servers[server], true, "* ")
+							if showRawConfig {
+								fmt.Printf("* %s: %+v\n", server, serverDB.Servers[server])
+							} else {
+								printServerInfo(server, serverDB.Servers[server], showSecret, "* ")
+							}
 						} else {
-							printServerInfo(server, serverDB.Servers[server], false, "  ")
+							if showRawConfig {
+								fmt.Printf("  %s: %+v\n", server, serverDB.Servers[server])
+							} else {
+								printServerInfo(server, serverDB.Servers[server], showSecret, "  ")
+							}
 						}
 					}
 				}
@@ -52,9 +63,17 @@ It can also be used to check the login information for a specific server.`,
 			} else {
 				for name, server := range serverDB.Servers {
 					if serverDB.DefaultServer == name {
-						printServerInfo(name, server, true, "* ")
+						if showRawConfig {
+							fmt.Printf("* %s: %+v\n", name, server)
+						} else {
+							printServerInfo(name, server, showSecret, "* ")
+						}
 					} else {
-						printServerInfo(name, server, false, "  ")
+						if showRawConfig {
+							fmt.Printf("  %s: %+v\n", name, server)
+						} else {
+							printServerInfo(name, server, showSecret, "  ")
+						}
 					}
 				}
 			}
@@ -62,6 +81,9 @@ It can also be used to check the login information for a specific server.`,
 			return nil
 		},
 	}
+
+	serverCmd.Flags().BoolVarP(&showSecret, "show-secret", "s", false, "show server password")
+	serverCmd.Flags().BoolVarP(&showRawConfig, "raw-config", "", false, "show raw server config with json")
 
 	return &serverCmd
 }
