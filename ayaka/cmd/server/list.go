@@ -14,33 +14,33 @@ import (
 )
 
 func ListCmd() *cobra.Command {
-       var (
-	       showSecret bool
-	       showRaw    bool
-	       format     string
-	       copyField  string
-	       search     string
-       )
+	var (
+		showSecret bool
+		showRaw    bool
+		format     string
+		copyField  string
+		search     string
+	)
 
-       cmd := &cobra.Command{
-	       Use:   "list [server_name...]",
-	       Short: "List Blinky servers",
-	       Args:  cobra.ArbitraryArgs,
-	       ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		       db, err := blinky_utils.ReadServerDB()
-		       if err != nil {
-			       return nil, cobra.ShellCompDirectiveNoFileComp
-		       }
-		       var completions []string
-		       for name := range db.Servers {
-			       if strings.HasPrefix(name, toComplete) {
-				       completions = append(completions, name)
-			       }
-		       }
-		       sort.Strings(completions)
-		       return completions, cobra.ShellCompDirectiveNoFileComp
-	       },
-	       RunE: func(cmd *cobra.Command, args []string) error {
+	cmd := &cobra.Command{
+		Use:   "list [server_name...]",
+		Short: "List Blinky servers",
+		Args:  cobra.ArbitraryArgs,
+		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+			db, err := blinky_utils.ReadServerDB()
+			if err != nil {
+				return nil, cobra.ShellCompDirectiveNoFileComp
+			}
+			var completions []string
+			for name := range db.Servers {
+				if strings.HasPrefix(name, toComplete) {
+					completions = append(completions, name)
+				}
+			}
+			sort.Strings(completions)
+			return completions, cobra.ShellCompDirectiveNoFileComp
+		},
+		RunE: func(cmd *cobra.Command, args []string) error {
 			db, err := blinky_utils.ReadServerDB()
 			if err != nil {
 				return utils.WrapErr(err, "failed to read server database")
