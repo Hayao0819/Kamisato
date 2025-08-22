@@ -6,6 +6,7 @@ import (
 	utils "github.com/Hayao0819/Kamisato/internal/utils"
 )
 
+// Init initializes the repository.
 func (r *Repository) Init(name string, useSignedDB bool, gnupgDir *string) error {
 
 	createdArches, err := r.Arches(name)

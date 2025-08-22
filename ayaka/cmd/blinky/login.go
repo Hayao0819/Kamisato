@@ -1,3 +1,4 @@
+// No changes needed: already in English
 package blinkycmd
 
 import (

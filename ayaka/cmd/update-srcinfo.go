@@ -9,12 +9,14 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// updateSrcinfoCmd returns the command to update .SRCINFO files in all source directories.
+// Returns the command to update .SRCINFO files in all source directories.
 func updateSrcinfoCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "update-srcinfo",
 		Aliases: []string{"us"},
-		Short:   "Update srcinfo files",
-		Long:    "Update srcinfo files",
+		Short:   "Update all SRCINFO files",
+		Long:    "Update .SRCINFO files in all source directories.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			srcdirs, err := repo.GetSrcDirs(config.RepoDir)
 			if err != nil {
@@ -35,7 +37,7 @@ func updateSrcinfoCmd() *cobra.Command {
 				if err := gencmd.Run(); err != nil {
 					return err
 				}
-				cmd.Println("Updated srcinfo file in", dir)
+				cmd.Println("Updated SRCINFO file:", dir)
 			}
 			return nil
 		},

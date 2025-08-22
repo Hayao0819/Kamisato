@@ -6,6 +6,7 @@ import (
 	"github.com/Hayao0819/Kamisato/ayato/stream"
 )
 
+// formFileStream creates a FileStream from a multipart.FileHeader.
 func formFileStream(f *multipart.FileHeader) (*stream.FileStream, error) {
 	file, err := f.Open()
 	if err != nil {

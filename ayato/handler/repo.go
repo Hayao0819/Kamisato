@@ -10,6 +10,33 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// ReposHandler returns a list of all repository names.
+func (h *Handler) ReposHandler(ctx *gin.Context) {
+	repoNames, err := h.s.RepoNames()
+	if err != nil {
+		slog.Error("Failed to get repository names", "error", err)
+		ctx.JSON(http.StatusInternalServerError, domain.APIError{Message: err.Error()})
+		return
+	}
+	ctx.JSON(http.StatusOK, repoNames)
+}
+
+// ArchesHandler returns a list of architectures for the specified repository.
+func (h *Handler) ArchesHandler(ctx *gin.Context) {
+	repoName := ctx.Param("repo")
+	if repoName == "" {
+		ctx.JSON(http.StatusBadRequest, domain.APIError{Message: "Repository name is required"})
+		return
+	}
+	archNames, err := h.s.Arches(repoName)
+	if err != nil {
+		slog.Error("Failed to get architectures for repository", "repo", repoName, "error", err)
+		ctx.JSON(http.StatusInternalServerError, domain.APIError{Message: err.Error()})
+		return
+	}
+	ctx.JSON(http.StatusOK, archNames)
+}
+
 func (h *Handler) RepoFileHandler(ctx *gin.Context) {
 	repoName := ctx.Param("repo")
 	arch := ctx.Param("arch")
@@ -30,7 +57,7 @@ func (h *Handler) RepoFileHandler(ctx *gin.Context) {
 	ctx.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s", s.FileName()))
 	ctx.Header("Content-Type", s.ContentType())
 
-	// 通常のファイル送信として出力
+	// Output as a normal file transfer
 	_, err = io.Copy(ctx.Writer, s)
 	if err != nil {
 		slog.Error("failed to write file to response", "error", err)

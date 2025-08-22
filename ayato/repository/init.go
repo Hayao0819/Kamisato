@@ -11,11 +11,12 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/conf"
 )
 
+// initPkgBinaryStore initializes the binary store.
 func initPkgBinaryStore(cfg *conf.AyatoConfig) (PkgBinaryStoreProvider, error) {
 	var bin PkgBinaryStoreProvider
 	var err error
 
-	// Check if S3 is enabled
+	// S3が有効な場合はS3を利用
 	if cfg.Store.StorageType == "s3" {
 		slog.Warn("Using S3 is still experimental, please use with caution")
 		bin, err = s3.NewS3(&cfg.Store.AWSS3)
@@ -25,7 +26,7 @@ func initPkgBinaryStore(cfg *conf.AyatoConfig) (PkgBinaryStoreProvider, error) {
 		}
 	}
 
-	// Fallback to localfs if S3 is not enabled
+	// S3が無効な場合はlocalfsを利用
 	if bin == nil {
 		slog.Info("Using local file system as the binary store")
 		bin = localfs.NewLocalPkgBinaryStore(cfg)
@@ -34,6 +35,7 @@ func initPkgBinaryStore(cfg *conf.AyatoConfig) (PkgBinaryStoreProvider, error) {
 	return bin, nil
 }
 
+// initMetaStore initializes the meta store.
 func initMetaStore(cfg *conf.AyatoConfig) (PkgNameStoreProvider, error) {
 	var db PkgNameStoreProvider
 	var err error
@@ -64,15 +66,16 @@ func initMetaStore(cfg *conf.AyatoConfig) (PkgNameStoreProvider, error) {
 	return db, nil
 }
 
+// New creates an implementation of IRepository.
 func New(cfg *conf.AyatoConfig) (IRepository, error) {
-	// Initialize the database
+	// メタストア初期化
 	db, err := initMetaStore(cfg)
 	if err != nil {
 		slog.Error("Failed to create meta store", "error", err)
 		return nil, err
 	}
 
-	// Check if S3 is enabled
+	// バイナリストア初期化
 	bin, err := initPkgBinaryStore(cfg)
 	if err != nil {
 		slog.Error("Failed to create binary store", "error", err)

@@ -16,22 +16,23 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// Unified build command: supports normal build and diff-build
+// buildCmd returns a unified build command for normal and diff-build modes.
+// Returns the command to build packages (normal and diff-build).
 func buildCmd() *cobra.Command {
 	var gpgkey string
 	var diffMode bool
 	var server string
 	cmd := cobra.Command{
 		Use:   "build",
-		Short: "Build packages (with --diff for diff-build)",
+		Short: "Build packages (--diff for diff build)",
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			if gpgkey == "" || diffMode {
 				return nil
 			}
-			slog.Info("gpgkey", "key", gpgkey)
+			slog.Info("Verifying GPG key", "key", gpgkey)
 			tmpDir, err := os.MkdirTemp("", "ayaka-")
 			if err != nil {
-				return utils.WrapErr(err, "failed to create temp directory")
+				return utils.WrapErr(err, "failed to create temporary directory")
 			}
 			defer os.RemoveAll(tmpDir)
 			dummyFile := path.Join(tmpDir, "dummy.txt")
@@ -46,48 +47,48 @@ func buildCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			destDir, err := filepath.Abs(config.DestDir)
 			if err != nil {
-				return utils.WrapErr(err, "failed to get absolute path")
+				return utils.WrapErr(err, "failed to get absolute path for output directory")
 			}
 			repoDir, err := filepath.Abs(config.RepoDir)
 			if err != nil {
-				return utils.WrapErr(err, "failed to get absolute path")
+				return utils.WrapErr(err, "failed to get absolute path for repository directory")
 			}
 			srcrepo, err := repo.GetSrcRepo(repoDir)
 			if err != nil {
 				return utils.WrapErr(err, "failed to get source repository")
 			}
 
-			// diff-build mode
+			// Diff build mode
 			if diffMode {
 				if server == "" {
 					server = srcrepo.Config.Server
 				}
-				slog.Debug("getting diff build", "repo", srcrepo.Config.Name, "server", server)
+				slog.Debug("Getting diff build info", "repo", srcrepo.Config.Name, "server", server)
 				rr, err := remote.GetRepoFromURL(server, srcrepo.Config.Name)
 				if err != nil {
 					return utils.WrapErr(err, "failed to get remote repository")
 				}
-				shoubuild := []*pkg.Package{}
+				var shoubuild []*pkg.Package
 				for _, pkg := range srcrepo.Pkgs {
 					pi := pkg.MustPKGINFO()
 					rp := rr.PkgByPkgBase(pi.PkgBase)
 					if rp == nil {
-						slog.Warn("package not found in remote repository", "pkgbase", pi.PkgBase)
+						slog.Warn("Package does not exist in remote repository", "pkgbase", pi.PkgBase)
 						shoubuild = append(shoubuild, pkg)
 						continue
 					}
 					cmp, err := pacman_utils.VerCmp(pi.PkgVer, rp.MustPKGINFO().PkgVer)
 					if err != nil {
-						slog.Error("failed to compare package versions", "pkgbase", pi.PkgBase, "error", err)
+						slog.Error("Failed to compare versions", "pkgbase", pi.PkgBase, "error", err)
 						return utils.WrapErr(err, "failed to compare package versions")
 					}
 					if cmp > 0 {
-						slog.Debug("local package is newer", "pkgbase", pi.PkgBase, "local", pi.PkgVer, "remote", rp.MustPKGINFO().PkgVer)
+						slog.Debug("Local package is newer", "pkgbase", pi.PkgBase, "local", pi.PkgVer, "remote", rp.MustPKGINFO().PkgVer)
 						shoubuild = append(shoubuild, pkg)
 					}
 				}
 				if len(shoubuild) == 0 {
-					slog.Info("no packages to build")
+					slog.Info("No packages to build")
 					return nil
 				}
 				t := builder.Target{
@@ -98,20 +99,20 @@ func buildCmd() *cobra.Command {
 				outDir := path.Join(destDir, srcrepo.Config.Name)
 				for _, pkg := range shoubuild {
 					pkgbase := pkg.MustPKGINFO().PkgBase
-					slog.Debug("building package", "pkgbase", pkgbase)
+					slog.Debug("Starting package build", "pkgbase", pkgbase)
 					if err := pkg.Build(&t, outDir); err != nil {
-						slog.Error("failed to build package", "pkgbase", pkgbase, "error", err)
+						slog.Error("Package build failed", "pkgbase", pkgbase, "error", err)
 						return utils.WrapErr(err, "failed to build package")
 					}
-					slog.Debug("package built", "pkgbase", pkgbase)
+					slog.Debug("Package build completed", "pkgbase", pkgbase)
 				}
 				return nil
 			}
 
-			// normal build
+			// Normal build
 			pkgs, err := pacman_utils.GetCleanPkgBinary(srcrepo.Config.InstallPkgs.Names...)
 			if err != nil {
-				return utils.WrapErr(err, "failed to get clean package binary")
+				return utils.WrapErr(err, "failed to get clean package binaries")
 			}
 			t := builder.Target{
 				Arch:        "x86_64",
@@ -119,20 +120,21 @@ func buildCmd() *cobra.Command {
 				InstallPkgs: append(srcrepo.Config.InstallPkgs.Files, pkgs...),
 			}
 			outDir := path.Join(destDir, srcrepo.Config.Name)
-			slog.Info("building packages", "repo", config.RepoDir, "outdir", outDir, "gpgkey", gpgkey)
+			slog.Info("Starting package build", "repo", config.RepoDir, "outdir", outDir, "gpgkey", gpgkey)
 			if err := srcrepo.Build(&t, outDir, args...); err != nil {
-				return utils.WrapErr(err, "failed to build packages")
+				return utils.WrapErr(err, "failed to build package")
 			}
-			slog.Debug("build done", "outdir", outDir)
+			slog.Debug("Build completed", "outdir", outDir)
 			return nil
 		},
 	}
-	cmd.Flags().StringVarP(&gpgkey, "gpgkey", "g", "", "GPG key to sign the package")
-	cmd.Flags().BoolVar(&diffMode, "diff", false, "Enable diff-build mode (only build newer packages)")
-	cmd.Flags().StringVarP(&server, "server", "s", "", "Blinky server to compare for diff-build")
+	cmd.Flags().StringVarP(&gpgkey, "gpgkey", "g", "", "GPG key for package signing")
+	cmd.Flags().BoolVar(&diffMode, "diff", false, "Enable diff build mode (build only new packages)")
+	cmd.Flags().StringVarP(&server, "server", "s", "", "Blinky server to compare for diff build")
 	return &cmd
 }
 
+// Register the package build command as a subcommand
 func init() {
 	subCmds.Add(buildCmd())
 }

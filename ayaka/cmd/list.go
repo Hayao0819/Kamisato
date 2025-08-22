@@ -7,11 +7,13 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// listCmd returns the command to list packages in the source repository.
+// Returns the command to display a list of packages in the source repository.
 func listCmd() *cobra.Command {
 	cmd := cobra.Command{
 		Use:   "list",
-		Short: "List packages in source repository",
-		Long:  "List packages in source repository",
+		Short: "Display a list of packages in the source repository",
+		Long:  "Displays a list of packages in the source repository.",
 		Args:  cobra.MaximumNArgs(1),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			return nil

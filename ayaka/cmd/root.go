@@ -16,7 +16,7 @@ func RootCmd() *cobra.Command {
 	cmd := cobra.Command{
 		Use:   "ayaka",
 		Short: "Repository management tool",
-		Long:  "Ayaka is a tool for managing your pacman repository",
+		Long:  "Ayaka is a tool for managing pacman repositories.",
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			c, err := conf.LoadAyakaConfig(cmd.Flags())
 			if err != nil {
@@ -25,7 +25,6 @@ func RootCmd() *cobra.Command {
 			config = c
 
 			if c.Debug {
-				// println("debug mode")
 				utils.UseColorLog(slog.LevelDebug)
 			} else {
 				utils.UseColorLog(slog.LevelInfo)
@@ -40,9 +39,8 @@ func RootCmd() *cobra.Command {
 	}
 
 	subCmds.Bind(&cmd)
-	// cmd.PersistentFlags().StringVarP(&config., "config", "c", "", "config file path")
-	cmd.PersistentFlags().StringP("repodir", "r", "", "repository directory")
-	cmd.PersistentFlags().BoolP("debug", "d", false, "enable debug mode")
+	cmd.PersistentFlags().StringP("repodir", "r", "", "Repository directory")
+	cmd.PersistentFlags().BoolP("debug", "d", false, "Enable debug mode")
 
 	return &cmd
 }

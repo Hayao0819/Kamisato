@@ -1,3 +1,3 @@
 package cmd
 
-// diff-buildコマンドはbuild --diffに統合されました
+// The diff-build command has been merged into build --diff (this file is a dummy)

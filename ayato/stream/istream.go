@@ -2,17 +2,20 @@ package stream
 
 import "io"
 
+// commonFileStream is an interface for obtaining file name and MIME type.
 type commonFileStream interface {
 	FileName() string
 	ContentType() string
 }
 
+// IFileStream is a streaming file interface (Read/Close + meta information).
 type IFileStream interface {
-	io.ReadCloser    // ストリーミング返却
-	commonFileStream // ファイル名、MIMEタイプを取得
+	io.ReadCloser
+	commonFileStream
 }
 
+// IFileSeekStream is a seekable streaming file interface.
 type IFileSeekStream interface {
-	io.ReadSeekCloser // ストリーミング返却
-	commonFileStream  // ファイル名、MIMEタイプを取得
+	io.ReadSeekCloser
+	commonFileStream
 }

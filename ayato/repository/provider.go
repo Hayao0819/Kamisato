@@ -5,35 +5,38 @@ import (
 	"github.com/Hayao0819/Kamisato/ayato/stream"
 )
 
+// PkgNameStoreProvider is a provider for storing package names and file names.
 type PkgNameStoreProvider blinky.PackageNameToFileProvider
 
+// PkgBinaryStoreProvider is an interface for binary file stores.
 type PkgBinaryStoreProvider interface {
-	// StoreFile stores a file
+	// StoreFile saves a file.
 	StoreFile(repo string, arch string, stream stream.IFileSeekStream) error
 
-	StoreFileWithSignedURL(repo string, arch string, name string)(string, error)
+	// StoreFileWithSignedURL saves a file with a signed URL.
+	StoreFileWithSignedURL(repo string, arch string, name string) (string, error)
 
-	// DeleteFile deletes a file from the database
+	// DeleteFile deletes a file from the database.
 	DeleteFile(repo string, arch string, file string) error
 
-	// FetchFile fetches a file from the database
+	// FetchFile retrieves a file from the database.
 	FetchFile(repo string, arch string, file string) (stream.IFileStream, error)
 
-	// RepoAdd adds a repository
+	// RepoAdd はリポジトリにパッケージを追加します。
 	RepoAdd(name string, arch string, pkg, sig stream.IFileSeekStream, useSignedDB bool, gnupgDir *string) error
 
-	// RepoRemove removes a repository
+	// RepoRemove はリポジトリからパッケージを削除します。
 	RepoRemove(name string, arch string, pkg string, useSignedDB bool, gnupgDir *string) error
 
-	// Init initializes the database.
+	// Init はデータベースを初期化します。
 	Init(name string, arch string, useSignedDB bool, gnupgDir *string) error
 
-	// RepoNames returns the names of all repositories
+	// RepoNames は全リポジトリ名を返します。
 	RepoNames() ([]string, error)
 
-	// Files returns the files in a repository
+	// Files はリポジトリ内のファイル一覧を返します。
 	Files(repo string, arch string) ([]string, error)
 
-	// Arches returns the architectures of a repository
+	// Arches はリポジトリのアーキテクチャ一覧を返します。
 	Arches(repo string) ([]string, error)
 }

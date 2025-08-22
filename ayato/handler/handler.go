@@ -6,12 +6,14 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// 最終的にServiceのみの依存にする
+// Handler is a struct that handles API requests.
+// Eventually planned to depend only on Service.
 type Handler struct {
-	cfg *conf.AyatoConfig // 間違った依存なので/いつか消す -> 別に良いらしい？
-	s   service.IService
+	cfg *conf.AyatoConfig // Configuration (planned to reduce dependency in the future)
+	s   service.IService  // Service layer
 }
 
+// IHandler is the interface for API handlers.
 type IHandler interface {
 	HelloHandler(ctx *gin.Context)
 	TeapotHandler(ctx *gin.Context)
@@ -27,6 +29,7 @@ type IHandler interface {
 	BlinkyRemoveHandler(ctx *gin.Context)
 }
 
+// New is the constructor for Handler.
 func New(service service.IService, cfg *conf.AyatoConfig) IHandler {
 	return &Handler{
 		s:   service,

@@ -7,6 +7,7 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/utils"
 )
 
+// InitAll は全リポジトリの初期化を行います。
 func (s *Service) InitAll() error {
 	repos := s.cfg.RepoNames()
 	if len(repos) == 0 {
@@ -14,13 +15,11 @@ func (s *Service) InitAll() error {
 		return nil
 	}
 	slog.Debug("init all pkg repo", "repos", repos)
-
 	for _, repo := range repos {
 		slog.Debug("init pkg repo", "name", repo)
 		if err := s.r.Init(repo, false, nil); err != nil {
 			return utils.WrapErr(err, fmt.Sprintf("failed to init repo %s", repo))
 		}
 	}
-
 	return nil
 }

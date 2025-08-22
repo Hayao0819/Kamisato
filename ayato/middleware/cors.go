@@ -5,6 +5,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// Cors is a Gin middleware for CORS settings.
 func (m *Middleware) Cors() gin.HandlerFunc {
 	c := cors.DefaultConfig()
 	c.AllowAllOrigins = true

@@ -8,19 +8,22 @@ import (
 	"github.com/Hayao0819/Kamisato/pkg/raiou"
 )
 
+// Service はビジネスロジックを提供する構造体です。
 type Service struct {
-	r   repository.IRepository
-	cfg *conf.AyatoConfig
+	r   repository.IRepository // リポジトリ操作
+	cfg *conf.AyatoConfig      // 設定
 }
 
+// IService はServiceのインターフェースです。
+//
 //go:generate mockgen -source=service.go -destination=../test/mocks/service.go -package=mocks
 type IService interface {
 	InitAll() error
-
 	IFileService
 	IPacmanRepoService
 }
 
+// IFileService はファイル操作のインターフェースです。
 type IFileService interface {
 	// ファイルを取得します
 	GetFile(repoName, archName, name string) (stream.IFileStream, error)
@@ -32,6 +35,7 @@ type IFileService interface {
 	SignedURL(repo string, arch string, name string) (string, error)
 }
 
+// IPacmanRepoService はパッケージリポジトリ操作のインターフェースです。
 type IPacmanRepoService interface {
 	// 全てのリポジトリ名を返します
 	RepoNames() ([]string, error)
@@ -49,6 +53,7 @@ type IPacmanRepoService interface {
 	RepoFileList(repo, arch string) ([]string, error)
 }
 
+// New はServiceのコンストラクタです。
 func New(repo repository.IRepository, config *conf.AyatoConfig) IService {
 	return &Service{
 		r:   repo,

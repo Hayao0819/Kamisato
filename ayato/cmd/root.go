@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"log"
 	"log/slog"
 
 	"github.com/Hayao0819/Kamisato/ayato/handler"
@@ -16,29 +15,30 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// RootCmd returns the root command for Ayato CLI.
+// Returns the root command for Ayato CLI.
 func RootCmd() *cobra.Command {
 	cmd := cobra.Command{
 		Use: "ayato",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// Load config file flag
+			// Get config file flag
 			configFile, err := cmd.Flags().GetString("config")
 			if err != nil {
 				return err
 			}
 
-			// Load config
+			// Load configuration
 			cfg, err := conf.LoadAyatoConfig(cmd.Flags(), configFile)
 			if err != nil {
 				return err
 			}
 
 			if configFile != "" {
-				slog.Info("Loading config from file", "path", configFile)
+				slog.Info("Loaded from config file", "path", configFile)
 			}
 
-			// Init logger
+			// Initialize logger
 			if cfg.Debug {
-				// println("debug mode")
 				utils.UseColorLog(slog.LevelDebug)
 				slog.Debug("Debug mode enabled")
 				gin.SetMode(gin.DebugMode)
@@ -47,9 +47,9 @@ func RootCmd() *cobra.Command {
 				gin.SetMode(gin.ReleaseMode)
 			}
 
-			slog.Debug("Config loaded", "port", cfg.Port, "debug", cfg.Debug, "repos", cfg.Repos, "maxsize", cfg.MaxSize, "dbtype", cfg.Store.DBType, "storagetype", cfg.Store.StorageType)
+			slog.Debug("Configuration loaded", "port", cfg.Port, "debug", cfg.Debug, "repos", cfg.Repos, "maxsize", cfg.MaxSize, "dbtype", cfg.Store.DBType, "storagetype", cfg.Store.StorageType)
 
-			// Init
+			// Initialize repository, service, handler
 			r, err := repository.New(cfg)
 			if err != nil {
 				return utils.WrapErr(err, "failed to initialize repository")
@@ -58,23 +58,23 @@ func RootCmd() *cobra.Command {
 			h := handler.New(s, cfg)
 			m := middleware.New(cfg)
 
-			// Init gin
+			// Initialize gin
 			engine := gin.New()
 			engine.Use(gin.Recovery())
 			engine.Use(utils.GinLog())
 			if err := router.SetRoute(engine, h, m); err != nil {
-				return utils.WrapErr(err, "failed to set routes")
+				return utils.WrapErr(err, "failed to set routing")
 			}
-			slog.Info("Routes initialized successfully")
+			slog.Info("Routing initialized")
 
-			// Initialize package repository
+			// Initialize services
 			if err := s.InitAll(); err != nil {
 				return utils.WrapErr(err, "failed to initialize services")
 			}
-			slog.Info("All services initialized successfully")
+			slog.Info("All services initialized")
 
 			// Start server
-			log.Printf("Listening on port %d", cfg.Port)
+			slog.Info("Waiting on port", "port", cfg.Port)
 			if err := engine.Run(fmt.Sprintf(":%d", cfg.Port)); err != nil {
 				return err
 			}

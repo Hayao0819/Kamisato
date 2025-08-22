@@ -5,21 +5,26 @@ import (
 	"github.com/Hayao0819/Kamisato/pkg/pacman/remote"
 )
 
+// IRepository defines the interface for repository operations.
+// Interface definition for repository operations.
+// Each method provides DB, package, file, meta store, and initialization/verification operations.
+// Comments are unified in English.
+//
 //go:generate mockgen -source=irepository.go -destination=../test/mocks/repository.go -package=mocks
 type IRepository interface {
-	// DBファイル取得
+	// Fetch DB file
 	FetchDB(repoName, archName string) (stream.IFileStream, error)
 
-	// パッケージ名一覧取得
+	// Get list of package names
 	PkgNames(repoName, archName string) ([]string, error)
 
-	// リモートリポジトリ取得
+	// Get remote repository
 	RemoteRepo(name, arch string) (*remote.RemoteRepo, error)
 
-	// パッケージファイル一覧取得
+	// Get list of package files
 	PkgFiles(repoName, archName, pkgName string) ([]string, error)
 
-	// ファイル操作・リポジトリ操作
+	// File and repository operations
 	StoreFile(repo string, arch string, stream stream.IFileSeekStream) error
 	StoreFileWithSignedURL(repo string, arch string, name string) (string, error)
 	DeleteFile(repo string, arch string, file string) error
@@ -30,12 +35,12 @@ type IRepository interface {
 	RepoAdd(name string, arch string, pkg stream.IFileSeekStream, sig stream.IFileSeekStream, useSignedDB bool, gnupgDir *string) error
 	RepoRemove(name string, arch string, pkg string, useSignedDB bool, gnupgDir *string) error
 
-	// メタストア操作
+	// Meta store operations
 	GetPkgFileName(name string) (fp string, err error)
 	StorePkgFileName(packageName, filePath string) error
 	DeletePkgFileName(packageName string) error
 
-	// 初期化・検証
+	// Initialization and verification
 	Init(name string, useSignedDB bool, gnupgDir *string) error
 	VerifyPkgRepo(name string) error
 }

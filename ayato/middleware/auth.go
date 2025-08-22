@@ -9,16 +9,19 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// Middleware provides middleware for authentication, authorization, etc.
 type Middleware struct {
 	cfg *conf.AyatoConfig
 }
 
+// New is the constructor for Middleware.
 func New(cfg *conf.AyatoConfig) *Middleware {
 	return &Middleware{
 		cfg: cfg,
 	}
 }
 
+// BasicAuth is a Gin middleware for Basic authentication.
 func (m *Middleware) BasicAuth(c *gin.Context) {
 	const basicPrefix = "Basic "
 	auth := c.GetHeader("Authorization")

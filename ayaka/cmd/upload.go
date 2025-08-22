@@ -14,14 +14,14 @@ func uploadCmd() *cobra.Command {
 		Use:  "upload server",
 		Args: cobra.MinimumNArgs(2),
 		PreRun: func(cmd *cobra.Command, args []string) {
-			slog.Warn("Upload command is still in development, use with caution")
-			slog.Warn("Please use blinky command for stable usage")
+			slog.Warn("The upload command is under development. Please be careful.")
+			slog.Warn("For stable operation, the blinky command is recommended.")
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			reponame := args[0]
 			pkgs := args[1:]
 
-			slog.Debug("uploading to blinky", "repo", reponame)
+			slog.Debug("Start uploading to Blinky", "repo", reponame)
 
 			if server == "" {
 				return errors.New("server is required")
@@ -32,7 +32,6 @@ func uploadCmd() *cobra.Command {
 			}
 
 			return nil
-
 		},
 	}
 
@@ -44,21 +43,6 @@ func init() {
 	subCmds = append(subCmds, uploadCmd())
 }
 
+// Register the upload command as a subcommand
+
 // func UploadToBlinky(server string) error {
-// 	client, err := blinkyutils.GetClient(server)
-// 	if err != nil {
-// 		return err
-// 	}
-
-// 	fp, err := p.GetPkgFileNames()
-// 	if err != nil {
-// 		return err
-// 	}
-
-// 	fullpaths := make([]string, len(fp))
-// 	for i, f := range fp {
-// 		fullpaths[i] = path.Join(p.Path, f)
-// 	}
-
-// 	return client.UploadPackageFiles(repo.Config.Name, fullpaths...)
-// }

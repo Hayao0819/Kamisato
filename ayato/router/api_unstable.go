@@ -9,10 +9,12 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// SetRoute sets all API routes for the Ayato server.
+// Ayatoサーバーの全APIルートを設定します。
 func SetRoute(e *gin.Engine, h handler.IHandler, m *middleware.Middleware) error {
-	// Set template
+	// テンプレート設定
 	if err := view.Set(e); err != nil {
-		return utils.WrapErr(err, "failed to set view")
+		return utils.WrapErr(err, "テンプレート設定に失敗")
 	}
 
 	{
@@ -24,7 +26,7 @@ func SetRoute(e *gin.Engine, h handler.IHandler, m *middleware.Middleware) error
 			api.GET("/repos", h.ReposHandler)
 			api.GET("/repos/:repo/archs", h.ArchesHandler)
 			api.GET("/:repo/:arch/package", h.AllPkgsHandler)
-			api.GET("/:repo/:arch/package/:name", h.PkgDetailHandler) // TODO: Implement this
+			api.GET("/:repo/:arch/package/:name", h.PkgDetailHandler) // TODO: 実装未完（詳細取得）
 			api.GET("/:repo/:arch/package/:name/files", h.PkgFilesHandler)
 		}
 

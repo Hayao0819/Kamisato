@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// BlinkyRemoveHandler is the handler for the package removal API.
 func (h *Handler) BlinkyRemoveHandler(ctx *gin.Context) {
 	repoName := ctx.Param("repo")
 	packageName := ctx.Param("name")
@@ -20,7 +21,6 @@ func (h *Handler) BlinkyRemoveHandler(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, domain.APIError{Message: "Repository name is required"})
 		return
 	}
-
 	if err := h.s.RemovePkg(repoName, archName, packageName); err != nil {
 		ctx.JSON(http.StatusInternalServerError, domain.APIError{
 			Message: "Remove package file err",
@@ -28,6 +28,5 @@ func (h *Handler) BlinkyRemoveHandler(ctx *gin.Context) {
 		})
 		return
 	}
-
 	ctx.String(http.StatusOK, fmt.Sprintf("'%s' removed!", packageName))
 }
