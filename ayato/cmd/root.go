@@ -3,7 +3,6 @@ package cmd
 import (
 	"fmt"
 	"log/slog"
-	"strings"
 
 	"github.com/Hayao0819/Kamisato/ayato/handler"
 	"github.com/Hayao0819/Kamisato/ayato/middleware"
@@ -43,17 +42,6 @@ func RootCmd() *cobra.Command {
 				utils.UseColorLog(slog.LevelDebug)
 				slog.Debug("Debug mode enabled")
 				gin.SetMode(gin.DebugMode)
-
-				// Set debug logger for gin
-				// https://github.com/samber/slog-gin/issues/54
-				//
-				// gin.DebugPrintRouteFunc = func(httpMethod string, absolutePath string, handlerName string, nuHandlers int) {
-				// 	slog.Debug("Route registered", "method", httpMethod, "path", absolutePath, "handler", handlerName, "num_handlers", nuHandlers)
-				// }
-				// gin.DebugPrintFunc = func(format string, values ...any) {
-				// 	str := strings.Trim(fmt.Sprintf("[GIN-debug] %s", fmt.Sprintf(format, values...)), "\n")
-				// 	slog.Debug(str)
-				// }
 			} else {
 				utils.UseColorLog(slog.LevelInfo)
 				gin.SetMode(gin.ReleaseMode)

@@ -31,7 +31,7 @@ require (
 	github.com/m-mizutani/clog v0.0.8
 	github.com/orandin/slog-gorm v1.4.0
 	github.com/samber/lo v1.50.0
-	github.com/samber/slog-gin v1.15.1
+	github.com/samber/slog-gin v1.16.0
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/pflag v1.0.6
 	github.com/ulikunitz/xz v0.5.12
