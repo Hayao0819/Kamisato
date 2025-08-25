@@ -28,7 +28,7 @@ require (
 	github.com/knadh/koanf/providers/posflag v1.0.0
 	github.com/knadh/koanf/v2 v2.2.0
 	github.com/lib/pq v1.10.9
-	github.com/m-mizutani/clog v0.0.8
+	github.com/m-mizutani/clog v0.0.9-0.20250823010846-066b6aa09b44
 	github.com/orandin/slog-gorm v1.4.0
 	github.com/samber/lo v1.50.0
 	github.com/samber/slog-gin v1.16.0
