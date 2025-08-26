@@ -53,5 +53,8 @@ jobs:
           push: true
           tags: |
             hayao0819/kamisato:latest
+            hayao0819/kamisato:${{ github.ref_name }}
             ghcr.io/hayao0819/kamisato:latest
+            ghcr.io/hayao0819/kamisato:${{ github.ref_name }}
             kamisato.sakuracr.jp/github-ci/kamisato:latest
+            kamisato.sakuracr.jp/github-ci/kamisato:${{ github.ref_name }}
