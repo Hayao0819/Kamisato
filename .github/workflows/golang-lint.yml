@@ -60,8 +60,7 @@ jobs:
       - name: Prepare dummy web
         run: mkdir -p lumine/embed/out && touch lumine/embed/out/index.html
 
-      - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v4
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v8
         with:
-          version: latest
-          args: ./...
+          version: v2.1
