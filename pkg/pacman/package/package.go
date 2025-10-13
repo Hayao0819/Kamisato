@@ -48,7 +48,7 @@ func (p *Package) SRCINFO() (*raiou.SRCINFO, error) {
 	return p.srcinfo, nil
 }
 
-func GetPkgFromSrc(dir string) (*Package, error) {
+func PkgFromSrc(dir string) (*Package, error) {
 	srcinfoFile := path.Join(dir, ".SRCINFO")
 	if !futils.Exists(srcinfoFile) {
 		return nil, ErrSRCINFONotFound
@@ -67,13 +67,13 @@ func GetPkgFromSrc(dir string) (*Package, error) {
 	return pkg, nil
 }
 
-func GetPkgFromBinFile(bin string) (*Package, error) {
+func PkgFromBinFile(bin string) (*Package, error) {
 	file, err := os.Open(bin)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open file: %w", err)
 	}
 	defer file.Close()
-	pkg, err := GetPkgFromBin(bin, file)
+	pkg, err := PkgFromBin(bin, file)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get pkg from bin: %w", err)
 	}
@@ -82,8 +82,8 @@ func GetPkgFromBinFile(bin string) (*Package, error) {
 	return pkg, nil
 }
 
-// GetPkgFromBinは、指定されたパスからパッケージを取得します。
-func GetPkgFromBin(bin string, r io.Reader) (*Package, error) {
+// PkgFromBinは、指定されたパスからパッケージを取得します。
+func PkgFromBin(bin string, r io.Reader) (*Package, error) {
 
 	// zstdデコーダーを作成
 	decoder, _, err := utils.DetectCompression(r)
@@ -136,35 +136,3 @@ func GetPkgFromBin(bin string, r io.Reader) (*Package, error) {
 
 	return pkg, nil
 }
-
-// func GetPkgFromPkginfoString(bin string, pkginfoData string) (*Package, error) {
-// 	info, err := raiou.ParsePkginfoString(pkginfoData)
-// 	if err != nil {
-// 		return nil, fmt.Errorf("failed to parse srcinfo: %w", err)
-// 	}
-
-// 	pkg := new(Package)
-// 	pkg.bin = bin
-// 	pkg.pkginfo = info
-// 	pkg.onmemory = true
-
-// 	return pkg, nil
-// }
-
-// func GetPkgFromDesc(d io.Reader) (*Package, error) {
-// 	desc, err := raiou.ParseDesc(d)
-// 	if err != nil {
-// 		return nil, fmt.Errorf("failed to parse desc: %w", err)
-// 	}
-
-// 	info, err := desc.ToPKGINFO()
-// 	if err != nil {
-// 		return nil, fmt.Errorf("failed to convert desc to pkginfo: %w", err)
-// 	}
-
-// 	pkg := new(Package)
-// 	pkg.pkginfo = info
-// 	pkg.onmemory = true
-
-// 	return pkg, nil
-// }

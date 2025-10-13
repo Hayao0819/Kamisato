@@ -8,7 +8,6 @@ import (
 
 	"github.com/Hayao0819/Kamisato/ayaka/gpg"
 	"github.com/Hayao0819/Kamisato/internal/utils"
-	pkg "github.com/Hayao0819/Kamisato/pkg/pacman/package"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/package/builder"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/remote"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
@@ -45,6 +44,7 @@ func buildCmd() *cobra.Command {
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Get infomation from the configuration
 			destDir, err := filepath.Abs(config.DestDir)
 			if err != nil {
 				return utils.WrapErr(err, "failed to get absolute path for output directory")
@@ -58,74 +58,48 @@ func buildCmd() *cobra.Command {
 				return utils.WrapErr(err, "failed to get source repository")
 			}
 
-			// Diff build mode
-			if diffMode {
-				if server == "" {
-					server = srcrepo.Config.Server
-				}
-				slog.Debug("Getting diff build info", "repo", srcrepo.Config.Name, "server", server)
-				rr, err := remote.GetRepoFromURL(server, srcrepo.Config.Name)
-				if err != nil {
-					return utils.WrapErr(err, "failed to get remote repository")
-				}
-				var shoubuild []*pkg.Package
-				for _, pkg := range srcrepo.Pkgs {
-					pi := pkg.MustPKGINFO()
-					rp := rr.PkgByPkgBase(pi.PkgBase)
-					if rp == nil {
-						slog.Warn("Package does not exist in remote repository", "pkgbase", pi.PkgBase)
-						shoubuild = append(shoubuild, pkg)
-						continue
-					}
-					cmp, err := pacman_utils.VerCmp(pi.PkgVer, rp.MustPKGINFO().PkgVer)
-					if err != nil {
-						slog.Error("Failed to compare versions", "pkgbase", pi.PkgBase, "error", err)
-						return utils.WrapErr(err, "failed to compare package versions")
-					}
-					if cmp > 0 {
-						slog.Debug("Local package is newer", "pkgbase", pi.PkgBase, "local", pi.PkgVer, "remote", rp.MustPKGINFO().PkgVer)
-						shoubuild = append(shoubuild, pkg)
-					}
-				}
-				if len(shoubuild) == 0 {
-					slog.Info("No packages to build")
-					return nil
-				}
-				t := builder.Target{
-					Arch:        "x86_64",
-					SignKey:     gpgkey,
-					InstallPkgs: srcrepo.Config.InstallPkgs.Files,
-				}
-				outDir := path.Join(destDir, srcrepo.Config.Name)
-				for _, pkg := range shoubuild {
-					pkgbase := pkg.MustPKGINFO().PkgBase
-					slog.Debug("Starting package build", "pkgbase", pkgbase)
-					if err := pkg.Build(&t, outDir); err != nil {
-						slog.Error("Package build failed", "pkgbase", pkgbase, "error", err)
-						return utils.WrapErr(err, "failed to build package")
-					}
-					slog.Debug("Package build completed", "pkgbase", pkgbase)
-				}
-				return nil
-			}
-
-			// Normal build
+			// Create build target
 			pkgs, err := pacman_utils.GetCleanPkgBinary(srcrepo.Config.InstallPkgs.Names...)
 			if err != nil {
 				return utils.WrapErr(err, "failed to get clean package binaries")
 			}
-			t := builder.Target{
+
+			slog.Info("Creating build target", "arch", srcrepo.Config.ArchBuild, "installpkgs", pkgs)
+
+			buildTarget := builder.Target{
 				Arch:        "x86_64",
+				ArchBuild:   srcrepo.Config.ArchBuild,
 				SignKey:     gpgkey,
 				InstallPkgs: append(srcrepo.Config.InstallPkgs.Files, pkgs...),
 			}
-			outDir := path.Join(destDir, srcrepo.Config.Name)
-			slog.Info("Starting package build", "repo", config.RepoDir, "outdir", outDir, "gpgkey", gpgkey)
-			if err := srcrepo.Build(&t, outDir, args...); err != nil {
-				return utils.WrapErr(err, "failed to build package")
+
+			// If server is not specified, use the one from the configuration
+			if server == "" {
+				server = srcrepo.Config.Server
 			}
-			slog.Debug("Build completed", "outdir", outDir)
-			return nil
+			// Normal build
+			outDir := path.Join(destDir, srcrepo.Config.Name)
+
+			// Diff build mode
+			if diffMode {
+				slog.Info("Starting diff build", "repo", config.RepoDir, "outdir", outDir, "gpgkey", gpgkey, "server", server)
+				remoteRepo, err := remote.RepoFromURL(server, srcrepo.Config.Name)
+				if err != nil {
+					return utils.WrapErr(err, "failed to get remote repository")
+				}
+				if err := srcrepo.DiffBuild(&buildTarget, remoteRepo, destDir, args...); err != nil {
+					return utils.WrapErr(err, "failed to perform diff build")
+				}
+				slog.Debug("Diff build completed", "outdir", outDir)
+				return nil
+			} else {
+				slog.Info("Starting package build", "repo", config.RepoDir, "outdir", outDir, "gpgkey", gpgkey)
+				if err := srcrepo.Build(&buildTarget, outDir, args...); err != nil {
+					return utils.WrapErr(err, "failed to build package")
+				}
+				slog.Debug("Build completed", "outdir", outDir)
+				return nil
+			}
 		},
 	}
 	cmd.Flags().StringVarP(&gpgkey, "gpgkey", "g", "", "GPG key for package signing")

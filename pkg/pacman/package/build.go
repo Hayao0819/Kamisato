@@ -2,7 +2,6 @@
 package pkg
 
 import (
-	"fmt"
 	"log/slog"
 	"os"
 	"path"
@@ -13,11 +12,6 @@ import (
 )
 
 func (p *Package) Build(target *builder.Target, dest string) error {
-	builder := builder.Determine(target)
-	if builder == nil {
-		return fmt.Errorf("no builder found for target %s", target.Arch)
-	}
-
 	var tmpdir string
 	{
 		var err error
@@ -31,11 +25,11 @@ func (p *Package) Build(target *builder.Target, dest string) error {
 		}
 	}
 
-	if err := builder.Build(tmpdir, target); err != nil {
+	if err := target.Build(tmpdir); err != nil {
 		return utils.WrapErr(err, "failed to build package")
 	}
 
-	names, err := p.GetPkgFileNames()
+	names, err := p.PkgFileNames()
 	if err != nil {
 		return utils.WrapErr(err, "failed to get package file names")
 	}

@@ -54,3 +54,5 @@ Sample is available at [../example/src/myrepo/repo.json](../example/src/myrepo/r
 ## Todo
 
 - Mirroring repository to another server
+- Pull PKGBUILD from Git
+- monorepo support by ayakarc

@@ -24,7 +24,7 @@ func (s *Service) UploadFile(repo string, files *domain.UploadFiles) error {
 	pkgFileStream := files.PkgFile
 	// sigFileStream := files.SigFile
 	// パッケージファイル名取得
-	p, err := pkg.GetPkgFromBin(pkgFileStream.FileName(), pkgFileStream)
+	p, err := pkg.PkgFromBin(pkgFileStream.FileName(), pkgFileStream)
 	if err != nil {
 		return fmt.Errorf("get pkg from bin err: %s", err.Error())
 	}

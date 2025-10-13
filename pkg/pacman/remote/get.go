@@ -12,8 +12,8 @@ import (
 	pkg "github.com/Hayao0819/Kamisato/pkg/pacman/package"
 )
 
-// GetRepoFromURL fetches the remote repository from the given URL.
-func GetRepoFromURL(server string, name string) (*RemoteRepo, error) {
+// RepoFromURL fetches the remote repository from the given URL.
+func RepoFromURL(server string, name string) (*RemoteRepo, error) {
 	dburl, err := url.JoinPath(server, name+".db")
 	if err != nil {
 		return nil, err
@@ -29,20 +29,25 @@ func GetRepoFromURL(server string, name string) (*RemoteRepo, error) {
 		return nil, fmt.Errorf("bad status while downloading: %s", resp.Status)
 	}
 
-	return GetRepo(name, resp.Body)
+	r, err := Repo(name, resp.Body)
+	if r != nil {
+		r.Server = server
+	}
+	return r, err
 }
 
-func GetRepoFromDBFile(name string, dbfile string) (*RemoteRepo, error) {
+func RepoFromDBFile(name string, dbfile string) (*RemoteRepo, error) {
 	db, err := os.Open(dbfile)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database file: %w", err)
 	}
 	defer db.Close()
 
-	return GetRepo(name, db)
+	return Repo(name, db)
 }
 
-func GetRepo(name string, db io.Reader) (*RemoteRepo, error) {
+// TODO: 実装
+func Repo(name string, db io.Reader) (*RemoteRepo, error) {
 	gzr, _, err := utils.DetectCompression(db)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create gzip reader: %w", err)

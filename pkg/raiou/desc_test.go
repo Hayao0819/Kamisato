@@ -21,7 +21,7 @@ func TestSyncParseAllDescFiles(t *testing.T) {
 
 	for _, entry := range *entries {
 		name := futils.BaseWithoutExt(entry)
-		rr, err := remote.GetRepoFromDBFile(name, entry)
+		rr, err := remote.RepoFromDBFile(name, entry)
 		if err != nil {
 			t.Errorf("failed to parse %s: %v", entry, err)
 			continue

@@ -15,7 +15,7 @@ func (r *Repository) PkgNames(repoName, archName string) ([]string, error) {
 	}
 	defer db.Close()
 
-	rr, err := remote.GetRepo(repoName, db)
+	rr, err := remote.Repo(repoName, db)
 	if err != nil {
 		return nil, err
 	}
@@ -41,7 +41,7 @@ func (r *Repository) RemoteRepo(name, arch string) (*remote.RemoteRepo, error) {
 	}
 	defer db.Close()
 
-	rr, err := remote.GetRepo(name, db)
+	rr, err := remote.Repo(name, db)
 	if err != nil {
 		return nil, err
 	}
@@ -60,7 +60,7 @@ func (r *Repository) PkgFiles(repoName, archName, pkgName string) ([]string, err
 	}
 	defer db.Close()
 
-	rr, err := remote.GetRepo(repoName, db)
+	rr, err := remote.Repo(repoName, db)
 	if err != nil {
 		return nil, err
 	}

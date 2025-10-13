@@ -31,7 +31,13 @@ func (c *CleanPkgBinary) Close() error {
 	return nil
 }
 
+// TODO: 実装
 func GetCleanPkgBinary(names ...string) ([]string, error) {
+
+	if len(names) == 0 {
+		return nil, nil
+	}
+
 	pkgs := make([]*pkg.Package, 0)
 	_ = pkgs // 型利用のため一時的に追加
 	tmp, err := os.MkdirTemp("", "kamisato-pkg-dl-")

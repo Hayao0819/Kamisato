@@ -26,7 +26,7 @@ func (p *Package) Names() []string {
 	return names
 }
 
-func (p *Package) GetPkgFileNames() ([]string, error) {
+func (p *Package) PkgFileNames() ([]string, error) {
 	stdout := new(bytes.Buffer)
 	cmd := exec.Command("makepkg", "--packagelist", "OPTIONS=-debug")
 	cmd.Dir = p.srcdir

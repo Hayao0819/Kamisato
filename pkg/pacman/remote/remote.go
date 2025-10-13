@@ -4,8 +4,9 @@ package remote
 import pkg "github.com/Hayao0819/Kamisato/pkg/pacman/package"
 
 type RemoteRepo struct {
-	Name string
-	Pkgs []*pkg.Package
+	Name   string
+	Server string
+	Pkgs   []*pkg.Package
 }
 
 func (r *RemoteRepo) PkgByPkgName(pkgname string) *pkg.Package {

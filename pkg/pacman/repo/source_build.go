@@ -7,8 +7,11 @@ import (
 	"os"
 	"path"
 
+	"github.com/Hayao0819/Kamisato/internal/utils"
 	pkg "github.com/Hayao0819/Kamisato/pkg/pacman/package"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/package/builder"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/remote"
+	pacman_utils "github.com/Hayao0819/Kamisato/pkg/pacman/utils"
 	"github.com/samber/lo"
 )
 
@@ -59,6 +62,45 @@ func (r *SourceRepo) Build(t *builder.Target, dest string, pkgs ...string) error
 			errstr += err.Error() + "\n"
 		}
 		return fmt.Errorf("errors occurred during build:\n%s", errstr)
+	}
+	return nil
+}
+
+func (s *SourceRepo) DiffBuild(t *builder.Target, rr *remote.RemoteRepo, dest string, pkgs ...string) error {
+
+	var shoubuild []*pkg.Package
+	for _, pkg := range s.Pkgs {
+		pi := pkg.MustPKGINFO()
+		rp := rr.PkgByPkgBase(pi.PkgBase)
+		if rp == nil {
+			slog.Warn("Package does not exist in remote repository", "pkgbase", pi.PkgBase)
+			shoubuild = append(shoubuild, pkg)
+			continue
+		}
+		cmp, err := pacman_utils.VerCmp(pi.PkgVer, rp.MustPKGINFO().PkgVer)
+		if err != nil {
+			slog.Error("Failed to compare versions", "pkgbase", pi.PkgBase, "error", err)
+			return utils.WrapErr(err, "failed to compare package versions")
+		}
+		if cmp > 0 {
+			slog.Debug("Local package is newer", "pkgbase", pi.PkgBase, "local", pi.PkgVer, "remote", rp.MustPKGINFO().PkgVer)
+			shoubuild = append(shoubuild, pkg)
+		}
+	}
+	if len(shoubuild) == 0 {
+		slog.Info("No packages to build")
+		return nil
+	}
+
+	outDir := path.Join(dest, s.Config.Name)
+	for _, pkg := range shoubuild {
+		pkgbase := pkg.MustPKGINFO().PkgBase
+		slog.Debug("Starting package build", "pkgbase", pkgbase)
+		if err := pkg.Build(t, outDir); err != nil {
+			slog.Error("Package build failed", "pkgbase", pkgbase, "error", err)
+			return utils.WrapErr(err, "failed to build package")
+		}
+		slog.Debug("Package build completed", "pkgbase", pkgbase)
 	}
 	return nil
 }
