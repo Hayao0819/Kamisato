@@ -43,9 +43,7 @@ func buildCmd() *cobra.Command {
 			for _, p := range sr.Pkgs {
 				pi := p.MustPKGINFO()
 				cands = append(cands, pi.PkgBase)
-				for _, n := range p.Names() {
-					cands = append(cands, n)
-				}
+				cands = append(cands, p.Names()...)
 			}
 
 			return cands, cobra.ShellCompDirectiveNoFileComp
