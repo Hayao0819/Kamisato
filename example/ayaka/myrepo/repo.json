@@ -1,5 +1,6 @@
 {
     "name": "myrepo",
     "maintainer": "hayao <shun819.mail at gmail.com>",
-    "server": ""
+    "server": "",
+    "archbuild": "extra-x86_64-build"
 }

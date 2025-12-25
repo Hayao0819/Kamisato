@@ -1,4 +1,8 @@
 {
-    "repodir": "./myrepo",
-    "destdir": "./out"
+	"repos": [
+		{
+			"dir": "./myrepo",
+			"destdir": "./out"
+		}
+	]
 }

@@ -1,4 +1,8 @@
 {
-    "repodir": "../example/src/myrepo",
-    "destdir": "../example/out"
+	"repos": [
+		{
+			"dir": "../example/ayaka/myrepo",
+			"destdir": "../example/ayaka/out"
+		}
+	]
 }
