@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import {
     Select,
     SelectContent,
@@ -8,7 +9,6 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { useEffect, useState } from "react";
 import { useAPIClient } from "./lumine-provider";
 
 interface RepoArchSelectorProps {

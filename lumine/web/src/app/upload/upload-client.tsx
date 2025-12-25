@@ -1,5 +1,10 @@
 "use client";
 
+import { AlertCircle, FileArchive, FileKey, Upload } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useAuth } from "@/components/auth-provider";
+import { useAPIClient } from "@/components/lumine-provider";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
     Card,
@@ -18,11 +23,6 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { useAPIClient } from "@/components/lumine-provider";
-import { useAuth } from "@/components/auth-provider";
-import { Upload, FileArchive, FileKey, AlertCircle } from "lucide-react";
-import { useEffect, useState } from "react";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export function UploadPageClient() {
     const api = useAPIClient();
@@ -43,7 +43,7 @@ export function UploadPageClient() {
                 if (data.repos && data.repos.length > 0) {
                     setSelectedRepo(data.repos[0]);
                 }
-            } catch (error) {
+            } catch (_error) {
                 toast({
                     title: "エラー",
                     description: "リポジトリ一覧の取得に失敗しました",

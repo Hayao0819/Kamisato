@@ -1,5 +1,13 @@
 "use client";
 
+import {
+    Calendar,
+    Download,
+    Info,
+    MoreVertical,
+    PackageIcon,
+} from "lucide-react";
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
@@ -22,14 +30,6 @@ import {
 import { useMobile } from "@/hooks/use-mobile";
 // import { getRepoFileEndpoint } from "@/lib/api";
 import type { PackageInfo } from "@/lib/types";
-import {
-    Calendar,
-    Download,
-    Info,
-    MoreVertical,
-    PackageIcon,
-} from "lucide-react";
-import { useState } from "react";
 import { BugReportDialog } from "./bug-report-dialog";
 import { useAPIClient } from "./lumine-provider";
 import { SearchBar } from "./search-bar";

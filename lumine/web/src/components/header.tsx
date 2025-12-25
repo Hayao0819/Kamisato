@@ -1,12 +1,12 @@
 "use client";
-import { ServerConfigDialog } from "@/components/server-config-dialog";
-import { LoginDialog } from "@/components/login-dialog";
-import { Button } from "@/components/ui/button";
 import { ServerIcon, Upload } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { useAPIClient } from "./lumine-provider";
+import { LoginDialog } from "@/components/login-dialog";
+import { ServerConfigDialog } from "@/components/server-config-dialog";
+import { Button } from "@/components/ui/button";
 import { useAuth } from "./auth-provider";
+import { useAPIClient } from "./lumine-provider";
 // import { getHelloEndpoint } from "@/lib/api";
 
 export function Header() {

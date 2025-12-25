@@ -1,11 +1,11 @@
 "use client";
+import { ArrowLeft } from "lucide-react";
+import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
 import { useAPIClient } from "@/components/lumine-provider";
 import { RefreshButton } from "@/components/refresh-button";
 import { StatusCard } from "@/components/status-card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft } from "lucide-react";
-import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
 
 export default function ServerStatus() {
     const api = useAPIClient();

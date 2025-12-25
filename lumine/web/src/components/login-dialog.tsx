@@ -1,6 +1,8 @@
 "use client";
 
+import { Lock, LogIn, LogOut, User } from "lucide-react";
 import { useState } from "react";
+import { useAuth } from "@/components/auth-provider";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -12,9 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useAuth } from "@/components/auth-provider";
 import { useToast } from "@/hooks/use-toast";
-import { LogIn, LogOut, User, Lock } from "lucide-react";
 
 export function LoginDialog() {
     const { isAuthenticated, username, login, logout } = useAuth();
