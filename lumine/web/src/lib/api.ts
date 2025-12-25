@@ -52,6 +52,52 @@ export class APIClient {
     async fetchTeapot() {
         return fetch(this.endpoints.teapot());
     }
+
+    async fetchAuthRequired() {
+        try {
+            const res = await fetch(this.endpoints.authRequired());
+            if (!res.ok) return { required: false };
+            return res.json();
+        } catch {
+            return { required: false };
+        }
+    }
+
+    async uploadPackage(
+        repo: string,
+        packageFile: File,
+        signatureFile: File | null,
+        username?: string,
+        password?: string,
+    ) {
+        const formData = new FormData();
+        formData.append("package", packageFile);
+        if (signatureFile) {
+            formData.append("signature", signatureFile);
+        }
+
+        const headers: HeadersInit = {};
+        if (username && password) {
+            const credentials = btoa(`${username}:${password}`);
+            headers.Authorization = `Basic ${credentials}`;
+        }
+
+        const res = await fetch(this.endpoints.uploadPackage(repo), {
+            method: "PUT",
+            headers,
+            body: formData,
+        });
+
+        if (!res.ok) {
+            const errorText = await res.text();
+            throw new Error(
+                `パッケージのアップロードに失敗しました: ${res.status} - ${errorText}`,
+            );
+        }
+
+        return res.text();
+    }
+
     readonly lumineEnv: LumineEnv;
     readonly endpoints: APIEndpoints;
 
@@ -109,6 +155,9 @@ class APIEndpoints {
     get teapot() {
         return () => `${this.apiUnstableUrl}/teapot`;
     }
+    get authRequired() {
+        return () => `${this.apiUnstableUrl}/auth/required`;
+    }
     get allPkgs() {
         return (repo: string, arch: string) =>
             `${this.apiUnstableUrl}/${repo}/${arch}/package`;
@@ -126,5 +175,8 @@ class APIEndpoints {
     }
     get arches() {
         return (repo: string) => `${this.apiUnstableUrl}/repos/${repo}/archs`;
+    }
+    get uploadPackage() {
+        return (repo: string) => `${this.apiUnstableUrl}/${repo}/package`;
     }
 }
