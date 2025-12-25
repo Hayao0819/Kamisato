@@ -9,7 +9,7 @@ import (
 )
 
 // VerifyPkgRepo checks whether all required files exist in the repository for each architecture.
-func (r *Repository) VerifyPkgRepo(name string) error {
+func (r *PackageBinaryRepository) VerifyPkgRepo(name string) error {
 	arches, err := r.Arches(name)
 	if err != nil {
 		return utils.WrapErr(err, "failed to get arches")

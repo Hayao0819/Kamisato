@@ -13,6 +13,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.87.1
 	github.com/cloudflare/cloudflare-go v0.115.0
 	github.com/cockroachdb/errors v1.12.0
+	github.com/coreos/go-oidc/v3 v3.10.0
 	github.com/dgraph-io/badger/v3 v3.2103.5
 	github.com/gabriel-vasile/mimetype v1.4.10
 	github.com/gin-contrib/cors v1.7.6
@@ -36,6 +37,7 @@ require (
 	github.com/spf13/pflag v1.0.7
 	github.com/ulikunitz/xz v0.5.13
 	go.uber.org/mock v0.5.2
+	golang.org/x/oauth2 v0.20.0
 	gorm.io/driver/mysql v1.6.0
 	gorm.io/driver/postgres v1.6.0
 	gorm.io/driver/sqlite v1.6.0
@@ -93,6 +95,7 @@ require (
 	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/k0kubun/pp/v3 v3.5.0 // indirect
+	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 	github.com/knadh/koanf/maps v0.1.2 // indirect
 	github.com/kr/pretty v0.3.1 // indirect
@@ -102,6 +105,7 @@ require (
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mattn/go-sqlite3 v1.14.32 // indirect
+	github.com/mgutz/ansi v0.0.0-20170206155736-9520e82c474b // indirect
 	github.com/mitchellh/copystructure v1.2.0 // indirect
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect

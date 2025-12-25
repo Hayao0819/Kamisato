@@ -50,11 +50,11 @@ func RootCmd() *cobra.Command {
 			slog.Debug("Configuration loaded", "port", cfg.Port, "debug", cfg.Debug, "repos", cfg.Repos, "maxsize", cfg.MaxSize, "dbtype", cfg.Store.DBType, "storagetype", cfg.Store.StorageType)
 
 			// Initialize repository, service, handler
-			r, err := repository.New(cfg)
+			pkgNameRepo, pkgBinaryRepo, err := repository.New(cfg)
 			if err != nil {
 				return utils.WrapErr(err, "failed to initialize repository")
 			}
-			s := service.New(r, cfg)
+			s := service.New(pkgNameRepo, pkgBinaryRepo, cfg)
 			h := handler.New(s, cfg)
 			m := middleware.New(cfg)
 

@@ -2,7 +2,6 @@ package service
 
 import (
 	"github.com/Hayao0819/Kamisato/ayato/domain"
-	"github.com/Hayao0819/Kamisato/ayato/repository"
 	"github.com/Hayao0819/Kamisato/ayato/stream"
 	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/pkg/raiou"
@@ -10,8 +9,9 @@ import (
 
 // Service はビジネスロジックを提供する構造体です。
 type Service struct {
-	r   repository.IRepository // リポジトリ操作
-	cfg *conf.AyatoConfig      // 設定
+	pkgNameRepo   domain.IPackageNameRepository   // パッケージ名管理
+	pkgBinaryRepo domain.IPackageBinaryRepository // パッケージバイナリ管理
+	cfg           *conf.AyatoConfig               // 設定
 }
 
 // IService はServiceのインターフェースです。
@@ -54,9 +54,10 @@ type IPacmanRepoService interface {
 }
 
 // New はServiceのコンストラクタです。
-func New(repo repository.IRepository, config *conf.AyatoConfig) IService {
+func New(pkgNameRepo domain.IPackageNameRepository, pkgBinaryRepo domain.IPackageBinaryRepository, config *conf.AyatoConfig) IService {
 	return &Service{
-		r:   repo,
-		cfg: config,
+		pkgNameRepo:   pkgNameRepo,
+		pkgBinaryRepo: pkgBinaryRepo,
+		cfg:           config,
 	}
 }

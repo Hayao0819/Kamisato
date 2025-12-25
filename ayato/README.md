@@ -40,3 +40,5 @@ In other words, you can host the Pacman package manager on almost any distributi
 - Multi-arch support
 - GPG sign support
 - API for lumine
+- repositoryをきれいにする
+  - PackageNameRepositoryとPackageBinaryRepositoryに分割する
