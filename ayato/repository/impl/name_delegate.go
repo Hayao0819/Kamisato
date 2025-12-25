@@ -1,4 +1,4 @@
-package repository
+package impl
 
 import "log/slog"
 

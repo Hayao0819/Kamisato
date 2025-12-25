@@ -1,4 +1,4 @@
-package repository
+package provider
 
 import (
 	"github.com/BrenekH/blinky"
@@ -22,21 +22,21 @@ type PkgBinaryStoreProvider interface {
 	// FetchFile retrieves a file from the database.
 	FetchFile(repo string, arch string, file string) (stream.IFileStream, error)
 
-	// RepoAdd はリポジトリにパッケージを追加します。
+	// RepoAdd adds a package to the repository.
 	RepoAdd(name string, arch string, pkg, sig stream.IFileSeekStream, useSignedDB bool, gnupgDir *string) error
 
-	// RepoRemove はリポジトリからパッケージを削除します。
+	// RepoRemove removes a package from the repository.
 	RepoRemove(name string, arch string, pkg string, useSignedDB bool, gnupgDir *string) error
 
-	// Init はデータベースを初期化します。
+	// Init initializes the database.
 	Init(name string, arch string, useSignedDB bool, gnupgDir *string) error
 
-	// RepoNames は全リポジトリ名を返します。
+	// RepoNames returns all repository names.
 	RepoNames() ([]string, error)
 
-	// Files はリポジトリ内のファイル一覧を返します。
+	// Files returns a list of files in the repository.
 	Files(repo string, arch string) ([]string, error)
 
-	// Arches はリポジトリのアーキテクチャ一覧を返します。
+	// Arches returns a list of architectures in the repository.
 	Arches(repo string) ([]string, error)
 }

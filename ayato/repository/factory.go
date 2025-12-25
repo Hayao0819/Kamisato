@@ -6,15 +6,17 @@ import (
 	"github.com/Hayao0819/Kamisato/ayato/domain"
 	"github.com/Hayao0819/Kamisato/ayato/repository/binarystore/localfs"
 	"github.com/Hayao0819/Kamisato/ayato/repository/binarystore/s3"
+	"github.com/Hayao0819/Kamisato/ayato/repository/impl"
 	"github.com/Hayao0819/Kamisato/ayato/repository/metastore/cloudflarekv"
 	"github.com/Hayao0819/Kamisato/ayato/repository/metastore/localkv"
 	"github.com/Hayao0819/Kamisato/ayato/repository/metastore/sql"
+	"github.com/Hayao0819/Kamisato/ayato/repository/provider"
 	"github.com/Hayao0819/Kamisato/internal/conf"
 )
 
 // initPkgBinaryStore initializes the binary store.
-func initPkgBinaryStore(cfg *conf.AyatoConfig) (PkgBinaryStoreProvider, error) {
-	var bin PkgBinaryStoreProvider
+func initPkgBinaryStore(cfg *conf.AyatoConfig) (provider.PkgBinaryStoreProvider, error) {
+	var bin provider.PkgBinaryStoreProvider
 	var err error
 
 	// S3が有効な場合はS3を利用
@@ -37,8 +39,8 @@ func initPkgBinaryStore(cfg *conf.AyatoConfig) (PkgBinaryStoreProvider, error) {
 }
 
 // initMetaStore initializes the meta store.
-func initMetaStore(cfg *conf.AyatoConfig) (PkgNameStoreProvider, error) {
-	var db PkgNameStoreProvider
+func initMetaStore(cfg *conf.AyatoConfig) (provider.PkgNameStoreProvider, error) {
+	var db provider.PkgNameStoreProvider
 	var err error
 
 	switch cfg.Store.DBType {
@@ -83,14 +85,8 @@ func New(cfg *conf.AyatoConfig) (domain.IPackageNameRepository, domain.IPackageB
 		return nil, nil, err
 	}
 
-	pkgNameRepo := &PackageNameRepository{
-		pkgNameStore: db,
-	}
-
-	pkgBinaryRepo := &PackageBinaryRepository{
-		pkgBinStore: bin,
-		cfg:         cfg,
-	}
+	pkgNameRepo := impl.NewPackageNameRepository(db)
+	pkgBinaryRepo := impl.NewPackageBinaryRepository(bin, cfg)
 
 	return pkgNameRepo, pkgBinaryRepo, nil
 }

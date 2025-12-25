@@ -1,4 +1,4 @@
-package repository
+package impl
 
 import "github.com/Hayao0819/Kamisato/ayato/stream"
 
