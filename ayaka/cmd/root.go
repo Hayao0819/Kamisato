@@ -10,7 +10,6 @@ import (
 )
 
 var subCmds = cobrautils.Registory{}
-var config *conf.AyakaConfig
 
 func RootCmd() *cobra.Command {
 	cmd := cobra.Command{
@@ -24,11 +23,26 @@ func RootCmd() *cobra.Command {
 			}
 			config = c
 
-			if c.Debug {
+			if config.Debug {
 				utils.UseColorLog(slog.LevelDebug)
 			} else {
 				utils.UseColorLog(slog.LevelInfo)
 			}
+
+			if config.LegacyRepoDir != "" || config.LegacyDestDir != "" {
+				slog.Warn("Using legacy configuration fields 'repodir' or 'destdir' is deprecated. Please migrate to the new 'repos' field.")
+				config.Repos = append(config.Repos, struct {
+					Dir     string `koanf:"dir" json:"dir"`
+					DestDir string `koanf:"destdir" json:"destdir"`
+				}{
+					Dir:     config.LegacyRepoDir,
+					DestDir: config.LegacyDestDir,
+				})
+			}
+			if err := initSrcRepos(); err != nil {
+				return err
+			}
+
 			return nil
 		},
 		SilenceUsage: true,
@@ -39,7 +53,7 @@ func RootCmd() *cobra.Command {
 	}
 
 	subCmds.Bind(&cmd)
-	cmd.PersistentFlags().StringP("repodir", "r", "", "Repository directory")
+	cmd.PersistentFlags().StringP("repodir", "", "", "Repository directory")
 	cmd.PersistentFlags().BoolP("debug", "d", false, "Enable debug mode")
 
 	return &cmd

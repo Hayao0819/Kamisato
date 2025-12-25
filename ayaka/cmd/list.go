@@ -3,6 +3,7 @@ package cmd
 import (
 	"log/slog"
 
+	"github.com/Hayao0819/Kamisato/internal/utils"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
 	"github.com/spf13/cobra"
 )
@@ -19,18 +20,28 @@ func listCmd() *cobra.Command {
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			repo, err := repo.GetSrcRepo(config.RepoDir)
-			if err != nil {
-				return err
+
+			repos := []*repo.SourceRepo{}
+			if len(args) > 0 {
+				argrepo := getSrcRepo(args[0])
+				if argrepo == nil {
+					return utils.NewErr("invalid repository name: " + args[0])
+				}
+				repos = append(repos, argrepo)
+			} else {
+				repos = srcRepo
 			}
 
-			for _, pkg := range repo.Pkgs {
-				srcinfo, err := pkg.SRCINFO()
-				if err != nil {
-					slog.Warn("failed to get srcinfo", "error", err)
-					continue
+			for _, repo := range repos {
+
+				for _, pkg := range repo.Pkgs {
+					srcinfo, err := pkg.SRCINFO()
+					if err != nil {
+						slog.Warn("failed to get srcinfo", "error", err)
+						continue
+					}
+					cmd.Println(srcinfo.PkgBase)
 				}
-				cmd.Println(srcinfo.PkgBase)
 			}
 
 			return nil

@@ -26,3 +26,11 @@ func WrapErr(err error, msg string) error {
 
 	return errors.Wrap(err, msg)
 }
+
+func NewErr(msg string) error {
+	return errors.New(msg)
+}
+
+func NewErrf(format string, args ...interface{}) error {
+	return errors.Newf(format, args...)
+}

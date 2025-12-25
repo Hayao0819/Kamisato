@@ -87,6 +87,23 @@ func (s *SourceRepo) DiffBuild(t *builder.Target, rr *remote.RemoteRepo, dest st
 			shoubuild = append(shoubuild, pkg)
 		}
 	}
+
+	// Filter by specified package names, if any were provided.
+	if len(pkgs) > 0 {
+		var filtered []*pkg.Package
+		for _, p := range shoubuild {
+			pi := p.MustPKGINFO()
+			names := p.Names()
+			for _, name := range pkgs {
+				if name == pi.PkgBase || lo.Contains(names, name) {
+					filtered = append(filtered, p)
+					break
+				}
+			}
+		}
+		shoubuild = filtered
+	}
+
 	if len(shoubuild) == 0 {
 		slog.Info("No packages to build")
 		return nil
