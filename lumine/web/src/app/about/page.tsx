@@ -1,4 +1,6 @@
 import { Footer } from "@/components/footer";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
     Card,
     CardContent,
@@ -6,16 +8,14 @@ import {
     CardHeader,
     CardTitle,
 } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
+    ExternalLink,
     Github,
+    Globe,
     Home,
-    Twitter,
     Package,
     Server,
-    Globe,
-    ExternalLink,
+    Twitter,
 } from "lucide-react";
 import Link from "next/link";
 
