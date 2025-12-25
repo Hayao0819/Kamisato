@@ -58,7 +58,10 @@ export function Header() {
                 </div>
                 <div className="flex gap-2 w-full sm:w-auto items-center justify-end flex-wrap">
                     <Link href="/upload">
-                        <Button variant="ghost" className="w-full sm:w-auto flex items-center">
+                        <Button
+                            variant="ghost"
+                            className="w-full sm:w-auto flex items-center"
+                        >
                             <Upload className="h-4 w-4 mr-2" />
                             アップロード
                         </Button>

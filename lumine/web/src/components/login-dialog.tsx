@@ -58,7 +58,10 @@ export function LoginDialog() {
         return (
             <Dialog open={open} onOpenChange={setOpen}>
                 <DialogTrigger asChild>
-                    <Button variant="outline" className="flex items-center gap-2">
+                    <Button
+                        variant="outline"
+                        className="flex items-center gap-2"
+                    >
                         <User className="w-4 h-4" />
                         <span className="hidden sm:inline">{username}</span>
                     </Button>
@@ -74,7 +77,9 @@ export function LoginDialog() {
                         <div className="p-4 border rounded-lg bg-muted/50">
                             <div className="flex items-center gap-2 text-sm">
                                 <User className="w-4 h-4" />
-                                <span className="font-semibold">ユーザー名:</span>
+                                <span className="font-semibold">
+                                    ユーザー名:
+                                </span>
                                 <span>{username}</span>
                             </div>
                         </div>
@@ -109,7 +114,10 @@ export function LoginDialog() {
                 </DialogHeader>
                 <form onSubmit={handleLogin} className="space-y-4">
                     <div className="space-y-2">
-                        <Label htmlFor="login-username" className="flex items-center gap-2">
+                        <Label
+                            htmlFor="login-username"
+                            className="flex items-center gap-2"
+                        >
                             <User className="w-4 h-4" />
                             ユーザー名
                         </Label>
@@ -123,7 +131,10 @@ export function LoginDialog() {
                         />
                     </div>
                     <div className="space-y-2">
-                        <Label htmlFor="login-password" className="flex items-center gap-2">
+                        <Label
+                            htmlFor="login-password"
+                            className="flex items-center gap-2"
+                        >
                             <Lock className="w-4 h-4" />
                             パスワード
                         </Label>
@@ -142,7 +153,9 @@ export function LoginDialog() {
                     </Button>
                 </form>
                 <div className="text-xs text-muted-foreground">
-                    <p>※ 認証情報はブラウザのローカルストレージに保存されます</p>
+                    <p>
+                        ※ 認証情報はブラウザのローカルストレージに保存されます
+                    </p>
                     <p>※ サーバー設定により認証が不要な場合があります</p>
                 </div>
             </DialogContent>
