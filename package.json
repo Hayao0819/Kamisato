@@ -1,0 +1,14 @@
+{
+    "name": "kamisato",
+    "version": "0.1.0",
+    "private": true,
+    "packageManager": "pnpm@10.26.2",
+    "dependencies": {
+        "@biomejs/biome": "2.3.10"
+    },
+    "scripts": {
+        "fmt": "biome format --write",
+        "lint": "biome lint --write",
+        "check": "biome check"
+    }
+}

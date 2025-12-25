@@ -43,7 +43,7 @@ export function Header() {
         };
     }, [api.endpoints.executable]);
     return (
-        <header className="w-full bg-background/80 border-b sticky top-0 z-40 backdrop-blur">
+        <header className="w-full bg-background/80 border-b sticky top-0 z-40 backdrop-blur-sm">
             <div className="container mx-auto flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 py-3 px-4">
                 <div>
                     <Link href="/">

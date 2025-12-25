@@ -1,110 +1,195 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
-body {
+@custom-variant dark (&:is(.dark *));
+
+@theme {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+
+  --color-chart-1: hsl(var(--chart-1));
+  --color-chart-2: hsl(var(--chart-2));
+  --color-chart-3: hsl(var(--chart-3));
+  --color-chart-4: hsl(var(--chart-4));
+  --color-chart-5: hsl(var(--chart-5));
+
+  --color-sidebar: hsl(var(--sidebar-background));
+  --color-sidebar-foreground: hsl(var(--sidebar-foreground));
+  --color-sidebar-primary: hsl(var(--sidebar-primary));
+  --color-sidebar-primary-foreground: hsl(var(--sidebar-primary-foreground));
+  --color-sidebar-accent: hsl(var(--sidebar-accent));
+  --color-sidebar-accent-foreground: hsl(var(--sidebar-accent-foreground));
+  --color-sidebar-border: hsl(var(--sidebar-border));
+  --color-sidebar-ring: hsl(var(--sidebar-ring));
+
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 4px);
+
+  --animate-accordion-down: accordion-down 0.2s ease-out;
+  --animate-accordion-up: accordion-up 0.2s ease-out;
+
+  @keyframes accordion-down {
+    from {
+      height: 0;
+    }
+    to {
+      height: var(--radix-accordion-content-height);
+    }
+  }
+  @keyframes accordion-up {
+    from {
+      height: var(--radix-accordion-content-height);
+    }
+    to {
+      height: 0;
+    }
+  }
+}
+
+/*
+  The default border color has changed to `currentcolor` in Tailwind CSS v4,
+  so we've added these compatibility styles to make sure everything still
+  looks the same as it did with Tailwind CSS v3.
+
+  If we ever want to remove these styles, we need to add an explicit border
+  color utility to any element that depends on these defaults.
+*/
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentcolor);
+  }
+}
+
+@utility text-balance {
+  text-wrap: balance;
+}
+
+@utility hidden-scrollbar {
+  -ms-overflow-style: none; /* IE, Edge 対応 */
+  scrollbar-width: none; /* Firefox 対応 */
+  &::-webkit-scrollbar {
+    /* Chrome, Safari 対応 */
+    display: none;
+  }
+}
+
+@layer utilities {
+  body {
     font-family: Arial, Helvetica, sans-serif;
-}
-
-@layer utilities {
-    .text-balance {
-        text-wrap: balance;
-    }
-}
-
-@layer utilities {
-    .hidden-scrollbar {
-        -ms-overflow-style: none; /* IE, Edge 対応 */
-        scrollbar-width: none; /* Firefox 対応 */
-    }
-    .hidden-scrollbar::-webkit-scrollbar {
-        /* Chrome, Safari 対応 */
-        display: none;
-    }
+  }
 }
 
 @layer base {
-    :root {
-        /* Genshin Impact Lumine & Ayaka Inspired Theme */
-        /* Light mode: Lumine's bright, golden aesthetic */
-        --background: 45 20% 97%;
-        --foreground: 240 15% 15%;
-        --card: 45 30% 99%;
-        --card-foreground: 240 15% 15%;
-        --popover: 45 30% 99%;
-        --popover-foreground: 240 15% 15%;
-        /* Ayaka's signature ice-blue with golden accent */
-        --primary: 220 50% 55%;
-        --primary-foreground: 0 0% 100%;
-        --secondary: 45 60% 85%;
-        --secondary-foreground: 240 20% 20%;
-        --muted: 220 20% 95%;
-        --muted-foreground: 220 10% 45%;
-        --accent: 335 45% 75%;
-        --accent-foreground: 340 50% 20%;
-        --destructive: 0 70% 55%;
-        --destructive-foreground: 0 0% 100%;
-        --border: 220 20% 88%;
-        --input: 220 20% 90%;
-        --ring: 220 50% 55%;
-        --chart-1: 220 70% 60%;
-        --chart-2: 45 85% 65%;
-        --chart-3: 335 60% 65%;
-        --chart-4: 200 60% 55%;
-        --chart-5: 280 50% 60%;
-        --radius: 0.75rem;
-        --sidebar-background: 220 30% 98%;
-        --sidebar-foreground: 240 15% 20%;
-        --sidebar-primary: 220 50% 55%;
-        --sidebar-primary-foreground: 0 0% 100%;
-        --sidebar-accent: 220 25% 93%;
-        --sidebar-accent-foreground: 220 60% 30%;
-        --sidebar-border: 220 20% 88%;
-        --sidebar-ring: 220 50% 55%;
-    }
-    .dark {
-        /* Dark mode: Ayaka's elegant night theme with golden highlights */
-        --background: 240 15% 8%;
-        --foreground: 45 30% 95%;
-        --card: 240 12% 12%;
-        --card-foreground: 45 25% 95%;
-        --popover: 240 12% 10%;
-        --popover-foreground: 45 25% 95%;
-        /* Ayaka's deep purple-blue with golden accent */
-        --primary: 220 45% 60%;
-        --primary-foreground: 0 0% 100%;
-        --secondary: 240 15% 18%;
-        --secondary-foreground: 45 40% 90%;
-        --muted: 240 10% 18%;
-        --muted-foreground: 220 15% 65%;
-        --accent: 335 40% 55%;
-        --accent-foreground: 0 0% 100%;
-        --destructive: 0 60% 50%;
-        --destructive-foreground: 0 0% 100%;
-        --border: 240 10% 22%;
-        --input: 240 10% 20%;
-        --ring: 220 50% 60%;
-        --chart-1: 220 60% 55%;
-        --chart-2: 45 75% 60%;
-        --chart-3: 335 55% 60%;
-        --chart-4: 200 50% 50%;
-        --chart-5: 280 45% 55%;
-        --sidebar-background: 240 12% 10%;
-        --sidebar-foreground: 45 25% 90%;
-        --sidebar-primary: 220 50% 60%;
-        --sidebar-primary-foreground: 0 0% 100%;
-        --sidebar-accent: 240 10% 16%;
-        --sidebar-accent-foreground: 220 40% 75%;
-        --sidebar-border: 240 10% 20%;
-        --sidebar-ring: 220 50% 60%;
-    }
+  :root {
+    /* Genshin Impact Lumine & Ayaka Inspired Theme */
+    /* Light mode: Lumine's bright, golden aesthetic */
+    --background: 45 20% 97%;
+    --foreground: 240 15% 15%;
+    --card: 45 30% 99%;
+    --card-foreground: 240 15% 15%;
+    --popover: 45 30% 99%;
+    --popover-foreground: 240 15% 15%;
+    /* Ayaka's signature ice-blue with golden accent */
+    --primary: 220 50% 55%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 45 60% 85%;
+    --secondary-foreground: 240 20% 20%;
+    --muted: 220 20% 95%;
+    --muted-foreground: 220 10% 45%;
+    --accent: 335 45% 75%;
+    --accent-foreground: 340 50% 20%;
+    --destructive: 0 70% 55%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 20% 88%;
+    --input: 220 20% 90%;
+    --ring: 220 50% 55%;
+    --chart-1: 220 70% 60%;
+    --chart-2: 45 85% 65%;
+    --chart-3: 335 60% 65%;
+    --chart-4: 200 60% 55%;
+    --chart-5: 280 50% 60%;
+    --radius: 0.75rem;
+    --sidebar-background: 220 30% 98%;
+    --sidebar-foreground: 240 15% 20%;
+    --sidebar-primary: 220 50% 55%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 25% 93%;
+    --sidebar-accent-foreground: 220 60% 30%;
+    --sidebar-border: 220 20% 88%;
+    --sidebar-ring: 220 50% 55%;
+  }
+  .dark {
+    /* Dark mode: Ayaka's elegant night theme with golden highlights */
+    --background: 240 15% 8%;
+    --foreground: 45 30% 95%;
+    --card: 240 12% 12%;
+    --card-foreground: 45 25% 95%;
+    --popover: 240 12% 10%;
+    --popover-foreground: 45 25% 95%;
+    /* Ayaka's deep purple-blue with golden accent */
+    --primary: 220 45% 60%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 240 15% 18%;
+    --secondary-foreground: 45 40% 90%;
+    --muted: 240 10% 18%;
+    --muted-foreground: 220 15% 65%;
+    --accent: 335 40% 55%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 60% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 240 10% 22%;
+    --input: 240 10% 20%;
+    --ring: 220 50% 60%;
+    --chart-1: 220 60% 55%;
+    --chart-2: 45 75% 60%;
+    --chart-3: 335 55% 60%;
+    --chart-4: 200 50% 50%;
+    --chart-5: 280 45% 55%;
+    --sidebar-background: 240 12% 10%;
+    --sidebar-foreground: 45 25% 90%;
+    --sidebar-primary: 220 50% 60%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 10% 16%;
+    --sidebar-accent-foreground: 220 40% 75%;
+    --sidebar-border: 240 10% 20%;
+    --sidebar-ring: 220 50% 60%;
+  }
 }
 
 @layer base {
-    * {
-        @apply border-border;
-    }
-    body {
-        @apply bg-background text-foreground;
-    }
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
 }
