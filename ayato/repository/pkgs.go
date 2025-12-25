@@ -8,7 +8,7 @@ import (
 
 // PkgNames returns all package base names in the repository.
 // FIXME: Inefficient to open DB every time. Optimization with cache, etc. is recommended.
-func (r *Repository) PkgNames(repoName, archName string) ([]string, error) {
+func (r *PackageBinaryRepository) PkgNames(repoName, archName string) ([]string, error) {
 	db, err := r.pkgBinStore.FetchFile(repoName, archName, fmt.Sprintf("%s.db.tar.gz", repoName))
 	if err != nil {
 		return nil, err
@@ -34,7 +34,7 @@ func (r *Repository) PkgNames(repoName, archName string) ([]string, error) {
 }
 
 // RemoteRepo returns the remote repository object for the specified repository name and architecture.
-func (r *Repository) RemoteRepo(name, arch string) (*remote.RemoteRepo, error) {
+func (r *PackageBinaryRepository) RemoteRepo(name, arch string) (*remote.RemoteRepo, error) {
 	db, err := r.FetchDB(name, arch)
 	if err != nil {
 		return nil, err
@@ -53,7 +53,7 @@ func (r *Repository) RemoteRepo(name, arch string) (*remote.RemoteRepo, error) {
 
 // PkgFiles returns a list of package files in the repository.
 // TODO: Not yet implemented (get list of package files)
-func (r *Repository) PkgFiles(repoName, archName, pkgName string) ([]string, error) {
+func (r *PackageBinaryRepository) PkgFiles(repoName, archName, pkgName string) ([]string, error) {
 	db, err := r.FetchDB(repoName, archName)
 	if err != nil {
 		return nil, err

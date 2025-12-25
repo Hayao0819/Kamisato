@@ -3,6 +3,7 @@ package repository
 import (
 	"log/slog"
 
+	"github.com/Hayao0819/Kamisato/ayato/domain"
 	"github.com/Hayao0819/Kamisato/ayato/repository/binarystore/localfs"
 	"github.com/Hayao0819/Kamisato/ayato/repository/binarystore/s3"
 	"github.com/Hayao0819/Kamisato/ayato/repository/metastore/cloudflarekv"
@@ -66,25 +67,30 @@ func initMetaStore(cfg *conf.AyatoConfig) (PkgNameStoreProvider, error) {
 	return db, nil
 }
 
-// New creates an implementation of IRepository.
-func New(cfg *conf.AyatoConfig) (IRepository, error) {
+// New creates implementations of IPackageNameRepository and IPackageBinaryRepository.
+func New(cfg *conf.AyatoConfig) (domain.IPackageNameRepository, domain.IPackageBinaryRepository, error) {
 	// メタストア初期化
 	db, err := initMetaStore(cfg)
 	if err != nil {
 		slog.Error("Failed to create meta store", "error", err)
-		return nil, err
+		return nil, nil, err
 	}
 
 	// バイナリストア初期化
 	bin, err := initPkgBinaryStore(cfg)
 	if err != nil {
 		slog.Error("Failed to create binary store", "error", err)
-		return nil, err
+		return nil, nil, err
 	}
 
-	return &Repository{
+	pkgNameRepo := &PackageNameRepository{
 		pkgNameStore: db,
-		cfg:          cfg,
-		pkgBinStore:  bin,
-	}, nil
+	}
+
+	pkgBinaryRepo := &PackageBinaryRepository{
+		pkgBinStore: bin,
+		cfg:         cfg,
+	}
+
+	return pkgNameRepo, pkgBinaryRepo, nil
 }

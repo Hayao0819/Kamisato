@@ -14,18 +14,18 @@ func (s *Service) RemovePkg(rname string, arch string, pkgname string) error {
 		return utils.WrapErr(err, "validate repo name failed")
 	}
 	// パッケージファイル名取得
-	filename, err := s.r.GetPkgFileName(pkgname)
+	filename, err := s.pkgNameRepo.GetPkgFileName(pkgname)
 	if err != nil {
 		return fmt.Errorf("get pkg file err: %s", err.Error())
 	}
 	slog.Info("get pkg file", "file", filename)
 	// ファイル削除
-	if err := s.r.DeleteFile(rname, arch, filename); err != nil {
+	if err := s.pkgBinaryRepo.DeleteFile(rname, arch, filename); err != nil {
 		slog.Debug("delete file success", "repo", rname, "arch", arch, "filename", filename)
 		return fmt.Errorf("delete pkg file err: %s", err.Error())
 	}
 	// メタ情報削除
-	if err := s.r.DeletePkgFileName(pkgname); err != nil {
+	if err := s.pkgNameRepo.DeletePkgFileName(pkgname); err != nil {
 		slog.Debug("delete pkg file name success", "pkgname", pkgname)
 		return fmt.Errorf("remove pkg file name err: %s", err.Error())
 	}

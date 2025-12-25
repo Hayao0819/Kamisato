@@ -7,7 +7,7 @@ import (
 )
 
 // Init initializes the repository.
-func (r *Repository) Init(name string, useSignedDB bool, gnupgDir *string) error {
+func (r *PackageBinaryRepository) Init(name string, useSignedDB bool, gnupgDir *string) error {
 
 	createdArches, err := r.Arches(name)
 	if err != nil {

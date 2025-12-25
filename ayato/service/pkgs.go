@@ -2,7 +2,7 @@ package service
 
 // PkgFiles はリポジトリ内のパッケージファイル一覧を返します。
 func (s *Service) PkgFiles(repoName, archName, pkgName string) ([]string, error) {
-	files, err := s.r.PkgFiles(repoName, archName, pkgName)
+	files, err := s.pkgBinaryRepo.PkgFiles(repoName, archName, pkgName)
 	if err != nil {
 		return nil, err
 	}

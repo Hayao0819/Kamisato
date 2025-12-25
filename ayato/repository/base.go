@@ -4,9 +4,13 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/conf"
 )
 
-// Repository is the main implementation struct for repository operations.
-type Repository struct {
-	pkgNameStore PkgNameStoreProvider   // Store for package names and file names
-	pkgBinStore  PkgBinaryStoreProvider // Binary file store
-	cfg          *conf.AyatoConfig      // Configuration
+// PackageNameRepository is the implementation struct for package name management operations.
+type PackageNameRepository struct {
+	pkgNameStore PkgNameStoreProvider // Store for package names and file names
+}
+
+// PackageBinaryRepository is the implementation struct for package binary operations.
+type PackageBinaryRepository struct {
+	pkgBinStore PkgBinaryStoreProvider // Binary file store
+	cfg         *conf.AyatoConfig      // Configuration
 }
