@@ -7,7 +7,7 @@ import (
 )
 
 // implements: github.com/BrenekH/blinky.PackageNameToFileProvider
-// implements: github.com/Hayao0819/Kamisato/ayato/repository.PkgNameStoreProvider
+// implements: github.com/Hayao0819/Kamisato/ayato/repository/provider.PkgNameStoreProvider
 type Badger struct {
 	db *badger.DB
 }
