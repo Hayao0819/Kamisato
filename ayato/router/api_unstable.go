@@ -23,6 +23,7 @@ func SetRoute(e *gin.Engine, h handler.IHandler, m *middleware.Middleware) error
 		{
 			api.GET("/hello", h.HelloHandler)
 			api.GET("/teapot", h.TeapotHandler)
+			api.GET("/auth/required", h.AuthRequiredHandler)
 			api.GET("/repos", h.ReposHandler)
 			api.GET("/repos/:repo/archs", h.ArchesHandler)
 			api.GET("/:repo/:arch/package", h.AllPkgsHandler)

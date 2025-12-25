@@ -1,10 +1,12 @@
 "use client";
 import { ServerConfigDialog } from "@/components/server-config-dialog";
+import { LoginDialog } from "@/components/login-dialog";
 import { Button } from "@/components/ui/button";
-import { ServerIcon } from "lucide-react";
+import { ServerIcon, Upload } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useAPIClient } from "./lumine-provider";
+import { useAuth } from "./auth-provider";
 // import { getHelloEndpoint } from "@/lib/api";
 
 export function Header() {
@@ -12,6 +14,7 @@ export function Header() {
         "success" | "error" | "loading" | "unset"
     >("loading");
     const api = useAPIClient();
+    const { authRequired } = useAuth();
     const apiRef = useRef(api);
     useEffect(() => {
         apiRef.current = api;
@@ -53,7 +56,13 @@ export function Header() {
                         Linux向けの非公式パッケージリポジトリWebフロントエンドです。
                     </p>
                 </div>
-                <div className="flex gap-2 w-full sm:w-auto items-center justify-end">
+                <div className="flex gap-2 w-full sm:w-auto items-center justify-end flex-wrap">
+                    <Link href="/upload">
+                        <Button variant="ghost" className="w-full sm:w-auto flex items-center">
+                            <Upload className="h-4 w-4 mr-2" />
+                            アップロード
+                        </Button>
+                    </Link>
                     <Link href="/about">
                         <Button variant="ghost" className="w-full sm:w-auto">
                             このサイトについて
@@ -87,6 +96,7 @@ export function Header() {
                             </span>
                         </Button>
                     </Link>
+                    {authRequired && <LoginDialog />}
                     <ServerConfigDialog />
                 </div>
             </div>

@@ -17,6 +17,7 @@ type Handler struct {
 type IHandler interface {
 	HelloHandler(ctx *gin.Context)
 	TeapotHandler(ctx *gin.Context)
+	AuthRequiredHandler(ctx *gin.Context)
 	BlinkyUploadHandler(ctx *gin.Context)
 	ReposHandler(ctx *gin.Context)
 	ArchesHandler(ctx *gin.Context)
