@@ -1,8 +1,22 @@
 import { Footer } from "@/components/footer";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Github, Home, Twitter, Package, Server, Globe, ExternalLink } from "lucide-react";
+import {
+    Github,
+    Home,
+    Twitter,
+    Package,
+    Server,
+    Globe,
+    ExternalLink,
+} from "lucide-react";
 import Link from "next/link";
 
 export default function About() {
@@ -43,7 +57,9 @@ export default function About() {
                                     <Package className="w-5 h-5 text-primary" />
                                 </div>
                                 <div>
-                                    <h3 className="font-semibold">パッケージ管理</h3>
+                                    <h3 className="font-semibold">
+                                        パッケージ管理
+                                    </h3>
                                     <p className="text-sm text-muted-foreground">
                                         パッケージの検索、閲覧、ダウンロード
                                     </p>
@@ -54,7 +70,9 @@ export default function About() {
                                     <Server className="w-5 h-5 text-primary" />
                                 </div>
                                 <div>
-                                    <h3 className="font-semibold">サーバー監視</h3>
+                                    <h3 className="font-semibold">
+                                        サーバー監視
+                                    </h3>
                                     <p className="text-sm text-muted-foreground">
                                         リアルタイムのサーバーステータス確認
                                     </p>
@@ -65,7 +83,9 @@ export default function About() {
                                     <Globe className="w-5 h-5 text-primary" />
                                 </div>
                                 <div>
-                                    <h3 className="font-semibold">レスポンシブデザイン</h3>
+                                    <h3 className="font-semibold">
+                                        レスポンシブデザイン
+                                    </h3>
                                     <p className="text-sm text-muted-foreground">
                                         モバイル・デスクトップ対応のモダンUI
                                     </p>
@@ -76,7 +96,9 @@ export default function About() {
                                     <Package className="w-5 h-5 text-primary" />
                                 </div>
                                 <div>
-                                    <h3 className="font-semibold">パッケージアップロード</h3>
+                                    <h3 className="font-semibold">
+                                        パッケージアップロード
+                                    </h3>
                                     <p className="text-sm text-muted-foreground">
                                         GUIからパッケージを簡単にアップロード
                                     </p>
@@ -96,7 +118,8 @@ export default function About() {
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <p className="text-muted-foreground">
-                            <strong>Project Kamisato</strong>は、Arch Linux向けのパッケージ配布・管理を目的としたオープンソースプロジェクト群です。
+                            <strong>Project Kamisato</strong>は、Arch
+                            Linux向けのパッケージ配布・管理を目的としたオープンソースプロジェクト群です。
                             以下のコンポーネントで構成されています。
                         </p>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -121,7 +144,9 @@ export default function About() {
                             <div className="p-4 border rounded-lg space-y-2">
                                 <div className="flex items-center gap-2">
                                     <Globe className="w-4 h-4 text-primary" />
-                                    <h3 className="font-semibold">Lumine Web</h3>
+                                    <h3 className="font-semibold">
+                                        Lumine Web
+                                    </h3>
                                 </div>
                                 <p className="text-sm text-muted-foreground">
                                     本フロントエンドアプリケーション
@@ -147,7 +172,10 @@ export default function About() {
                                 rel="noopener noreferrer"
                                 className="group"
                             >
-                                <Button variant="outline" className="w-full justify-between">
+                                <Button
+                                    variant="outline"
+                                    className="w-full justify-between"
+                                >
                                     <span className="flex items-center gap-2">
                                         <Home className="w-4 h-4" />
                                         山田ハヤオのホームページ
@@ -161,7 +189,10 @@ export default function About() {
                                 rel="noopener noreferrer"
                                 className="group"
                             >
-                                <Button variant="outline" className="w-full justify-between">
+                                <Button
+                                    variant="outline"
+                                    className="w-full justify-between"
+                                >
                                     <span className="flex items-center gap-2">
                                         <Github className="w-4 h-4" />
                                         ソースコード (GitHub)
@@ -175,7 +206,10 @@ export default function About() {
                                 rel="noopener noreferrer"
                                 className="group"
                             >
-                                <Button variant="outline" className="w-full justify-between">
+                                <Button
+                                    variant="outline"
+                                    className="w-full justify-between"
+                                >
                                     <span className="flex items-center gap-2">
                                         <Twitter className="w-4 h-4" />
                                         Twitter (@Hayao0819)

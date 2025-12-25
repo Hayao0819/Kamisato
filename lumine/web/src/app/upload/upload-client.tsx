@@ -1,7 +1,13 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
+} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -48,13 +54,17 @@ export function UploadPageClient() {
         loadRepos();
     }, [api, toast]);
 
-    const handlePackageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handlePackageFileChange = (
+        e: React.ChangeEvent<HTMLInputElement>,
+    ) => {
         if (e.target.files && e.target.files.length > 0) {
             setPackageFile(e.target.files[0]);
         }
     };
 
-    const handleSignatureFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleSignatureFileChange = (
+        e: React.ChangeEvent<HTMLInputElement>,
+    ) => {
         if (e.target.files && e.target.files.length > 0) {
             setSignatureFile(e.target.files[0]);
         }
@@ -101,14 +111,21 @@ export function UploadPageClient() {
             setPackageFile(null);
             setSignatureFile(null);
             // Reset file inputs
-            const packageInput = document.getElementById("package-file") as HTMLInputElement;
-            const signatureInput = document.getElementById("signature-file") as HTMLInputElement;
+            const packageInput = document.getElementById(
+                "package-file",
+            ) as HTMLInputElement;
+            const signatureInput = document.getElementById(
+                "signature-file",
+            ) as HTMLInputElement;
             if (packageInput) packageInput.value = "";
             if (signatureInput) signatureInput.value = "";
         } catch (error) {
             toast({
                 title: "エラー",
-                description: error instanceof Error ? error.message : "アップロードに失敗しました",
+                description:
+                    error instanceof Error
+                        ? error.message
+                        : "アップロードに失敗しました",
                 variant: "destructive",
             });
         } finally {
@@ -144,7 +161,10 @@ export function UploadPageClient() {
                         {/* Repository Selection */}
                         <div className="space-y-2">
                             <Label htmlFor="repository">リポジトリ</Label>
-                            <Select value={selectedRepo} onValueChange={setSelectedRepo}>
+                            <Select
+                                value={selectedRepo}
+                                onValueChange={setSelectedRepo}
+                            >
                                 <SelectTrigger id="repository">
                                     <SelectValue placeholder="リポジトリを選択" />
                                 </SelectTrigger>
@@ -160,7 +180,10 @@ export function UploadPageClient() {
 
                         {/* Package File */}
                         <div className="space-y-2">
-                            <Label htmlFor="package-file" className="flex items-center gap-2">
+                            <Label
+                                htmlFor="package-file"
+                                className="flex items-center gap-2"
+                            >
                                 <FileArchive className="w-4 h-4" />
                                 パッケージファイル
                                 <span className="text-red-500">*</span>
@@ -174,14 +197,21 @@ export function UploadPageClient() {
                             />
                             {packageFile && (
                                 <p className="text-sm text-muted-foreground">
-                                    選択済み: {packageFile.name} ({(packageFile.size / 1024 / 1024).toFixed(2)} MB)
+                                    選択済み: {packageFile.name} (
+                                    {(packageFile.size / 1024 / 1024).toFixed(
+                                        2,
+                                    )}{" "}
+                                    MB)
                                 </p>
                             )}
                         </div>
 
                         {/* Signature File */}
                         <div className="space-y-2">
-                            <Label htmlFor="signature-file" className="flex items-center gap-2">
+                            <Label
+                                htmlFor="signature-file"
+                                className="flex items-center gap-2"
+                            >
                                 <FileKey className="w-4 h-4" />
                                 署名ファイル (オプション)
                             </Label>
@@ -202,11 +232,15 @@ export function UploadPageClient() {
                         <Button
                             type="submit"
                             className="w-full"
-                            disabled={uploading || !packageFile || !selectedRepo}
+                            disabled={
+                                uploading || !packageFile || !selectedRepo
+                            }
                         >
                             {uploading ? (
                                 <>
-                                    <span className="animate-spin mr-2">⏳</span>
+                                    <span className="animate-spin mr-2">
+                                        ⏳
+                                    </span>
                                     アップロード中...
                                 </>
                             ) : (
@@ -227,11 +261,21 @@ export function UploadPageClient() {
                 </CardHeader>
                 <CardContent className="text-sm space-y-2 text-muted-foreground">
                     <ul className="list-disc list-inside space-y-1">
-                        <li>パッケージファイルは .pkg.tar.zst, .pkg.tar.xz, .pkg.tar.gz 形式に対応しています</li>
-                        <li>署名ファイルは .sig 形式です（サーバー設定により必須の場合があります）</li>
+                        <li>
+                            パッケージファイルは .pkg.tar.zst, .pkg.tar.xz,
+                            .pkg.tar.gz 形式に対応しています
+                        </li>
+                        <li>
+                            署名ファイルは .sig
+                            形式です（サーバー設定により必須の場合があります）
+                        </li>
                         <li>認証情報は Basic 認証で送信されます</li>
-                        <li>アップロード後、パッケージデータベースが自動的に更新されます</li>
-                        <li>ログイン済みの場合、保存された認証情報が自動的に使用されます</li>
+                        <li>
+                            アップロード後、パッケージデータベースが自動的に更新されます
+                        </li>
+                        <li>
+                            ログイン済みの場合、保存された認証情報が自動的に使用されます
+                        </li>
                     </ul>
                 </CardContent>
             </Card>
