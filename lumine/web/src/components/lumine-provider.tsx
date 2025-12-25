@@ -1,7 +1,12 @@
 "use client";
+import {
+    createContext,
+    type ReactNode,
+    useContext,
+    useEffect,
+    useState,
+} from "react";
 import { APIClient } from "@/lib/api";
-import { type ReactNode, useContext, useEffect, useState } from "react";
-import { createContext } from "react";
 import { useAuth } from "./auth-provider";
 
 const APIClientContext = createContext<APIClient | null>(null);

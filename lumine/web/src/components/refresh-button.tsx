@@ -1,7 +1,7 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export function RefreshButton() {
     return (

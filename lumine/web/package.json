@@ -8,6 +8,7 @@
         "start": "next start",
         "fmt": "biome format --write",
         "lint": "biome lint --write",
+        "fix": "biome check --write --unsafe",
         "check": "biome check"
     },
     "dependencies": {

@@ -1,5 +1,7 @@
 "use client";
 
+import { Settings } from "lucide-react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 // import { SERVER_CONFIGURABLE } from "@/lib/api";
 import {
@@ -14,8 +16,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Settings } from "lucide-react";
-import { useEffect, useState } from "react";
 import { useAPIClient } from "./lumine-provider";
 
 const STORAGE_KEY = "lumine_api_base_url";

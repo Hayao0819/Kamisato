@@ -1,7 +1,8 @@
 "use client";
 
+import { BugIcon } from "lucide-react";
 import type React from "react";
-
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -24,8 +25,6 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import type { PackageInfo } from "@/lib/types";
-import { BugIcon } from "lucide-react";
-import { useState } from "react";
 
 interface BugReportDialogProps {
     packageInfo: PackageInfo;

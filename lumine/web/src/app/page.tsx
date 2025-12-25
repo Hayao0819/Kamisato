@@ -1,10 +1,10 @@
 "use client";
+import { useEffect, useState } from "react";
 import { useAPIClient } from "@/components/lumine-provider";
 import { PackageTable } from "@/components/package-table";
 import { RepoArchSelector } from "@/components/repo-arch-selector";
 import { useToast } from "@/hooks/use-toast";
 import type { PackageInfo, PacmanPkgsResponse } from "@/lib/types";
-import { useEffect, useState } from "react";
 
 export default function Home() {
     const [selectedRepo, setSelectedRepo] = useState<string | null>(null);
