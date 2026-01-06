@@ -1,7 +1,14 @@
 "use client";
 
-import { AlertCircle, FileArchive, FileKey, Upload } from "lucide-react";
-import { useEffect, useState } from "react";
+import {
+    AlertCircle,
+    CheckCircle2,
+    FileArchive,
+    FileKey,
+    Upload,
+    XCircle,
+} from "lucide-react";
+import { useState } from "react";
 import { useAuth } from "@/components/auth-provider";
 import { useAPIClient } from "@/components/lumine-provider";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -15,6 +22,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Progress } from "@/components/ui/progress";
 import {
     Select,
     SelectContent,
@@ -22,37 +30,23 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import { useRepoArch } from "@/hooks/use-repo-arch";
 import { useToast } from "@/hooks/use-toast";
 
 export function UploadPageClient() {
     const api = useAPIClient();
     const { toast } = useToast();
     const { isAuthenticated, username, password } = useAuth();
+    const { selectedRepo, setSelectedRepo, repos } = useRepoArch();
 
-    const [repos, setRepos] = useState<string[]>([]);
-    const [selectedRepo, setSelectedRepo] = useState<string>("");
     const [packageFile, setPackageFile] = useState<File | null>(null);
     const [signatureFile, setSignatureFile] = useState<File | null>(null);
     const [uploading, setUploading] = useState(false);
-
-    useEffect(() => {
-        const loadRepos = async () => {
-            try {
-                const data = await api.fetchRepos();
-                setRepos(data.repos || []);
-                if (data.repos && data.repos.length > 0) {
-                    setSelectedRepo(data.repos[0]);
-                }
-            } catch (_error) {
-                toast({
-                    title: "エラー",
-                    description: "リポジトリ一覧の取得に失敗しました",
-                    variant: "destructive",
-                });
-            }
-        };
-        loadRepos();
-    }, [api, toast]);
+    const [uploadProgress, setUploadProgress] = useState(0);
+    const [uploadStatus, setUploadStatus] = useState<
+        "idle" | "success" | "error"
+    >("idle");
+    const [uploadMessage, setUploadMessage] = useState("");
 
     const handlePackageFileChange = (
         e: React.ChangeEvent<HTMLInputElement>,
@@ -92,40 +86,54 @@ export function UploadPageClient() {
         }
 
         setUploading(true);
+        setUploadStatus("idle");
+        setUploadProgress(0);
 
         try {
-            const result = await api.uploadPackage(
+            const result = await api.uploadPackageWithProgress(
                 selectedRepo,
                 packageFile,
                 signatureFile,
                 username || undefined,
                 password || undefined,
+                (progress) => {
+                    setUploadProgress(progress);
+                },
             );
 
+            setUploadStatus("success");
+            setUploadMessage(result || "パッケージをアップロードしました");
             toast({
                 title: "成功",
                 description: result || "パッケージをアップロードしました",
             });
 
-            // Reset form
-            setPackageFile(null);
-            setSignatureFile(null);
-            // Reset file inputs
-            const packageInput = document.getElementById(
-                "package-file",
-            ) as HTMLInputElement;
-            const signatureInput = document.getElementById(
-                "signature-file",
-            ) as HTMLInputElement;
-            if (packageInput) packageInput.value = "";
-            if (signatureInput) signatureInput.value = "";
+            // Reset form after delay
+            setTimeout(() => {
+                setPackageFile(null);
+                setSignatureFile(null);
+                setUploadStatus("idle");
+                setUploadProgress(0);
+                // Reset file inputs
+                const packageInput = document.getElementById(
+                    "package-file",
+                ) as HTMLInputElement;
+                const signatureInput = document.getElementById(
+                    "signature-file",
+                ) as HTMLInputElement;
+                if (packageInput) packageInput.value = "";
+                if (signatureInput) signatureInput.value = "";
+            }, 3000);
         } catch (error) {
+            const message =
+                error instanceof Error
+                    ? error.message
+                    : "アップロードに失敗しました";
+            setUploadStatus("error");
+            setUploadMessage(message);
             toast({
                 title: "エラー",
-                description:
-                    error instanceof Error
-                        ? error.message
-                        : "アップロードに失敗しました",
+                description: message,
                 variant: "destructive",
             });
         } finally {
@@ -162,7 +170,7 @@ export function UploadPageClient() {
                         <div className="space-y-2">
                             <Label htmlFor="repository">リポジトリ</Label>
                             <Select
-                                value={selectedRepo}
+                                value={selectedRepo || undefined}
                                 onValueChange={setSelectedRepo}
                             >
                                 <SelectTrigger id="repository">
@@ -227,6 +235,44 @@ export function UploadPageClient() {
                                 </p>
                             )}
                         </div>
+
+                        {/* Upload Progress */}
+                        {uploading && (
+                            <div className="space-y-2">
+                                <div className="flex items-center justify-between text-sm">
+                                    <span className="text-muted-foreground">
+                                        アップロード中...
+                                    </span>
+                                    <span className="font-medium">
+                                        {uploadProgress.toFixed(0)}%
+                                    </span>
+                                </div>
+                                <Progress value={uploadProgress} />
+                            </div>
+                        )}
+
+                        {/* Upload Status */}
+                        {uploadStatus === "success" && (
+                            <Alert className="border-emerald-500/50 bg-emerald-500/10">
+                                <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                                <AlertTitle className="text-emerald-500">
+                                    アップロード成功
+                                </AlertTitle>
+                                <AlertDescription className="text-emerald-600">
+                                    {uploadMessage}
+                                </AlertDescription>
+                            </Alert>
+                        )}
+
+                        {uploadStatus === "error" && (
+                            <Alert variant="destructive">
+                                <XCircle className="h-4 w-4" />
+                                <AlertTitle>アップロード失敗</AlertTitle>
+                                <AlertDescription>
+                                    {uploadMessage}
+                                </AlertDescription>
+                            </Alert>
+                        )}
 
                         {/* Submit Button */}
                         <Button

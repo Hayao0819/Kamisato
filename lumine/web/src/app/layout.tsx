@@ -4,13 +4,14 @@ import { AuthProvider } from "@/components/auth-provider";
 import { Footer } from "@/components/footer";
 import { Header } from "@/components/header";
 import LumineProvider from "@/components/lumine-provider";
+import { ThemeProvider } from "@/components/theme-provider";
 import { ToastProvider, ToastViewport } from "@/components/ui/toast";
 import { Toaster } from "@/components/ui/toaster";
 
 export const metadata: Metadata = {
-    title: "Lumine - Arch Linux パッケージリポジトリ",
+    title: "Arch Linux パッケージリポジトリ - Lumine",
     description:
-        "LumineはAyatoバックエンドを利用したArch Linux向けの非公式パッケージリポジトリWebフロントエンドです。パッケージの検索・ダウンロードが可能です。",
+        "Ayakaバックエンドを利用したArch Linux向けの非公式パッケージリポジトリWebフロントエンド。",
 };
 
 export default function RootLayout({
@@ -19,7 +20,7 @@ export default function RootLayout({
     children: React.ReactNode;
 }>) {
     return (
-        <html lang="ja">
+        <html lang="ja" suppressHydrationWarning>
             <head>
                 <meta charSet="UTF-8" />
                 <meta
@@ -27,21 +28,26 @@ export default function RootLayout({
                     content="width=device-width, initial-scale=1"
                 />
             </head>
-            <ToastProvider>
-                <AuthProvider>
-                    <LumineProvider>
-                        <body className="h-screen flex flex-col">
-                            <Header />
-                            <main className="grow overflow-scroll hidden-scrollbar">
-                                {children}
-                            </main>
-                            <Footer />
-                            <Toaster />
-                            <ToastViewport className="fixed top-16 left-1/2 -translate-x-1/2 z-100 w-full max-w-md flex flex-col items-center" />
-                        </body>
-                    </LumineProvider>
-                </AuthProvider>
-            </ToastProvider>
+            <body className="min-h-screen flex flex-col bg-background text-foreground antialiased">
+                <ThemeProvider
+                    attribute="class"
+                    defaultTheme="system"
+                    enableSystem
+                    disableTransitionOnChange
+                >
+                    <ToastProvider>
+                        <AuthProvider>
+                            <LumineProvider>
+                                <Header />
+                                <main className="flex-1">{children}</main>
+                                <Footer />
+                                <Toaster />
+                                <ToastViewport className="fixed top-20 left-1/2 -translate-x-1/2 z-100 w-full max-w-md flex flex-col items-center" />
+                            </LumineProvider>
+                        </AuthProvider>
+                    </ToastProvider>
+                </ThemeProvider>
+            </body>
         </html>
     );
 }

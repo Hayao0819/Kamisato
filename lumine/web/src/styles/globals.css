@@ -102,6 +102,51 @@
   }
 }
 
+@utility gradient-primary {
+  background: linear-gradient(
+    135deg,
+    hsl(var(--gradient-from)),
+    hsl(var(--gradient-via)),
+    hsl(var(--gradient-to))
+  );
+}
+
+@utility gradient-purple {
+  background: linear-gradient(
+    135deg,
+    hsl(237 50% 58%),
+    hsl(235 48% 62%),
+    hsl(230 45% 68%)
+  );
+}
+
+@utility gradient-cyan {
+  background: linear-gradient(
+    135deg,
+    hsl(190 65% 58%),
+    hsl(185 60% 62%),
+    hsl(180 55% 68%)
+  );
+}
+
+@utility gradient-pink {
+  background: linear-gradient(
+    135deg,
+    hsl(335 55% 68%),
+    hsl(340 50% 70%),
+    hsl(345 48% 75%)
+  );
+}
+
+@utility gradient-blue {
+  background: linear-gradient(
+    135deg,
+    hsl(237 50% 58%),
+    hsl(220 48% 65%),
+    hsl(200 45% 72%)
+  );
+}
+
 @layer utilities {
   body {
     font-family: Arial, Helvetica, sans-serif;
@@ -110,78 +155,108 @@
 
 @layer base {
   :root {
-    /* Genshin Impact Lumine & Ayaka Inspired Theme */
-    /* Light mode: Lumine's bright, golden aesthetic */
-    --background: 45 20% 97%;
-    --foreground: 240 15% 15%;
-    --card: 45 30% 99%;
-    --card-foreground: 240 15% 15%;
-    --popover: 45 30% 99%;
-    --popover-foreground: 240 15% 15%;
-    /* Ayaka's signature ice-blue with golden accent */
-    --primary: 220 50% 55%;
+    /* Light Mode */
+
+    --background: 210 30% 98%;
+    --foreground: 235 25% 15%;
+
+    --card: 220 40% 99%;
+    --card-foreground: 235 20% 18%;
+
+    --popover: 220 35% 98%;
+    --popover-foreground: 235 20% 18%;
+
+    --primary: 237 48% 56%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 45 60% 85%;
-    --secondary-foreground: 240 20% 20%;
-    --muted: 220 20% 95%;
-    --muted-foreground: 220 10% 45%;
-    --accent: 335 45% 75%;
-    --accent-foreground: 340 50% 20%;
-    --destructive: 0 70% 55%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 220 20% 88%;
-    --input: 220 20% 90%;
-    --ring: 220 50% 55%;
-    --chart-1: 220 70% 60%;
-    --chart-2: 45 85% 65%;
-    --chart-3: 335 60% 65%;
-    --chart-4: 200 60% 55%;
-    --chart-5: 280 50% 60%;
-    --radius: 0.75rem;
-    --sidebar-background: 220 30% 98%;
-    --sidebar-foreground: 240 15% 20%;
-    --sidebar-primary: 220 50% 55%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 220 25% 93%;
-    --sidebar-accent-foreground: 220 60% 30%;
-    --sidebar-border: 220 20% 88%;
-    --sidebar-ring: 220 50% 55%;
-  }
-  .dark {
-    /* Dark mode: Ayaka's elegant night theme with golden highlights */
-    --background: 240 15% 8%;
-    --foreground: 45 30% 95%;
-    --card: 240 12% 12%;
-    --card-foreground: 45 25% 95%;
-    --popover: 240 12% 10%;
-    --popover-foreground: 45 25% 95%;
-    /* Ayaka's deep purple-blue with golden accent */
-    --primary: 220 45% 60%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 240 15% 18%;
-    --secondary-foreground: 45 40% 90%;
-    --muted: 240 10% 18%;
-    --muted-foreground: 220 15% 65%;
-    --accent: 335 40% 55%;
+
+    --secondary: 190 55% 65%;
+    --secondary-foreground: 235 30% 20%;
+
+    --muted: 230 30% 94%;
+    --muted-foreground: 230 15% 45%;
+
+    --accent: 335 55% 68%;
     --accent-foreground: 0 0% 100%;
-    --destructive: 0 60% 50%;
+
+    --destructive: 0 68% 52%;
     --destructive-foreground: 0 0% 100%;
-    --border: 240 10% 22%;
-    --input: 240 10% 20%;
-    --ring: 220 50% 60%;
-    --chart-1: 220 60% 55%;
-    --chart-2: 45 75% 60%;
-    --chart-3: 335 55% 60%;
-    --chart-4: 200 50% 50%;
-    --chart-5: 280 45% 55%;
-    --sidebar-background: 240 12% 10%;
-    --sidebar-foreground: 45 25% 90%;
-    --sidebar-primary: 220 50% 60%;
+
+    --border: 230 25% 88%;
+    --input: 230 25% 90%;
+    --ring: 237 48% 56%;
+
+    --chart-1: 237 50% 58%;
+    --chart-2: 190 60% 62%;
+    --chart-3: 335 58% 65%;
+    --chart-4: 220 45% 60%;
+    --chart-5: 6 65% 62%;
+
+    --radius: 1rem;
+
+    --sidebar-background: 230 35% 97%;
+    --sidebar-foreground: 235 22% 18%;
+    --sidebar-primary: 237 48% 56%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 10% 16%;
-    --sidebar-accent-foreground: 220 40% 75%;
-    --sidebar-border: 240 10% 20%;
-    --sidebar-ring: 220 50% 60%;
+    --sidebar-accent: 230 28% 92%;
+    --sidebar-accent-foreground: 237 45% 35%;
+    --sidebar-border: 230 25% 86%;
+    --sidebar-ring: 237 48% 56%;
+
+    --gradient-from: 237 50% 58%;
+    --gradient-via: 190 60% 62%;
+    --gradient-to: 335 55% 68%;
+  }
+
+  .dark {
+    /* Dark Mode */
+
+    --background: 237 30% 8%;
+    --foreground: 210 25% 96%;
+
+    --card: 237 25% 12%;
+    --card-foreground: 210 22% 95%;
+
+    --popover: 237 28% 10%;
+    --popover-foreground: 210 22% 95%;
+
+    --primary: 235 58% 68%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 190 65% 58%;
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 235 20% 16%;
+    --muted-foreground: 230 18% 70%;
+
+    --accent: 335 65% 65%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 235 22% 22%;
+    --input: 235 22% 20%;
+    --ring: 235 58% 68%;
+
+    --chart-1: 235 62% 65%;
+    --chart-2: 190 70% 60%;
+    --chart-3: 335 68% 68%;
+    --chart-4: 220 55% 62%;
+    --chart-5: 6 70% 60%;
+
+    --sidebar-background: 237 28% 10%;
+    --sidebar-foreground: 210 24% 92%;
+    --sidebar-primary: 235 58% 68%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 235 22% 16%;
+    --sidebar-accent-foreground: 235 50% 80%;
+    --sidebar-border: 235 22% 20%;
+    --sidebar-ring: 235 58% 68%;
+
+    /* Dark mode gradient - luminous and mystical */
+    --gradient-from: 235 62% 55%;
+    --gradient-via: 190 68% 52%;
+    --gradient-to: 335 65% 60%;
   }
 }
 

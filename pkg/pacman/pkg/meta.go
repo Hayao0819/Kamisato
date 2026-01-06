@@ -42,7 +42,7 @@ func (p *SourcePackage) Names() []string {
 // PkgFileNames returns the build-output file names from makepkg --packagelist.
 func (p *SourcePackage) PkgFileNames() ([]string, error) {
 	stdout := new(bytes.Buffer)
-	cmd := exec.Command("makepkg", "--packagelist", "OPTIONS=-debug")
+	cmd := exec.Command("makepkg", "--packagelist")
 	cmd.Dir = p.dir
 	cmd.Stdout = stdout
 	err := cmd.Run()

@@ -147,6 +147,61 @@ export class APIClient {
         return this.endpoints.jobLogs(id);
     }
 
+    uploadPackageWithProgress(
+        repo: string,
+        packageFile: File,
+        signatureFile: File | null,
+        username?: string,
+        password?: string,
+        onProgress?: (progress: number) => void,
+    ): Promise<string> {
+        return new Promise((resolve, reject) => {
+            const formData = new FormData();
+            formData.append("package", packageFile);
+            if (signatureFile) {
+                formData.append("signature", signatureFile);
+            }
+
+            const xhr = new XMLHttpRequest();
+
+            xhr.upload.addEventListener("progress", (e) => {
+                if (e.lengthComputable && onProgress) {
+                    const progress = (e.loaded / e.total) * 100;
+                    onProgress(progress);
+                }
+            });
+
+            xhr.addEventListener("load", () => {
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    resolve(xhr.responseText);
+                } else {
+                    reject(
+                        new Error(
+                            `パッケージのアップロードに失敗しました: ${xhr.status} - ${xhr.responseText}`,
+                        ),
+                    );
+                }
+            });
+
+            xhr.addEventListener("error", () => {
+                reject(new Error("ネットワークエラーが発生しました"));
+            });
+
+            xhr.addEventListener("abort", () => {
+                reject(new Error("アップロードがキャンセルされました"));
+            });
+
+            xhr.open("PUT", this.endpoints.uploadPackage(repo));
+
+            if (username && password) {
+                const credentials = btoa(`${username}:${password}`);
+                xhr.setRequestHeader("Authorization", `Basic ${credentials}`);
+            }
+
+            xhr.send(formData);
+        });
+    }
+
     readonly lumineEnv: LumineEnv;
     readonly endpoints: APIEndpoints;
 

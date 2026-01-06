@@ -2,7 +2,6 @@
 Kamisato
 /out
 /dist
-.claude
 node_modules
 **/kv-db/
 .env

@@ -1,23 +1,19 @@
 "use client";
+import { Package2, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useAPIClient } from "@/components/lumine-provider";
 import { PackageTable } from "@/components/package-table";
 import { RepoArchSelector } from "@/components/repo-arch-selector";
+import { useRepoArch } from "@/hooks/use-repo-arch";
 import { useToast } from "@/hooks/use-toast";
 import type { PackageInfo, PacmanPkgsResponse } from "@/lib/types";
 
 export default function Home() {
-    const [selectedRepo, setSelectedRepo] = useState<string | null>(null);
-    const [selectedArch, setSelectedArch] = useState<string | null>(null);
+    const { selectedRepo, selectedArch } = useRepoArch();
     const [packages, setPackages] = useState<PackageInfo[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const { toast } = useToast();
-
-    const handleRepoArchSelect = (repo: string, arch: string) => {
-        setSelectedRepo(repo);
-        setSelectedArch(arch);
-    };
 
     const api = useAPIClient();
 
@@ -71,27 +67,96 @@ export default function Home() {
     ]);
 
     return (
-        <div className="container mx-auto py-4 sm:py-8 px-4 sm:px-6 flex flex-col">
-            <div className="mt-4 mb-6 sm:mb-8">
-                <RepoArchSelector onSelect={handleRepoArchSelect} />
-            </div>
+        <div className="flex flex-col min-h-[calc(100vh-5rem)]">
+            <section className="bg-muted/30 border-b border-border">
+                <div className="container mx-auto px-4 sm:px-6 py-16 md:py-24">
+                    <div className="max-w-3xl mx-auto text-center space-y-6">
+                        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary/10 border border-primary/20">
+                            <Sparkles className="h-4 w-4 text-primary" />
+                            <span className="text-sm font-medium text-primary">
+                                Arch Linux Repository
+                            </span>
+                        </div>
 
-            {loading && <div className="p-8 text-center">読み込み中...</div>}
-            {error && (
-                <div className="p-8 text-center text-red-500">{error}</div>
-            )}
-            {!loading && !error && selectedRepo && selectedArch && (
-                <PackageTable
-                    packages={packages}
-                    repo={selectedRepo}
-                    arch={selectedArch}
-                />
-            )}
-            {!loading && !error && (!selectedRepo || !selectedArch) && (
-                <div className="text-center text-muted-foreground py-12">
-                    上部のリポジトリ・アーキテクチャを選択してください。
+                        <h1 className="text-4xl md:text-6xl font-bold tracking-tight text-primary">
+                            Lumine Repository
+                        </h1>
+
+                        <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
+                            Ayakaバックエンドを利用した
+                            <br className="hidden sm:block" />
+                            Arch Linux向けパッケージリポジトリ
+                        </p>
+
+                        <div className="flex flex-wrap items-center justify-center gap-3 pt-4">
+                            <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-card border border-border">
+                                <div className="h-2 w-2 rounded-full bg-primary" />
+                                <span className="text-sm text-muted-foreground">
+                                    Ayaka CLI
+                                </span>
+                            </div>
+                            <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-card border border-border">
+                                <div className="h-2 w-2 rounded-full bg-secondary" />
+                                <span className="text-sm text-muted-foreground">
+                                    Ayato Backend
+                                </span>
+                            </div>
+                            <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-card border border-border">
+                                <div className="h-2 w-2 rounded-full bg-accent" />
+                                <span className="text-sm text-muted-foreground">
+                                    Lumine Web
+                                </span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-            )}
+            </section>
+
+            <div className="container mx-auto px-4 sm:px-6 py-8 flex-1">
+                <div className="mb-8">
+                    <RepoArchSelector />
+                </div>
+
+                {loading && (
+                    <div className="flex flex-col items-center justify-center py-20 space-y-4">
+                        <Package2 className="h-12 w-12 text-primary animate-pulse" />
+                        <p className="text-muted-foreground">
+                            パッケージを読み込み中...
+                        </p>
+                    </div>
+                )}
+
+                {error && (
+                    <div className="flex flex-col items-center justify-center py-20 space-y-4">
+                        <div className="p-4 rounded-xl bg-destructive/10 border border-destructive/20">
+                            <p className="text-destructive font-medium">
+                                エラー: {error}
+                            </p>
+                        </div>
+                    </div>
+                )}
+
+                {!loading && !error && selectedRepo && selectedArch && (
+                    <PackageTable
+                        packages={packages}
+                        repo={selectedRepo}
+                        arch={selectedArch}
+                    />
+                )}
+
+                {!loading && !error && (!selectedRepo || !selectedArch) && (
+                    <div className="flex flex-col items-center justify-center py-20 space-y-4">
+                        <div className="p-6 rounded-2xl bg-card border border-border shadow-sm">
+                            <Package2 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                            <p className="text-center text-muted-foreground">
+                                リポジトリとアーキテクチャを選択して
+                                <br />
+                                パッケージを表示
+                            </p>
+                        </div>
+                    </div>
+                )}
+            </div>
         </div>
     );
 }

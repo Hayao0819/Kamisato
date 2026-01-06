@@ -32,7 +32,7 @@ func (t *Target) BuildContext(ctx context.Context, dir string) error {
 	}
 
 	archBuildArgs := []string{t.ArchBuild}
-	makePkgArgs := []string{"--syncdeps", "--noconfirm", "--log", "--holdver", "OPTIONS=-debug"}
+	makePkgArgs := []string{"--syncdeps", "--noconfirm", "--log", "--holdver"}
 	makeChrootPkgArgs := []string{"-c"}
 	for _, pkg := range t.InstallPkgs {
 		makeChrootPkgArgs = append(makeChrootPkgArgs, "-I", pkg)

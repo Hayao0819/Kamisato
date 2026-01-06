@@ -92,6 +92,15 @@ func CopyDir(src, dst string) error {
 	})
 }
 
+// CopyFile copies a single file from src to dst, preserving the source file's permissions.
+func CopyFile(srcFile, dstFile string) error {
+	srcInfo, err := os.Stat(srcFile)
+	if err != nil {
+		return fmt.Errorf("stat source file: %w", err)
+	}
+	return copyFile(srcFile, dstFile, srcInfo.Mode())
+}
+
 // copyFile copies a single file.
 func copyFile(srcFile, dstFile string, mode fs.FileMode) error {
 	src, err := os.Open(srcFile)
@@ -108,6 +117,26 @@ func copyFile(srcFile, dstFile string, mode fs.FileMode) error {
 
 	_, err = io.Copy(dst, src)
 	return err
+}
+
+// ChmodRecursive recursively sets permissions for all files and directories.
+// dirMode is applied to directories, fileMode to regular files.
+func ChmodRecursive(root string, dirMode, fileMode fs.FileMode) error {
+	return filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		info, err := d.Info()
+		if err != nil {
+			return err
+		}
+
+		if info.IsDir() {
+			return os.Chmod(path, dirMode)
+		}
+		return os.Chmod(path, fileMode)
+	})
 }
 
 func MoveFile(org string, dst string) error {
