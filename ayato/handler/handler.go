@@ -28,6 +28,7 @@ type IHandler interface {
 	RepoFileHandler(ctx *gin.Context)
 	RepoFileListHandler(ctx *gin.Context)
 	BlinkyRemoveHandler(ctx *gin.Context)
+	BuildPackageHandler(ctx *gin.Context)
 }
 
 // New is the constructor for Handler.

@@ -36,6 +36,7 @@ func SetRoute(e *gin.Engine, h handler.IHandler, m *middleware.Middleware) error
 			auth.Use(m.BasicAuth)
 			auth.PUT("/:repo/package", h.BlinkyUploadHandler)          // Blinky compatible
 			auth.DELETE("/:repo/package/:name", h.BlinkyRemoveHandler) // Blinky compatible
+			auth.POST("/:repo/build", h.BuildPackageHandler)           // Server-side build
 		}
 	}
 	{

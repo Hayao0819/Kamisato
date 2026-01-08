@@ -4,3 +4,4 @@ Kamisato
 /dist
 .claude
 node_modules
+**/kv-db/

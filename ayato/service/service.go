@@ -33,6 +33,8 @@ type IFileService interface {
 	RemovePkg(rname string, arch string, pkgname string) error
 	// SignedURLでアップロードします
 	SignedURL(repo string, arch string, name string) (string, error)
+	// パッケージをビルドします
+	BuildPackage(repo string, buildReq *domain.BuildRequest) error
 }
 
 // IPacmanRepoService はパッケージリポジトリ操作のインターフェースです。
