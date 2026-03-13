@@ -14,6 +14,13 @@ type AyatoConfig struct {
 	Repos       []BinRepoConfig `koanf:"repos"`
 	Auth        AuthConfig      `koanf:"auth"`
 	Store       StoreConfig     `koanf:"store"`
+	Build       BuildConfig     `koanf:"build"`
+}
+
+type BuildConfig struct {
+	Image     string `koanf:"image"`      // Docker image (default: "archlinux:latest")
+	Timeout   int    `koanf:"timeout"`    // Build timeout in minutes (default: 30)
+	GnupgHome string `koanf:"gnupg_home"` // GPG home directory for signing
 }
 
 type AuthConfig struct {

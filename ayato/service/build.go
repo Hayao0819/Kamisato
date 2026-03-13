@@ -11,15 +11,36 @@ import (
 
 	"github.com/Hayao0819/Kamisato/ayato/domain"
 	"github.com/Hayao0819/Kamisato/ayato/stream"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/gpg"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/client"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
-// BuildPackage builds a package using ayaka in a Docker container
+// archToPlatform maps Arch Linux architecture names to Docker platform specs.
+func archToPlatform(arch string) (*ocispec.Platform, error) {
+	switch arch {
+	case "x86_64":
+		return &ocispec.Platform{OS: "linux", Architecture: "amd64"}, nil
+	case "aarch64":
+		return &ocispec.Platform{OS: "linux", Architecture: "arm64"}, nil
+	case "armv7h":
+		return &ocispec.Platform{OS: "linux", Architecture: "arm", Variant: "v7"}, nil
+	default:
+		return nil, fmt.Errorf("unsupported architecture: %s", arch)
+	}
+}
+
+// BuildPackage builds a package using makepkg in a Docker container
 func (s *Service) BuildPackage(repo string, buildReq *domain.BuildRequest) error {
 	slog.Info("starting package build", "repo", repo, "arch", buildReq.Arch)
+
+	// Validate GPG configuration
+	if buildReq.GPGKey != "" && s.cfg.Build.GnupgHome == "" {
+		return fmt.Errorf("gpg key specified but gnupg_home is not configured")
+	}
 
 	// Create temporary directory for build
 	tmpDir, err := os.MkdirTemp("", "ayaka-build-*")
@@ -69,6 +90,13 @@ func (s *Service) BuildPackage(repo string, buildReq *domain.BuildRequest) error
 		return fmt.Errorf("docker build failed: %w", err)
 	}
 
+	// Sign built packages if GPG key is specified
+	if buildReq.GPGKey != "" {
+		if err := s.signBuiltPackages(outDir, buildReq.GPGKey); err != nil {
+			return fmt.Errorf("failed to sign packages: %w", err)
+		}
+	}
+
 	// Upload built packages to repository
 	if err := s.uploadBuiltPackages(repo, outDir); err != nil {
 		return fmt.Errorf("failed to upload built packages: %w", err)
@@ -78,7 +106,7 @@ func (s *Service) BuildPackage(repo string, buildReq *domain.BuildRequest) error
 	return nil
 }
 
-// buildInDocker executes ayaka build inside a Docker container
+// buildInDocker executes makepkg inside a Docker container
 func (s *Service) buildInDocker(srcDir, outDir string, buildReq *domain.BuildRequest) error {
 	ctx := context.Background()
 
@@ -89,26 +117,46 @@ func (s *Service) buildInDocker(srcDir, outDir string, buildReq *domain.BuildReq
 	}
 	defer cli.Close()
 
-	// Pull ayaka image
-	imageName := "ghcr.io/hayao0819/kamisato:latest"
-	slog.Info("pulling docker image", "image", imageName)
-	reader, err := cli.ImagePull(ctx, imageName, image.PullOptions{})
+	// Resolve image name from config
+	imageName := s.cfg.Build.Image
+	if imageName == "" {
+		imageName = "archlinux:latest"
+	}
+
+	// Resolve platform from arch
+	platform, err := archToPlatform(buildReq.Arch)
+	if err != nil {
+		return fmt.Errorf("failed to resolve platform: %w", err)
+	}
+	platformStr := platform.OS + "/" + platform.Architecture
+	if platform.Variant != "" {
+		platformStr += "/" + platform.Variant
+	}
+
+	slog.Info("pulling docker image", "image", imageName, "platform", platformStr)
+	reader, err := cli.ImagePull(ctx, imageName, image.PullOptions{Platform: platformStr})
 	if err != nil {
 		return fmt.Errorf("failed to pull image: %w", err)
 	}
 	defer reader.Close()
 	io.Copy(io.Discard, reader) // Wait for pull to complete
 
-	// Prepare build command using makepkg
-	// We use makepkg directly as it's more flexible for single PKGBUILD builds
-	// Note: makepkg cannot run as root, so we need to create a build user
+	// Generate makepkg.conf with correct CARCH
+	makepkgConf := fmt.Sprintf("CARCH=\"%s\"\nCHOST=\"%s-pc-linux-gnu\"\n", buildReq.Arch, buildReq.Arch)
+	makepkgConfPath := filepath.Join(srcDir, "makepkg.build.conf")
+	if err := os.WriteFile(makepkgConfPath, []byte(makepkgConf), 0644); err != nil {
+		return fmt.Errorf("failed to write makepkg.conf: %w", err)
+	}
+
+	// Prepare build command
 	buildCmd := []string{
 		"sh", "-c",
 		`set -e
-		useradd -m builduser || true
-		chown -R builduser:builduser /build
-		su builduser -c "cd /build/src && makepkg --syncdeps --noconfirm --clean && mv *.pkg.tar.* /build/out/"
-		`,
+pacman -Syu --noconfirm base-devel
+useradd -m builduser || true
+chown -R builduser:builduser /build
+su builduser -c "cd /build/src && makepkg --config /build/src/makepkg.build.conf --syncdeps --noconfirm --clean && mv *.pkg.tar.* /build/out/"
+`,
 	}
 
 	// Create container config
@@ -117,7 +165,7 @@ func (s *Service) buildInDocker(srcDir, outDir string, buildReq *domain.BuildReq
 		Cmd:        buildCmd,
 		WorkingDir: "/build",
 		Tty:        false,
-		User:       "root", // Need root to create builduser
+		User:       "root",
 	}
 
 	// Create host config with volume mounts
@@ -136,14 +184,13 @@ func (s *Service) buildInDocker(srcDir, outDir string, buildReq *domain.BuildReq
 		},
 	}
 
-	// Create container
-	resp, err := cli.ContainerCreate(ctx, containerConfig, hostConfig, nil, nil, "")
+	// Create container with platform spec
+	resp, err := cli.ContainerCreate(ctx, containerConfig, hostConfig, nil, platform, "")
 	if err != nil {
 		return fmt.Errorf("failed to create container: %w", err)
 	}
 	containerID := resp.ID
 	defer func() {
-		// Clean up container
 		timeout := 10
 		cli.ContainerStop(ctx, containerID, container.StopOptions{Timeout: &timeout})
 		cli.ContainerRemove(ctx, containerID, container.RemoveOptions{Force: true})
@@ -154,6 +201,12 @@ func (s *Service) buildInDocker(srcDir, outDir string, buildReq *domain.BuildReq
 		return fmt.Errorf("failed to start container: %w", err)
 	}
 
+	// Resolve timeout
+	buildTimeout := time.Duration(s.cfg.Build.Timeout) * time.Minute
+	if buildTimeout <= 0 {
+		buildTimeout = 30 * time.Minute
+	}
+
 	// Wait for container to finish
 	statusCh, errCh := cli.ContainerWait(ctx, containerID, container.WaitConditionNotRunning)
 	select {
@@ -162,7 +215,6 @@ func (s *Service) buildInDocker(srcDir, outDir string, buildReq *domain.BuildReq
 			return fmt.Errorf("error waiting for container: %w", err)
 		}
 	case status := <-statusCh:
-		// Always get container logs for debugging
 		logs, logsErr := cli.ContainerLogs(ctx, containerID, container.LogsOptions{
 			ShowStdout: true,
 			ShowStderr: true,
@@ -180,8 +232,34 @@ func (s *Service) buildInDocker(srcDir, outDir string, buildReq *domain.BuildReq
 		} else if status.StatusCode != 0 {
 			return fmt.Errorf("build failed with exit code %d", status.StatusCode)
 		}
-	case <-time.After(30 * time.Minute): // Timeout after 30 minutes
-		return fmt.Errorf("build timeout")
+	case <-time.After(buildTimeout):
+		return fmt.Errorf("build timeout after %v", buildTimeout)
+	}
+
+	return nil
+}
+
+// signBuiltPackages signs all built package files using GPG
+func (s *Service) signBuiltPackages(outDir, gpgKey string) error {
+	entries, err := os.ReadDir(outDir)
+	if err != nil {
+		return fmt.Errorf("failed to read output directory: %w", err)
+	}
+
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		name := entry.Name()
+		if !isPackageFile(name) || filepath.Ext(name) == ".sig" {
+			continue
+		}
+
+		pkgPath := filepath.Join(outDir, name)
+		slog.Info("signing package", "file", name, "key", gpgKey)
+		if err := gpg.SignFile(gpgKey, s.cfg.Build.GnupgHome, pkgPath); err != nil {
+			return fmt.Errorf("failed to sign %s: %w", name, err)
+		}
 	}
 
 	return nil
@@ -201,12 +279,11 @@ func (s *Service) uploadBuiltPackages(repo, outDir string) error {
 		}
 
 		name := entry.Name()
-		// Check if it's a package file
 		if !isPackageFile(name) {
 			continue
 		}
 
-		// Skip signature files for now, we'll handle them separately
+		// Skip signature files, they are handled alongside their package
 		if filepath.Ext(name) == ".sig" {
 			continue
 		}
@@ -219,7 +296,6 @@ func (s *Service) uploadBuiltPackages(repo, outDir string) error {
 			continue
 		}
 
-		// Create FileStream for the package
 		pkgStream := stream.NewFileStream(name, "application/octet-stream", pkgFile)
 
 		// Check for signature file
@@ -232,7 +308,6 @@ func (s *Service) uploadBuiltPackages(repo, outDir string) error {
 			}
 		}
 
-		// Upload using existing UploadFile service
 		files := &domain.UploadFiles{
 			PkgFile: pkgStream,
 			SigFile: sigStream,

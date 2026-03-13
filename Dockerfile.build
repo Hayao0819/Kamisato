@@ -1,0 +1,9 @@
+FROM archlinux:latest
+
+RUN pacman -Syu --noconfirm base-devel git && \
+    pacman -Scc --noconfirm
+
+RUN useradd -m builduser && \
+    echo "builduser ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+
+WORKDIR /build
