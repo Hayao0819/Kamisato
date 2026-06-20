@@ -8,13 +8,13 @@ import (
 	"path/filepath"
 
 	"github.com/Hayao0819/Kamisato/internal/conf"
-	pkg "github.com/Hayao0819/Kamisato/pkg/pacman/package"
+	pkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
 	"github.com/Hayao0819/nahi/futils"
 )
 
 type SourceRepo struct {
 	Config *conf.SrcRepoConfig
-	Pkgs   []*pkg.Package
+	Pkgs   []*pkg.SourcePackage
 }
 
 func GetSrcDirs(repodir string) ([]string, error) {
@@ -64,7 +64,7 @@ func GetSrcRepo(repodir string) (*SourceRepo, error) {
 
 	for _, dir := range dirs {
 		// slog.Info("get pkg from src", "dir", dir)
-		p, err := pkg.PkgFromSrc(dir)
+		p, err := pkg.OpenSourcePackage(dir)
 		if err != nil {
 			slog.Error("get pkg from src failed", "dir", dir, "err", err)
 			continue

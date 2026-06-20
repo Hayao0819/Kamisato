@@ -3,7 +3,6 @@ package raiou
 import (
 	"bufio"
 	"io"
-	"os"
 	"strings"
 )
 
@@ -34,7 +33,6 @@ func (ft FileType) String() string {
 // DetectType は、io.Readerからファイルのタイプを検出します。
 func DetectType(r io.Reader) (FileType, error) {
 	scanner := bufio.NewScanner(r)
-
 
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -70,22 +68,4 @@ func DetectType(r io.Reader) (FileType, error) {
 
 	return TypePKGINFO, nil // 上記の条件に合致しない場合はPKGINFOとみなす
 
-}
-
-// DetectTypeFile は、指定されたパスのファイルのタイプを検出します。
-// Deprecated: DetectTypeを使用してください。
-func DetectTypeFile(path string) (FileType, error) {
-	file, err := os.Open(path)
-	if err != nil {
-		return TypeUnknown, err
-	}
-	defer file.Close()
-
-	return DetectType(file)
-}
-
-// DetectTypeString は、与えられた文字列のタイプを検出します。
-// Deprecated: DetectTypeを使用してください。
-func DetectTypeString(s string) (FileType, error) {
-	return DetectType(strings.NewReader(s))
 }

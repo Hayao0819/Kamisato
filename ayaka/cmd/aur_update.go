@@ -143,5 +143,5 @@ func gitRootDir(dir string) (string, error) {
 }
 
 func init() {
-	subCmds = append(subCmds, aurUpdateCmd())
+	subCmds.Add(aurUpdateCmd())
 }

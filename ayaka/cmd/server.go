@@ -25,5 +25,5 @@ func serverCmd() *cobra.Command {
 }
 
 func init() {
-	subCmds = append(subCmds, serverCmd())
+	subCmds.Add(serverCmd())
 }

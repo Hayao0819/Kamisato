@@ -7,7 +7,7 @@ import (
 	"path"
 
 	"github.com/Hayao0819/Kamisato/ayato/domain"
-	pkg "github.com/Hayao0819/Kamisato/pkg/pacman/package"
+	pkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
 )
 
 // UploadFile はパッケージファイルをアップロードし、DB・メタ情報を更新します。
@@ -24,7 +24,7 @@ func (s *Service) UploadFile(repo string, files *domain.UploadFiles) error {
 	pkgFileStream := files.PkgFile
 	// sigFileStream := files.SigFile
 	// パッケージファイル名取得
-	p, err := pkg.PkgFromBin(pkgFileStream.FileName(), pkgFileStream)
+	p, err := pkg.ReadBinaryPackage(pkgFileStream.FileName(), pkgFileStream)
 	if err != nil {
 		return fmt.Errorf("get pkg from bin err: %s", err.Error())
 	}
@@ -32,10 +32,7 @@ func (s *Service) UploadFile(repo string, files *domain.UploadFiles) error {
 		return fmt.Errorf("seek pkg file err: %s", err.Error())
 	}
 	// パッケージ情報取得
-	pi, err := p.PKGINFO()
-	if err != nil {
-		return fmt.Errorf("get pkginfo err: %s", err.Error())
-	}
+	pi := p.PKGINFO()
 	slog.Info("get pkg from bin", "pkgname", pi.PkgName, "pkgver", pi.PkgVer)
 	// ファイル保存
 	if err := s.pkgBinaryRepo.StoreFile(repo, pi.Arch, pkgFileStream); err != nil {
@@ -49,7 +46,7 @@ func (s *Service) UploadFile(repo string, files *domain.UploadFiles) error {
 		return fmt.Errorf("repo-add err: %s", err.Error())
 	}
 	// メタ情報保存
-	if err := s.pkgNameRepo.StorePkgFileName(pi.PkgName, path.Base(pkgFileStream.FileName())); err != nil {
+	if err := s.pkgNameRepo.StorePackageFile(pi.PkgName, path.Base(pkgFileStream.FileName())); err != nil {
 		slog.Debug("store pkg file name success", "pkgname", pi.PkgName, "filename", path.Base(pkgFileStream.FileName()))
 		return fmt.Errorf("store pkg file name err: %s", err.Error())
 	}

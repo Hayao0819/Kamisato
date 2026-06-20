@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/Hayao0819/Kamisato/pkg/pacman/remote"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
 	"github.com/Hayao0819/Kamisato/pkg/raiou"
 	"github.com/Hayao0819/nahi/flist"
 	"github.com/Hayao0819/nahi/futils"
@@ -21,7 +21,7 @@ func TestSyncParseAllDescFiles(t *testing.T) {
 
 	for _, entry := range *entries {
 		name := futils.BaseWithoutExt(entry)
-		rr, err := remote.RepoFromDBFile(name, entry)
+		rr, err := repo.RepoFromDBFile(name, entry)
 		if err != nil {
 			t.Errorf("failed to parse %s: %v", entry, err)
 			continue
@@ -32,7 +32,7 @@ func TestSyncParseAllDescFiles(t *testing.T) {
 		// 	t.Errorf("unknown keys found in %s: %v", descPath, keysOf(desc.ExtraFields))
 		// }
 		for _, pkg := range rr.Pkgs {
-			pi := pkg.MustPKGINFO()
+			pi := pkg.PKGINFO()
 			if pi == nil {
 				t.Errorf("failed to get PKGINFO")
 				continue

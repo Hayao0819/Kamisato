@@ -14,7 +14,7 @@ func (s *Service) RemovePkg(rname string, arch string, pkgname string) error {
 		return utils.WrapErr(err, "validate repo name failed")
 	}
 	// パッケージファイル名取得
-	filename, err := s.pkgNameRepo.GetPkgFileName(pkgname)
+	filename, err := s.pkgNameRepo.PackageFile(pkgname)
 	if err != nil {
 		return fmt.Errorf("get pkg file err: %s", err.Error())
 	}
@@ -25,7 +25,7 @@ func (s *Service) RemovePkg(rname string, arch string, pkgname string) error {
 		return fmt.Errorf("delete pkg file err: %s", err.Error())
 	}
 	// メタ情報削除
-	if err := s.pkgNameRepo.DeletePkgFileName(pkgname); err != nil {
+	if err := s.pkgNameRepo.DeletePackageFileEntry(pkgname); err != nil {
 		slog.Debug("delete pkg file name success", "pkgname", pkgname)
 		return fmt.Errorf("remove pkg file name err: %s", err.Error())
 	}

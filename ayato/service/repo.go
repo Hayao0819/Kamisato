@@ -54,7 +54,7 @@ func (s *Service) Pkgs(repo, arch string) (*domain.PacmanPkgs, error) {
 
 	infos := make([]raiou.PKGINFO, 0, len(rr.Pkgs))
 	for _, pkg := range rr.Pkgs {
-		pi := pkg.MustPKGINFO()
+		pi := pkg.PKGINFO()
 		infos = append(infos, *pi)
 	}
 
@@ -75,8 +75,8 @@ func (s *Service) PkgDetail(repo, arch, pkgbase string) (*raiou.PKGINFO, error) 
 	}
 
 	for _, pkg := range rr.Pkgs {
-		if pkg.MustPKGINFO().PkgBase == pkgbase {
-			pi := pkg.MustPKGINFO()
+		if pkg.PKGINFO().PkgBase == pkgbase {
+			pi := pkg.PKGINFO()
 			return pi, nil
 		}
 	}

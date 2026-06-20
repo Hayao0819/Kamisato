@@ -14,15 +14,15 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
-func setupBuildTest(t *testing.T) (*gomock.Controller, *mocks.MockIService, *gin.Engine) {
+func setupBuildTest(t *testing.T) (*gomock.Controller, *mocks.MockServicer, *gin.Engine) {
 	t.Helper()
 	ctrl := gomock.NewController(t)
-	mockSvc := mocks.NewMockIService(ctrl)
+	mockSvc := mocks.NewMockServicer(ctrl)
 	h := New(mockSvc, nil)
 
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	r.POST("/api/build/:repo", h.BuildPackageHandler)
+	r.POST("/api/unstable/:repo/build", h.BuildPackageHandler)
 	return ctrl, mockSvc, r
 }
 
@@ -65,7 +65,7 @@ func TestBuildPackageHandler_Success(t *testing.T) {
 
 	body, contentType := createBuildForm(t, "pkgname=test\npkgver=1.0", "aarch64", "")
 
-	req := httptest.NewRequest(http.MethodPost, "/api/build/myrepo", body)
+	req := httptest.NewRequest(http.MethodPost, "/api/unstable/myrepo/build", body)
 	req.Header.Set("Content-Type", contentType)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -90,7 +90,7 @@ func TestBuildPackageHandler_DefaultArch(t *testing.T) {
 
 	body, contentType := createBuildForm(t, "pkgname=test\npkgver=1.0", "", "")
 
-	req := httptest.NewRequest(http.MethodPost, "/api/build/myrepo", body)
+	req := httptest.NewRequest(http.MethodPost, "/api/unstable/myrepo/build", body)
 	req.Header.Set("Content-Type", contentType)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -109,7 +109,7 @@ func TestBuildPackageHandler_NoPKGBUILD(t *testing.T) {
 	writer.WriteField("arch", "x86_64")
 	writer.Close()
 
-	req := httptest.NewRequest(http.MethodPost, "/api/build/myrepo", body)
+	req := httptest.NewRequest(http.MethodPost, "/api/unstable/myrepo/build", body)
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -124,15 +124,16 @@ func TestBuildPackageHandler_NoRepoName(t *testing.T) {
 	defer ctrl.Finish()
 
 	// Create a router without :repo param to simulate empty repo
-	mockSvc := mocks.NewMockIService(ctrl)
+	mockSvc := mocks.NewMockServicer(ctrl)
 	h := New(mockSvc, nil)
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	r.POST("/api/build/", h.BuildPackageHandler)
+	// :repo パラメータの無いルートに登録し、repo 名が空のケースを再現する
+	r.POST("/api/unstable/build", h.BuildPackageHandler)
 
 	body, contentType := createBuildForm(t, "pkgname=test", "x86_64", "")
 
-	req := httptest.NewRequest(http.MethodPost, "/api/build/", body)
+	req := httptest.NewRequest(http.MethodPost, "/api/unstable/build", body)
 	req.Header.Set("Content-Type", contentType)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
@@ -152,7 +153,7 @@ func TestBuildPackageHandler_BuildError(t *testing.T) {
 
 	body, contentType := createBuildForm(t, "pkgname=test\npkgver=1.0", "x86_64", "")
 
-	req := httptest.NewRequest(http.MethodPost, "/api/build/myrepo", body)
+	req := httptest.NewRequest(http.MethodPost, "/api/unstable/myrepo/build", body)
 	req.Header.Set("Content-Type", contentType)
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)

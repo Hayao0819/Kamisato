@@ -49,5 +49,5 @@ func updateSrcinfoCmd() *cobra.Command {
 }
 
 func init() {
-	subCmds = append(subCmds, updateSrcinfoCmd())
+	subCmds.Add(updateSrcinfoCmd())
 }

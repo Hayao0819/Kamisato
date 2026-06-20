@@ -119,5 +119,5 @@ func initCmd() *cobra.Command {
 }
 
 func init() {
-	subCmds = append(subCmds, initCmd())
+	subCmds.Add(initCmd())
 }

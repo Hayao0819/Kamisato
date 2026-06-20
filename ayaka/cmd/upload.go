@@ -40,7 +40,7 @@ func uploadCmd() *cobra.Command {
 }
 
 func init() {
-	subCmds = append(subCmds, uploadCmd())
+	subCmds.Add(uploadCmd())
 }
 
 // Register the upload command as a subcommand

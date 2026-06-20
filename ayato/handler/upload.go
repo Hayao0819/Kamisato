@@ -8,7 +8,6 @@ import (
 
 	"github.com/Hayao0819/Kamisato/ayato/domain"
 	"github.com/Hayao0819/Kamisato/ayato/stream"
-	utils "github.com/Hayao0819/Kamisato/internal/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/samber/lo"
 )
@@ -39,7 +38,10 @@ func (h *Handler) BlinkyUploadHandler(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, domain.APIError{Message: fmt.Sprintf("parse form err: %s", err.Error())})
 		return
 	}
-	names := utils.MultipartFormNames(ctx.Request)
+	var names []string
+	if ctx.Request.MultipartForm != nil {
+		names = lo.Keys(ctx.Request.MultipartForm.File)
+	}
 	slog.Debug("BlinkyUploadHandler", "repo", repoName, "form names", names)
 	if !lo.Contains(names, "package") {
 		ctx.JSON(http.StatusBadRequest, domain.APIError{Message: "no package file found in the request"})

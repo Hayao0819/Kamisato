@@ -33,12 +33,12 @@ func TestIsPackageFile(t *testing.T) {
 
 func TestArchToPlatform(t *testing.T) {
 	tests := []struct {
-		name    string
-		arch    string
-		wantOS  string
+		name     string
+		arch     string
+		wantOS   string
 		wantArch string
 		wantVar  string
-		wantErr bool
+		wantErr  bool
 	}{
 		{"x86_64", "x86_64", "linux", "amd64", "", false},
 		{"aarch64", "aarch64", "linux", "arm64", "", false},

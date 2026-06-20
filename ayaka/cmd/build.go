@@ -8,9 +8,9 @@ import (
 
 	"github.com/Hayao0819/Kamisato/ayaka/gpg"
 	"github.com/Hayao0819/Kamisato/internal/utils"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/package/builder"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/remote"
-	pacman_utils "github.com/Hayao0819/Kamisato/pkg/pacman/utils"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/alpm"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/builder"
+	pacmanrepo "github.com/Hayao0819/Kamisato/pkg/pacman/repo"
 	"github.com/spf13/cobra"
 )
 
@@ -41,8 +41,7 @@ func buildCmd() *cobra.Command {
 			// sr.Pkgs から pkgbase と Names() を列挙
 			var cands []string
 			for _, p := range sr.Pkgs {
-				pi := p.MustPKGINFO()
-				cands = append(cands, pi.PkgBase)
+				cands = append(cands, p.Base())
 				cands = append(cands, p.Names()...)
 			}
 
@@ -104,7 +103,7 @@ func buildCmd() *cobra.Command {
 			}
 
 			// Create build target
-			pkgs, err := pacman_utils.GetCleanPkgBinary(srcrepo.Config.InstallPkgs.Names...)
+			pkgs, err := alpm.GetCleanPkgBinary(srcrepo.Config.InstallPkgs.Names...)
 			if err != nil {
 				return utils.WrapErr(err, "failed to get clean package binaries")
 			}
@@ -134,7 +133,7 @@ func buildCmd() *cobra.Command {
 			// Diff build mode
 			if diffMode {
 				slog.Info("Starting diff build", "repo", srcdir, "outdir", outDir, "gpgkey", gpgkey, "server", server)
-				remoteRepo, err := remote.RepoFromURL(server, srcrepo.Config.Name)
+				remoteRepo, err := pacmanrepo.RepoFromURL(server, srcrepo.Config.Name)
 				if err != nil {
 					return utils.WrapErr(err, "failed to get remote repository")
 				}

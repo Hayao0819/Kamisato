@@ -8,10 +8,9 @@ import (
 	"path"
 
 	"github.com/Hayao0819/Kamisato/internal/utils"
-	pkg "github.com/Hayao0819/Kamisato/pkg/pacman/package"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/package/builder"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/remote"
-	pacman_utils "github.com/Hayao0819/Kamisato/pkg/pacman/utils"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/alpm"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/builder"
+	pkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
 	"github.com/samber/lo"
 )
 
@@ -22,20 +21,15 @@ func (r *SourceRepo) Build(t *builder.Target, dest string, pkgs ...string) error
 		return err
 	}
 
-	var targetPkgs []*pkg.Package
+	var targetPkgs []*pkg.SourcePackage
 	if len(pkgs) > 0 {
 		for _, name := range pkgs {
 			slog.Info("searching for package", "pkg", name)
 			for _, p := range r.Pkgs {
-				pi, err := p.SRCINFO()
-				if err != nil {
-					slog.Error("get pkginfo failed", "pkg", name, "err", err)
-					continue
-				}
-				slog.Info("found package", "pkg", pi.PkgBase, "pkgver", pi.PkgVer)
+				slog.Info("found package", "pkg", p.Base(), "pkgver", p.Version())
 
 				names := p.Names()
-				if name == pi.PkgBase || lo.Contains(names, name) {
+				if name == p.Base() || lo.Contains(names, name) {
 					targetPkgs = append(targetPkgs, p)
 					break
 				}
@@ -66,36 +60,34 @@ func (r *SourceRepo) Build(t *builder.Target, dest string, pkgs ...string) error
 	return nil
 }
 
-func (s *SourceRepo) DiffBuild(t *builder.Target, rr *remote.RemoteRepo, dest string, pkgs ...string) error {
+func (s *SourceRepo) DiffBuild(t *builder.Target, rr *RemoteRepo, dest string, pkgs ...string) error {
 
-	var shoubuild []*pkg.Package
-	for _, pkg := range s.Pkgs {
-		pi := pkg.MustPKGINFO()
-		rp := rr.PkgByPkgBase(pi.PkgBase)
+	var shoubuild []*pkg.SourcePackage
+	for _, sp := range s.Pkgs {
+		rp := rr.PkgByPkgBase(sp.Base())
 		if rp == nil {
-			slog.Warn("Package does not exist in remote repository", "pkgbase", pi.PkgBase)
-			shoubuild = append(shoubuild, pkg)
+			slog.Warn("Package does not exist in remote repository", "pkgbase", sp.Base())
+			shoubuild = append(shoubuild, sp)
 			continue
 		}
-		cmp, err := pacman_utils.VerCmp(pi.PkgVer, rp.MustPKGINFO().PkgVer)
+		cmp, err := alpm.VerCmp(sp.Version(), rp.Version())
 		if err != nil {
-			slog.Error("Failed to compare versions", "pkgbase", pi.PkgBase, "error", err)
+			slog.Error("Failed to compare versions", "pkgbase", sp.Base(), "error", err)
 			return utils.WrapErr(err, "failed to compare package versions")
 		}
 		if cmp > 0 {
-			slog.Debug("Local package is newer", "pkgbase", pi.PkgBase, "local", pi.PkgVer, "remote", rp.MustPKGINFO().PkgVer)
-			shoubuild = append(shoubuild, pkg)
+			slog.Debug("Local package is newer", "pkgbase", sp.Base(), "local", sp.Version(), "remote", rp.Version())
+			shoubuild = append(shoubuild, sp)
 		}
 	}
 
 	// Filter by specified package names, if any were provided.
 	if len(pkgs) > 0 {
-		var filtered []*pkg.Package
+		var filtered []*pkg.SourcePackage
 		for _, p := range shoubuild {
-			pi := p.MustPKGINFO()
 			names := p.Names()
 			for _, name := range pkgs {
-				if name == pi.PkgBase || lo.Contains(names, name) {
+				if name == p.Base() || lo.Contains(names, name) {
 					filtered = append(filtered, p)
 					break
 				}
@@ -110,10 +102,10 @@ func (s *SourceRepo) DiffBuild(t *builder.Target, rr *remote.RemoteRepo, dest st
 	}
 
 	outDir := path.Join(dest, s.Config.Name)
-	for _, pkg := range shoubuild {
-		pkgbase := pkg.MustPKGINFO().PkgBase
+	for _, p := range shoubuild {
+		pkgbase := p.Base()
 		slog.Debug("Starting package build", "pkgbase", pkgbase)
-		if err := pkg.Build(t, outDir); err != nil {
+		if err := p.Build(t, outDir); err != nil {
 			slog.Error("Package build failed", "pkgbase", pkgbase, "error", err)
 			return utils.WrapErr(err, "failed to build package")
 		}

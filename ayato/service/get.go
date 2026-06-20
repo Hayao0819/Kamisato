@@ -5,7 +5,7 @@ import (
 )
 
 // GetFile はリポジトリからファイルを取得します。
-func (s *Service) GetFile(repoName, archName, name string) (stream.IFileStream, error) {
+func (s *Service) GetFile(repoName, archName, name string) (stream.File, error) {
 	pkg, err := s.pkgBinaryRepo.FetchFile(repoName, archName, name)
 	if err != nil {
 		return nil, err

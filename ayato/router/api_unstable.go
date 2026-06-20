@@ -11,7 +11,7 @@ import (
 
 // SetRoute sets all API routes for the Ayato server.
 // Ayatoサーバーの全APIルートを設定します。
-func SetRoute(e *gin.Engine, h handler.IHandler, m *middleware.Middleware) error {
+func SetRoute(e *gin.Engine, h *handler.Handler, m *middleware.Middleware) error {
 	// テンプレート設定
 	if err := view.Set(e); err != nil {
 		return utils.WrapErr(err, "テンプレート設定に失敗")

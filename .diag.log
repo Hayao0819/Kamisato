@@ -1,0 +1,20 @@
+ファイルシス   サイズ  使用  残り 使用% マウント位置
+dev               16G     0   16G    0% /dev
+run               16G  2.6M   16G    1% /run
+efivarfs         438K  237K  197K   55% /sys/firmware/efi/efivars
+/dev/nvme0n1p6   768G  545G  217G   72% /
+tmpfs             16G  1.1G   15G    7% /dev/shm
+tmpfs             16G   13G  3.1G   80% /tmp
+/dev/nvme0n1p5   2.0G   88M  2.0G    5% /boot
+/dev/nvme0n1p4   1.4T  709G  641G   53% /mnt/Windows11
+/dev/nvme0n1p8   254G  158G   92G   64% /mnt/NixOS
+/dev/nvme0n1p8   254G  158G   92G   64% /mnt/NixOS/home
+tmpfs            3.1G  340K  3.1G    1% /run/user/1000
+none             1.0M     0  1.0M    0% /run/credentials/getty@tty4.service
+none             1.0M     0  1.0M    0% /run/credentials/systemd-journald.service
+ファイルシス   サイズ  使用  残り 使用% マウント位置
+tmpfs             16G   13G  3.1G   80% /tmp
+/dev/nvme0n1p6   768G  545G  217G   72% /
+/dev/nvme0n1p6   768G  545G  217G   72% /
+---quota---
+(eval):1: command not found: quota
