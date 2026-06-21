@@ -13,8 +13,8 @@ func (s *Service) RemovePkg(rname string, arch string, pkgname string) error {
 		slog.Error("validate repo name failed", "repo", rname, "error", err.Error())
 		return utils.WrapErr(err, "validate repo name failed")
 	}
-	// パッケージファイル名取得
-	filename, err := s.pkgNameRepo.PackageFile(pkgname)
+	// パッケージファイル名取得（NameStore ミス時は .db からフォールバック解決）
+	filename, err := s.resolvePackageFile(rname, arch, pkgname)
 	if err != nil {
 		return fmt.Errorf("get pkg file err: %s", err.Error())
 	}
