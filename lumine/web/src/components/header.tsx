@@ -48,6 +48,15 @@ export function Header() {
         };
     }, [api.endpoints.executable]);
 
+    const statusLabel =
+        status === "success"
+            ? "オンライン"
+            : status === "error"
+              ? "オフライン"
+              : status === "unset"
+                ? "未設定"
+                : "確認中";
+
     return (
         <header className="w-full sticky top-0 z-50 arch-titlebar shadow-sm">
             <div className="container mx-auto">
@@ -112,10 +121,8 @@ export function Header() {
                                 className="gap-1.5 rounded-sm text-arch-bar-foreground/85 hover:bg-white/10 hover:text-primary"
                             >
                                 <ServerIcon className="h-4 w-4" />
-                                <span className="hidden sm:inline">
-                                    サーバー
-                                </span>
                                 <span
+                                    title={statusLabel}
                                     className={
                                         status === "success"
                                             ? "h-2 w-2 rounded-full bg-emerald-500 animate-pulse"
@@ -126,6 +133,9 @@ export function Header() {
                                                 : "h-2 w-2 rounded-full bg-gray-400 animate-pulse"
                                     }
                                 />
+                                <span className="hidden sm:inline">
+                                    {statusLabel}
+                                </span>
                             </Button>
                         </Link>
 
