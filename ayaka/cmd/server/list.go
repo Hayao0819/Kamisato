@@ -10,7 +10,6 @@ import (
 
 	blinky_utils "github.com/BrenekH/blinky/cmd/blinky/util"
 	"github.com/Hayao0819/Kamisato/internal/utils"
-	"github.com/atotto/clipboard"
 	"github.com/spf13/cobra"
 )
 
@@ -19,7 +18,6 @@ func ListCmd() *cobra.Command {
 		showSecret bool
 		showRaw    bool
 		format     string
-		copyField  string
 		search     string
 	)
 
@@ -88,21 +86,6 @@ func ListCmd() *cobra.Command {
 					}
 					fmt.Println(line.String())
 				}
-				if copyField != "" {
-					var val string
-					switch copyField {
-					case "username":
-						val = server.Username
-					case "password":
-						val = server.Password
-					case "url":
-						val = name
-					}
-					if val != "" {
-						_ = clipboard.WriteAll(val)
-						fmt.Printf("Copied %s to clipboard\n", copyField)
-					}
-				}
 			}
 			return nil
 		},
@@ -111,7 +94,6 @@ func ListCmd() *cobra.Command {
 	cmd.Flags().BoolVarP(&showSecret, "show-secret", "s", false, "show server password")
 	cmd.Flags().BoolVar(&showRaw, "raw", false, "show raw server config (json)")
 	cmd.Flags().StringVar(&format, "format", "", "output format (json)")
-	cmd.Flags().StringVar(&copyField, "copy", "", "copy field to clipboard (username|password|url)")
 	cmd.Flags().StringVar(&search, "search", "", "search server name (substring)")
 
 	return cmd
