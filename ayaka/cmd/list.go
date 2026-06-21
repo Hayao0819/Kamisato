@@ -17,6 +17,7 @@ import (
 // pkgRow is one line of `ayaka list` output. Its fields are the columns a
 // --format template can reference (e.g. {{.Package}}).
 type pkgRow struct {
+	Repo      string `json:"repo"`
 	Package   string `json:"package"`
 	Installed string `json:"installed"`
 	Local     string `json:"local"`
@@ -27,6 +28,7 @@ type pkgRow struct {
 // pkgHeader is rendered through the format template to produce the table header
 // row, the same way Docker derives headers from the format string.
 var pkgHeader = pkgRow{
+	Repo:      "REPO",
 	Package:   "PACKAGE",
 	Installed: "INSTALLED",
 	Local:     "LOCAL",
@@ -113,6 +115,7 @@ func buildPkgRows(repos []*repo.SourceRepo, format, server string) []pkgRow {
 
 		for _, p := range r.Pkgs {
 			row := pkgRow{
+				Repo:    r.Config.Name,
 				Package: p.Base(),
 				Local:   orDash(p.Version()),
 			}
