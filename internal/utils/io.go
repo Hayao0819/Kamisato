@@ -142,8 +142,8 @@ func MoveFile(org string, dst string) error {
 	}
 	defer orgfile.Close()
 
-	// Move the file to the directory
-	if dststat, err := os.Stat(dstabs); err == nil && dststat.IsDir() || path.Base(orgabs) == path.Base(dstabs) {
+	// If dst is an existing directory, move into it keeping the original name.
+	if dststat, err := os.Stat(dstabs); err == nil && dststat.IsDir() {
 		dstabs = path.Join(dstabs, path.Base(orgabs))
 	}
 
