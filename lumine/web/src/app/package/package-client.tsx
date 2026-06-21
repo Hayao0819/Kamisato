@@ -1,17 +1,15 @@
 "use client";
-import Link from "next/link";
+import { BugIcon, Download, ExternalLink } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import { BugReportDialog } from "@/components/bug-report-dialog";
 import { useAPIClient } from "@/components/lumine-provider";
+import { PageContainer } from "@/components/page-container";
+import { PageHeader } from "@/components/page-header";
+import { PkgDepSection } from "@/components/pkg-dep-section";
 import { Button } from "@/components/ui/button";
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableRow,
-} from "@/components/ui/table";
 import type { PackageInfo } from "@/lib/types";
+import { formatBuildDate, formatBytes } from "@/lib/utils";
 
 export default function ClientPackageDetailPage() {
     const searchParams = useSearchParams();
@@ -50,86 +48,195 @@ export default function ClientPackageDetailPage() {
         fetchDetail();
     }, [repo, arch, pkgbase, api.endpoints.executable, api.fetchPackageDetail]);
 
-    if (loading) return <div className="p-8 text-center">読み込み中...</div>;
-    if (error)
-        return <div className="p-8 text-center text-red-500">{error}</div>;
-    if (!pkg) return null;
+    const backToListParams = new URLSearchParams();
+    if (repo) backToListParams.set("repo", repo);
+    if (arch) backToListParams.set("arch", arch);
+    const backToListHref = `/packages?${backToListParams.toString()}`;
+    const packagesCrumb = { label: "パッケージ", href: backToListHref };
+
+    if (loading) {
+        return (
+            <PageContainer
+                measure="full"
+                header={
+                    <PageHeader
+                        title="読み込み中…"
+                        breadcrumbs={[packagesCrumb]}
+                    />
+                }
+            >
+                <p className="text-[15px] text-muted-foreground">
+                    パッケージ情報を読み込み中...
+                </p>
+            </PageContainer>
+        );
+    }
+
+    if (error || !pkg) {
+        return (
+            <PageContainer
+                measure="full"
+                header={
+                    <PageHeader
+                        title="パッケージを表示できません"
+                        breadcrumbs={[packagesCrumb]}
+                    />
+                }
+            >
+                <div className="rounded-sm border border-destructive/40 bg-card p-3">
+                    <p className="text-[15px] font-medium text-destructive">
+                        {error ?? "パッケージが見つかりませんでした"}
+                    </p>
+                </div>
+            </PageContainer>
+        );
+    }
+
+    const handleDownload = () => {
+        const url = api.endpoints.repoFile(
+            repo,
+            arch,
+            `${pkg.pkgname}-${pkg.pkgver}.pkg.tar.zst`,
+        );
+        window.open(url, "_blank");
+    };
+
+    const meta: { label: string; value: React.ReactNode }[] = [
+        { label: "pkgbase", value: pkg.pkgbase },
+        {
+            label: "バージョン",
+            value: <span className="font-mono">{pkg.pkgver}</span>,
+        },
+        { label: "アーキテクチャ", value: pkg.arch },
+        {
+            label: "ライセンス",
+            value: pkg.license?.length ? pkg.license.join(", ") : "—",
+        },
+        {
+            label: "グループ",
+            value: pkg.group?.length ? pkg.group.join(", ") : "—",
+        },
+        { label: "パッケージャ", value: pkg.packager || "—" },
+        { label: "ビルド日", value: formatBuildDate(pkg.builddate) },
+        { label: "サイズ", value: formatBytes(pkg.size) },
+        {
+            label: "アップストリーム",
+            value: pkg.url ? (
+                <a
+                    href={pkg.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-link hover:underline"
+                >
+                    {pkg.url}
+                    <ExternalLink className="h-3.5 w-3.5" />
+                </a>
+            ) : (
+                "—"
+            ),
+        },
+        { label: "種別", value: pkg.pkgtype || "—" },
+    ];
 
     return (
-        <div className="max-w-2xl mx-auto py-8 px-4">
-            <div className="mb-4 flex items-center gap-2">
-                <Link href="/">
-                    <Button variant="outline">一覧に戻る</Button>
-                </Link>
-                <span className="text-lg font-bold">{pkg.pkgname}</span>
-                <span className="text-sm text-muted-foreground">
-                    ({pkg.arch})
-                </span>
-            </div>
-            <div className="mb-4">
-                <div className="text-xl font-bold mb-1">
-                    {pkg.pkgbase} {pkg.pkgver}
+        <PageContainer
+            measure="full"
+            header={
+                <PageHeader
+                    title={pkg.pkgname}
+                    description={pkg.pkgdesc || undefined}
+                    breadcrumbs={[packagesCrumb, { label: pkg.pkgname }]}
+                    actions={
+                        <>
+                            <Button
+                                onClick={handleDownload}
+                                className="h-9 gap-1.5 rounded-sm text-[14px]"
+                            >
+                                <Download className="h-4 w-4" />
+                                ダウンロード
+                            </Button>
+                            <BugReportDialog
+                                packageInfo={pkg}
+                                trigger={
+                                    <Button
+                                        variant="outline"
+                                        className="h-9 gap-1.5 rounded-sm text-[14px]"
+                                    >
+                                        <BugIcon className="h-4 w-4" />
+                                        バグ報告
+                                    </Button>
+                                }
+                            />
+                        </>
+                    }
+                />
+            }
+        >
+            <div className="space-y-8">
+                <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                    <span className="font-mono text-[15px] text-muted-foreground">
+                        {pkg.pkgver}
+                    </span>
+                    <span className="text-[14px] text-muted-foreground">
+                        ({pkg.arch})
+                    </span>
                 </div>
-                <div className="mb-2 text-muted-foreground">{pkg.pkgdesc}</div>
-                {pkg.url && (
-                    <a
-                        href={pkg.url}
-                        className="text-blue-600 hover:underline"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                    >
-                        公式サイト
-                    </a>
-                )}
+
+                <div className="overflow-hidden rounded-sm border border-border">
+                    <table className="w-full text-[15px]">
+                        <tbody>
+                            {meta.map((row, i) => (
+                                <tr
+                                    key={row.label}
+                                    className={
+                                        i % 2 === 1
+                                            ? "bg-table-stripe"
+                                            : "bg-card"
+                                    }
+                                >
+                                    <th className="w-44 whitespace-nowrap border-b border-border px-4 py-2.5 text-left align-top font-semibold text-muted-foreground">
+                                        {row.label}
+                                    </th>
+                                    <td className="break-all border-b border-border px-4 py-2.5 align-top">
+                                        {row.value}
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                    <PkgDepSection
+                        title="依存関係"
+                        items={pkg.depend}
+                        repo={repo}
+                        arch={arch}
+                        link
+                    />
+                    <PkgDepSection
+                        title="オプション依存"
+                        items={pkg.optdepend}
+                    />
+                    <PkgDepSection
+                        title="ビルド依存"
+                        items={pkg.makedepend}
+                        repo={repo}
+                        arch={arch}
+                        link
+                    />
+                    <PkgDepSection
+                        title="チェック依存"
+                        items={pkg.checkdepend}
+                        repo={repo}
+                        arch={arch}
+                        link
+                    />
+                    <PkgDepSection title="提供" items={pkg.provides} />
+                    <PkgDepSection title="競合" items={pkg.conflict} />
+                    <PkgDepSection title="置換" items={pkg.replaces} />
+                </div>
             </div>
-            <Table className="border rounded-md bg-background">
-                <TableBody>
-                    <TableRow>
-                        <TableHead className="w-32">パッケージ名</TableHead>
-                        <TableCell>{pkg.pkgname}</TableCell>
-                    </TableRow>
-                    <TableRow>
-                        <TableHead>バージョン</TableHead>
-                        <TableCell>{pkg.pkgver}</TableCell>
-                    </TableRow>
-                    <TableRow>
-                        <TableHead>アーキテクチャ</TableHead>
-                        <TableCell>{pkg.arch}</TableCell>
-                    </TableRow>
-                    <TableRow>
-                        <TableHead>パッケージャ</TableHead>
-                        <TableCell>{pkg.packager}</TableCell>
-                    </TableRow>
-                    <TableRow>
-                        <TableHead>ビルド日</TableHead>
-                        <TableCell>
-                            {new Date(pkg.builddate * 1000).toLocaleString()}
-                        </TableCell>
-                    </TableRow>
-                    <TableRow>
-                        <TableHead>サイズ</TableHead>
-                        <TableCell>{(pkg.size / 1024).toFixed(1)} KB</TableCell>
-                    </TableRow>
-                    <TableRow>
-                        <TableHead>ライセンス</TableHead>
-                        <TableCell>{pkg.license.join(", ")}</TableCell>
-                    </TableRow>
-                    <TableRow>
-                        <TableHead>依存関係</TableHead>
-                        <TableCell>
-                            {pkg.depend.length ? pkg.depend.join(", ") : "なし"}
-                        </TableCell>
-                    </TableRow>
-                    <TableRow>
-                        <TableHead>提供</TableHead>
-                        <TableCell>
-                            {pkg.provides.length
-                                ? pkg.provides.join(", ")
-                                : "なし"}
-                        </TableCell>
-                    </TableRow>
-                </TableBody>
-            </Table>
-        </div>
+        </PageContainer>
     );
 }

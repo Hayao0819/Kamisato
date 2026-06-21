@@ -1,7 +1,7 @@
 "use client";
 
-import { atom, useAtom } from "jotai";
-import { useEffect } from "react";
+import { atom, useAtom, useSetAtom } from "jotai";
+import { useCallback, useEffect } from "react";
 import { useAPIClient } from "@/components/lumine-provider";
 import { useToast } from "@/hooks/use-toast";
 
@@ -15,8 +15,21 @@ export function useRepoArch() {
     const [selectedArch, setSelectedArch] = useAtom(selectedArchAtom);
     const [repos, setRepos] = useAtom(reposAtom);
     const [arches, setArches] = useAtom(archesAtom);
+    const setRepoOnly = useSetAtom(selectedRepoAtom);
+    const setArchOnly = useSetAtom(selectedArchAtom);
     const api = useAPIClient();
     const { toast } = useToast();
+
+    // Apply repo+arch together (e.g. when hydrating scope from the URL) so the
+    // arch isn't transiently reset to the repo default before the URL value
+    // lands. The arch-fetch effect below keeps a still-valid arch as-is.
+    const setScope = useCallback(
+        (repo: string, arch: string) => {
+            setRepoOnly(repo);
+            setArchOnly(arch);
+        },
+        [setRepoOnly, setArchOnly],
+    );
 
     useEffect(() => {
         if (!api.endpoints.executable) return;
@@ -84,6 +97,7 @@ export function useRepoArch() {
         setSelectedRepo,
         selectedArch,
         setSelectedArch,
+        setScope,
         repos,
         arches,
     };

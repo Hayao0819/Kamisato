@@ -28,9 +28,10 @@ import type { PackageInfo } from "@/lib/types";
 
 interface BugReportDialogProps {
     packageInfo: PackageInfo;
+    trigger?: React.ReactNode;
 }
 
-export function BugReportDialog({ packageInfo }: BugReportDialogProps) {
+export function BugReportDialog({ packageInfo, trigger }: BugReportDialogProps) {
     const [open, setOpen] = useState(false);
     const { toast } = useToast();
 
@@ -47,14 +48,16 @@ export function BugReportDialog({ packageInfo }: BugReportDialogProps) {
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-                <Button
-                    variant="outline"
-                    size="sm"
-                    className="text-xs sm:text-sm"
-                >
-                    <BugIcon className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-                    バグ報告
-                </Button>
+                {trigger ?? (
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-xs sm:text-sm"
+                    >
+                        <BugIcon className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                        バグ報告
+                    </Button>
+                )}
             </DialogTrigger>
             <DialogContent className="sm:max-w-[425px] max-w-[90vw] w-full">
                 <DialogHeader>

@@ -3,8 +3,8 @@ import { Hammer, Moon, Package, ServerIcon, Sun, Upload } from "lucide-react";
 import Link from "next/link";
 import { useTheme } from "next-themes";
 import { useEffect, useRef, useState } from "react";
+import { useCanMutate } from "@/components/auth-gate";
 import { LoginDialog } from "@/components/login-dialog";
-import { ServerConfigDialog } from "@/components/server-config-dialog";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "./auth-provider";
 import { useAPIClient } from "./lumine-provider";
@@ -15,6 +15,7 @@ export function Header() {
     >("loading");
     const api = useAPIClient();
     const { authRequired } = useAuth();
+    const canMutate = useCanMutate();
     const { theme, setTheme } = useTheme();
     const [mounted, setMounted] = useState(false);
     const apiRef = useRef(api);
@@ -48,40 +49,46 @@ export function Header() {
     }, [api.endpoints.executable]);
 
     return (
-        <header className="w-full sticky top-0 z-50 backdrop-blur-xl border-b border-border bg-background/95">
+        <header className="w-full sticky top-0 z-50 arch-titlebar shadow-sm">
             <div className="container mx-auto">
-                <div className="flex items-center justify-between py-4 px-4 md:px-6">
-                    <Link href="/" className="flex items-center gap-3 group">
-                        <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/15 transition-colors">
-                            <Package className="h-6 w-6 text-primary" />
+                <div className="flex items-center justify-between gap-2 py-2.5 px-4 md:px-6">
+                    <Link
+                        href="/"
+                        className="flex items-center gap-2.5 group shrink-0"
+                    >
+                        <div className="w-8 h-8 rounded-sm bg-primary flex items-center justify-center">
+                            <Package className="h-5 w-5 text-primary-foreground" />
                         </div>
-                        <div>
-                            <h1 className="text-xl md:text-2xl font-bold text-primary">
-                                Lumine Repository
+                        <div className="leading-tight">
+                            <h1 className="text-lg md:text-xl font-bold text-arch-bar-foreground tracking-tight">
+                                Lumine
+                                <span className="text-primary"> Repository</span>
                             </h1>
-                            <p className="text-xs text-muted-foreground hidden sm:block">
+                            <p className="text-[11px] text-arch-bar-foreground/60 hidden sm:block">
                                 Arch Linux Package Repository
                             </p>
                         </div>
                     </Link>
 
-                    <nav className="flex items-center gap-2">
-                        <Link href="/upload" className="hidden md:block">
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                className="gap-2 hover:bg-primary/10 hover:text-primary transition-colors"
-                            >
-                                <Upload className="h-4 w-4" />
-                                アップロード
-                            </Button>
-                        </Link>
+                    <nav className="flex items-center gap-0.5 md:gap-1">
+                        {canMutate && (
+                            <Link href="/upload" className="hidden md:block">
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="gap-1.5 rounded-sm text-arch-bar-foreground/85 hover:bg-white/10 hover:text-primary"
+                                >
+                                    <Upload className="h-4 w-4" />
+                                    アップロード
+                                </Button>
+                            </Link>
+                        )}
 
                         <Link href="/builds" className="hidden md:block">
                             <Button
                                 variant="ghost"
                                 size="sm"
-                                className="gap-2 hover:bg-primary/10 hover:text-primary transition-colors"
+                                className="gap-1.5 rounded-sm text-arch-bar-foreground/85 hover:bg-white/10 hover:text-primary"
                             >
                                 <Hammer className="h-4 w-4" />
                                 ビルド
@@ -92,7 +99,7 @@ export function Header() {
                             <Button
                                 variant="ghost"
                                 size="sm"
-                                className="gap-2 hover:bg-primary/10 hover:text-primary transition-colors"
+                                className="rounded-sm text-arch-bar-foreground/85 hover:bg-white/10 hover:text-primary"
                             >
                                 このサイトについて
                             </Button>
@@ -102,7 +109,7 @@ export function Header() {
                             <Button
                                 variant="ghost"
                                 size="sm"
-                                className="gap-2 hover:bg-secondary/10 hover:text-secondary transition-colors"
+                                className="gap-1.5 rounded-sm text-arch-bar-foreground/85 hover:bg-white/10 hover:text-primary"
                             >
                                 <ServerIcon className="h-4 w-4" />
                                 <span className="hidden sm:inline">
@@ -131,7 +138,7 @@ export function Header() {
                                         theme === "dark" ? "light" : "dark",
                                     )
                                 }
-                                className="hover:bg-accent/10 hover:text-accent transition-colors"
+                                className="rounded-sm text-arch-bar-foreground/85 hover:bg-white/10 hover:text-primary"
                             >
                                 {theme === "dark" ? (
                                     <Sun className="h-5 w-5" />
@@ -142,7 +149,6 @@ export function Header() {
                         )}
 
                         {authRequired && <LoginDialog />}
-                        <ServerConfigDialog />
                     </nav>
                 </div>
             </div>

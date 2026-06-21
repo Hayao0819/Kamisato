@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import "@/styles/globals.css";
+import { Suspense } from "react";
 import { AuthProvider } from "@/components/auth-provider";
-import { Footer } from "@/components/footer";
-import { Header } from "@/components/header";
+import { ConsoleSidebar } from "@/components/console-sidebar";
+import { ConsoleTopbar } from "@/components/console-topbar";
 import LumineProvider from "@/components/lumine-provider";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ToastProvider, ToastViewport } from "@/components/ui/toast";
@@ -28,7 +29,7 @@ export default function RootLayout({
                     content="width=device-width, initial-scale=1"
                 />
             </head>
-            <body className="min-h-screen flex flex-col bg-background text-foreground antialiased">
+            <body className="min-h-screen bg-background text-foreground antialiased">
                 <ThemeProvider
                     attribute="class"
                     defaultTheme="system"
@@ -38,11 +39,20 @@ export default function RootLayout({
                     <ToastProvider>
                         <AuthProvider>
                             <LumineProvider>
-                                <Header />
-                                <main className="flex-1">{children}</main>
-                                <Footer />
+                                <Suspense>
+                                    <ConsoleSidebar />
+                                </Suspense>
+                                <div className="md:pl-60">
+                                    <ConsoleTopbar />
+                                    <main
+                                        className="min-h-screen"
+                                        style={{ scrollbarGutter: "stable" }}
+                                    >
+                                        {children}
+                                    </main>
+                                </div>
                                 <Toaster />
-                                <ToastViewport className="fixed top-20 left-1/2 -translate-x-1/2 z-100 w-full max-w-md flex flex-col items-center" />
+                                <ToastViewport className="fixed top-4 left-1/2 -translate-x-1/2 z-100 w-full max-w-md flex flex-col items-center" />
                             </LumineProvider>
                         </AuthProvider>
                     </ToastProvider>
