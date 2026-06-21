@@ -66,6 +66,12 @@ type Options struct {
 	// Empty falls back to DOCKER_HOST, then the active docker context, then the
 	// default socket.
 	DockerHost string
+	// PacmanCacheDir, when set, is bind-mounted at /var/cache/pacman/pkg by the
+	// container backend to persist packages across builds (chroot ignores it).
+	PacmanCacheDir string
+	// CcacheDir, when set, is bind-mounted at /build/ccache by the container
+	// backend to persist a compiler cache across builds (chroot ignores it).
+	CcacheDir string
 }
 
 // New returns a Backend for the given kind. An empty kind defaults to chroot,

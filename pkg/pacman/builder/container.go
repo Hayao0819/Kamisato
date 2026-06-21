@@ -71,9 +71,11 @@ func shellQuote(s string) string {
 // binfmt_misc using the "F" (fix_binary) flag, so the emulated interpreter is
 // available inside the freshly created container.
 type containerBackend struct {
-	image   string
-	timeout time.Duration
-	host    string
+	image          string
+	timeout        time.Duration
+	host           string
+	pacmanCacheDir string
+	ccacheDir      string
 }
 
 // newContainerBackend constructs the container build backend.
@@ -86,7 +88,13 @@ func newContainerBackend(opts Options) Backend {
 	if timeout <= 0 {
 		timeout = defaultBuildTimeout
 	}
-	return &containerBackend{image: img, timeout: timeout, host: opts.DockerHost}
+	return &containerBackend{
+		image:          img,
+		timeout:        timeout,
+		host:           opts.DockerHost,
+		pacmanCacheDir: opts.PacmanCacheDir,
+		ccacheDir:      opts.CcacheDir,
+	}
 }
 
 // newDockerClient resolves the daemon endpoint with the same priority the
@@ -255,6 +263,13 @@ func (b *containerBackend) Build(ctx context.Context, spec Spec) (*Result, error
 		},
 	}
 	mounts = append(mounts, installMounts...)
+
+	cacheMounts, err := b.cacheMounts()
+	if err != nil {
+		return nil, err
+	}
+	mounts = append(mounts, cacheMounts...)
+
 	hostConfig := &container.HostConfig{
 		AutoRemove: false,
 		Mounts:     mounts,
@@ -326,6 +341,36 @@ func (b *containerBackend) Build(ctx context.Context, spec Spec) (*Result, error
 	}
 	slog.Info("container build completed", "packages", len(pkgs))
 	return &Result{Packages: pkgs}, nil
+}
+
+// cacheMounts returns the cache bind-mounts, creating host dirs if missing.
+func (b *containerBackend) cacheMounts() ([]mount.Mount, error) {
+	var mounts []mount.Mount
+	add := func(hostDir, target string) error {
+		if hostDir == "" {
+			return nil
+		}
+		abs, err := filepath.Abs(hostDir)
+		if err != nil {
+			return utils.WrapErr(err, "failed to resolve cache dir")
+		}
+		if err := os.MkdirAll(abs, 0o755); err != nil {
+			return utils.WrapErr(err, "failed to create cache dir")
+		}
+		mounts = append(mounts, mount.Mount{
+			Type:   mount.TypeBind,
+			Source: abs,
+			Target: target,
+		})
+		return nil
+	}
+	if err := add(b.pacmanCacheDir, "/var/cache/pacman/pkg"); err != nil {
+		return nil, err
+	}
+	if err := add(b.ccacheDir, "/build/ccache"); err != nil {
+		return nil, err
+	}
+	return mounts, nil
 }
 
 // drainPullStream consumes the image-pull progress stream and surfaces any
