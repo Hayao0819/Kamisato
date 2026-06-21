@@ -5,3 +5,6 @@ Kamisato
 .claude
 node_modules
 **/kv-db/
+.env
+**/.env
+!example/**/.env

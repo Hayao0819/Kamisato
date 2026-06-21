@@ -7,4 +7,6 @@
 ./Kamisato
 ./out
 ./dist
+.env
+**/.env
 
