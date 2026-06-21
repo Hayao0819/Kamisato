@@ -76,7 +76,7 @@ func (s *S3) FetchFile(repo string, arch string, name string) (stream.File, erro
 }
 
 func (s *S3) DeleteFile(repo string, arch string, name string) error {
-	k := key(repo, arch, repo+".db.tar.gz")
+	k := key(repo, arch, name)
 	if err := s.deleteObject(k); err != nil {
 		return fmt.Errorf("failed to delete file %s: %w", k, err)
 	}
@@ -105,6 +105,10 @@ func (s *S3) Files(repo string, arch string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	l = lo.Map(l, func(name string, _ int) string {
+		return path.Base(name)
+	})
 
 	for _, name := range l {
 		r := fileAliasResolver(repo, arch, name)
@@ -174,7 +178,42 @@ func (s *S3) RepoAdd(repo, arch string, pkgfile, sigfile stream.SeekFile, useSig
 		return err
 	}
 
-	return pacman.RepoAdd(dbPath, pkgPath, useSignedDB, gnupgDir)
+	if err := pacman.RepoAdd(dbPath, pkgPath, useSignedDB, gnupgDir); err != nil {
+		return err
+	}
+
+	return s.uploadDBArtifacts(repo, arch, t, pkgPath)
+}
+
+// uploadDBArtifacts mirrors every file in dir back to S3 (except skip), since
+// repo-add/repo-remove rewrite the DB archives and signatures in place.
+func (s *S3) uploadDBArtifacts(repo, arch, dir, skip string) error {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return err
+	}
+
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		fp := path.Join(dir, entry.Name())
+		if skip != "" && fp == skip {
+			continue
+		}
+
+		obj, err := stream.OpenFileWithType(fp)
+		if err != nil {
+			return err
+		}
+		if err := s.putObject(key(repo, arch, entry.Name()), obj); err != nil {
+			obj.Close()
+			return fmt.Errorf("failed to put object %s: %w", entry.Name(), err)
+		}
+		obj.Close()
+	}
+
+	return nil
 }
 
 func (s *S3) RepoRemove(repo string, arch string, pkg string, useSignedDB bool, gnupgDir *string) error {
@@ -201,7 +240,7 @@ func (s *S3) RepoRemove(repo string, arch string, pkg string, useSignedDB bool, 
 		return err
 	}
 
-	return nil
+	return s.uploadDBArtifacts(repo, arch, t, "")
 }
 
 func (s *S3) InitArch(repo string, arch string, useSignedDB bool, gnupgDir *string) error {

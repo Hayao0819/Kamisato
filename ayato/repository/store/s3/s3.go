@@ -77,16 +77,30 @@ func key(repo, arch, name string) string {
 }
 
 func (s *S3) list(dir string) (*awss3.ListObjectsV2Output, error) {
-	l, err := s.storage.ListObjectsV2(s.ctx, &awss3.ListObjectsV2Input{
-		Bucket:    aws.String(s.bucket),
-		Prefix:    aws.String(dir),
-		Delimiter: aws.String("/"),
-	})
-	slog.Debug("S3 ListObjectsV2", "dir", dir, "bucket", s.bucket, "result", l)
-	if err != nil {
-		return nil, err
+	// ListObjectsV2 caps each call at 1000 keys; page through and merge.
+	merged := &awss3.ListObjectsV2Output{}
+	var token *string
+	for {
+		l, err := s.storage.ListObjectsV2(s.ctx, &awss3.ListObjectsV2Input{
+			Bucket:            aws.String(s.bucket),
+			Prefix:            aws.String(dir),
+			Delimiter:         aws.String("/"),
+			ContinuationToken: token,
+		})
+		slog.Debug("S3 ListObjectsV2", "dir", dir, "bucket", s.bucket, "result", l)
+		if err != nil {
+			return nil, err
+		}
+
+		merged.Contents = append(merged.Contents, l.Contents...)
+		merged.CommonPrefixes = append(merged.CommonPrefixes, l.CommonPrefixes...)
+
+		if !aws.ToBool(l.IsTruncated) || l.NextContinuationToken == nil {
+			break
+		}
+		token = l.NextContinuationToken
 	}
-	return l, nil
+	return merged, nil
 }
 
 func (s *S3) listDirs(dir string) ([]string, error) {
