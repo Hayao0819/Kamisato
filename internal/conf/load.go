@@ -30,6 +30,7 @@ func loadConfig[T any](dirs []string, files []string, flags *pflag.FlagSet, envP
 		key = strings.ToLower(key)
 		key = strings.TrimPrefix(key, "ayato_")
 		key = strings.TrimPrefix(key, "ayaka_")
+		key = strings.TrimPrefix(key, "miko_")
 		// fmt.Println(key)
 		return key
 	})

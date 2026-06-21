@@ -1,0 +1,56 @@
+package conf
+
+import (
+	"log/slog"
+
+	"github.com/spf13/pflag"
+)
+
+// MikoConfig is the configuration for the miko build server.
+type MikoConfig struct {
+	Debug    bool        `koanf:"debug"`
+	Port     int         `koanf:"port"`
+	Auth     AuthConfig  `koanf:"auth"`
+	Build    BuildConfig `koanf:"build"`
+	Executor string      `koanf:"executor"` // build backend kind: "container" | "chroot" (default: "container")
+	// ArchBuildTemplate is the devtools wrapper name template for the chroot
+	// executor, formatted with the target CARCH (default "extra-%s-build").
+	ArchBuildTemplate string `koanf:"archbuild_template"`
+	// APIKeys are accepted shared secrets for inbound requests (from ayato).
+	// Empty means no key required (trust the closed network only).
+	APIKeys []string `koanf:"api_keys"`
+	// DataDir persists build jobs so they survive a restart. Empty disables
+	// persistence (in-memory only).
+	DataDir string `koanf:"data_dir"`
+	// DockerHost overrides the Docker daemon for the container executor. Empty
+	// falls back to DOCKER_HOST, then the active docker context, then the
+	// default socket.
+	DockerHost string `koanf:"docker_host"`
+	Ayato      struct {
+		URL      string `koanf:"url"`
+		Username string `koanf:"username"`
+		Password string `koanf:"password"`
+	} `koanf:"ayato"`
+}
+
+// LoadMikoConfig loads the miko configuration mirroring LoadAyatoConfig.
+func LoadMikoConfig(flags *pflag.FlagSet, configFile string) (*MikoConfig, error) {
+	if err := LoadEnv(); err != nil {
+		slog.Error("Failed to load env", "error", err)
+	}
+
+	dirs := commonConfigDirs()
+	files := []string{}
+	if configFile != "" {
+		files = append(files, configFile)
+	} else {
+		files = []string{"miko_config.json", "miko_config.toml", "miko_config.yaml"}
+	}
+
+	return loadConfig[MikoConfig](
+		dirs,
+		files,
+		flags,
+		"MIKO",
+	)
+}

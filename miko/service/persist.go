@@ -1,0 +1,72 @@
+package service
+
+import (
+	"encoding/json"
+	"os"
+	"path/filepath"
+
+	"github.com/Hayao0819/Kamisato/miko/domain"
+)
+
+// jobPersist stores each job as one JSON file under <dataDir>/jobs. BuildJob's
+// Log and Request are json:"-", so only durable state is written.
+type jobPersist struct {
+	dir string
+}
+
+func newJobPersist(dataDir string) (*jobPersist, error) {
+	dir := filepath.Join(dataDir, "jobs")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return nil, err
+	}
+	return &jobPersist{dir: dir}, nil
+}
+
+func (p *jobPersist) path(id string) string {
+	return filepath.Join(p.dir, id+".json")
+}
+
+// save writes job atomically (temp file + rename). Callers must pass a snapshot,
+// not a job the worker may mutate concurrently.
+func (p *jobPersist) save(job *domain.BuildJob) error {
+	data, err := json.MarshalIndent(job, "", "  ")
+	if err != nil {
+		return err
+	}
+	tmp := p.path(job.ID) + ".tmp"
+	if err := os.WriteFile(tmp, data, 0o644); err != nil {
+		return err
+	}
+	return os.Rename(tmp, p.path(job.ID))
+}
+
+func (p *jobPersist) remove(id string) error {
+	if err := os.Remove(p.path(id)); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	return nil
+}
+
+// loadAll reads every persisted job. Unreadable or malformed files are skipped.
+func (p *jobPersist) loadAll() ([]*domain.BuildJob, error) {
+	entries, err := os.ReadDir(p.dir)
+	if err != nil {
+		return nil, err
+	}
+	jobs := make([]*domain.BuildJob, 0, len(entries))
+	for _, e := range entries {
+		if e.IsDir() || filepath.Ext(e.Name()) != ".json" {
+			continue
+		}
+		data, err := os.ReadFile(filepath.Join(p.dir, e.Name()))
+		if err != nil {
+			continue
+		}
+		var job domain.BuildJob
+		if err := json.Unmarshal(data, &job); err != nil {
+			continue
+		}
+		jobs = append(jobs, &job)
+	}
+	return jobs, nil
+}
