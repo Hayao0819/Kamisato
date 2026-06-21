@@ -25,18 +25,24 @@ var (
 	ErrInvalidRequest = errors.New("invalid build request")
 	// ErrQueueFull means the worker is saturated -> 503.
 	ErrQueueFull = errors.New("build queue is full")
+	// ErrJobNotCancelable means the job is already terminal -> 409.
+	ErrJobNotCancelable = errors.New("job is already terminal")
 )
 
-// IService is the interface exposed by the miko build service.
+// Servicer is the interface exposed by the miko build service.
 //
 //go:generate mockgen -source=service.go -destination=../test/mocks/service.go -package=mocks
-type IService interface {
+type Servicer interface {
 	// Submit enqueues a build request and returns the assigned job ID.
 	Submit(req *domain.BuildRequest) (string, error)
 	// Status returns the current state of a job.
 	Status(id string) (*domain.BuildJob, error)
 	// List returns all jobs, newest first.
 	List() []*domain.BuildJob
+	// Cancel cancels a queued or running job.
+	Cancel(id string) error
+	// Stats returns a snapshot of the build service.
+	Stats() domain.BuildStats
 	// Run is the worker loop. It blocks until ctx is cancelled.
 	Run(ctx context.Context)
 }
@@ -48,15 +54,21 @@ type Service struct {
 	queue   *queue
 	persist *jobPersist
 
+	startedAt time.Time
+
 	mu    sync.Mutex
 	store map[string]*domain.BuildJob
+	// running maps in-flight job IDs to their cancel func (guarded by mu).
+	running map[string]context.CancelFunc
 }
 
-func New(cfg *conf.MikoConfig) IService {
+func New(cfg *conf.MikoConfig) Servicer {
 	s := &Service{
-		cfg:   cfg,
-		queue: newQueue(),
-		store: make(map[string]*domain.BuildJob),
+		cfg:       cfg,
+		queue:     newQueue(),
+		store:     make(map[string]*domain.BuildJob),
+		running:   make(map[string]context.CancelFunc),
+		startedAt: time.Now(),
 	}
 	if cfg.DataDir != "" {
 		p, err := newJobPersist(cfg.DataDir)
@@ -183,6 +195,70 @@ func (s *Service) List() []*domain.BuildJob {
 	return jobs
 }
 
+// Cancel marks a queued job cancelled (the worker skips it when popped) or
+// cancels a running job's build context. Terminal jobs return ErrJobNotCancelable.
+func (s *Service) Cancel(id string) error {
+	s.mu.Lock()
+	job, ok := s.store[id]
+	if !ok {
+		s.mu.Unlock()
+		return utils.NewErrf("job not found: %s", id)
+	}
+	switch job.Status {
+	case domain.JobStatusSuccess, domain.JobStatusFailed, domain.JobStatusCancelled:
+		s.mu.Unlock()
+		return ErrJobNotCancelable
+	case domain.JobStatusQueued:
+		job.Status = domain.JobStatusCancelled
+		end := time.Now()
+		job.EndedAt = &end
+		snap := *job
+		s.mu.Unlock()
+		s.persistSave(&snap)
+		slog.Info("Build job cancelled while queued", "id", id)
+		return nil
+	default:
+		// Running: the worker finalizes the cancelled status once the build stops.
+		cancel := s.running[id]
+		s.mu.Unlock()
+		if cancel != nil {
+			cancel()
+		}
+		slog.Info("Build job cancellation requested", "id", id)
+		return nil
+	}
+}
+
+func (s *Service) Stats() domain.BuildStats {
+	s.mu.Lock()
+	counts := make(map[domain.JobStatus]int)
+	for _, j := range s.store {
+		counts[j.Status]++
+	}
+	total := len(s.store)
+	s.mu.Unlock()
+
+	workers := s.cfg.Concurrency
+	if workers < 1 {
+		workers = 1
+	}
+	success := counts[domain.JobStatusSuccess]
+	failed := counts[domain.JobStatusFailed]
+	var rate float64
+	if finished := success + failed; finished > 0 {
+		rate = float64(success) / float64(finished)
+	}
+	return domain.BuildStats{
+		Workers:     workers,
+		QueueLength: s.queue.len(),
+		Running:     counts[domain.JobStatusRunning],
+		Counts:      counts,
+		Total:       total,
+		SuccessRate: rate,
+		UptimeSec:   int(time.Since(s.startedAt).Seconds()),
+	}
+}
+
 func (s *Service) Run(ctx context.Context) {
 	slog.Info("Build worker started", "executor", s.cfg.Executor)
 	for {
@@ -196,6 +272,29 @@ func (s *Service) Run(ctx context.Context) {
 }
 
 func (s *Service) process(ctx context.Context, job *domain.BuildJob) {
+	// Per-job context so Cancel can stop this build; registered under mu, cleared on return.
+	jobCtx, cancel := context.WithCancel(ctx)
+	s.mu.Lock()
+	// Skip a job cancelled while still queued.
+	if cur, ok := s.store[job.ID]; ok && cur.Status == domain.JobStatusCancelled {
+		s.mu.Unlock()
+		cancel()
+		if job.Log != nil {
+			job.Log.Close()
+			s.update(job.ID, func(j *domain.BuildJob) { j.Logs = job.Log.String() })
+		}
+		slog.Info("Skipping cancelled job", "id", job.ID)
+		return
+	}
+	s.running[job.ID] = cancel
+	s.mu.Unlock()
+	defer func() {
+		s.mu.Lock()
+		delete(s.running, job.ID)
+		s.mu.Unlock()
+		cancel()
+	}()
+
 	now := time.Now()
 	s.update(job.ID, func(j *domain.BuildJob) {
 		j.Status = domain.JobStatusRunning
@@ -203,7 +302,7 @@ func (s *Service) process(ctx context.Context, job *domain.BuildJob) {
 	})
 	slog.Info("Build job running", "id", job.ID)
 
-	res, outDir, err := s.runBuild(ctx, job)
+	res, outDir, err := s.buildWithRetry(jobCtx, job)
 	// Keep the artifact directory until signing and upload, then clean it up
 	// all at once when process exits.
 	if outDir != "" {
@@ -225,25 +324,82 @@ func (s *Service) process(ctx context.Context, job *domain.BuildJob) {
 		}
 	}
 
+	cancelled := isCancelled(jobCtx, err)
 	end := time.Now()
 	s.update(job.ID, func(j *domain.BuildJob) {
 		j.EndedAt = &end
-		if err != nil {
+		switch {
+		case cancelled:
+			j.Status = domain.JobStatusCancelled
+			if err != nil {
+				j.Err = err.Error()
+			}
+		case err != nil:
 			j.Status = domain.JobStatusFailed
 			j.Err = err.Error()
-			return
-		}
-		j.Status = domain.JobStatusSuccess
-		if res != nil {
-			j.Packages = res.Packages
+		default:
+			j.Status = domain.JobStatusSuccess
+			if res != nil {
+				j.Packages = res.Packages
+			}
 		}
 	})
 
-	if err != nil {
+	switch {
+	case cancelled:
+		slog.Info("Build job cancelled", "id", job.ID)
+	case err != nil:
 		slog.Error("Build job failed", "id", job.ID, "error", err)
-		return
+	default:
+		slog.Info("Build job succeeded", "id", job.ID, "packages", len(res.Packages))
 	}
-	slog.Info("Build job succeeded", "id", job.ID, "packages", len(res.Packages))
+}
+
+// buildWithRetry runs the build with retry/backoff, retrying only on a genuine
+// failure while attempts remain and the context is live.
+func (s *Service) buildWithRetry(ctx context.Context, job *domain.BuildJob) (*builder.Result, string, error) {
+	maxRetries := s.cfg.MaxRetries
+	if maxRetries < 0 {
+		maxRetries = 0
+	}
+	backoff := time.Duration(s.cfg.RetryBackoff) * time.Second
+
+	var (
+		res    *builder.Result
+		outDir string
+		err    error
+	)
+	for attempt := 0; ; attempt++ {
+		res, outDir, err = s.runBuild(ctx, job)
+		if err == nil {
+			return res, outDir, nil
+		}
+		// Do not retry on cancellation or when the loop is out of attempts.
+		if isCancelled(ctx, err) || attempt >= maxRetries {
+			return res, outDir, err
+		}
+
+		line := fmt.Sprintf("retry %d/%d after error: %v\n", attempt+1, maxRetries, err)
+		if job.Log != nil {
+			_, _ = job.Log.Write([]byte(line))
+		}
+		s.update(job.ID, func(j *domain.BuildJob) { j.Retries = attempt + 1 })
+
+		if backoff > 0 {
+			t := time.NewTimer(backoff)
+			select {
+			case <-ctx.Done():
+				t.Stop()
+				return res, outDir, err
+			case <-t.C:
+			}
+		}
+	}
+}
+
+// isCancelled distinguishes a context cancellation from a genuine build failure.
+func isCancelled(ctx context.Context, err error) bool {
+	return errors.Is(err, context.Canceled) || ctx.Err() == context.Canceled
 }
 
 // runBuild prepares a build Spec, invokes the backend and captures logs.
@@ -270,12 +426,23 @@ func (s *Service) runBuild(ctx context.Context, job *domain.BuildJob) (*builder.
 		return nil, "", utils.WrapErr(err, "failed to create output dir")
 	}
 
-	timeout := time.Duration(s.cfg.Build.Timeout) * time.Minute
-	backend, err := builder.New(builder.Kind(s.cfg.Executor), builder.Options{
+	// Per-request timeout (minutes) overrides the server default.
+	timeoutMin := s.cfg.Build.Timeout
+	if req.Timeout > 0 {
+		timeoutMin = req.Timeout
+	}
+	timeout := time.Duration(timeoutMin) * time.Minute
+
+	opts := builder.Options{
 		Image:      s.cfg.Build.Image,
 		Timeout:    timeout,
 		DockerHost: s.cfg.DockerHost,
-	})
+	}
+	if s.cfg.Cache.Enabled {
+		opts.PacmanCacheDir = s.cfg.Cache.PacmanCacheDir
+		opts.CcacheDir = s.cfg.Cache.CcacheDir
+	}
+	backend, err := builder.New(builder.Kind(s.cfg.Executor), opts)
 	if err != nil {
 		_ = os.RemoveAll(outDir)
 		return nil, "", utils.WrapErr(err, "failed to create build backend")

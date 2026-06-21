@@ -31,6 +31,11 @@ func (q *queue) push(job *domain.BuildJob) error {
 	}
 }
 
+// len returns the number of jobs currently waiting in the queue channel.
+func (q *queue) len() int {
+	return len(q.jobs)
+}
+
 // pop blocks until a job is available or the context is cancelled.
 func (q *queue) pop(ctx context.Context) (*domain.BuildJob, bool) {
 	select {

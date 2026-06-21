@@ -56,6 +56,27 @@ func (h *Handler) JobListHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, h.s.List())
 }
 
+// JobCancelHandler cancels a queued or running job.
+// DELETE /api/unstable/jobs/:id
+func (h *Handler) JobCancelHandler(c *gin.Context) {
+	id := c.Param("id")
+	if err := h.s.Cancel(id); err != nil {
+		status := http.StatusNotFound
+		if errors.Is(err, service.ErrJobNotCancelable) {
+			status = http.StatusConflict
+		}
+		c.JSON(status, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"status": "cancelled"})
+}
+
+// JobStatsHandler returns a snapshot of the build service.
+// GET /api/unstable/stats
+func (h *Handler) JobStatsHandler(c *gin.Context) {
+	c.JSON(http.StatusOK, h.s.Stats())
+}
+
 // JobLogsHandler streams the build logs for a job as Server-Sent Events.
 // While the job is running it tails the live joblog.Buffer; once the buffer is
 // closed the stream ends. If the job has no live buffer it falls back to the

@@ -10,12 +10,19 @@ import (
 type MikoConfig struct {
 	Debug    bool        `koanf:"debug"`
 	Port     int         `koanf:"port"`
-	Auth     AuthConfig  `koanf:"auth"`
 	Build    BuildConfig `koanf:"build"`
 	Executor string      `koanf:"executor"` // build backend kind: "container" | "chroot" (default: "container")
 	// ArchBuildTemplate is the devtools wrapper name template for the chroot
 	// executor, formatted with the target CARCH (default "extra-%s-build").
 	ArchBuildTemplate string `koanf:"archbuild_template"`
+	Concurrency       int    `koanf:"concurrency"`   // build workers (default 1)
+	MaxRetries        int    `koanf:"max_retries"`   // retry attempts on failure (default 0)
+	RetryBackoff      int    `koanf:"retry_backoff"` // seconds between retries (default 5)
+	Cache             struct {
+		Enabled        bool   `koanf:"enabled"`
+		PacmanCacheDir string `koanf:"pacman_cache_dir"`
+		CcacheDir      string `koanf:"ccache_dir"`
+	} `koanf:"cache"`
 	// APIKeys are accepted shared secrets for inbound requests (from ayato).
 	// Empty means no key required (trust the closed network only).
 	APIKeys []string `koanf:"api_keys"`

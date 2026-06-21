@@ -47,6 +47,15 @@ func RootCmd() *cobra.Command {
 			if cfg.Port == 0 {
 				cfg.Port = 8081
 			}
+			if cfg.Concurrency < 1 {
+				cfg.Concurrency = 1
+			}
+			if cfg.MaxRetries < 0 {
+				cfg.MaxRetries = 0
+			}
+			if cfg.RetryBackoff == 0 {
+				cfg.RetryBackoff = 5
+			}
 
 			// Initialize logger.
 			if cfg.Debug {
@@ -65,11 +74,13 @@ func RootCmd() *cobra.Command {
 			h := handler.New(s, cfg)
 			verifier := apikey.NewVerifier(cfg.APIKeys)
 
-			// Cancel the worker (and in-flight build) on SIGINT/SIGTERM.
+			// Cancel the workers (and in-flight builds) on SIGINT/SIGTERM.
 			ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
 			defer stop()
-			go s.Run(ctx)
-			slog.Info("Build worker launched")
+			for i := 0; i < cfg.Concurrency; i++ {
+				go s.Run(ctx)
+			}
+			slog.Info("Build workers launched", "concurrency", cfg.Concurrency)
 
 			engine := gin.New()
 			engine.Use(gin.Recovery())

@@ -10,10 +10,11 @@ import (
 type JobStatus string
 
 const (
-	JobStatusQueued  JobStatus = "queued"
-	JobStatusRunning JobStatus = "running"
-	JobStatusSuccess JobStatus = "success"
-	JobStatusFailed  JobStatus = "failed"
+	JobStatusQueued    JobStatus = "queued"
+	JobStatusRunning   JobStatus = "running"
+	JobStatusSuccess   JobStatus = "success"
+	JobStatusFailed    JobStatus = "failed"
+	JobStatusCancelled JobStatus = "cancelled"
 )
 
 // BuildRequest is the input for submitting a build.
@@ -32,6 +33,8 @@ type BuildRequest struct {
 	InstallPkgs []string `json:"install_pkgs"`
 	// GPGKey identifies the signing key to use after build.
 	GPGKey string `json:"gpg_key"`
+	// Timeout in minutes; 0 uses the server default.
+	Timeout int `json:"timeout,omitempty"`
 }
 
 // GitSource describes a git/AUR repository to clone as the build source.
@@ -50,6 +53,7 @@ type BuildJob struct {
 	Logs     string    `json:"logs"`
 	Err      string    `json:"err,omitempty"`
 	Packages []string  `json:"packages,omitempty"`
+	Retries  int       `json:"retries,omitempty"`
 
 	Request   *BuildRequest `json:"-"`
 	CreatedAt time.Time     `json:"created_at"`
@@ -59,4 +63,15 @@ type BuildJob struct {
 	// Log is the live build-log buffer, populated by the worker and streamed by
 	// the logs endpoint. Set by the service on Submit. Not serialized.
 	Log *joblog.Buffer `json:"-"`
+}
+
+// BuildStats is a snapshot of the build service served by the stats endpoint.
+type BuildStats struct {
+	Workers     int               `json:"workers"`
+	QueueLength int               `json:"queue_length"`
+	Running     int               `json:"running"`
+	Counts      map[JobStatus]int `json:"counts"`
+	Total       int               `json:"total"`
+	SuccessRate float64           `json:"success_rate"` // success/(success+failed); 0 when none finished
+	UptimeSec   int               `json:"uptime_sec"`
 }

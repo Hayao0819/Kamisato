@@ -8,11 +8,11 @@ import (
 // Handler serves the miko build API.
 type Handler struct {
 	cfg *conf.MikoConfig
-	s   service.IService
+	s   service.Servicer
 }
 
 // New is the constructor for Handler.
-func New(s service.IService, cfg *conf.MikoConfig) *Handler {
+func New(s service.Servicer, cfg *conf.MikoConfig) *Handler {
 	return &Handler{
 		s:   s,
 		cfg: cfg,

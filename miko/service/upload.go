@@ -12,7 +12,8 @@ import (
 
 // signAndUpload signs each built package with the requested GPG key (when set)
 // and uploads it, together with its detached signature, to ayato via the blinky
-// client.
+// client. With Concurrency > 1 several of these run at once sharing
+// cfg.Build.GnupgHome; gpg locks its own keyring, so concurrent signing is safe.
 func signAndUpload(cfg *conf.MikoConfig, repo, gpgKey string, packages []string) error {
 	client, err := blinky_clientlib.New(cfg.Ayato.URL, cfg.Ayato.Username, cfg.Ayato.Password)
 	if err != nil {
