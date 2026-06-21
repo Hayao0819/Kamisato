@@ -5,6 +5,7 @@ import { Footer } from "@/components/footer";
 import { Header } from "@/components/header";
 import LumineProvider from "@/components/lumine-provider";
 import { ToastProvider, ToastViewport } from "@/components/ui/toast";
+import { Toaster } from "@/components/ui/toaster";
 
 export const metadata: Metadata = {
     title: "Lumine - Arch Linux パッケージリポジトリ",
@@ -35,6 +36,7 @@ export default function RootLayout({
                                 {children}
                             </main>
                             <Footer />
+                            <Toaster />
                             <ToastViewport className="fixed top-16 left-1/2 -translate-x-1/2 z-100 w-full max-w-md flex flex-col items-center" />
                         </body>
                     </LumineProvider>

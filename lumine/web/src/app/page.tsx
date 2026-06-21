@@ -76,9 +76,9 @@ export default function Home() {
                 <RepoArchSelector onSelect={handleRepoArchSelect} />
             </div>
 
-            {loading && <div className="text-center">Loading packages...</div>}
+            {loading && <div className="p-8 text-center">読み込み中...</div>}
             {error && (
-                <div className="text-center text-red-500">Error: {error}</div>
+                <div className="p-8 text-center text-red-500">{error}</div>
             )}
             {!loading && !error && selectedRepo && selectedArch && (
                 <PackageTable
