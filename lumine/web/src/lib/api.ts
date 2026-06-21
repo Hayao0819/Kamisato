@@ -1,4 +1,4 @@
-import type { BuildRequest, Job } from "./types";
+import type { BuildRequest, BuildStats, Job } from "./types";
 
 type LumineEnv = {
     AYATO_URL: string | null;
@@ -126,6 +126,39 @@ export class APIClient {
             );
         }
 
+        return res.json();
+    }
+
+    async cancelJob(
+        id: string,
+        username?: string,
+        password?: string,
+    ): Promise<void> {
+        const headers: HeadersInit = {};
+        if (username && password) {
+            const credentials = btoa(`${username}:${password}`);
+            headers.Authorization = `Basic ${credentials}`;
+        }
+
+        const res = await fetch(this.endpoints.cancelJob(id), {
+            method: "DELETE",
+            headers,
+        });
+
+        if (!res.ok) {
+            const errorText = await res.text();
+            throw new Error(
+                `ジョブのキャンセルに失敗しました: ${res.status} - ${errorText}`,
+            );
+        }
+    }
+
+    async fetchStats(): Promise<BuildStats> {
+        const res = await fetch(this.endpoints.stats());
+        if (!res.ok)
+            throw new Error(
+                `ビルドサーバーの状態取得に失敗しました: ${res.status}`,
+            );
         return res.json();
     }
 
@@ -294,5 +327,11 @@ class APIEndpoints {
     }
     get jobLogs() {
         return (id: string) => `${this.apiUnstableUrl}/jobs/${id}/logs`;
+    }
+    get cancelJob() {
+        return (id: string) => `${this.apiUnstableUrl}/jobs/${id}`;
+    }
+    get stats() {
+        return () => `${this.apiUnstableUrl}/stats`;
     }
 }

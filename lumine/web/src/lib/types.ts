@@ -28,7 +28,12 @@ export interface PacmanPkgsResponse {
     packages: PackageInfo[];
 }
 
-export type JobStatus = "queued" | "running" | "success" | "failed";
+export type JobStatus =
+    | "queued"
+    | "running"
+    | "success"
+    | "failed"
+    | "cancelled";
 
 export interface GitSource {
     url: string;
@@ -44,6 +49,7 @@ export interface BuildRequest {
     files?: { [name: string]: string };
     install_pkgs?: string[];
     gpg_key?: string;
+    timeout?: number;
 }
 
 // Job mirrors miko's BuildJob serialized form (proxied through ayato).
@@ -58,6 +64,18 @@ export interface Job {
     created_at: string;
     started_at?: string;
     ended_at?: string;
+    retries?: number;
+}
+
+// BuildStats mirrors miko's runtime stats (proxied through ayato).
+export interface BuildStats {
+    workers: number;
+    queue_length: number;
+    running: number;
+    counts: Record<string, number>;
+    total: number;
+    success_rate: number;
+    uptime_sec: number;
 }
 
 // TODO: Add other relevant type definitions from the backend

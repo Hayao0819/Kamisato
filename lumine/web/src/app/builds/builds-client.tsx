@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertCircle, Hammer, ScrollText } from "lucide-react";
+import { AlertCircle, Ban, Hammer, ScrollText } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/components/auth-provider";
 import { useAPIClient } from "@/components/lumine-provider";
@@ -17,6 +17,13 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import {
     Table,
     TableBody,
     TableCell,
@@ -26,7 +33,7 @@ import {
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import type { BuildRequest, Job, JobStatus } from "@/lib/types";
+import type { BuildRequest, BuildStats, Job, JobStatus } from "@/lib/types";
 
 const POLL_INTERVAL_MS = 3000;
 
@@ -38,6 +45,7 @@ const statusVariant: Record<
     running: "default",
     success: "outline",
     failed: "destructive",
+    cancelled: "outline",
 };
 
 const statusLabel: Record<JobStatus, string> = {
@@ -45,7 +53,10 @@ const statusLabel: Record<JobStatus, string> = {
     running: "実行中",
     success: "成功",
     failed: "失敗",
+    cancelled: "キャンセル",
 };
+
+const ARCH_OPTIONS = ["x86_64", "aarch64", "armv7h"];
 
 type SourceKind = "pkgbuild" | "git";
 
@@ -55,6 +66,7 @@ export function BuildsPageClient() {
     const { isAuthenticated, username, password } = useAuth();
 
     const [jobs, setJobs] = useState<Job[]>([]);
+    const [stats, setStats] = useState<BuildStats | null>(null);
     const [submitting, setSubmitting] = useState(false);
 
     const [repo, setRepo] = useState("");
@@ -64,6 +76,7 @@ export function BuildsPageClient() {
     const [gitUrl, setGitUrl] = useState("");
     const [gitRef, setGitRef] = useState("");
     const [gpgKey, setGpgKey] = useState("");
+    const [timeout, setTimeout] = useState("");
 
     const [logJobId, setLogJobId] = useState<string | null>(null);
     const [logLines, setLogLines] = useState<string[]>([]);
@@ -79,12 +92,24 @@ export function BuildsPageClient() {
         }
     }, [api]);
 
+    const refreshStats = useCallback(async () => {
+        try {
+            setStats(await api.fetchStats());
+        } catch (error) {
+            console.error("Failed to fetch stats", error);
+        }
+    }, [api]);
+
     useEffect(() => {
         if (!executable) return;
         refreshJobs();
-        const timer = setInterval(refreshJobs, POLL_INTERVAL_MS);
+        refreshStats();
+        const timer = setInterval(() => {
+            refreshJobs();
+            refreshStats();
+        }, POLL_INTERVAL_MS);
         return () => clearInterval(timer);
-    }, [executable, refreshJobs]);
+    }, [executable, refreshJobs, refreshStats]);
 
     // EventSource streams live logs; reset and reconnect when the target changes.
     useEffect(() => {
@@ -136,6 +161,9 @@ export function BuildsPageClient() {
             req.pkgbuild = pkgbuild;
         }
         if (gpgKey.trim()) req.gpg_key = gpgKey.trim();
+        const timeoutMin = Number.parseInt(timeout, 10);
+        if (Number.isFinite(timeoutMin) && timeoutMin > 0)
+            req.timeout = timeoutMin;
 
         setSubmitting(true);
         try {
@@ -161,6 +189,30 @@ export function BuildsPageClient() {
             });
         } finally {
             setSubmitting(false);
+        }
+    };
+
+    const handleCancel = async (id: string) => {
+        try {
+            await api.cancelJob(
+                id,
+                username || undefined,
+                password || undefined,
+            );
+            toast({
+                title: "キャンセルしました",
+                description: `ジョブ ${id} をキャンセルしました`,
+            });
+            refreshJobs();
+        } catch (error) {
+            toast({
+                title: "エラー",
+                description:
+                    error instanceof Error
+                        ? error.message
+                        : "ジョブのキャンセルに失敗しました",
+                variant: "destructive",
+            });
         }
     };
 
@@ -202,13 +254,18 @@ export function BuildsPageClient() {
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="arch">アーキテクチャ</Label>
-                                <Input
-                                    id="arch"
-                                    value={arch}
-                                    onChange={(e) => setArch(e.target.value)}
-                                    placeholder="例: x86_64"
-                                    required
-                                />
+                                <Select value={arch} onValueChange={setArch}>
+                                    <SelectTrigger id="arch">
+                                        <SelectValue placeholder="アーキテクチャを選択" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {ARCH_OPTIONS.map((a) => (
+                                            <SelectItem key={a} value={a}>
+                                                {a}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                             </div>
                         </div>
 
@@ -282,14 +339,31 @@ export function BuildsPageClient() {
                             </div>
                         )}
 
-                        <div className="space-y-2">
-                            <Label htmlFor="gpg-key">GPG 鍵 (オプション)</Label>
-                            <Input
-                                id="gpg-key"
-                                value={gpgKey}
-                                onChange={(e) => setGpgKey(e.target.value)}
-                                placeholder="署名に使う鍵 ID"
-                            />
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="gpg-key">
+                                    GPG 鍵 (オプション)
+                                </Label>
+                                <Input
+                                    id="gpg-key"
+                                    value={gpgKey}
+                                    onChange={(e) => setGpgKey(e.target.value)}
+                                    placeholder="署名に使う鍵 ID"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="timeout">
+                                    タイムアウト(分) (オプション)
+                                </Label>
+                                <Input
+                                    id="timeout"
+                                    type="number"
+                                    min={0}
+                                    value={timeout}
+                                    onChange={(e) => setTimeout(e.target.value)}
+                                    placeholder="0 でサーバー既定"
+                                />
+                            </div>
                         </div>
 
                         <Button
@@ -314,6 +388,54 @@ export function BuildsPageClient() {
                     </form>
                 </CardContent>
             </Card>
+
+            {stats && (
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="text-base">
+                            ビルドサーバーの状態
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 text-sm">
+                            <div className="space-y-1">
+                                <p className="text-muted-foreground">
+                                    ワーカー
+                                </p>
+                                <p className="text-lg font-semibold">
+                                    {stats.workers}
+                                </p>
+                            </div>
+                            <div className="space-y-1">
+                                <p className="text-muted-foreground">
+                                    キュー待ち
+                                </p>
+                                <p className="text-lg font-semibold">
+                                    {stats.queue_length}
+                                </p>
+                            </div>
+                            <div className="space-y-1">
+                                <p className="text-muted-foreground">実行中</p>
+                                <p className="text-lg font-semibold">
+                                    {stats.running}
+                                </p>
+                            </div>
+                            <div className="space-y-1">
+                                <p className="text-muted-foreground">合計</p>
+                                <p className="text-lg font-semibold">
+                                    {stats.total}
+                                </p>
+                            </div>
+                            <div className="space-y-1">
+                                <p className="text-muted-foreground">成功率</p>
+                                <p className="text-lg font-semibold">
+                                    {Math.round(stats.success_rate * 100)}%
+                                </p>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
 
             <Card>
                 <CardHeader>
@@ -359,15 +481,31 @@ export function BuildsPageClient() {
                                             </Badge>
                                         </TableCell>
                                         <TableCell className="text-right">
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={() =>
-                                                    setLogJobId(job.id)
-                                                }
-                                            >
-                                                <ScrollText className="w-4 h-4" />
-                                            </Button>
+                                            <div className="flex justify-end gap-1">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() =>
+                                                        setLogJobId(job.id)
+                                                    }
+                                                >
+                                                    <ScrollText className="w-4 h-4" />
+                                                </Button>
+                                                {(job.status === "queued" ||
+                                                    job.status ===
+                                                        "running") && (
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() =>
+                                                            handleCancel(job.id)
+                                                        }
+                                                        title="キャンセル"
+                                                    >
+                                                        <Ban className="w-4 h-4" />
+                                                    </Button>
+                                                )}
+                                            </div>
                                         </TableCell>
                                     </TableRow>
                                 ))}
