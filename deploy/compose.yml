@@ -1,0 +1,61 @@
+# Single-VPS closed topology. Two walls keep clients off miko: the internal
+# network (internal: true, no outside route) and the shared API key ayato sends
+# on every proxied call. ayato publishes on 127.0.0.1 only — Docker's DNAT runs
+# ahead of the host firewall, so "9000:9000" would face the internet even under
+# ufw deny; front it with a TLS reverse proxy. The api_key/api_keys secrets ride
+# a mounted config file because the koanf env loader can't map keys with "_".
+
+services:
+  ayato:
+    # Expects an image whose entrypoint is the combined kamisato binary (deploy/README.md).
+    image: ghcr.io/hayao0819/kamisato:latest
+    restart: unless-stopped
+    networks:
+      - edge
+      - internal
+    ports:
+      - "127.0.0.1:9000:9000"
+    environment:
+      AYATO_PORT: "9000"
+      AYATO_MIKO_URL: "http://miko:8081"
+      AYATO_MIKO_API_KEY: "${KAMISATO_BUILD_API_KEY:?set KAMISATO_BUILD_API_KEY}"
+      AYATO_AUTH_USERNAME: "${AYATO_AUTH_USERNAME:-ayato}"
+      AYATO_AUTH_PASSWORD: "${AYATO_AUTH_PASSWORD:?set AYATO_AUTH_PASSWORD}"
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        cat > /tmp/ayato_config.json <<EOF
+        { "miko": { "url": "$${AYATO_MIKO_URL}", "api_key": "$${AYATO_MIKO_API_KEY}" } }
+        EOF
+        exec kamisato ayato -c /tmp/ayato_config.json
+
+  miko:
+    image: ghcr.io/hayao0819/kamisato:latest
+    restart: unless-stopped
+    networks:
+      - internal
+    expose:
+      - "8081"
+    # WARNING: a mounted docker.sock is host root — anyone who can submit a build
+    # can escape to the host. This is why miko stays sealed (closed net + API key).
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      MIKO_PORT: "8081"
+      MIKO_EXECUTOR: "container"
+      KAMISATO_BUILD_API_KEY: "${KAMISATO_BUILD_API_KEY:?set KAMISATO_BUILD_API_KEY}"
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        cat > /tmp/miko_config.json <<EOF
+        { "api_keys": ["$${KAMISATO_BUILD_API_KEY}"] }
+        EOF
+        exec kamisato miko -c /tmp/miko_config.json
+
+networks:
+  edge:
+    driver: bridge
+  internal:
+    internal: true
