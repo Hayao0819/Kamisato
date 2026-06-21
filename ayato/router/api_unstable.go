@@ -48,6 +48,7 @@ func SetRoute(e *gin.Engine, h *handler.Handler, m *middleware.Middleware) error
 			api.GET("/jobs/:id/logs", mikoProxy.HandlerFunc(func(c *gin.Context) string {
 				return "/api/unstable/jobs/" + c.Param("id") + "/logs"
 			}))
+			api.GET("/stats", mikoProxy.Handler("/api/unstable/stats"))
 		}
 
 		auth := api.Group("")
@@ -58,6 +59,9 @@ func SetRoute(e *gin.Engine, h *handler.Handler, m *middleware.Middleware) error
 			if mikoProxy != nil {
 				// Build submissions are only accepted behind client authentication.
 				auth.POST("/build", mikoProxy.Handler("/api/unstable/build"))
+				auth.DELETE("/jobs/:id", mikoProxy.HandlerFunc(func(c *gin.Context) string {
+					return "/api/unstable/jobs/" + c.Param("id")
+				}))
 			}
 		}
 	}
