@@ -1,3 +1,5 @@
+import type { BuildRequest, Job } from "./types";
+
 type LumineEnv = {
     AYATO_URL: string | null;
     SERVER_CONFIGURABLE: boolean;
@@ -98,6 +100,53 @@ export class APIClient {
         return res.text();
     }
 
+    // Build jobs are owned by miko; ayato proxies these endpoints, so clients
+    // never address miko directly.
+    async submitBuild(
+        req: BuildRequest,
+        username?: string,
+        password?: string,
+    ): Promise<{ job_id: string }> {
+        const headers: HeadersInit = { "Content-Type": "application/json" };
+        if (username && password) {
+            const credentials = btoa(`${username}:${password}`);
+            headers.Authorization = `Basic ${credentials}`;
+        }
+
+        const res = await fetch(this.endpoints.submitBuild(), {
+            method: "POST",
+            headers,
+            body: JSON.stringify(req),
+        });
+
+        if (!res.ok) {
+            const errorText = await res.text();
+            throw new Error(
+                `ビルドの投入に失敗しました: ${res.status} - ${errorText}`,
+            );
+        }
+
+        return res.json();
+    }
+
+    async listJobs(): Promise<Job[]> {
+        const res = await fetch(this.endpoints.listJobs());
+        if (!res.ok)
+            throw new Error(`ジョブ一覧の取得に失敗しました: ${res.status}`);
+        return res.json();
+    }
+
+    async jobDetail(id: string): Promise<Job> {
+        const res = await fetch(this.endpoints.jobDetail(id));
+        if (!res.ok)
+            throw new Error(`ジョブ情報の取得に失敗しました: ${res.status}`);
+        return res.json();
+    }
+
+    jobLogsUrl(id: string): string {
+        return this.endpoints.jobLogs(id);
+    }
+
     readonly lumineEnv: LumineEnv;
     readonly endpoints: APIEndpoints;
 
@@ -178,5 +227,17 @@ class APIEndpoints {
     }
     get uploadPackage() {
         return (repo: string) => `${this.apiUnstableUrl}/${repo}/package`;
+    }
+    get submitBuild() {
+        return () => `${this.apiUnstableUrl}/build`;
+    }
+    get listJobs() {
+        return () => `${this.apiUnstableUrl}/jobs`;
+    }
+    get jobDetail() {
+        return (id: string) => `${this.apiUnstableUrl}/jobs/${id}`;
+    }
+    get jobLogs() {
+        return (id: string) => `${this.apiUnstableUrl}/jobs/${id}/logs`;
     }
 }

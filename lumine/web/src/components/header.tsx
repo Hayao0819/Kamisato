@@ -1,5 +1,5 @@
 "use client";
-import { ServerIcon, Upload } from "lucide-react";
+import { Hammer, ServerIcon, Upload } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { LoginDialog } from "@/components/login-dialog";
@@ -64,6 +64,15 @@ export function Header() {
                         >
                             <Upload className="h-4 w-4 mr-2" />
                             アップロード
+                        </Button>
+                    </Link>
+                    <Link href="/builds">
+                        <Button
+                            variant="ghost"
+                            className="w-full sm:w-auto flex items-center"
+                        >
+                            <Hammer className="h-4 w-4 mr-2" />
+                            ビルド
                         </Button>
                     </Link>
                     <Link href="/about">

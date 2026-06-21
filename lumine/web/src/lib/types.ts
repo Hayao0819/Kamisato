@@ -28,4 +28,36 @@ export interface PacmanPkgsResponse {
     packages: PackageInfo[];
 }
 
+export type JobStatus = "queued" | "running" | "success" | "failed";
+
+export interface GitSource {
+    url: string;
+    ref?: string;
+    subdir?: string;
+}
+
+export interface BuildRequest {
+    repo: string;
+    arch: string;
+    git?: GitSource;
+    pkgbuild?: string;
+    files?: { [name: string]: string };
+    install_pkgs?: string[];
+    gpg_key?: string;
+}
+
+// Job mirrors miko's BuildJob serialized form (proxied through ayato).
+export interface Job {
+    id: string;
+    repo: string;
+    arch: string;
+    status: JobStatus;
+    logs: string;
+    err?: string;
+    packages?: string[];
+    created_at: string;
+    started_at?: string;
+    ended_at?: string;
+}
+
 // TODO: Add other relevant type definitions from the backend
