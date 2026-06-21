@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"text/tabwriter"
+	"time"
 
 	blinky_util "github.com/BrenekH/blinky/cmd/blinky/util"
 	"github.com/Hayao0819/Kamisato/internal/ayatoclient"
@@ -82,6 +83,62 @@ func mikoLogsCmd() *cobra.Command {
 				return utils.WrapErr(err, "failed to stream logs")
 			}
 			return nil
+		},
+	}
+}
+
+// mikoCancelCmd cancels a queued or running build job.
+func mikoCancelCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "cancel <id>",
+		Short: "Cancel a queued or running build job",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			server, err := cmd.Flags().GetString("server")
+			if err != nil {
+				return err
+			}
+
+			srv, err := resolveAyatoServer(server)
+			if err != nil {
+				return err
+			}
+
+			if err := ayatoclient.CancelJob(srv.URL, srv.Username, srv.Password, args[0]); err != nil {
+				return utils.WrapErr(err, "failed to cancel job")
+			}
+
+			fmt.Printf("cancelled job %s\n", args[0])
+			return nil
+		},
+	}
+}
+
+// mikoStatsCmd prints miko build service statistics.
+func mikoStatsCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "stats",
+		Short: "Show build service statistics",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			base, err := resolveJobBase(cmd)
+			if err != nil {
+				return err
+			}
+
+			stats, err := ayatoclient.FetchStats(base)
+			if err != nil {
+				return utils.WrapErr(err, "failed to get stats")
+			}
+
+			w := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
+			fmt.Fprintf(w, "Workers:\t%d\n", stats.Workers)
+			fmt.Fprintf(w, "Queue:\t%d\n", stats.QueueLength)
+			fmt.Fprintf(w, "Running:\t%d\n", stats.Running)
+			fmt.Fprintf(w, "Total:\t%d\n", stats.Total)
+			fmt.Fprintf(w, "Success rate:\t%.1f%%\n", stats.SuccessRate*100)
+			fmt.Fprintf(w, "Uptime:\t%s\n", (time.Duration(stats.UptimeSec) * time.Second).String())
+			return w.Flush()
 		},
 	}
 }

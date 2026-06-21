@@ -30,6 +30,8 @@ func mikoCmd() *cobra.Command {
 		mikoJobsCmd(),
 		mikoStatusCmd(),
 		mikoLogsCmd(),
+		mikoCancelCmd(),
+		mikoStatsCmd(),
 	)
 	return cmd
 }
@@ -43,6 +45,8 @@ func mikoBuildCmd() *cobra.Command {
 		gitURL    string
 		gitRef    string
 		gitSubdir string
+		arch      string
+		timeout   int
 	)
 	cmd := &cobra.Command{
 		Use:   "build <repo> [packages...]",
@@ -75,6 +79,8 @@ func mikoBuildCmd() *cobra.Command {
 				gitURL:    gitURL,
 				gitRef:    gitRef,
 				gitSubdir: gitSubdir,
+				arch:      arch,
+				timeout:   timeout,
 				pkgs:      args[1:],
 			})
 		},
@@ -83,6 +89,8 @@ func mikoBuildCmd() *cobra.Command {
 	cmd.Flags().StringVar(&gitURL, "git", "", "Build from a git/AUR repository URL")
 	cmd.Flags().StringVar(&gitRef, "ref", "", "Git ref to build (with --git)")
 	cmd.Flags().StringVar(&gitSubdir, "subdir", "", "Subdirectory within the git repository (with --git)")
+	cmd.Flags().StringVar(&arch, "arch", "x86_64", "Target architecture for the build")
+	cmd.Flags().IntVar(&timeout, "timeout", 0, "Build timeout in minutes (0 uses the server default)")
 	return cmd
 }
 
@@ -94,6 +102,8 @@ type remoteBuildOpts struct {
 	gitURL    string
 	gitRef    string
 	gitSubdir string
+	arch      string
+	timeout   int
 	pkgs      []string
 }
 
@@ -106,11 +116,17 @@ func runRemoteBuild(o remoteBuildOpts) error {
 		return err
 	}
 
+	arch := o.arch
+	if arch == "" {
+		arch = "x86_64"
+	}
+
 	req := &ayatoclient.BuildRequest{
 		Repo:        o.repo,
-		Arch:        "x86_64",
+		Arch:        arch,
 		InstallPkgs: o.pkgs,
 		GPGKey:      o.gpgkey,
+		Timeout:     o.timeout,
 	}
 
 	if o.gitURL != "" {

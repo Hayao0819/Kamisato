@@ -29,6 +29,7 @@ type BuildRequest struct {
 	Files       map[string]string `json:"files,omitempty"`
 	InstallPkgs []string          `json:"install_pkgs"`
 	GPGKey      string            `json:"gpg_key"`
+	Timeout     int               `json:"timeout,omitempty"` // minutes; 0 = miko default
 }
 
 // GitSource describes a git/AUR repository to clone as the build source.
@@ -48,6 +49,18 @@ type Job struct {
 	Err       string   `json:"err,omitempty"`
 	Packages  []string `json:"packages,omitempty"`
 	CreatedAt string   `json:"created_at"`
+	Retries   int      `json:"retries,omitempty"`
+}
+
+// Stats mirrors miko's build statistics.
+type Stats struct {
+	Workers     int            `json:"workers"`
+	QueueLength int            `json:"queue_length"`
+	Running     int            `json:"running"`
+	Counts      map[string]int `json:"counts"`
+	Total       int            `json:"total"`
+	SuccessRate float64        `json:"success_rate"`
+	UptimeSec   int64          `json:"uptime_sec"`
 }
 
 // SubmitBuild posts a build request to ayato with HTTP Basic auth and returns
@@ -120,6 +133,45 @@ func JobStatus(base, id string) (*Job, error) {
 		return nil, utils.WrapErr(err, "failed to decode job")
 	}
 	return &job, nil
+}
+
+// CancelJob requests cancellation of a job through ayato's authenticated proxy.
+func CancelJob(base, user, pass, id string) error {
+	httpReq, err := http.NewRequest(http.MethodDelete, endpoint(base, "/api/unstable/jobs/"+id), nil)
+	if err != nil {
+		return utils.WrapErr(err, "failed to create cancel request")
+	}
+	httpReq.SetBasicAuth(user, pass)
+
+	resp, err := http.DefaultClient.Do(httpReq)
+	if err != nil {
+		return utils.WrapErr(err, "failed to cancel job")
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return responseErr(resp, "cancel job")
+	}
+	return nil
+}
+
+// FetchStats fetches miko's build statistics from ayato (public endpoint).
+func FetchStats(base string) (*Stats, error) {
+	resp, err := http.Get(endpoint(base, "/api/unstable/stats"))
+	if err != nil {
+		return nil, utils.WrapErr(err, "failed to get stats")
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, responseErr(resp, "stats")
+	}
+
+	var stats Stats
+	if err := json.NewDecoder(resp.Body).Decode(&stats); err != nil {
+		return nil, utils.WrapErr(err, "failed to decode stats")
+	}
+	return &stats, nil
 }
 
 // StreamLogs reads the Server-Sent Events log stream for a job and writes each
