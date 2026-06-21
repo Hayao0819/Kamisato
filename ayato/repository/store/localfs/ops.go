@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"os"
 	"path"
+	"strings"
 
 	"github.com/Hayao0819/Kamisato/ayato/repository/pacman"
 	"github.com/Hayao0819/Kamisato/ayato/stream"
@@ -15,6 +16,14 @@ import (
 	"github.com/Hayao0819/nahi/futils"
 	"github.com/samber/lo"
 )
+
+// validatePathComponent rejects values that could escape the repo directory.
+func validatePathComponent(c string) error {
+	if c == "" || c == "." || strings.ContainsRune(c, '/') || strings.ContainsRune(c, os.PathSeparator) || strings.Contains(c, "..") {
+		return os.ErrNotExist
+	}
+	return nil
+}
 
 // --- File operations ---
 
@@ -51,6 +60,13 @@ func (l *LocalStore) FetchFile(repo string, arch string, file string) (stream.Fi
 		return nil, err
 	}
 
+	if err := validatePathComponent(arch); err != nil {
+		return nil, err
+	}
+	if err := validatePathComponent(file); err != nil {
+		return nil, err
+	}
+
 	pkgPath := path.Join(repoDir, arch, file)
 	if !futils.Exists(pkgPath) {
 		return nil, os.ErrNotExist
@@ -70,8 +86,7 @@ func (l *LocalStore) DeleteFile(repo string, arch string, file string) error {
 		return err
 	}
 
-	// FIXME: arch がハードコードされている（x86_64 固定）。
-	pkgPath := path.Join(repoDir, "x86_64", file)
+	pkgPath := path.Join(repoDir, arch, file)
 	slog.Info("remove pkg file", "file", pkgPath)
 	if err := os.Remove(pkgPath); err != nil {
 		slog.Warn("remove pkg file err", "err", err)
@@ -118,8 +133,7 @@ func (l *LocalStore) Arches(repo string) ([]string, error) {
 }
 
 func (l *LocalStore) Files(repo string, arch string) ([]string, error) {
-	// FIXME: getRepoDir("ayato") がハードコードされている（repo 引数を使うべき）。
-	repoDir, err := l.getRepoDir("ayato")
+	repoDir, err := l.getRepoDir(repo)
 	if err != nil {
 		return nil, err
 	}
@@ -210,9 +224,9 @@ func (s *LocalStore) RepoRemove(repo string, arch string, pkg string, useSignedD
 	if err != nil {
 		return fmt.Errorf("failed to open file %s: %w", dbpath, err)
 	}
-	defer dbfile.Close()
 
 	dbPath, err := writeStreamToFile(t, dbfile)
+	dbfile.Close()
 	if err != nil {
 		return err
 	}
@@ -222,7 +236,13 @@ func (s *LocalStore) RepoRemove(repo string, arch string, pkg string, useSignedD
 		return utils.WrapErr(err, "failed to remove repo")
 	}
 
-	return nil
+	// Write the updated DB back; otherwise removal only affects the temp copy.
+	updatedDB, err := os.Open(dbPath)
+	if err != nil {
+		return utils.WrapErr(err, "failed to open updated db file")
+	}
+	defer updatedDB.Close()
+	return writeReadSeekerToFile(dbpath, updatedDB)
 }
 
 func (l *LocalStore) InitArch(name string, arch string, useSignedDB bool, gnupgDir *string) error {
