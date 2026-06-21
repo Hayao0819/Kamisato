@@ -27,14 +27,10 @@ func TestSyncParseAllDescFiles(t *testing.T) {
 			continue
 		}
 
-		// 未知のキーがある場合はテスト失敗
-		// if len(rr.Pkgs) > 0 {
-		// 	t.Errorf("unknown keys found in %s: %v", descPath, keysOf(desc.ExtraFields))
-		// }
 		for _, pkg := range rr.Pkgs {
 			pi := pkg.PKGINFO()
 			if pi == nil {
-				t.Errorf("failed to get PKGINFO")
+				t.Errorf("failed to get PKGINFO from %s", entry)
 				continue
 			}
 		}
@@ -66,7 +62,7 @@ func TestLocalParseAllDescFiles(t *testing.T) {
 			continue
 		}
 
-		// 未知のキーがある場合はテスト失敗
+		// fail the test if there are unknown keys
 		if len(desc.ExtraFields) > 0 {
 			t.Errorf("unknown keys found in %s: %v", descPath, keysOf(desc.ExtraFields))
 		}

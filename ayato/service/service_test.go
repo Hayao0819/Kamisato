@@ -91,7 +91,7 @@ func TestServiceSignedURL(t *testing.T) {
 		t.Fatalf("SignedURL failed: %v", err)
 	}
 	if got != "https://example.com/n" {
-		t.Errorf("SignedURL = %q", got)
+		t.Errorf("SignedURL = %q, want %q", got, "https://example.com/n")
 	}
 }
 
