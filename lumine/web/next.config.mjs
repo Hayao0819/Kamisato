@@ -8,7 +8,7 @@ const nextConfig = {
     images: {
         unoptimized: true,
     },
-    distDir: "out",
+    distDir: "../embed/out",
     trailingSlash: true,
     // Dev: proxy /api and /repo to ayato (same origin), mirroring the lumine binary.
     // Prod is a static export served by that binary, which does the proxying.
