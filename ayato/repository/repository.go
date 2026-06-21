@@ -3,6 +3,7 @@ package repository
 import (
 	"fmt"
 	"path"
+	"strings"
 
 	"github.com/Hayao0819/Kamisato/ayato/stream"
 	"github.com/Hayao0819/Kamisato/internal/conf"
@@ -60,7 +61,33 @@ func NewBinaryRepository(store Store, cfg *conf.AyatoConfig) BinaryRepository {
 	return &binaryRepository{Store: store, cfg: cfg}
 }
 
-// FetchDB fetches the DB file for a repository and architecture.
+// Arches lists the repository's architectures, dropping "any". An arch=any
+// package's file is kept once under the "any/" directory and registered in each
+// concrete arch's db, so "any" is internal storage, never a servable arch
+// (pacman fetches only os/<concrete-arch>).
+func (r *binaryRepository) Arches(name string) ([]string, error) {
+	arches, err := r.Store.Arches(name)
+	if err != nil {
+		return nil, err
+	}
+	return lo.Filter(arches, func(a string, _ int) bool { return a != "any" }), nil
+}
+
+// FetchFile serves a repository file. An arch=any package is stored once under
+// "any/" but registered in every concrete arch's db, so a request under a
+// concrete arch falls back to "any/" when the file is an any-package missing
+// there. This lets os/<arch>/ serve like a normal pacman repo.
+func (r *binaryRepository) FetchFile(repo, arch, file string) (stream.File, error) {
+	f, err := r.Store.FetchFile(repo, arch, file)
+	if err == nil || arch == "any" || !strings.Contains(file, "-any.pkg.tar.") {
+		return f, err
+	}
+	if af, aerr := r.Store.FetchFile(repo, "any", file); aerr == nil {
+		return af, nil
+	}
+	return f, err
+}
+
 func (r *binaryRepository) FetchDB(repoName, archName string) (stream.File, error) {
 	return r.FetchFile(repoName, archName, repoName+".db")
 }

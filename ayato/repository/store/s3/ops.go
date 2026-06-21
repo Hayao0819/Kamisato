@@ -15,16 +15,14 @@ import (
 	"github.com/samber/lo"
 )
 
-// --- File operations ---
-
+// StoreFile stores the package object only. The database is updated by a
+// separate RepoAdd call (the service drives both), matching the localfs store
+// and letting an arch=any file be stored under "any/" without creating an "any"
+// database.
 func (s *S3) StoreFile(repo string, arch string, file stream.SeekFile) error {
 	k := key(repo, arch, file.FileName())
 	if err := s.putObject(k, file); err != nil {
 		return fmt.Errorf("failed to store file %s: %w", k, err)
-	}
-
-	if err := s.RepoAdd(repo, arch, file, nil, false, nil); err != nil {
-		return fmt.Errorf("failed to add file %s to repo: %w", k, err)
 	}
 	return nil
 }
@@ -83,8 +81,6 @@ func (s *S3) DeleteFile(repo string, arch string, name string) error {
 	return nil
 }
 
-// --- Repository listing ---
-
 func (s *S3) RepoNames() ([]string, error) {
 	return s.listDirs("")
 }
@@ -121,8 +117,6 @@ func (s *S3) Files(repo string, arch string) ([]string, error) {
 	slog.Debug("get files", "repo", repo, "arch", arch, "files", ul)
 	return ul, nil
 }
-
-// --- DB operations ---
 
 func (s *S3) initRepo(repo, arch string, useSignedDB bool, gnupgDir *string) error {
 	slog.Debug("initRepo", "repo", repo, "arch", arch, "useSignedDB", useSignedDB, "gnupgDir", gnupgDir)
