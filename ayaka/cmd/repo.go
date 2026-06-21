@@ -1,10 +1,9 @@
 package cmd
 
 import (
-	"fmt"
-
 	"github.com/BrenekH/blinky/clientlib"
 	blinky_util "github.com/BrenekH/blinky/cmd/blinky/util"
+	"github.com/Hayao0819/Kamisato/internal/utils"
 	"github.com/spf13/cobra"
 )
 
@@ -95,7 +94,7 @@ func repoClient(cmd *cobra.Command) (*clientlib.BlinkyClient, error) {
 
 	db, err := blinky_util.ReadServerDB()
 	if err != nil {
-		return nil, err
+		return nil, utils.WrapErr(err, "failed to read server database")
 	}
 
 	server := serverFlag
@@ -103,11 +102,11 @@ func repoClient(cmd *cobra.Command) (*clientlib.BlinkyClient, error) {
 		server = db.DefaultServer
 	}
 	if server == "" {
-		return nil, fmt.Errorf("no server specified and no default server is set")
+		return nil, ErrNoServerSpecified
 	}
 	entry, ok := db.Servers[server]
 	if !ok {
-		return nil, fmt.Errorf("server not found: %s", server)
+		return nil, utils.WrapErr(ErrServerNotFound, server)
 	}
 
 	username := usernameFlag

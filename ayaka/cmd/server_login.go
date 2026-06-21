@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	blinky_util "github.com/BrenekH/blinky/cmd/blinky/util"
+	"github.com/Hayao0819/Kamisato/internal/utils"
 	"github.com/spf13/cobra"
 )
 
@@ -33,7 +34,7 @@ func serverLoginCmd() *cobra.Command {
 
 			db, err := blinky_util.ReadServerDB()
 			if err != nil {
-				return err
+				return utils.WrapErr(err, "failed to read server database")
 			}
 
 			entry, exists := db.Servers[serverURL]
@@ -51,7 +52,7 @@ func serverLoginCmd() *cobra.Command {
 					if setDefault {
 						db.DefaultServer = serverURL
 					}
-					return blinky_util.SaveServerDB(db)
+					return utils.WrapErr(blinky_util.SaveServerDB(db), "failed to save server database")
 				}
 			}
 
@@ -78,7 +79,7 @@ func serverLoginCmd() *cobra.Command {
 				db.DefaultServer = serverURL
 			}
 
-			return blinky_util.SaveServerDB(db)
+			return utils.WrapErr(blinky_util.SaveServerDB(db), "failed to save server database")
 		},
 	}
 

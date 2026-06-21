@@ -31,7 +31,7 @@ func srcinfoCmd() *cobra.Command {
 			if len(args) > 0 {
 				d := getSrcDir(args[0])
 				if d == "" {
-					return utils.NewErr("invalid repository name: " + args[0])
+					return utils.WrapErr(ErrInvalidRepoName, args[0])
 				}
 				dirs = append(dirs, d)
 			} else {
@@ -43,7 +43,7 @@ func srcinfoCmd() *cobra.Command {
 			for _, dir := range dirs {
 				srcdirs, err := repo.GetSrcDirs(dir)
 				if err != nil {
-					return err
+					return utils.WrapErr(err, "failed to list source directories in "+dir)
 				}
 				for _, d := range srcdirs {
 					gencmd := exec.Command("makepkg", "--printsrcinfo")
@@ -52,7 +52,7 @@ func srcinfoCmd() *cobra.Command {
 					srcinfoPath := path.Join(d, ".SRCINFO")
 					srcinfoFile, err := os.Create(srcinfoPath)
 					if err != nil {
-						return err
+						return utils.WrapErr(err, "failed to create .SRCINFO in "+d)
 					}
 
 					gencmd.Stdout = srcinfoFile
@@ -63,7 +63,7 @@ func srcinfoCmd() *cobra.Command {
 						err = cerr
 					}
 					if err != nil {
-						return err
+						return utils.WrapErr(err, "failed to generate .SRCINFO in "+d)
 					}
 					cmd.Println("Updated SRCINFO file:", d)
 				}

@@ -54,7 +54,7 @@ func buildCmd() *cobra.Command {
 
 			// Validate args
 			if !slices.Contains(getSrcRepoNames(), repo) {
-				return utils.NewErr("invalid repository name: " + repo)
+				return utils.WrapErr(ErrInvalidRepoName, repo)
 			}
 
 			// In remote mode signing happens on miko, so skip the local key
@@ -101,15 +101,15 @@ func buildCmd() *cobra.Command {
 
 			srcrepo := getSrcRepo(repo)
 			if srcrepo == nil {
-				return utils.NewErr("failed to get source repository")
+				return utils.WrapErr(ErrSourceRepoNotFound, repo)
 			}
 			destDir := getDestDir(repo)
 			if destDir == "" {
-				return utils.NewErr("failed to get destination directory")
+				return utils.WrapErr(ErrNoDestDir, repo)
 			}
 			srcdir := getSrcDir(repo)
 			if srcdir == "" {
-				return utils.NewErr("failed to get source directory")
+				return utils.WrapErr(ErrNoSourceDir, repo)
 			}
 
 			// Create build target

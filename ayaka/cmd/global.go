@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"github.com/Hayao0819/Kamisato/internal/conf"
+	"github.com/Hayao0819/Kamisato/internal/utils"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
 	"github.com/samber/lo"
 )
@@ -13,15 +14,14 @@ var srcRepo []*repo.SourceRepo
 // type srcRepoList []*repo.SourceRepo
 
 func initSrcRepos() error {
-	var err error
 	for _, r := range config.Repos {
 		sr, err := repo.GetSrcRepo(r.Dir)
 		if err != nil {
-			return err
+			return utils.WrapErr(err, "failed to load source repository "+r.Dir)
 		}
 		srcRepo = append(srcRepo, sr)
 	}
-	return err
+	return nil
 }
 
 func getSrcRepo(name string) *repo.SourceRepo {

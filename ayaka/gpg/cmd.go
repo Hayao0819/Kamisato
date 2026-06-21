@@ -4,6 +4,8 @@ import (
 	"os"
 	"os/exec"
 	"path"
+
+	"github.com/Hayao0819/Kamisato/internal/utils"
 )
 
 func SignFile(key string, gpgDir string, file string) error {
@@ -18,5 +20,5 @@ func SignFile(key string, gpgDir string, file string) error {
 	cmd := exec.Command("gpg", "--detach-sign", "--use-agent", "-u", key, "--no-armor", "--homedir", homeDir, file)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	return cmd.Run()
+	return utils.WrapErr(cmd.Run(), "failed to sign "+file+" with gpg")
 }

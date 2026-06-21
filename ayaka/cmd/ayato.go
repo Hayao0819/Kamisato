@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"fmt"
+
 	blinky_util "github.com/BrenekH/blinky/cmd/blinky/util"
 	"github.com/Hayao0819/Kamisato/internal/utils"
 )
@@ -27,14 +29,14 @@ func resolveAyatoServer(server string) (*ayatoServer, error) {
 		server = db.DefaultServer
 	}
 	if server == "" {
-		return nil, utils.NewErr("no server specified and no default server is set")
+		return nil, ErrNoServerSpecified
 	}
 
 	entry, ok := db.Servers[server]
 	if !ok {
-		return nil, utils.NewErrf(
+		return nil, utils.WrapErr(ErrServerNotFound, fmt.Sprintf(
 			"server %q is not registered; add it first with 'ayaka server login %s --username <user> --password <pass>'",
-			server, server)
+			server, server))
 	}
 
 	return &ayatoServer{

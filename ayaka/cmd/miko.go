@@ -59,7 +59,7 @@ func mikoBuildCmd() *cobra.Command {
 			// ayato, which need not exist locally. Otherwise it must be a known
 			// source repo.
 			if gitURL == "" && !slices.Contains(getSrcRepoNames(), args[0]) {
-				return utils.NewErr("invalid repository name: " + args[0])
+				return utils.WrapErr(ErrInvalidRepoName, args[0])
 			}
 			return nil
 		},
@@ -147,7 +147,7 @@ func runRemoteBuild(o remoteBuildOpts) error {
 func readLocalSource(repo string, pkgs []string) (string, map[string]string, error) {
 	srcrepo := getSrcRepo(repo)
 	if srcrepo == nil {
-		return "", nil, utils.NewErr("failed to get source repository")
+		return "", nil, utils.WrapErr(ErrSourceRepoNotFound, repo)
 	}
 
 	srcpkg, err := selectSourcePkg(srcrepo, pkgs)

@@ -23,7 +23,7 @@ func listCmd() *cobra.Command {
 			if len(args) > 0 {
 				argrepo := getSrcRepo(args[0])
 				if argrepo == nil {
-					return utils.NewErr("invalid repository name: " + args[0])
+					return utils.WrapErr(ErrInvalidRepoName, args[0])
 				}
 				repos = append(repos, argrepo)
 			} else {

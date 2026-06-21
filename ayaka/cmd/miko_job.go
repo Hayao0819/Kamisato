@@ -103,7 +103,7 @@ func resolveJobBase(cmd *cobra.Command) (string, error) {
 		server = db.DefaultServer
 	}
 	if server == "" {
-		return "", utils.NewErr("no server specified and no default server is set")
+		return "", ErrNoServerSpecified
 	}
 	return server, nil
 }

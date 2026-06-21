@@ -81,12 +81,12 @@ func aurUpdateCmd() *cobra.Command {
 // existing one is pulled.
 func runAurFetch(cmd *cobra.Command, repoName string, pkgs []string, aurBase string, force bool) error {
 	if getSrcRepo(repoName) == nil {
-		return utils.NewErr("invalid repository name: " + repoName)
+		return utils.WrapErr(ErrInvalidRepoName, repoName)
 	}
 
 	repoDir := getSrcDir(repoName)
 	if repoDir == "" {
-		return utils.NewErr("failed to get source directory")
+		return utils.WrapErr(ErrNoSourceDir, repoName)
 	}
 
 	var errs []string

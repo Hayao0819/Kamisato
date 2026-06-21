@@ -1,11 +1,11 @@
 package servercmd
 
 import (
-	"errors"
 	"sort"
 	"strings"
 
 	blinky_utils "github.com/BrenekH/blinky/cmd/blinky/util"
+	"github.com/Hayao0819/Kamisato/internal/utils"
 	"github.com/spf13/cobra"
 )
 
@@ -31,13 +31,13 @@ func SetDefaultCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			db, err := blinky_utils.ReadServerDB()
 			if err != nil {
-				return err
+				return utils.WrapErr(err, "failed to read server database")
 			}
 			if _, ok := db.Servers[args[0]]; !ok {
-				return errors.New("server not found")
+				return utils.WrapErr(ErrServerNotFound, args[0])
 			}
 			db.DefaultServer = args[0]
-			return blinky_utils.SaveServerDB(db)
+			return utils.WrapErr(blinky_utils.SaveServerDB(db), "failed to save server database")
 		},
 	}
 	return cmd
