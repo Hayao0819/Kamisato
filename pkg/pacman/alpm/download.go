@@ -1,4 +1,4 @@
-// パッケージバイナリの一時取得・クリーンアップ
+// Temporary fetch and cleanup of package binaries.
 package alpm
 
 import (
@@ -31,7 +31,7 @@ func (c *CleanPkgBinary) Close() error {
 	return nil
 }
 
-// TODO: 実装
+// TODO: implement
 func GetCleanPkgBinary(names ...string) ([]string, error) {
 
 	if len(names) == 0 {
@@ -39,7 +39,7 @@ func GetCleanPkgBinary(names ...string) ([]string, error) {
 	}
 
 	pkgs := make([]*pkg.BinaryPackage, 0)
-	_ = pkgs // 型利用のため一時的に追加
+	_ = pkgs // temporarily added to use the type
 	tmp, err := os.MkdirTemp("", "kamisato-pkg-dl-")
 	if err != nil {
 		return nil, fmt.Errorf("failed to create temp directory: %w", err)
@@ -64,6 +64,6 @@ func GetCleanPkgBinary(names ...string) ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get repo db files: %w", err)
 	}
-	// ...（省略: パッケージファイル取得処理）...
+	// ... (omitted: package file fetch logic) ...
 	return nil, nil
 }

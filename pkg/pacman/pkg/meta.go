@@ -1,4 +1,4 @@
-// パッケージメタ情報のアクセサ
+// Accessors for package metadata.
 package pkg
 
 import (
@@ -13,12 +13,12 @@ import (
 
 // --- SourcePackage ---
 
-// Base は pkgbase を返します。
+// Base returns the pkgbase.
 func (p *SourcePackage) Base() string {
 	return p.info.PkgBase
 }
 
-// Version は epoch:pkgver-pkgrel 形式のフルバージョンを返します（vercmp 用）。
+// Version returns the full version in epoch:pkgver-pkgrel form (for vercmp).
 func (p *SourcePackage) Version() string {
 	v := p.info.PkgVer
 	if p.info.PkgRel != "" {
@@ -30,7 +30,7 @@ func (p *SourcePackage) Version() string {
 	return v
 }
 
-// Names は pkgbase と各サブパッケージ名を返します。
+// Names returns the pkgbase and each sub-package name.
 func (p *SourcePackage) Names() []string {
 	names := []string{p.info.PkgBase}
 	for _, pkg := range p.info.Packages {
@@ -39,7 +39,7 @@ func (p *SourcePackage) Names() []string {
 	return lo.Uniq(names)
 }
 
-// PkgFileNames は makepkg --packagelist の出力からビルド成果物のファイル名を返します。
+// PkgFileNames returns the build-output file names from makepkg --packagelist.
 func (p *SourcePackage) PkgFileNames() ([]string, error) {
 	stdout := new(bytes.Buffer)
 	cmd := exec.Command("makepkg", "--packagelist", "OPTIONS=-debug")
@@ -62,22 +62,22 @@ func (p *SourcePackage) PkgFileNames() ([]string, error) {
 
 // --- BinaryPackage ---
 
-// Name は pkgname を返します。
+// Name returns the pkgname.
 func (p *BinaryPackage) Name() string {
 	return p.info.PkgName
 }
 
-// Base は pkgbase を返します。
+// Base returns the pkgbase.
 func (p *BinaryPackage) Base() string {
 	return p.info.PkgBase
 }
 
-// Version は pkgver（.PKGINFO 記載のフルバージョン）を返します。
+// Version returns the pkgver (the full version recorded in .PKGINFO).
 func (p *BinaryPackage) Version() string {
 	return p.info.PkgVer
 }
 
-// Arch はパッケージのアーキテクチャを返します。
+// Arch returns the package architecture.
 func (p *BinaryPackage) Arch() string {
 	return p.info.Arch
 }

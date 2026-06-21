@@ -1,5 +1,6 @@
-// Package pkg はビルド対象(SourcePackage)とビルド成果物(BinaryPackage)という
-// 2 種類のパッケージをドメイン型として表します。メタ情報のパースは pkg/raiou に委ねます。
+// Package pkg models two kinds of packages as domain types: the build target
+// (SourcePackage) and the build output (BinaryPackage). Metadata parsing is
+// delegated to pkg/raiou.
 package pkg
 
 import (
@@ -18,13 +19,13 @@ import (
 
 var ErrSRCINFONotFound = fmt.Errorf(".SRCINFO not found")
 
-// SourcePackage は .SRCINFO / PKGBUILD ディレクトリ由来のビルド対象パッケージです。
+// SourcePackage is a build-target package from a .SRCINFO / PKGBUILD directory.
 type SourcePackage struct {
 	dir  string
 	info *raiou.SRCINFO
 }
 
-// OpenSourcePackage はディレクトリの .SRCINFO を読み取り SourcePackage を返します。
+// OpenSourcePackage reads the directory's .SRCINFO and returns a SourcePackage.
 func OpenSourcePackage(dir string) (*SourcePackage, error) {
 	srcinfoFile := path.Join(dir, ".SRCINFO")
 	if !futils.Exists(srcinfoFile) {
@@ -39,23 +40,23 @@ func OpenSourcePackage(dir string) (*SourcePackage, error) {
 	return &SourcePackage{dir: dir, info: info}, nil
 }
 
-// SRCINFO は解析済みの .SRCINFO を返します。
+// SRCINFO returns the parsed .SRCINFO.
 func (p *SourcePackage) SRCINFO() *raiou.SRCINFO {
 	return p.info
 }
 
-// Dir はソースディレクトリのパスを返します。
+// Dir returns the source directory path.
 func (p *SourcePackage) Dir() string {
 	return p.dir
 }
 
-// BinaryPackage は .pkg.tar / リポジトリ DB の desc 由来のビルド成果物パッケージです。
+// BinaryPackage is a build-output package from a .pkg.tar or a repository DB desc.
 type BinaryPackage struct {
 	path string
 	info *raiou.PKGINFO
 }
 
-// OpenBinaryPackage はパッケージファイルを開き BinaryPackage を返します。
+// OpenBinaryPackage opens a package file and returns a BinaryPackage.
 func OpenBinaryPackage(binPath string) (*BinaryPackage, error) {
 	file, err := os.Open(binPath)
 	if err != nil {
@@ -65,7 +66,7 @@ func OpenBinaryPackage(binPath string) (*BinaryPackage, error) {
 	return ReadBinaryPackage(binPath, file)
 }
 
-// ReadBinaryPackage は r から .PKGINFO を読み取り BinaryPackage を返します。
+// ReadBinaryPackage reads .PKGINFO from r and returns a BinaryPackage.
 func ReadBinaryPackage(binPath string, r io.Reader) (*BinaryPackage, error) {
 	decoder, _, err := utils.DetectCompression(r)
 	if err != nil {
@@ -115,12 +116,12 @@ func NewBinaryPackage(filePath string, info *raiou.PKGINFO) *BinaryPackage {
 	return &BinaryPackage{path: filePath, info: info}
 }
 
-// PKGINFO は解析済みの .PKGINFO を返します。
+// PKGINFO returns the parsed .PKGINFO.
 func (p *BinaryPackage) PKGINFO() *raiou.PKGINFO {
 	return p.info
 }
 
-// Path はパッケージファイルのパスを返します。
+// Path returns the package file path.
 func (p *BinaryPackage) Path() string {
 	return p.path
 }

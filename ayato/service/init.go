@@ -7,7 +7,7 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/utils"
 )
 
-// InitAll は全リポジトリの初期化を行います。
+// InitAll initializes all repositories.
 func (s *Service) InitAll() error {
 	repos := s.cfg.RepoNames()
 	if len(repos) == 0 {

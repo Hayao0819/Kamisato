@@ -1,4 +1,4 @@
-// Package s3 は S3/R2 互換ストレージ上のバイナリストア(repository.Store)です。
+// Package s3 is a binary store (repository.Store) backed by S3/R2-compatible storage.
 package s3
 
 import (

@@ -4,7 +4,7 @@ import (
 	"net/url"
 )
 
-// SignedURL は署名付きURLを生成します。
+// SignedURL generates a signed URL.
 func (s *Service) SignedURL(repo, arch, name string) (string, error) {
 	u, err := s.pkgBinaryRepo.StoreFileWithSignedURL(repo, arch, name)
 	if err != nil {

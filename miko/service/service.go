@@ -204,14 +204,14 @@ func (s *Service) process(ctx context.Context, job *domain.BuildJob) {
 	slog.Info("Build job running", "id", job.ID)
 
 	res, outDir, err := s.runBuild(ctx, job)
-	// 成果物ディレクトリは署名・アップロードまで保持し、process の終了時に
-	// まとめて掃除する。
+	// Keep the artifact directory until signing and upload, then clean it up
+	// all at once when process exits.
 	if outDir != "" {
 		defer func() { _ = os.RemoveAll(outDir) }()
 	}
 
-	// ジョブが終端状態に達したら必ずログバッファを閉じ、SSE リーダーを
-	// 終了させる。あわせて確定ログを Logs に書き出す。
+	// When a job reaches a terminal state, always close the log buffer to let
+	// SSE readers finish. Also write the final log out to Logs.
 	defer func() {
 		if job.Log != nil {
 			job.Log.Close()
@@ -252,7 +252,7 @@ func (s *Service) process(ctx context.Context, job *domain.BuildJob) {
 func (s *Service) runBuild(ctx context.Context, job *domain.BuildJob) (*builder.Result, string, error) {
 	req := job.Request
 
-	// 使い捨てのソースディレクトリ（ビルド後に破棄）。
+	// Disposable source directory (discarded after the build).
 	srcDir, err := os.MkdirTemp("", "miko-src-*")
 	if err != nil {
 		return nil, "", utils.WrapErr(err, "failed to create source dir")
@@ -263,8 +263,8 @@ func (s *Service) runBuild(ctx context.Context, job *domain.BuildJob) (*builder.
 		return nil, "", utils.WrapErr(err, "failed to materialize source")
 	}
 
-	// 成果物ディレクトリは runBuild の外（署名・アップロード）まで生存させる
-	// ため、ここでは削除しない。失敗時のみ掃除する。
+	// The artifact directory must live beyond runBuild (until signing and
+	// upload), so do not remove it here. Clean it up only on failure.
 	outDir, err := os.MkdirTemp("", "miko-out-*")
 	if err != nil {
 		return nil, "", utils.WrapErr(err, "failed to create output dir")

@@ -10,15 +10,15 @@ import (
 )
 
 // SetRoute sets all API routes for the Ayato server.
-// Ayatoサーバーの全APIルートを設定します。
+// It configures all API routes for the Ayato server.
 func SetRoute(e *gin.Engine, h *handler.Handler, m *middleware.Middleware) error {
-	// テンプレート設定
+	// Template setup
 	if err := view.Set(e); err != nil {
 		return utils.WrapErr(err, "テンプレート設定に失敗")
 	}
 
-	// miko への逆プロキシ。ビルド/ジョブは miko が単一の状態源として保持し、
-	// ayato は API キーを付けて素通しするだけ（クライアントは miko に直接到達しない）。
+	// Reverse proxy to miko. miko holds builds/jobs as the single source of truth,
+	// and ayato just passes through with an API key (clients never reach miko directly).
 	mikoProxy, err := h.MikoProxy()
 	if err != nil {
 		return utils.WrapErr(err, "miko プロキシの初期化に失敗")
@@ -34,13 +34,13 @@ func SetRoute(e *gin.Engine, h *handler.Handler, m *middleware.Middleware) error
 			api.GET("/repos", h.ReposHandler)
 			api.GET("/repos/:repo/archs", h.ArchesHandler)
 			api.GET("/:repo/:arch/package", h.AllPkgsHandler)
-			api.GET("/:repo/:arch/package/:name", h.PkgDetailHandler) // TODO: 実装未完（詳細取得）
+			api.GET("/:repo/:arch/package/:name", h.PkgDetailHandler) // TODO: not yet implemented (detail fetch)
 			api.GET("/:repo/:arch/package/:name/files", h.PkgFilesHandler)
 		}
 
 		if mikoProxy != nil {
-			// ジョブ状態の参照系は公開。静的な /jobs は既存の /:repo パラメータルートと
-			// 共存できる（ayato は /repos と /:repo を既に併用している）。
+			// Job-status reads are public. The static /jobs can coexist with the existing
+			// /:repo param route (ayato already uses both /repos and /:repo).
 			api.GET("/jobs", mikoProxy.Handler("/api/unstable/jobs"))
 			api.GET("/jobs/:id", mikoProxy.HandlerFunc(func(c *gin.Context) string {
 				return "/api/unstable/jobs/" + c.Param("id")
@@ -56,7 +56,7 @@ func SetRoute(e *gin.Engine, h *handler.Handler, m *middleware.Middleware) error
 			auth.PUT("/:repo/package", h.BlinkyUploadHandler)          // Blinky compatible
 			auth.DELETE("/:repo/package/:name", h.BlinkyRemoveHandler) // Blinky compatible
 			if mikoProxy != nil {
-				// ビルド投入はクライアント認証の背後でのみ受け付ける。
+				// Build submissions are only accepted behind client authentication.
 				auth.POST("/build", mikoProxy.Handler("/api/unstable/build"))
 			}
 		}

@@ -9,7 +9,7 @@ import (
 	"github.com/cloudflare/cloudflare-go"
 )
 
-// CloudflareKV は Cloudflare Workers KV ベースの NameStore 実装です。
+// CloudflareKV is a NameStore implementation backed by Cloudflare Workers KV.
 type CloudflareKV struct {
 	client      *cloudflare.API
 	accountId   string
@@ -50,7 +50,7 @@ func (c *CloudflareKV) PackageFile(packageName string) (string, error) {
 		Key:         packageName,
 	})
 	if err != nil {
-		// 正当な not-found（キー無し）のみ空文字を返し、それ以外の API エラーは握り潰さない。
+		// Return an empty string only for a legitimate not-found (missing key); do not swallow other API errors.
 		var notFound *cloudflare.NotFoundError
 		if errors.As(err, &notFound) {
 			return "", nil

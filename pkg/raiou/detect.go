@@ -30,7 +30,7 @@ func (ft FileType) String() string {
 	}
 }
 
-// DetectType は、io.Readerからファイルのタイプを検出します。
+// DetectType detects the file type from an io.Reader.
 func DetectType(r io.Reader) (FileType, error) {
 	scanner := bufio.NewScanner(r)
 
@@ -38,12 +38,12 @@ func DetectType(r io.Reader) (FileType, error) {
 		line := scanner.Text()
 		trimmed := strings.TrimSpace(line)
 		if trimmed == "" || trimmed[0] == '#' {
-			continue // 空行とコメント行はスキップ
+			continue // skip blank and comment lines
 		}
 
 		parts := strings.SplitN(trimmed, "=", 2)
 		if len(parts) != 2 {
-			continue // 無効な行、スキップ。タイプの判別には役立たない。
+			continue // invalid line, skip; not useful for type detection
 		}
 		key := strings.TrimSpace(parts[0])
 		value := strings.TrimSpace(parts[1])
@@ -51,12 +51,12 @@ func DetectType(r io.Reader) (FileType, error) {
 		switch key {
 		case "format":
 			if value == "2" {
-				return TypeBUILDINFO, nil //  BUILDINFOに固有
+				return TypeBUILDINFO, nil //  specific to BUILDINFO
 			}
 		case "pkgarch", "pkgbuild_sha256sum", "builddir", "startdir", "buildtool", "buildtoolver", "buildenv", "options", "installed":
-			return TypeBUILDINFO, nil // BUILDINFOに固有のキーワード
+			return TypeBUILDINFO, nil // keywords specific to BUILDINFO
 		case "epoch", "install", "changelog", "md5sums", "sha1sums", "sha224sums", "sha256sums", "sha384sums", "sha512sums", "b2sums", "noextract", "source", "validpgpkeys":
-			return TypeSRCINFO, nil // SRCINFOに固有のキーワード
+			return TypeSRCINFO, nil // keywords specific to SRCINFO
 		default:
 			continue
 		}
@@ -66,6 +66,6 @@ func DetectType(r io.Reader) (FileType, error) {
 		return TypeUnknown, err
 	}
 
-	return TypePKGINFO, nil // 上記の条件に合致しない場合はPKGINFOとみなす
+	return TypePKGINFO, nil // treat as PKGINFO when none of the above match
 
 }

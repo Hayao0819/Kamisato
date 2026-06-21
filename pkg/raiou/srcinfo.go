@@ -6,11 +6,11 @@ import (
 	go_srcinfo "github.com/Morganamilo/go-srcinfo"
 )
 
-// ArchStrings はアーキテクチャごとの値（depends, sums など）を保持します。
-// 同一 Arch に複数値があり得るため、キーごとにスライスで保持します。
+// ArchStrings holds per-architecture values (depends, sums, etc.).
+// A single arch can have multiple values, so each key maps to a slice.
 type ArchStrings map[string][]string
 
-// SrcinfoPackage は .SRCINFO 内の 1 パッケージ定義を表します。
+// SrcinfoPackage represents a single package definition in a .SRCINFO.
 type SrcinfoPackage struct {
 	PkgName    string      `mapstructure:"pkgname" json:"pkgname" yml:"pkgname" toml:"pkgname"`
 	PkgDesc    string      `mapstructure:"pkgdesc" json:"pkgdesc" yml:"pkgdesc" toml:"pkgdesc"`
@@ -29,7 +29,7 @@ type SrcinfoPackage struct {
 	Changelog  string      `mapstructure:"changelog" json:"changelog" yml:"changelog" toml:"changelog"`
 }
 
-// SrcinfoBase は .SRCINFO の pkgbase（全パッケージ共通のビルド情報）を表します。
+// SrcinfoBase represents the pkgbase of a .SRCINFO (build info common to all packages).
 type SrcinfoBase struct {
 	PkgBase      string      `mapstructure:"pkgbase" json:"pkgbase" yml:"pkgbase" toml:"pkgbase"`
 	PkgVer       string      `mapstructure:"pkgver" json:"pkgver" yml:"pkgver" toml:"pkgver"`
@@ -49,14 +49,14 @@ type SrcinfoBase struct {
 	CheckDepends ArchStrings `mapstructure:"checkdepends" json:"checkdepends" yml:"checkdepends" toml:"checkdepends"`
 }
 
-// SRCINFO は .SRCINFO ファイル全体（pkgbase + 各パッケージ）を表します。
+// SRCINFO represents an entire .SRCINFO file (pkgbase + each package).
 type SRCINFO struct {
 	SrcinfoBase    `mapstructure:",squash"`
 	SrcinfoPackage `mapstructure:",squash"`
 	Packages       []SrcinfoPackage `mapstructure:"packages" json:"packages" yml:"packages" toml:"packages"`
 }
 
-// ParseSrcinfo は io.Reader から .SRCINFO を読み取ります。
+// ParseSrcinfo reads a .SRCINFO from an io.Reader.
 func ParseSrcinfo(r io.Reader) (*SRCINFO, error) {
 	b, err := io.ReadAll(r)
 	if err != nil {

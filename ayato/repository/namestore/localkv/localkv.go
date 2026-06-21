@@ -9,7 +9,7 @@ import (
 	"github.com/dgraph-io/badger/v3"
 )
 
-// Badger は BadgerDB ベースの NameStore 実装です。
+// Badger is a NameStore implementation backed by BadgerDB.
 // implements: github.com/BrenekH/blinky.PackageNameToFileProvider
 type Badger struct {
 	db *badger.DB

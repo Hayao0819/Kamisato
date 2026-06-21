@@ -1,4 +1,4 @@
-// リモートリポジトリ（.db 由来のバイナリパッケージ集合）
+// Remote repository (a set of binary packages from a .db).
 package repo
 
 import (

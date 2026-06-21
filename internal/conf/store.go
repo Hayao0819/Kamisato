@@ -1,33 +1,33 @@
 package conf
 
-// StoreConfig はメタデータとバイナリの保存方式を表します。
+// StoreConfig describes how metadata and binaries are stored.
 type StoreConfig struct {
-	// メタデータの保存方法
+	// How metadata is stored
 	DBType       string     `koanf:"dbtype"` // "sql", "cfkv" or "badgerdb"
 	CloudflareKV CFKVConfig `koanf:"cfkv"`
-	SQL          SqlConfig  `koanf:"sql"` // メタデータをSQLデータベースに保存する場合の設定
+	SQL          SqlConfig  `koanf:"sql"` // config for storing metadata in an SQL database
 	BadgerDB     string     `koanf:"badgerdb"`
 
-	// バイナリの保存方法
+	// How binaries are stored
 	StorageType  string   `koanf:"storagetype"`  // "localfs" or "s3"
-	AWSS3        S3Config `koanf:"awss3"`        // バイナリをS3に保存する場合の設定
-	LocalRepoDir string   `koanf:"localrepodir"` // バイナリをローカルに保存する場合のディレクトリ
+	AWSS3        S3Config `koanf:"awss3"`        // config for storing binaries in S3
+	LocalRepoDir string   `koanf:"localrepodir"` // directory for storing binaries locally
 }
 
-// CFKVConfig は Cloudflare Workers KV の設定です。
+// CFKVConfig is the Cloudflare Workers KV configuration.
 type CFKVConfig struct {
 	Namespace string `koanf:"namespace"`
 	AccountId string `koanf:"accountid"`
 	Token     string `koanf:"token"`
 }
 
-// S3Config は S3/R2 互換ストレージの設定です。
+// S3Config is the configuration for S3/R2-compatible storage.
 type S3Config struct {
-	Region          string `koanf:"region"` // 例: "ap-northeast-1", "auto"
+	Region          string `koanf:"region"` // e.g. "ap-northeast-1", "auto"
 	AccessKeyID     string `koanf:"accesskeyid"`
 	SecretAccessKey string `koanf:"secretkey"`
-	SessionToken    string `koanf:"sessiontoken"` // 任意
-	Bucket          string `koanf:"bucket"`       // バケット名
-	Endpoint        string `koanf:"endpoint"`     // 例: "https://<account_id>.r2.cloudflarestorage.com"
-	UsePathStyle    bool   `koanf:"usepathstyle"` // R2では true を推奨
+	SessionToken    string `koanf:"sessiontoken"` // optional
+	Bucket          string `koanf:"bucket"`       // bucket name
+	Endpoint        string `koanf:"endpoint"`     // e.g. "https://<account_id>.r2.cloudflarestorage.com"
+	UsePathStyle    bool   `koanf:"usepathstyle"` // recommended to be true for R2
 }

@@ -2,7 +2,7 @@ package confloader
 
 import "github.com/spf13/pflag"
 
-// SimpleLoad はディレクトリ群とファイル名群からのみ設定をロードします。
+// SimpleLoad loads config from directories and filenames only.
 func SimpleLoad[T any](dir []string, files []string) (*T, error) {
 	l := New[T](".").Dirs(dir...).Files(files...)
 	if err := l.Load(); err != nil {
@@ -11,14 +11,14 @@ func SimpleLoad[T any](dir []string, files []string) (*T, error) {
 	return l.Get()
 }
 
-// Load はファイル・環境変数・pflag を統合して設定をロードします。
+// Load loads config by merging files, environment variables and pflag.
 func Load[T any](
 	dirs []string,
 	files []string,
 	flags *pflag.FlagSet,
-	envPrefix string, // 環境変数読み込み時のプレフィックス（例: APP_）
-	envDelimiter string, // 環境変数の区切り（例: .）
-	envKeyMap func(string) string, // 任意のキー変換関数
+	envPrefix string, // prefix for env var lookup (e.g. APP_)
+	envDelimiter string, // env var delimiter (e.g. .)
+	envKeyMap func(string) string, // optional key transform function
 ) (*T, error) {
 	loader := New[T](".").
 		Dirs(dirs...).

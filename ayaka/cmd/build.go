@@ -28,19 +28,19 @@ func buildCmd() *cobra.Command {
 		Short: "Build packages locally (--diff for diff build, --remote to build on miko)",
 		Args:  cobra.MinimumNArgs(1),
 		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-			// 1つ目の引数: リポジトリ名補完
+			// First argument: repository name completion
 			if len(args) == 0 {
 				return getSrcRepoNames(), cobra.ShellCompDirectiveNoFileComp
 			}
 
-			// 2つ目以降の引数: パッケージ名補完
+			// Second and later arguments: package name completion
 			repoName := args[0]
 			sr := getSrcRepo(repoName)
 			if sr == nil {
 				return nil, cobra.ShellCompDirectiveNoFileComp
 			}
 
-			// sr.Pkgs から pkgbase と Names() を列挙
+			// Enumerate pkgbase and Names() from sr.Pkgs
 			var cands []string
 			for _, p := range sr.Pkgs {
 				cands = append(cands, p.Base())

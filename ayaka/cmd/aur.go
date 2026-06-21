@@ -106,18 +106,18 @@ func runAurFetch(cmd *cobra.Command, repoName string, pkgs []string, aurBase str
 
 // updateAurPkg clones or updates a single AUR git repository under repoDir.
 //
-// 挙動:
-//   - targetDir に .git があれば (通常の git repo / サブモジュール問わず)、git pull で更新
-//   - そうでなければ、まず repoDir が git 管理下かを調べ、
-//   - 管理下なら git submodule add で追加 (既定の挙動)
-//   - 管理下でなければ git clone で取得
-//   - force は「まだ git repo でないディレクトリを取り直す」用途に限定し、
-//     既に git 管理下にある (submodule 含む) 場合は pull のみ行います。
+// Behavior:
+//   - if targetDir has a .git (whether a normal git repo or a submodule), update with git pull
+//   - otherwise, first check whether repoDir is under git control,
+//   - if it is, add via git submodule add (the default behavior)
+//   - if it is not, fetch with git clone
+//   - force is limited to "re-fetching a directory that is not yet a git repo";
+//     when already under git control (including submodules), only pull is performed.
 func updateAurPkg(cobraCmd *cobra.Command, repoDir, aurBase, name string, force bool) error {
 	targetDir := filepath.Join(repoDir, name)
 	gitDir := filepath.Join(targetDir, ".git")
 
-	// 既に git 管理下であれば、そのまま pull で更新する
+	// If already under git control, just update with pull
 	if _, err := os.Stat(gitDir); err == nil {
 		slog.Info("updating existing AUR repo", "name", name, "dir", targetDir)
 		gitcmd := exec.Command("git", "-C", targetDir, "pull", "--ff-only")
@@ -129,7 +129,7 @@ func updateAurPkg(cobraCmd *cobra.Command, repoDir, aurBase, name string, force 
 		return nil
 	}
 
-	// git repo でない既存ディレクトリを取り直したい場合だけ削除する
+	// Only remove when we want to re-fetch an existing directory that is not a git repo
 	if force {
 		slog.Info("force remove non-git directory", "name", name, "dir", targetDir)
 		if err := os.RemoveAll(targetDir); err != nil {
@@ -139,7 +139,7 @@ func updateAurPkg(cobraCmd *cobra.Command, repoDir, aurBase, name string, force 
 
 	url := aurBase + "/" + name + ".git"
 
-	// repoDir が git 管理下であれば、既定では submodule として追加する
+	// If repoDir is under git control, add as a submodule by default
 	root, err := gitRootDir(repoDir)
 	if err == nil {
 		if err := os.MkdirAll(filepath.Dir(targetDir), 0o755); err != nil {
@@ -161,7 +161,7 @@ func updateAurPkg(cobraCmd *cobra.Command, repoDir, aurBase, name string, force 
 		return nil
 	}
 
-	// repoDir が git 管理下でない場合のみ、通常の git clone を使う
+	// Only use a normal git clone when repoDir is not under git control
 	slog.Info("cloning AUR repo (non-git parent)", "name", name, "dir", targetDir)
 	if err := os.MkdirAll(repoDir, 0o755); err != nil {
 		return utils.WrapErr(err, "failed to create repo directory")

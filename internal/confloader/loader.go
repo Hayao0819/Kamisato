@@ -1,5 +1,6 @@
-// Package confloader は koanf を薄くラップし、複数ディレクトリ・複数形式
-// (JSON/TOML/YAML)・環境変数・pflag を統合して設定をロードします。
+// Package confloader is a thin wrapper around koanf that loads config by merging
+// multiple directories, multiple formats (JSON/TOML/YAML), environment variables
+// and pflag.
 package confloader
 
 import (
@@ -19,7 +20,7 @@ import (
 	"github.com/spf13/pflag"
 )
 
-// Loader は段階的に探索条件を組み立てて設定をロードするビルダーです。
+// Loader is a builder that assembles search conditions incrementally and loads config.
 type Loader[T any] struct {
 	k            *koanf.Koanf
 	dirs         []string

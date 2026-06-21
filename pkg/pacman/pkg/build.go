@@ -1,4 +1,4 @@
-// パッケージビルド関連
+// Package build helpers.
 package pkg
 
 import (
@@ -11,7 +11,7 @@ import (
 	"github.com/Hayao0819/Kamisato/pkg/pacman/gpg"
 )
 
-// Build は SourcePackage を一時ディレクトリにコピーしてビルドし、必要なら署名します。
+// Build copies the SourcePackage to a temp directory, builds it, and signs it if needed.
 func (p *SourcePackage) Build(target *builder.Target, dest string) error {
 	var tmpdir string
 	{
@@ -25,7 +25,7 @@ func (p *SourcePackage) Build(target *builder.Target, dest string) error {
 			return err
 		}
 	}
-	// 成果物は OutDir(=dest) へ移されるため、ソースコピーを残す tmpdir は破棄する。
+	// The output is moved to OutDir(=dest), so discard tmpdir holding the source copy.
 	defer func() { _ = os.RemoveAll(tmpdir) }()
 
 	backend, err := builder.New(builder.KindChroot, builder.Options{})

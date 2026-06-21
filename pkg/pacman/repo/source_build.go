@@ -1,4 +1,4 @@
-// SourceRepoのビルド処理
+// Build logic for SourceRepo.
 package repo
 
 import (

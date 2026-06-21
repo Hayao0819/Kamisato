@@ -35,7 +35,7 @@ func ResolvePath(baseDir, targetPath string) string {
 // CopyDir recursively copies a directory tree from src to dst.
 // dst must not exist (it will be created).
 func CopyDir(src, dst string) error {
-	// srcの情報取得
+	// get info about src
 	srcInfo, err := os.Stat(src)
 	if err != nil {
 		return fmt.Errorf("stat source dir: %w", err)
@@ -44,7 +44,7 @@ func CopyDir(src, dst string) error {
 		return fmt.Errorf("source is not a directory")
 	}
 
-	// dstディレクトリ作成
+	// create the dst directory
 	if err := os.MkdirAll(dst, srcInfo.Mode()); err != nil {
 		return fmt.Errorf("create dest dir: %w", err)
 	}
@@ -55,7 +55,7 @@ func CopyDir(src, dst string) error {
 			return err
 		}
 
-		// srcからの相対パス
+		// path relative to src
 		relPath, err := filepath.Rel(src, path)
 		if err != nil {
 			return err
@@ -69,12 +69,12 @@ func CopyDir(src, dst string) error {
 
 		switch {
 		case d.IsDir():
-			// サブディレクトリ作成
+			// create subdirectory
 			if err := os.MkdirAll(dstPath, info.Mode()); err != nil {
 				return err
 			}
 		case (info.Mode() & os.ModeSymlink) != 0:
-			// シンボリックリンク対応
+			// handle symbolic links
 			linkTarget, err := os.Readlink(path)
 			if err != nil {
 				return err
@@ -83,7 +83,7 @@ func CopyDir(src, dst string) error {
 				return err
 			}
 		default:
-			// 通常ファイルコピー
+			// copy regular file
 			if err := copyFile(path, dstPath, info.Mode()); err != nil {
 				return err
 			}
@@ -92,7 +92,7 @@ func CopyDir(src, dst string) error {
 	})
 }
 
-// ファイルコピー関数
+// copyFile copies a single file.
 func copyFile(srcFile, dstFile string, mode fs.FileMode) error {
 	src, err := os.Open(srcFile)
 	if err != nil {

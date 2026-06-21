@@ -10,7 +10,7 @@ func HasStack(err error) bool {
 		return false
 	}
 
-	// cockroachdb/errors の withStack かどうか
+	// whether this is a cockroachdb/errors withStack
 	_, ok := err.(interface{ SafeFormatError(errbase.Printer) error })
 	return ok
 }

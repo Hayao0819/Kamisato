@@ -1,4 +1,4 @@
-// SourceRepo型と関連処理
+// SourceRepo type and related logic.
 package repo
 
 import (

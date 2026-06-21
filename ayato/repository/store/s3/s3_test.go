@@ -26,14 +26,14 @@ func TestUploadFile(t *testing.T) {
 		t.Fatalf("Failed to create S3 client: %v", err)
 	}
 
-	// テスト用のファイルを作成
+	// Create a file for the test
 	tmpdir := t.TempDir()
 	filePath := tmpdir + "/test.txt"
 	file, err := os.Create(filePath)
 	if err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
-	defer os.Remove(filePath) // テスト後にファイルを削除
+	defer os.Remove(filePath) // Remove the file after the test
 	_, err = file.WriteString("This is a test file.")
 	if err != nil {
 		t.Fatalf("Failed to write to test file: %v", err)

@@ -23,9 +23,8 @@ func (t *Target) Build(dir string) error {
 	return t.BuildContext(context.Background(), dir)
 }
 
-// BuildContext は Build と同じ clean-chroot ビルドを実行しますが、ctx で
-// キャンセル・タイムアウトを制御できます。Build はこれを context.Background()
-// で呼び出します。
+// BuildContext runs the same clean-chroot build as Build, but ctx controls
+// cancellation and timeout. Build calls this with context.Background().
 func (t *Target) BuildContext(ctx context.Context, dir string) error {
 
 	if t.ArchBuild == "" {

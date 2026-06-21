@@ -13,8 +13,8 @@ import (
 
 //go:generate mockgen -source=repository.go -destination=../test/mocks/repository.go -package=mocks
 
-// Store はバイナリ（パッケージファイル・DB）を保存する低レベルなバックエンド契約です。
-// localfs / s3 が直接実装します。
+// Store is the low-level backend contract for storing binaries (package files and DBs).
+// Implemented directly by localfs / s3.
 type Store interface {
 	StoreFile(repo, arch string, file stream.SeekFile) error
 	StoreFileWithSignedURL(repo, arch, name string) (string, error)
@@ -28,44 +28,44 @@ type Store interface {
 	Arches(repo string) ([]string, error)
 }
 
-// NameStore はパッケージ名と保存ファイル名の対応を管理します（blinky 互換）。
+// NameStore maps package names to their stored file names (blinky-compatible).
 type NameStore interface {
 	PackageFile(name string) (string, error)
 	StorePackageFile(packageName, filePath string) error
 	DeletePackageFileEntry(packageName string) error
 }
 
-// BinaryRepository はサービス層が依存する高レベルなリポジトリです。
-// 低レベルな Store に pacman 固有の派生操作を加えたものです。
+// BinaryRepository is the high-level repository the service layer depends on.
+// It extends the low-level Store with pacman-specific derived operations.
 type BinaryRepository interface {
 	Store
 	FetchDB(repoName, archName string) (stream.File, error)
 	PkgNames(repoName, archName string) ([]string, error)
 	RemoteRepo(name, arch string) (*repo.RemoteRepo, error)
 	PkgFiles(repoName, archName, pkgName string) ([]string, error)
-	// Init はリポジトリの全アーキテクチャ（設定 + 既存）を初期化します。
+	// Init initializes all architectures of the repository (configured + existing).
 	Init(name string, useSignedDB bool, gnupgDir *string) error
 	VerifyPkgRepo(name string) error
 }
 
-// binaryRepository は Store を埋め込み、派生操作だけを上乗せします
-// （低レベルメソッドは埋め込みにより自動委譲され、ボイラープレートはありません）。
+// binaryRepository embeds Store and adds only the derived operations
+// (low-level methods are auto-delegated via embedding, with no boilerplate).
 type binaryRepository struct {
 	Store
 	cfg *conf.AyatoConfig
 }
 
-// NewBinaryRepository は低レベル Store を派生操作付きの BinaryRepository に包みます。
+// NewBinaryRepository wraps a low-level Store into a BinaryRepository with derived operations.
 func NewBinaryRepository(store Store, cfg *conf.AyatoConfig) BinaryRepository {
 	return &binaryRepository{Store: store, cfg: cfg}
 }
 
-// FetchDB はリポジトリ・アーキテクチャの DB ファイルを取得します。
+// FetchDB fetches the DB file for a repository and architecture.
 func (r *binaryRepository) FetchDB(repoName, archName string) (stream.File, error) {
 	return r.FetchFile(repoName, archName, repoName+".db")
 }
 
-// RemoteRepo は DB を解析して RemoteRepo を返します。
+// RemoteRepo parses the DB and returns a RemoteRepo.
 func (r *binaryRepository) RemoteRepo(name, arch string) (*repo.RemoteRepo, error) {
 	db, err := r.FetchDB(name, arch)
 	if err != nil {
@@ -83,8 +83,8 @@ func (r *binaryRepository) RemoteRepo(name, arch string) (*repo.RemoteRepo, erro
 	return rr, nil
 }
 
-// PkgNames はリポジトリ内の全パッケージの pkgbase を返します。
-// FIXME: 毎回 DB を開くのは非効率。キャッシュ等での最適化が望ましい。
+// PkgNames returns the pkgbase of every package in the repository.
+// FIXME: opening the DB on every call is inefficient; caching or similar would help.
 func (r *binaryRepository) PkgNames(repoName, archName string) ([]string, error) {
 	db, err := r.FetchFile(repoName, archName, fmt.Sprintf("%s.db.tar.gz", repoName))
 	if err != nil {
@@ -106,8 +106,8 @@ func (r *binaryRepository) PkgNames(repoName, archName string) ([]string, error)
 	return names, nil
 }
 
-// PkgFiles はリポジトリ内パッケージのファイル一覧を返します。
-// TODO: 未実装（パッケージファイル一覧の取得）。
+// PkgFiles returns the file list of a package in the repository.
+// TODO: not implemented (fetching the package file list).
 func (r *binaryRepository) PkgFiles(repoName, archName, pkgName string) ([]string, error) {
 	db, err := r.FetchDB(repoName, archName)
 	if err != nil {
@@ -120,7 +120,7 @@ func (r *binaryRepository) PkgFiles(repoName, archName, pkgName string) ([]strin
 	return nil, nil
 }
 
-// Init はリポジトリの全アーキテクチャ（設定 + 既存）を初期化します。
+// Init initializes all architectures of the repository (configured + existing).
 func (r *binaryRepository) Init(name string, useSignedDB bool, gnupgDir *string) error {
 	createdArches, err := r.Arches(name)
 	if err != nil {
@@ -141,7 +141,7 @@ func (r *binaryRepository) Init(name string, useSignedDB bool, gnupgDir *string)
 	return nil
 }
 
-// VerifyPkgRepo は各アーキテクチャに必須ファイルが揃っているか検証します。
+// VerifyPkgRepo verifies that each architecture has all required files.
 func (r *binaryRepository) VerifyPkgRepo(name string) error {
 	arches, err := r.Arches(name)
 	if err != nil {

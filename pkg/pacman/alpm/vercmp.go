@@ -1,4 +1,4 @@
-// バージョン比較
+// Version comparison.
 package alpm
 
 import (

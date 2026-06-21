@@ -12,9 +12,9 @@ import (
 	utils "github.com/Hayao0819/Kamisato/internal/utils"
 )
 
-// chrootBackend は devtools の clean-chroot フロー
-// (<ArchBuild> -- makechrootpkg -c -- makepkg ...) でパッケージをビルドします。
-// Arch ホスト上でのみ動作し、root/nspawn を必要とします。
+// chrootBackend builds packages using the devtools clean-chroot flow
+// (<ArchBuild> -- makechrootpkg -c -- makepkg ...).
+// It runs only on an Arch host and requires root/nspawn.
 type chrootBackend struct {
 	opts Options
 }
@@ -35,16 +35,17 @@ func (b *chrootBackend) Build(ctx context.Context, spec Spec) (*Result, error) {
 		return nil, errors.New("chroot backend requires Spec.SrcDir")
 	}
 
-	// Timeout が指定されていればビルド全体を打ち切る。
+	// Abort the whole build if a Timeout is set.
 	if b.opts.Timeout > 0 {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, b.opts.Timeout)
 		defer cancel()
 	}
 
-	// ビルド前に既存パッケージを記録しておく。makechrootpkg は成果物を SrcDir
-	// (= CWD) に残すため、前回ビルドの残骸や InstallPkgs として置かれた依存
-	// パッケージを「今回の成果物」と誤認しないよう、差分だけを採用する。
+	// Record existing packages before building. makechrootpkg leaves its output
+	// in SrcDir (= CWD), so we only take the diff to avoid mistaking leftovers
+	// from a previous build or dependencies placed as InstallPkgs for this
+	// build's output.
 	baseline, err := snapshotPackages(spec.SrcDir)
 	if err != nil {
 		return nil, err
@@ -55,7 +56,7 @@ func (b *chrootBackend) Build(ctx context.Context, spec Spec) (*Result, error) {
 		ArchBuild:   spec.ArchBuild,
 		InstallPkgs: spec.InstallPkgs,
 	}
-	// LogWriter が指定されていれば、ビルド出力をコンソールと同時に捕捉する。
+	// If a LogWriter is set, capture build output while still writing to the console.
 	if spec.LogWriter != nil {
 		target.Output = io.MultiWriter(os.Stdout, spec.LogWriter)
 	}
@@ -65,7 +66,7 @@ func (b *chrootBackend) Build(ctx context.Context, spec Spec) (*Result, error) {
 		return nil, utils.WrapErr(err, "failed to build package in chroot")
 	}
 
-	// 今回新しく生成されたパッケージだけを採用する。
+	// Only take packages newly produced by this build.
 	built, err := collectNewPackages(spec.SrcDir, baseline)
 	if err != nil {
 		return nil, err
@@ -77,8 +78,9 @@ func (b *chrootBackend) Build(ctx context.Context, spec Spec) (*Result, error) {
 	return moveToOutDir(built, spec.SrcDir, spec.OutDir)
 }
 
-// moveToOutDir は built（絶対パス）を outDir へ移動し、最終的な絶対パスを返します。
-// outDir が srcDir と同一（または空）なら移動せずそのまま返します。
+// moveToOutDir moves built (absolute paths) into outDir and returns the final
+// absolute paths. If outDir equals srcDir (or is empty), it returns them as-is
+// without moving.
 func moveToOutDir(built []string, srcDir, outDir string) (*Result, error) {
 	if outDir == "" {
 		outDir = srcDir
@@ -108,8 +110,8 @@ func moveToOutDir(built []string, srcDir, outDir string) (*Result, error) {
 	return &Result{Packages: packages}, nil
 }
 
-// snapshotPackages は dir 内に現在存在するパッケージファイル (*.pkg.tar.*) の
-// ファイル名集合を返します。dir が存在しない場合は空集合を返します。
+// snapshotPackages returns the set of package file names (*.pkg.tar.*)
+// currently present in dir. If dir does not exist, it returns an empty set.
 func snapshotPackages(dir string) (map[string]struct{}, error) {
 	set := map[string]struct{}{}
 	entries, err := os.ReadDir(dir)
@@ -128,9 +130,9 @@ func snapshotPackages(dir string) (map[string]struct{}, error) {
 	return set, nil
 }
 
-// collectNewPackages は dir 内のパッケージファイルのうち baseline に含まれない
-// もの（= 今回のビルドで生成されたもの）の絶対パスを返します。署名ファイル
-// (*.sig) は除外します。
+// collectNewPackages returns the absolute paths of package files in dir that
+// are not in baseline (i.e. produced by this build). Signature files (*.sig)
+// are excluded.
 func collectNewPackages(dir string, baseline map[string]struct{}) ([]string, error) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
@@ -153,7 +155,7 @@ func collectNewPackages(dir string, baseline map[string]struct{}) ([]string, err
 	return pkgs, nil
 }
 
-// pkgFileExts は Arch パッケージファイルの末尾拡張子です。
+// pkgFileExts are the trailing extensions of Arch package files.
 var pkgFileExts = []string{
 	".pkg.tar.zst",
 	".pkg.tar.xz",
@@ -165,8 +167,8 @@ var pkgFileExts = []string{
 	".pkg.tar",
 }
 
-// isPackageFile はファイル名がビルド成果物パッケージ (*.pkg.tar.*) かどうかを
-// 返します。署名ファイル (*.sig) は成果物とみなしません。
+// isPackageFile reports whether name is a build-output package (*.pkg.tar.*).
+// Signature files (*.sig) are not considered output.
 func isPackageFile(name string) bool {
 	if strings.HasSuffix(name, ".sig") {
 		return false

@@ -1,4 +1,4 @@
-// Package localfs はローカルファイルシステム上のバイナリストア(repository.Store)です。
+// Package localfs is a binary store (repository.Store) backed by the local filesystem.
 package localfs
 
 import (

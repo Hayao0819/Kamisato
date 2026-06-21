@@ -1,4 +1,4 @@
-// GPG署名関連
+// GPG signing helpers.
 package gpg
 
 import (
@@ -7,7 +7,7 @@ import (
 	"path"
 )
 
-// SignFile は指定したファイルをGPGで署名します
+// SignFile signs the given file with GPG.
 func SignFile(key string, gpgDir string, file string) error {
 	homeDir := gpgDir
 	if gpgDir == "" {

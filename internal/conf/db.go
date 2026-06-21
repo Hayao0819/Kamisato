@@ -9,12 +9,12 @@ import (
 
 type SqlConfig struct {
 	Driver        string `koanf:"driver"`        // postgres | mysql | sqlite
-	Host          string `koanf:"host"`          // 例: localhost
-	Port          string `koanf:"port"`          // 例: 5432, 3306
-	User          string `koanf:"user"`          // 例: root
-	Password      string `koanf:"password"`      // 任意（SQLite除く）
-	Database      string `koanf:"database"`      // DB名 or SQLiteファイルパス
-	AdditionalDSN string `koanf:"additionaldsn"` // 例: sslmode=require
+	Host          string `koanf:"host"`          // e.g. localhost
+	Port          string `koanf:"port"`          // e.g. 5432, 3306
+	User          string `koanf:"user"`          // e.g. root
+	Password      string `koanf:"password"`      // optional (except SQLite)
+	Database      string `koanf:"database"`      // DB name or SQLite file path
+	AdditionalDSN string `koanf:"additionaldsn"` // e.g. sslmode=require
 }
 
 func (c SqlConfig) DSN() (string, error) {

@@ -10,12 +10,12 @@ import (
 	"github.com/cockroachdb/errors"
 )
 
-// RepoFileList はリポジトリ内のファイル一覧を返します。
+// RepoFileList returns the list of files in the repository.
 func (s *Service) RepoFileList(repo, arch string) ([]string, error) {
 	return s.pkgBinaryRepo.Files(repo, arch)
 }
 
-// Repo はリポジトリ情報（全アーキテクチャ・パッケージ）を返します。
+// Repo returns repository info (all architectures and packages).
 func (s *Service) Repo(repo string) (*domain.PacmanRepo, error) {
 	arches, err := s.pkgBinaryRepo.Arches(repo)
 	if err != nil {
@@ -40,7 +40,7 @@ func (s *Service) Repo(repo string) (*domain.PacmanRepo, error) {
 
 }
 
-// Pkgs はリポジトリ内の全パッケージ情報を返します。
+// Pkgs returns info for all packages in the repository.
 func (s *Service) Pkgs(repo, arch string) (*domain.PacmanPkgs, error) {
 	rr, err := s.pkgBinaryRepo.RemoteRepo(repo, arch)
 	if err != nil {
@@ -67,7 +67,7 @@ func (s *Service) Pkgs(repo, arch string) (*domain.PacmanPkgs, error) {
 	return &rt, nil
 }
 
-// PkgDetail は指定パッケージの詳細情報を返します。
+// PkgDetail returns detailed info for the specified package.
 func (s *Service) PkgDetail(repo, arch, pkgbase string) (*raiou.PKGINFO, error) {
 	rr, err := s.pkgBinaryRepo.RemoteRepo(repo, arch)
 	if err != nil {
@@ -84,17 +84,17 @@ func (s *Service) PkgDetail(repo, arch, pkgbase string) (*raiou.PKGINFO, error) 
 	return nil, errors.New("package not found in the repository")
 }
 
-// RepoNames は全リポジトリ名一覧を返します。
+// RepoNames returns the list of all repository names.
 func (s *Service) RepoNames() ([]string, error) {
 	return s.pkgBinaryRepo.RepoNames()
 }
 
-// Arches はリポジトリのアーキテクチャ一覧を返します。
+// Arches returns the list of architectures in the repository.
 func (s *Service) Arches(repo string) ([]string, error) {
 	return s.pkgBinaryRepo.Arches(repo)
 }
 
-// ValidateRepoName はリポジトリ名の妥当性を検証します。
+// ValidateRepoName validates the repository name.
 func (s *Service) ValidateRepoName(repo string) error {
 	if repo == "" {
 		return nil
