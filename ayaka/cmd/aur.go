@@ -11,53 +11,97 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// aurUpdateCmd updates local PKGBUILD git trees cloned from AUR.
-// Usage: ayaka aur-update <repo> <aur-pkg> [aur-pkg...]
-//
-// 実装方針は yay の PKGBUILD 取得ロジックを参考にしつつ、
-// 指定した Ayaka リポジトリ配下に AUR の git リポジトリを
-// clone / pull するシンプルなものにしています。
-func aurUpdateCmd() *cobra.Command {
-	var (
-		force   bool
-		aurBase = "https://aur.archlinux.org"
+// aurCmd groups the commands that pull PKGBUILDs from the AUR into a local
+// source repository: `aur add` to take in a new package and `aur update` to
+// follow upstream changes.
+func aurCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "aur",
+		Short: "Manage PKGBUILDs taken from the AUR",
+		Long:  "Add AUR packages to a source repository and update them from upstream.",
+	}
+	cmd.AddCommand(
+		aurAddCmd(),
+		aurUpdateCmd(),
 	)
+	return cmd
+}
+
+// aurAddCmd clones one or more AUR packages into a source repository for the
+// first time. When the package is already present it falls back to a pull, so
+// the command is safe to re-run.
+func aurAddCmd() *cobra.Command {
+	var force bool
+	const aurBase = "https://aur.archlinux.org"
 
 	cmd := &cobra.Command{
-		Use:   "aur-update <repo> <aur-pkg> [aur-pkg...]",
-		Short: "Update PKGBUILD repositories from AUR",
+		Use:   "add <repo> <aur-pkg> [aur-pkg...]",
+		Short: "Add AUR packages to a source repository",
 		Args:  cobra.MinimumNArgs(2),
+		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+			if len(args) == 0 {
+				return getSrcRepoNames(), cobra.ShellCompDirectiveNoFileComp
+			}
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			repoName := args[0]
-			if getSrcRepo(repoName) == nil {
-				return utils.NewErr("invalid repository name: " + repoName)
-			}
-
-			repoDir := getSrcDir(repoName)
-			if repoDir == "" {
-				return utils.NewErr("failed to get source directory")
-			}
-
-			pkgs := args[1:]
-			var errs []string
-			for i, name := range pkgs {
-				slog.Info("AUR PKGBUILD update", "index", i+1, "total", len(pkgs), "name", name)
-				if err := updateAurPkg(cmd, repoDir, aurBase, name, force); err != nil {
-					slog.Error("failed to update AUR package", "name", name, "error", err)
-					errs = append(errs, err.Error())
-				}
-			}
-
-			if len(errs) > 0 {
-				return utils.NewErr("one or more AUR updates failed:\n" + strings.Join(errs, "\n"))
-			}
-
-			return nil
+			return runAurFetch(cmd, args[0], args[1:], aurBase, force)
 		},
 	}
-
 	cmd.Flags().BoolVarP(&force, "force", "f", false, "Re-clone repositories even if they already exist")
 	return cmd
+}
+
+// aurUpdateCmd pulls already-tracked AUR packages in a source repository.
+func aurUpdateCmd() *cobra.Command {
+	var force bool
+	const aurBase = "https://aur.archlinux.org"
+
+	cmd := &cobra.Command{
+		Use:   "update <repo> <aur-pkg> [aur-pkg...]",
+		Short: "Update tracked AUR packages from upstream",
+		Args:  cobra.MinimumNArgs(2),
+		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+			if len(args) == 0 {
+				return getSrcRepoNames(), cobra.ShellCompDirectiveNoFileComp
+			}
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		},
+		// TODO: update every tracked package when no package name is given.
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runAurFetch(cmd, args[0], args[1:], aurBase, force)
+		},
+	}
+	cmd.Flags().BoolVarP(&force, "force", "f", false, "Re-clone repositories even if they already exist")
+	return cmd
+}
+
+// runAurFetch clones or updates each named AUR package under the given source
+// repository. add and update share this path: a missing package is cloned, an
+// existing one is pulled.
+func runAurFetch(cmd *cobra.Command, repoName string, pkgs []string, aurBase string, force bool) error {
+	if getSrcRepo(repoName) == nil {
+		return utils.NewErr("invalid repository name: " + repoName)
+	}
+
+	repoDir := getSrcDir(repoName)
+	if repoDir == "" {
+		return utils.NewErr("failed to get source directory")
+	}
+
+	var errs []string
+	for i, name := range pkgs {
+		slog.Info("AUR PKGBUILD fetch", "index", i+1, "total", len(pkgs), "name", name)
+		if err := updateAurPkg(cmd, repoDir, aurBase, name, force); err != nil {
+			slog.Error("failed to fetch AUR package", "name", name, "error", err)
+			errs = append(errs, err.Error())
+		}
+	}
+
+	if len(errs) > 0 {
+		return utils.NewErr("one or more AUR fetches failed:\n" + strings.Join(errs, "\n"))
+	}
+	return nil
 }
 
 // updateAurPkg clones or updates a single AUR git repository under repoDir.
@@ -143,5 +187,5 @@ func gitRootDir(dir string) (string, error) {
 }
 
 func init() {
-	subCmds.Add(aurUpdateCmd())
+	subCmds.Add(aurCmd())
 }

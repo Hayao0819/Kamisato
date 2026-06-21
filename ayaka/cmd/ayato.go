@@ -1,0 +1,45 @@
+package cmd
+
+import (
+	blinky_util "github.com/BrenekH/blinky/cmd/blinky/util"
+	"github.com/Hayao0819/Kamisato/internal/utils"
+)
+
+// ayatoServer is a resolved ayato endpoint: the base URL plus the Basic-auth
+// credentials stored for it in the blinky server database.
+type ayatoServer struct {
+	URL      string
+	Username string
+	Password string
+}
+
+// resolveAyatoServer looks up the ayato base URL and credentials from the same
+// serverdb the other commands use. When server is empty the database's default
+// server is used. The same store backs blinky uploads, so a server registered
+// with `ayaka server add` works here too.
+func resolveAyatoServer(server string) (*ayatoServer, error) {
+	db, err := blinky_util.ReadServerDB()
+	if err != nil {
+		return nil, utils.WrapErr(err, "failed to read server database")
+	}
+
+	if server == "" {
+		server = db.DefaultServer
+	}
+	if server == "" {
+		return nil, utils.NewErr("no server specified and no default server is set")
+	}
+
+	entry, ok := db.Servers[server]
+	if !ok {
+		return nil, utils.NewErrf(
+			"server %q is not registered; add it first with 'ayaka server login %s --username <user> --password <pass>'",
+			server, server)
+	}
+
+	return &ayatoServer{
+		URL:      server,
+		Username: entry.Username,
+		Password: entry.Password,
+	}, nil
+}

@@ -1,4 +1,4 @@
-package blinkycmd
+package cmd
 
 import (
 	"bufio"

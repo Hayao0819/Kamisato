@@ -25,7 +25,7 @@ func ListCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "list [server_name...]",
-		Short: "List Blinky servers",
+		Short: "List ayato servers",
 		Args:  cobra.ArbitraryArgs,
 		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 			db, err := blinky_utils.ReadServerDB()

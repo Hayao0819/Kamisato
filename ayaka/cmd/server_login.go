@@ -1,4 +1,4 @@
-package blinkycmd
+package cmd
 
 import (
 	"fmt"
@@ -8,10 +8,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func loginCmd() *cobra.Command {
+// serverLoginCmd interactively saves the credentials for an ayato server in the
+// server database. It is the interactive counterpart to `server add`.
+func serverLoginCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "login <server_url>",
-		Short: "Save login info for a Blinky server",
+		Short: "Save login info for an ayato server interactively",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			serverURL := args[0]
@@ -80,13 +82,9 @@ func loginCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().Bool("default", false, "Set server as default for upload/remove")
+	cmd.Flags().Bool("default", false, "Set server as default for repo and miko commands")
 	cmd.Flags().String("username", "", "Username for server login")
 	cmd.Flags().String("password", "", "Password for server login (interactive prompt recommended)")
 
 	return cmd
-}
-
-func init() {
-	subCmds = append(subCmds, loginCmd())
 }
