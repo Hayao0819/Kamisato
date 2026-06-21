@@ -2,14 +2,17 @@
 package repo
 
 import (
+	"archive/tar"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 
 	utils "github.com/Hayao0819/Kamisato/internal/utils"
 	pkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
+	"github.com/Hayao0819/Kamisato/pkg/raiou"
 )
 
 type RemoteRepo struct {
@@ -70,8 +73,8 @@ func RepoFromDBFile(name string, dbfile string) (*RemoteRepo, error) {
 	return RemoteRepoFromDB(name, db)
 }
 
-// RemoteRepoFromDB parses a repository .db stream into a RemoteRepo.
-// TODO: tar 展開とパッケージ読込処理は未実装。
+// RemoteRepoFromDB parses a repository .db stream (a compressed tar of
+// "<pkg>-<ver>/desc" entries) into a RemoteRepo.
 func RemoteRepoFromDB(name string, db io.Reader) (*RemoteRepo, error) {
 	gzr, _, err := utils.DetectCompression(db)
 	if err != nil {
@@ -79,8 +82,33 @@ func RemoteRepoFromDB(name string, db io.Reader) (*RemoteRepo, error) {
 	}
 	defer gzr.Close()
 
-	// tr := tar.NewReader(gzr)
+	tr := tar.NewReader(gzr)
 	pkgs := make([]*pkg.BinaryPackage, 0)
-	// ...（省略: tar展開とパッケージ読込処理）...
+	for {
+		hdr, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, fmt.Errorf("failed to read db tar: %w", err)
+		}
+		if hdr.Typeflag == tar.TypeDir || !strings.HasSuffix(hdr.Name, "/desc") {
+			continue
+		}
+
+		var buf strings.Builder
+		if _, err := io.Copy(&buf, tr); err != nil { //nolint:gosec // db is operator-controlled
+			return nil, fmt.Errorf("failed to read %s: %w", hdr.Name, err)
+		}
+		desc, err := raiou.ParseDescString(buf.String())
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse %s: %w", hdr.Name, err)
+		}
+		info, err := desc.ToPKGINFO()
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert %s: %w", hdr.Name, err)
+		}
+		pkgs = append(pkgs, pkg.NewBinaryPackage(desc.FileName, info))
+	}
 	return &RemoteRepo{Name: name, Pkgs: pkgs}, nil
 }

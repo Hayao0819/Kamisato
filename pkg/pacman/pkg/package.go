@@ -109,6 +109,12 @@ func ReadBinaryPackage(binPath string, r io.Reader) (*BinaryPackage, error) {
 	return &BinaryPackage{path: binPath, info: info}, nil
 }
 
+// NewBinaryPackage wraps parsed metadata with its file path. For packages read
+// from a repository .db, filePath is the desc %FILENAME% (a bare filename).
+func NewBinaryPackage(filePath string, info *raiou.PKGINFO) *BinaryPackage {
+	return &BinaryPackage{path: filePath, info: info}
+}
+
 // PKGINFO は解析済みの .PKGINFO を返します。
 func (p *BinaryPackage) PKGINFO() *raiou.PKGINFO {
 	return p.info
