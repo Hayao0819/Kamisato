@@ -59,5 +59,5 @@ func New(cfg *conf.AyatoConfig) (NameStore, BinaryRepository, error) {
 		return nil, nil, err
 	}
 
-	return nameStore, NewBinaryRepository(binStore, cfg), nil
+	return nameStore, NewBinaryRepository(newSerializingStore(binStore), cfg), nil
 }
