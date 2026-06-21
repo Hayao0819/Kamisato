@@ -17,6 +17,13 @@ func SetRoute(e *gin.Engine, h *handler.Handler, m *middleware.Middleware) error
 		return utils.WrapErr(err, "テンプレート設定に失敗")
 	}
 
+	// miko への逆プロキシ。ビルド/ジョブは miko が単一の状態源として保持し、
+	// ayato は API キーを付けて素通しするだけ（クライアントは miko に直接到達しない）。
+	mikoProxy, err := h.MikoProxy()
+	if err != nil {
+		return utils.WrapErr(err, "miko プロキシの初期化に失敗")
+	}
+
 	{
 		api := e.Group("/api/unstable")
 		api.Use(m.Cors())
@@ -31,12 +38,27 @@ func SetRoute(e *gin.Engine, h *handler.Handler, m *middleware.Middleware) error
 			api.GET("/:repo/:arch/package/:name/files", h.PkgFilesHandler)
 		}
 
+		if mikoProxy != nil {
+			// ジョブ状態の参照系は公開。静的な /jobs は既存の /:repo パラメータルートと
+			// 共存できる（ayato は /repos と /:repo を既に併用している）。
+			api.GET("/jobs", mikoProxy.Handler("/api/unstable/jobs"))
+			api.GET("/jobs/:id", mikoProxy.HandlerFunc(func(c *gin.Context) string {
+				return "/api/unstable/jobs/" + c.Param("id")
+			}))
+			api.GET("/jobs/:id/logs", mikoProxy.HandlerFunc(func(c *gin.Context) string {
+				return "/api/unstable/jobs/" + c.Param("id") + "/logs"
+			}))
+		}
+
 		auth := api.Group("")
 		{
 			auth.Use(m.BasicAuth)
 			auth.PUT("/:repo/package", h.BlinkyUploadHandler)          // Blinky compatible
 			auth.DELETE("/:repo/package/:name", h.BlinkyRemoveHandler) // Blinky compatible
-			auth.POST("/:repo/build", h.BuildPackageHandler)           // Server-side build
+			if mikoProxy != nil {
+				// ビルド投入はクライアント認証の背後でのみ受け付ける。
+				auth.POST("/build", mikoProxy.Handler("/api/unstable/build"))
+			}
 		}
 	}
 	{

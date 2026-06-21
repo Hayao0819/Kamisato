@@ -16,6 +16,13 @@ type AyatoConfig struct {
 	Auth        AuthConfig      `koanf:"auth"`
 	Store       StoreConfig     `koanf:"store"`
 	Build       BuildConfig     `koanf:"build"`
+	Miko        MikoUpstream    `koanf:"miko"`
+}
+
+// MikoUpstream is the internal build server ayato proxies build/job requests to.
+type MikoUpstream struct {
+	URL    string `koanf:"url"`     // internal base URL, e.g. http://miko:8081
+	APIKey string `koanf:"api_key"` // shared secret sent to miko on every proxied call
 }
 
 type BuildConfig struct {

@@ -57,20 +57,6 @@ func (mr *MockServicerMockRecorder) Arches(repo any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Arches", reflect.TypeOf((*MockServicer)(nil).Arches), repo)
 }
 
-// BuildPackage mocks base method.
-func (m *MockServicer) BuildPackage(repo string, buildReq *domain.BuildRequest) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "BuildPackage", repo, buildReq)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// BuildPackage indicates an expected call of BuildPackage.
-func (mr *MockServicerMockRecorder) BuildPackage(repo, buildReq any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BuildPackage", reflect.TypeOf((*MockServicer)(nil).BuildPackage), repo, buildReq)
-}
-
 // GetFile mocks base method.
 func (m *MockServicer) GetFile(repoName, archName, name string) (stream.File, error) {
 	m.ctrl.T.Helper()

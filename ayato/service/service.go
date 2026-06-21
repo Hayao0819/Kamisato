@@ -26,7 +26,6 @@ type Servicer interface {
 	UploadFile(repo string, files *domain.UploadFiles) error
 	RemovePkg(rname string, arch string, pkgname string) error
 	SignedURL(repo string, arch string, name string) (string, error)
-	BuildPackage(repo string, buildReq *domain.BuildRequest) error
 
 	// --- リポジトリ操作 ---
 	RepoNames() ([]string, error)
