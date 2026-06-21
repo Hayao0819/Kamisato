@@ -1,4 +1,3 @@
-// Accessors for package metadata.
 package pkg
 
 import (
@@ -11,9 +10,6 @@ import (
 	"github.com/samber/lo"
 )
 
-// --- SourcePackage ---
-
-// Base returns the pkgbase.
 func (p *SourcePackage) Base() string {
 	return p.info.PkgBase
 }
@@ -60,14 +56,10 @@ func (p *SourcePackage) PkgFileNames() ([]string, error) {
 	return pkgs, nil
 }
 
-// --- BinaryPackage ---
-
-// Name returns the pkgname.
 func (p *BinaryPackage) Name() string {
 	return p.info.PkgName
 }
 
-// Base returns the pkgbase.
 func (p *BinaryPackage) Base() string {
 	return p.info.PkgBase
 }
@@ -77,7 +69,6 @@ func (p *BinaryPackage) Version() string {
 	return p.info.PkgVer
 }
 
-// Arch returns the package architecture.
 func (p *BinaryPackage) Arch() string {
 	return p.info.Arch
 }

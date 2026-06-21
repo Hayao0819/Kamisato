@@ -26,7 +26,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [authRequired, setAuthRequired] = useState(false);
     const [authRequiredLoading, setAuthRequiredLoading] = useState(true);
 
-    // Load credentials from localStorage on mount
     useEffect(() => {
         if (typeof window !== "undefined") {
             const stored = localStorage.getItem(AUTH_STORAGE_KEY);
@@ -53,7 +52,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setPassword(newPassword);
         setIsAuthenticated(true);
 
-        // Store credentials in localStorage
         if (typeof window !== "undefined") {
             localStorage.setItem(
                 AUTH_STORAGE_KEY,
@@ -70,7 +68,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setPassword(null);
         setIsAuthenticated(false);
 
-        // Remove credentials from localStorage
         if (typeof window !== "undefined") {
             localStorage.removeItem(AUTH_STORAGE_KEY);
         }

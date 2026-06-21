@@ -1,4 +1,3 @@
-// Remote repository (a set of binary packages from a .db).
 package repo
 
 import (
@@ -39,7 +38,6 @@ func (r *RemoteRepo) PkgByPkgBase(pkgbase string) *pkg.BinaryPackage {
 	return nil
 }
 
-// RepoFromURL fetches the remote repository from the given URL.
 func RepoFromURL(server string, name string) (*RemoteRepo, error) {
 	dburl, err := url.JoinPath(server, name+".db")
 	if err != nil {

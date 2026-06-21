@@ -39,13 +39,11 @@ func New[T any](delimiter string) *Loader[T] {
 	return &Loader[T]{k: koanf.New(delimiter)}
 }
 
-// Dirs sets search directories
 func (l *Loader[T]) Dirs(dirs ...string) *Loader[T] {
 	l.dirs = dirs
 	return l
 }
 
-// Files sets filenames to search for
 func (l *Loader[T]) Files(filenames ...string) *Loader[T] {
 	l.filenames = filenames
 	return l
@@ -82,14 +80,12 @@ func (l *Loader[T]) Load() error {
 		}
 	}
 
-	// Load environment variables
 	if l.envPrefix != "" {
 		if err := l.k.Load(env.Provider(l.envPrefix, l.envDelimiter, l.envKeyMap), nil); err != nil {
 			return fmt.Errorf("failed to load env vars: %w", err)
 		}
 	}
 
-	// Load pflag values
 	if l.pflags != nil {
 		if err := l.k.Load(posflag.Provider(l.pflags, ".", nil), nil); err != nil {
 			return fmt.Errorf("failed to load pflags: %w", err)

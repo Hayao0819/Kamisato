@@ -6,7 +6,6 @@ import (
 	"strings"
 )
 
-// FileType represents the type of file.
 type FileType int
 
 const (
@@ -16,7 +15,6 @@ const (
 	TypeSRCINFO
 )
 
-// String returns the string representation of the FileType.
 func (ft FileType) String() string {
 	switch ft {
 	case TypePKGINFO:
@@ -30,7 +28,6 @@ func (ft FileType) String() string {
 	}
 }
 
-// DetectType detects the file type from an io.Reader.
 func DetectType(r io.Reader) (FileType, error) {
 	scanner := bufio.NewScanner(r)
 
@@ -38,7 +35,7 @@ func DetectType(r io.Reader) (FileType, error) {
 		line := scanner.Text()
 		trimmed := strings.TrimSpace(line)
 		if trimmed == "" || trimmed[0] == '#' {
-			continue // skip blank and comment lines
+			continue
 		}
 
 		parts := strings.SplitN(trimmed, "=", 2)

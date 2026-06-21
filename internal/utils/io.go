@@ -35,7 +35,6 @@ func ResolvePath(baseDir, targetPath string) string {
 // CopyDir recursively copies a directory tree from src to dst.
 // dst must not exist (it will be created).
 func CopyDir(src, dst string) error {
-	// get info about src
 	srcInfo, err := os.Stat(src)
 	if err != nil {
 		return fmt.Errorf("stat source dir: %w", err)
@@ -44,18 +43,15 @@ func CopyDir(src, dst string) error {
 		return fmt.Errorf("source is not a directory")
 	}
 
-	// create the dst directory
 	if err := os.MkdirAll(dst, srcInfo.Mode()); err != nil {
 		return fmt.Errorf("create dest dir: %w", err)
 	}
 
-	// WalkFunc
 	return filepath.WalkDir(src, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
 
-		// path relative to src
 		relPath, err := filepath.Rel(src, path)
 		if err != nil {
 			return err
@@ -69,12 +65,10 @@ func CopyDir(src, dst string) error {
 
 		switch {
 		case d.IsDir():
-			// create subdirectory
 			if err := os.MkdirAll(dstPath, info.Mode()); err != nil {
 				return err
 			}
 		case (info.Mode() & os.ModeSymlink) != 0:
-			// handle symbolic links
 			linkTarget, err := os.Readlink(path)
 			if err != nil {
 				return err
@@ -83,7 +77,6 @@ func CopyDir(src, dst string) error {
 				return err
 			}
 		default:
-			// copy regular file
 			if err := copyFile(path, dstPath, info.Mode()); err != nil {
 				return err
 			}
@@ -164,7 +157,6 @@ func MoveFile(org string, dst string) error {
 
 	// If the file is not in the same directory, copy it and delete the original
 
-	// Open the original file
 	orgfile, err := os.Open(orgabs)
 	if err != nil {
 		return err
@@ -176,26 +168,22 @@ func MoveFile(org string, dst string) error {
 		dstabs = path.Join(dstabs, path.Base(orgabs))
 	}
 
-	// Create the parent directory
 	if err := os.MkdirAll(path.Dir(dstabs), 0755); err != nil {
 		return err
 	}
 
-	// Create the destination file
 	dstfile, err := os.Create(dstabs)
 	if err != nil {
 		return err
 	}
 	defer dstfile.Close()
 
-	// Copy the file
 	_, err = io.Copy(dstfile, orgfile)
 	orgfile.Close()
 	if err != nil {
 		return err
 	}
 
-	// Delete the original file
 	err = os.Remove(orgabs)
 	if err != nil {
 		return err

@@ -108,13 +108,11 @@ export function UploadPageClient() {
                 description: result || "パッケージをアップロードしました",
             });
 
-            // Reset form after delay
             setTimeout(() => {
                 setPackageFile(null);
                 setSignatureFile(null);
                 setUploadStatus("idle");
                 setUploadProgress(0);
-                // Reset file inputs
                 const packageInput = document.getElementById(
                     "package-file",
                 ) as HTMLInputElement;
@@ -166,7 +164,6 @@ export function UploadPageClient() {
                 </CardHeader>
                 <CardContent>
                     <form onSubmit={handleUpload} className="space-y-6">
-                        {/* Repository Selection */}
                         <div className="space-y-2">
                             <Label htmlFor="repository">リポジトリ</Label>
                             <Select
@@ -186,7 +183,6 @@ export function UploadPageClient() {
                             </Select>
                         </div>
 
-                        {/* Package File */}
                         <div className="space-y-2">
                             <Label
                                 htmlFor="package-file"
@@ -214,7 +210,6 @@ export function UploadPageClient() {
                             )}
                         </div>
 
-                        {/* Signature File */}
                         <div className="space-y-2">
                             <Label
                                 htmlFor="signature-file"
@@ -236,7 +231,6 @@ export function UploadPageClient() {
                             )}
                         </div>
 
-                        {/* Upload Progress */}
                         {uploading && (
                             <div className="space-y-2">
                                 <div className="flex items-center justify-between text-sm">
@@ -251,7 +245,6 @@ export function UploadPageClient() {
                             </div>
                         )}
 
-                        {/* Upload Status */}
                         {uploadStatus === "success" && (
                             <Alert className="border-emerald-500/50 bg-emerald-500/10">
                                 <CheckCircle2 className="h-4 w-4 text-emerald-500" />
@@ -274,7 +267,6 @@ export function UploadPageClient() {
                             </Alert>
                         )}
 
-                        {/* Submit Button */}
                         <Button
                             type="submit"
                             className="w-full"
@@ -300,7 +292,6 @@ export function UploadPageClient() {
                 </CardContent>
             </Card>
 
-            {/* Information */}
             <Card className="mt-6">
                 <CardHeader>
                     <CardTitle className="text-base">注意事項</CardTitle>

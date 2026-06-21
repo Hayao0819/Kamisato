@@ -1,4 +1,3 @@
-// No changes needed: already in English
 package servercmd
 
 import (

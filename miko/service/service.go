@@ -35,13 +35,10 @@ var (
 type Servicer interface {
 	// Submit enqueues a build request and returns the assigned job ID.
 	Submit(req *domain.BuildRequest) (string, error)
-	// Status returns the current state of a job.
 	Status(id string) (*domain.BuildJob, error)
 	// List returns all jobs, newest first.
 	List() []*domain.BuildJob
-	// Cancel cancels a queued or running job.
 	Cancel(id string) error
-	// Stats returns a snapshot of the build service.
 	Stats() domain.BuildStats
 	// Run is the worker loop. It blocks until ctx is cancelled.
 	Run(ctx context.Context)

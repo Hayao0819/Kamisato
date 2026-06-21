@@ -16,18 +16,15 @@ import (
 )
 
 // RootCmd returns the root command for Ayato CLI.
-// Returns the root command for Ayato CLI.
 func RootCmd() *cobra.Command {
 	cmd := cobra.Command{
 		Use: "ayato",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// Get config file flag
 			configFile, err := cmd.Flags().GetString("config")
 			if err != nil {
 				return err
 			}
 
-			// Load configuration
 			cfg, err := conf.LoadAyatoConfig(cmd.Flags(), configFile)
 			if err != nil {
 				return err
@@ -37,7 +34,6 @@ func RootCmd() *cobra.Command {
 				slog.Info("Loaded from config file", "path", configFile)
 			}
 
-			// Initialize logger
 			if cfg.Debug {
 				utils.UseColorLog(slog.LevelDebug)
 				slog.Debug("Debug mode enabled")
@@ -49,7 +45,6 @@ func RootCmd() *cobra.Command {
 
 			slog.Debug("Configuration loaded", "port", cfg.Port, "debug", cfg.Debug, "repos", cfg.Repos, "maxsize", cfg.MaxSize, "dbtype", cfg.Store.DBType, "storagetype", cfg.Store.StorageType)
 
-			// Initialize repository, service, handler
 			pkgNameRepo, pkgBinaryRepo, err := repository.New(cfg)
 			if err != nil {
 				return utils.WrapErr(err, "failed to initialize repository")
@@ -58,7 +53,6 @@ func RootCmd() *cobra.Command {
 			h := handler.New(s, cfg)
 			m := middleware.New(cfg)
 
-			// Initialize gin
 			engine := gin.New()
 			engine.Use(gin.Recovery())
 			engine.Use(utils.GinLog())
@@ -67,13 +61,11 @@ func RootCmd() *cobra.Command {
 			}
 			slog.Info("Routing initialized")
 
-			// Initialize services
 			if err := s.InitAll(); err != nil {
 				return utils.WrapErr(err, "failed to initialize services")
 			}
 			slog.Info("All services initialized")
 
-			// Start server
 			slog.Info("Waiting on port", "port", cfg.Port)
 			if err := engine.Run(fmt.Sprintf(":%d", cfg.Port)); err != nil {
 				return err

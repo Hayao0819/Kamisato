@@ -5,7 +5,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// serverCmd returns the command to manage ayato server endpoints.
 func serverCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "server",

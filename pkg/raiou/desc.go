@@ -219,8 +219,7 @@ func ParseDesc(r io.Reader) (*DESC, error) {
 	return desc, nil
 }
 
-// ToPKGINFO converts a DESC struct into a PKGINFO struct.
-// It maps known fields and also extracts `pkgtype` from XData if available.
+// ToPKGINFO maps known fields and also extracts `pkgtype` from XData if available.
 func (d *DESC) ToPKGINFO() (*PKGINFO, error) {
 	p := &PKGINFO{
 		PkgName:   d.Name,
@@ -241,10 +240,8 @@ func (d *DESC) ToPKGINFO() (*PKGINFO, error) {
 		XData:     make(map[string]string),
 	}
 
-	// Convert BuildDate to Unix timestamp
 	p.BuildDate = d.BuildDate.Unix()
 
-	// Extract pkgtype from XData
 	for _, kv := range d.XData {
 		if kv.Key() == "pkgtype" {
 			p.PkgType = kv.Value()
@@ -256,7 +253,6 @@ func (d *DESC) ToPKGINFO() (*PKGINFO, error) {
 	// ExtraFields may contain additional values we can't map — store as XData
 	for k, v := range d.ExtraFields {
 		if _, exists := p.XData[k]; !exists {
-			// Flatten slice into comma-separated string
 			p.XData[k] = flattenValues(v)
 		}
 	}

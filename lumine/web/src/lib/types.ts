@@ -77,5 +77,3 @@ export interface BuildStats {
     success_rate: number;
     uptime_sec: number;
 }
-
-// TODO: Add other relevant type definitions from the backend

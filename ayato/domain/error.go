@@ -7,7 +7,6 @@ type APIError struct {
 	// Code    int    `json:"code"`
 }
 
-// Error returns the error message.
 func (e *APIError) Error() string {
 	return e.Message
 }

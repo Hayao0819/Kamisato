@@ -1,4 +1,3 @@
-// GPG signing helpers.
 package gpg
 
 import (
@@ -7,7 +6,6 @@ import (
 	"path"
 )
 
-// SignFile signs the given file with GPG.
 func SignFile(key string, gpgDir string, file string) error {
 	homeDir := gpgDir
 	if gpgDir == "" {

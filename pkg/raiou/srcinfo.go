@@ -56,7 +56,6 @@ type SRCINFO struct {
 	Packages       []SrcinfoPackage `mapstructure:"packages" json:"packages" yml:"packages" toml:"packages"`
 }
 
-// ParseSrcinfo reads a .SRCINFO from an io.Reader.
 func ParseSrcinfo(r io.Reader) (*SRCINFO, error) {
 	b, err := io.ReadAll(r)
 	if err != nil {
@@ -85,7 +84,6 @@ func ParseSrcinfoString(data string) (*SRCINFO, error) {
 	return srcinfoFromGo(parsed), nil
 }
 
-// srcinfoPackageFromGo converts a go_srcinfo.Package to a SrcinfoPackage.
 func srcinfoPackageFromGo(pkg *go_srcinfo.Package) *SrcinfoPackage {
 	if pkg == nil {
 		return nil
@@ -113,7 +111,6 @@ func srcinfoPackageFromGo(pkg *go_srcinfo.Package) *SrcinfoPackage {
 	return out
 }
 
-// srcinfoBaseFromGo converts a go_srcinfo.PackageBase to a SrcinfoBase.
 func srcinfoBaseFromGo(pkgBase *go_srcinfo.PackageBase) *SrcinfoBase {
 	if pkgBase == nil {
 		return nil
@@ -142,7 +139,6 @@ func srcinfoBaseFromGo(pkgBase *go_srcinfo.PackageBase) *SrcinfoBase {
 	return out
 }
 
-// srcinfoFromGo converts a go_srcinfo.Srcinfo to a SRCINFO.
 func srcinfoFromGo(srcinfo *go_srcinfo.Srcinfo) *SRCINFO {
 	if srcinfo == nil {
 		return nil
@@ -161,7 +157,6 @@ func srcinfoFromGo(srcinfo *go_srcinfo.Srcinfo) *SRCINFO {
 	return out
 }
 
-// archStringsFromGo converts a slice of go_srcinfo.ArchString to ArchStrings.
 func archStringsFromGo(archStrings []go_srcinfo.ArchString) ArchStrings {
 	if archStrings == nil {
 		return nil

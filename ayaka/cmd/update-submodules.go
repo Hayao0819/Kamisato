@@ -8,7 +8,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// updateSubmodulesCmd updates all git submodules in the repository.
 func updateSubmodulesCmd() *cobra.Command {
 	var (
 		init      bool
@@ -23,7 +22,6 @@ func updateSubmodulesCmd() *cobra.Command {
 		Long:    "Pull and update all git submodules in the repository directories.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			for _, r := range config.Repos {
-				// Check if the repository directory is a git repository
 				root, err := gitRootDir(r.Dir)
 				if err != nil {
 					slog.Warn("skipping non-git repository", "dir", r.Dir)
@@ -32,7 +30,6 @@ func updateSubmodulesCmd() *cobra.Command {
 
 				slog.Info("updating submodules", "repo", root)
 
-				// Build git submodule update command
 				gitArgs := []string{"-C", root, "submodule", "update"}
 
 				if init {

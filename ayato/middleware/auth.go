@@ -14,7 +14,6 @@ type Middleware struct {
 	cfg *conf.AyatoConfig
 }
 
-// New is the constructor for Middleware.
 func New(cfg *conf.AyatoConfig) *Middleware {
 	return &Middleware{
 		cfg: cfg,
@@ -39,14 +38,12 @@ func (m *Middleware) BasicAuth(c *gin.Context) {
 		return
 	}
 
-	// Decode the base64 encoded string
 	payload, err := base64.StdEncoding.DecodeString(auth[len(basicPrefix):])
 	if err != nil {
 		c.AbortWithStatus(http.StatusUnauthorized)
 		return
 	}
 
-	// Split the decoded string into username and password
 	pair := strings.SplitN(string(payload), ":", 2)
 	if len(pair) != 2 || pair[0] != username || pair[1] != password {
 		c.Header("WWW-Authenticate", `Basic realm="Restricted"`)

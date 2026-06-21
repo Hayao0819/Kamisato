@@ -23,7 +23,6 @@ func repoCmd() *cobra.Command {
 	return cmd
 }
 
-// repoAddCmd uploads one or more built package files to a repository on ayato.
 func repoAddCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "add <repo> <package_files...>",
@@ -43,7 +42,6 @@ func repoAddCmd() *cobra.Command {
 	return cmd
 }
 
-// repoRemoveCmd removes one or more packages from a repository on ayato.
 func repoRemoveCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "remove <repo> <packages...>",

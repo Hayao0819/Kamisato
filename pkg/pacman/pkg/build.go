@@ -1,4 +1,3 @@
-// Package build helpers.
 package pkg
 
 import (

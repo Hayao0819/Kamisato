@@ -28,7 +28,6 @@ func UploadToBlinky(server string, repo string, file string) error {
 		return err
 	}
 
-	// Open the .sig file if it exists
 	var sigfile *os.File
 	sigfilePath := file + ".sig"
 	if futils.Exists(sigfilePath) {
@@ -43,7 +42,6 @@ func UploadToBlinky(server string, repo string, file string) error {
 		}()
 	}
 
-	// Open the main package file
 	pkgfile, err := os.Open(file)
 	if err != nil {
 		return err
@@ -54,7 +52,6 @@ func UploadToBlinky(server string, repo string, file string) error {
 		}
 	}()
 
-	// Upload
 	err = client.UploadPackage(repo, file, pkgfile, sigfile)
 	if err != nil {
 		return err

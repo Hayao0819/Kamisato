@@ -1,4 +1,3 @@
-// Version comparison.
 package alpm
 
 import (

@@ -19,12 +19,10 @@ func (s *Service) RemovePkg(rname string, arch string, pkgname string) error {
 		return fmt.Errorf("get pkg file err: %s", err.Error())
 	}
 	slog.Info("get pkg file", "file", filename)
-	// Delete file
 	if err := s.pkgBinaryRepo.DeleteFile(rname, arch, filename); err != nil {
 		slog.Debug("delete file success", "repo", rname, "arch", arch, "filename", filename)
 		return fmt.Errorf("delete pkg file err: %s", err.Error())
 	}
-	// Delete metadata
 	if err := s.pkgNameRepo.DeletePackageFileEntry(pkgname); err != nil {
 		slog.Debug("delete pkg file name success", "pkgname", pkgname)
 		return fmt.Errorf("remove pkg file name err: %s", err.Error())

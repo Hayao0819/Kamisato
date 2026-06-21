@@ -28,19 +28,16 @@ func buildCmd() *cobra.Command {
 		Short: "Build packages locally (--diff for diff build, --remote to build on miko)",
 		Args:  cobra.MinimumNArgs(1),
 		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-			// First argument: repository name completion
 			if len(args) == 0 {
 				return getSrcRepoNames(), cobra.ShellCompDirectiveNoFileComp
 			}
 
-			// Second and later arguments: package name completion
 			repoName := args[0]
 			sr := getSrcRepo(repoName)
 			if sr == nil {
 				return nil, cobra.ShellCompDirectiveNoFileComp
 			}
 
-			// Enumerate pkgbase and Names() from sr.Pkgs
 			var cands []string
 			for _, p := range sr.Pkgs {
 				cands = append(cands, p.Base())
@@ -52,7 +49,6 @@ func buildCmd() *cobra.Command {
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			repo = args[0]
 
-			// Validate args
 			if !slices.Contains(getSrcRepoNames(), repo) {
 				return utils.WrapErr(ErrInvalidRepoName, repo)
 			}
@@ -63,7 +59,6 @@ func buildCmd() *cobra.Command {
 				return nil
 			}
 
-			// Validate gpg signing key
 			if gpgkey == "" || diffMode {
 				return nil
 			}
@@ -83,7 +78,6 @@ func buildCmd() *cobra.Command {
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// Optional package list (2nd argument and later)
 			var buildPkgs []string
 			if len(args) > 1 {
 				buildPkgs = args[1:]
@@ -112,7 +106,6 @@ func buildCmd() *cobra.Command {
 				return utils.WrapErr(ErrNoSourceDir, repo)
 			}
 
-			// Create build target
 			pkgs, err := alpm.GetCleanPkgBinary(srcrepo.Config.InstallPkgs.Names...)
 			if err != nil {
 				return utils.WrapErr(err, "failed to get clean package binaries")
@@ -127,14 +120,11 @@ func buildCmd() *cobra.Command {
 				InstallPkgs: append(srcrepo.Config.InstallPkgs.Files, pkgs...),
 			}
 
-			// If server is not specified, use the one from the configuration
 			if server == "" {
 				server = srcrepo.Config.Server
 			}
-			// Normal build
 			outDir := path.Join(destDir, srcrepo.Config.Name)
 
-			// Diff build mode
 			if diffMode {
 				slog.Info("Starting diff build", "repo", srcdir, "outdir", outDir, "gpgkey", gpgkey, "server", server)
 				remoteRepo, err := pacmanrepo.RepoFromURL(server, srcrepo.Config.Name)
@@ -170,7 +160,6 @@ func buildCmd() *cobra.Command {
 	return &cmd
 }
 
-// Register the package build command as a subcommand
 func init() {
 	subCmds.Add(buildCmd())
 }

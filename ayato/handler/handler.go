@@ -8,11 +8,10 @@ import (
 // Handler is a struct that handles API requests.
 // Eventually planned to depend only on Service.
 type Handler struct {
-	cfg *conf.AyatoConfig // Configuration (planned to reduce dependency in the future)
-	s   service.Servicer  // Service layer
+	cfg *conf.AyatoConfig // planned to reduce dependency in the future
+	s   service.Servicer
 }
 
-// New is the constructor for Handler.
 func New(service service.Servicer, cfg *conf.AyatoConfig) *Handler {
 	return &Handler{
 		s:   service,

@@ -10,7 +10,6 @@ import (
 	"github.com/cockroachdb/errors"
 )
 
-// RepoFileList returns the list of files in the repository.
 func (s *Service) RepoFileList(repo, arch string) ([]string, error) {
 	return s.pkgBinaryRepo.Files(repo, arch)
 }
@@ -49,7 +48,6 @@ func (s *Service) Pkgs(repo, arch string) (*domain.PacmanPkgs, error) {
 
 	if len(rr.Pkgs) == 0 {
 		slog.Warn("no packages found in the repository", "repo", repo, "arch", arch)
-		// return nil, nil
 	}
 
 	infos := make([]raiou.PKGINFO, 0, len(rr.Pkgs))
@@ -84,17 +82,14 @@ func (s *Service) PkgDetail(repo, arch, pkgbase string) (*raiou.PKGINFO, error) 
 	return nil, errors.New("package not found in the repository")
 }
 
-// RepoNames returns the list of all repository names.
 func (s *Service) RepoNames() ([]string, error) {
 	return s.pkgBinaryRepo.RepoNames()
 }
 
-// Arches returns the list of architectures in the repository.
 func (s *Service) Arches(repo string) ([]string, error) {
 	return s.pkgBinaryRepo.Arches(repo)
 }
 
-// ValidateRepoName validates the repository name.
 func (s *Service) ValidateRepoName(repo string) error {
 	if repo == "" {
 		return nil

@@ -11,7 +11,6 @@ type Handler struct {
 	s   service.Servicer
 }
 
-// New is the constructor for Handler.
 func New(s service.Servicer, cfg *conf.MikoConfig) *Handler {
 	return &Handler{
 		s:   s,

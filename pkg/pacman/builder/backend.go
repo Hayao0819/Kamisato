@@ -40,7 +40,6 @@ type Result struct {
 type Backend interface {
 	// Name returns the backend identifier ("chroot", "container").
 	Name() string
-	// Build runs the build described by spec and returns the produced packages.
 	Build(ctx context.Context, spec Spec) (*Result, error)
 }
 

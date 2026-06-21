@@ -40,7 +40,6 @@ func RootCmd() *cobra.Command {
 				slog.Info("Loaded from config file", "path", configFile)
 			}
 
-			// Sensible defaults.
 			if cfg.Executor == "" {
 				cfg.Executor = "container"
 			}
@@ -57,7 +56,6 @@ func RootCmd() *cobra.Command {
 				cfg.RetryBackoff = 5
 			}
 
-			// Initialize logger.
 			if cfg.Debug {
 				utils.UseColorLog(slog.LevelDebug)
 				slog.Debug("Debug mode enabled")
@@ -69,7 +67,6 @@ func RootCmd() *cobra.Command {
 
 			slog.Debug("Configuration loaded", "port", cfg.Port, "debug", cfg.Debug, "executor", cfg.Executor)
 
-			// Build service and handler.
 			s := service.New(cfg)
 			h := handler.New(s, cfg)
 			verifier := apikey.NewVerifier(cfg.APIKeys)

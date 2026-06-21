@@ -1,4 +1,3 @@
-// Temporary fetch and cleanup of package binaries.
 package alpm
 
 import (
@@ -31,7 +30,6 @@ func (c *CleanPkgBinary) Close() error {
 	return nil
 }
 
-// TODO: implement
 func GetCleanPkgBinary(names ...string) ([]string, error) {
 
 	if len(names) == 0 {

@@ -1,4 +1,3 @@
-// SourceRepo type and related logic.
 package repo
 
 import (

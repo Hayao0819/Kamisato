@@ -57,17 +57,14 @@ func (h *Handler) RepoFileHandler(ctx *gin.Context) {
 	ctx.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s", s.FileName()))
 	ctx.Header("Content-Type", s.ContentType())
 
-	// Output as a normal file transfer
 	_, err = io.Copy(ctx.Writer, s)
 	if err != nil {
 		slog.Error("failed to write file to response", "error", err)
 	}
 }
 func (h *Handler) RepoFileListHandler(ctx *gin.Context) {
-	// slog.Info("repoHandler", "repoName", ctx.Param("repo"))
 	repo := ctx.Param("repo")
 	arch := ctx.Param("arch")
-	// fmt.Println("hoge")
 	l, err := h.s.RepoFileList(repo, arch)
 	if err != nil {
 		slog.Error("err while getting repo dir", "repo", repo, "arch", arch, "err", err)

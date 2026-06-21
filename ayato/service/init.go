@@ -7,7 +7,6 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/utils"
 )
 
-// InitAll initializes all repositories.
 func (s *Service) InitAll() error {
 	repos := s.cfg.RepoNames()
 	if len(repos) == 0 {

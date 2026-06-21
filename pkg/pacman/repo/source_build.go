@@ -1,4 +1,3 @@
-// Build logic for SourceRepo.
 package repo
 
 import (
@@ -81,7 +80,6 @@ func (s *SourceRepo) DiffBuild(t *builder.Target, rr *RemoteRepo, dest string, p
 		}
 	}
 
-	// Filter by specified package names, if any were provided.
 	if len(pkgs) > 0 {
 		var filtered []*pkg.SourcePackage
 		for _, p := range shoubuild {

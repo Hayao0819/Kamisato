@@ -70,8 +70,6 @@ func newS3Client(ctx context.Context, cfg *conf.S3Config) (*awss3.Client, error)
 	return awss3.New(options), nil
 }
 
-// --- low-level object operations ---
-
 func key(repo, arch, name string) string {
 	return repo + "/" + arch + "/" + name
 }
@@ -191,8 +189,6 @@ func (s *s3ObjectStream) ContentType() string {
 	}
 	return "application/octet-stream"
 }
-
-// --- temp file helpers ---
 
 func writeReadSeekerToFile(name string, stream io.Reader) error {
 	file, err := os.Create(name)

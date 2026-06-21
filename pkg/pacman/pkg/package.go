@@ -40,12 +40,10 @@ func OpenSourcePackage(dir string) (*SourcePackage, error) {
 	return &SourcePackage{dir: dir, info: info}, nil
 }
 
-// SRCINFO returns the parsed .SRCINFO.
 func (p *SourcePackage) SRCINFO() *raiou.SRCINFO {
 	return p.info
 }
 
-// Dir returns the source directory path.
 func (p *SourcePackage) Dir() string {
 	return p.dir
 }
@@ -56,7 +54,6 @@ type BinaryPackage struct {
 	info *raiou.PKGINFO
 }
 
-// OpenBinaryPackage opens a package file and returns a BinaryPackage.
 func OpenBinaryPackage(binPath string) (*BinaryPackage, error) {
 	file, err := os.Open(binPath)
 	if err != nil {
@@ -116,12 +113,10 @@ func NewBinaryPackage(filePath string, info *raiou.PKGINFO) *BinaryPackage {
 	return &BinaryPackage{path: filePath, info: info}
 }
 
-// PKGINFO returns the parsed .PKGINFO.
 func (p *BinaryPackage) PKGINFO() *raiou.PKGINFO {
 	return p.info
 }
 
-// Path returns the package file path.
 func (p *BinaryPackage) Path() string {
 	return p.path
 }

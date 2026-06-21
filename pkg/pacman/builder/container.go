@@ -78,7 +78,6 @@ type containerBackend struct {
 	ccacheDir      string
 }
 
-// newContainerBackend constructs the container build backend.
 func newContainerBackend(opts Options) Backend {
 	img := opts.Image
 	if img == "" {

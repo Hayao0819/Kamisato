@@ -9,7 +9,6 @@ import (
 	"strings"
 )
 
-// PKGINFO represents the parsed PKGINFO file.
 type PKGINFO struct {
 	PkgName     string            `json:"pkgname" yml:"pkgname" toml:"pkgname"`
 	PkgBase     string            `json:"pkgbase" yml:"pkgbase" toml:"pkgbase"`
@@ -34,7 +33,6 @@ type PKGINFO struct {
 	PkgType     string            `json:"pkgtype" yml:"pkgtype" toml:"pkgtype"`
 }
 
-// NewPKGINFO creates a new PKGINFO struct.
 func NewPKGINFO() *PKGINFO {
 	return &PKGINFO{
 		License:     make([]string, 0),
@@ -64,7 +62,6 @@ func ParsePkginfoString(data string) (*PKGINFO, error) {
 	return ParsePkginfo(r)
 }
 
-// Parse reads a PKGINFO file from the given io.Reader and returns a PKGINFO struct.
 func ParsePkginfo(r io.Reader) (*PKGINFO, error) {
 	p := NewPKGINFO()
 	lines, err := readLines(r)

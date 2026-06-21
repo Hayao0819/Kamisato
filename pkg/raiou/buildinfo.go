@@ -28,7 +28,6 @@ type BUILDINFO struct {
 	XData             map[string]string `json:"xdata" yml:"xdata" toml:"xdata"` // For any unrecognized keywords
 }
 
-// NewBUILDINFO creates a new BUILDINFO struct.
 func NewBUILDINFO() *BUILDINFO {
 	return &BUILDINFO{
 		BuildEnv:  make([]string, 0),
@@ -38,7 +37,6 @@ func NewBUILDINFO() *BUILDINFO {
 	}
 }
 
-// ParseBuildinfoFile reads a .BUILDINFO file from the given path and returns a BUILDINFO struct.
 func ParseBuildinfoFile(path string) (*BUILDINFO, error) {
 	r, err := os.Open(path)
 	if err != nil {
@@ -48,13 +46,11 @@ func ParseBuildinfoFile(path string) (*BUILDINFO, error) {
 	return ParseBuildinfo(r)
 }
 
-// ParseBuildinfoString reads a .BUILDINFO content from the given string and returns a BUILDINFO struct.
 func ParseBuildinfoString(data string) (*BUILDINFO, error) {
 	r := strings.NewReader(data)
 	return ParseBuildinfo(r)
 }
 
-// ParseBuildinfo reads a .BUILDINFO file from the given io.Reader and returns a BUILDINFO struct.
 func ParseBuildinfo(r io.Reader) (*BUILDINFO, error) {
 	b := NewBUILDINFO()
 	lines, err := readLines(r)

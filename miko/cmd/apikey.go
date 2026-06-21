@@ -34,7 +34,6 @@ func apikeyGenerateCmd() *cobra.Command {
 				return err
 			}
 
-			// Reuse the parent's persistent --config flag.
 			path, _ := cmd.Flags().GetString("config")
 			if path == "" {
 				path = "miko_config.json"

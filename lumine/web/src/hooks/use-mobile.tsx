@@ -6,10 +6,8 @@ export function useMobile() {
     const [isMobile, setIsMobile] = useState(false);
 
     useEffect(() => {
-        // set the initial state
         setIsMobile(window.innerWidth < 768);
 
-        // listen for resize events
         const handleResize = () => {
             setIsMobile(window.innerWidth < 768);
         };

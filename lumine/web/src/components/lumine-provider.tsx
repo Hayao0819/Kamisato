@@ -41,7 +41,6 @@ export default function LumineProvider({
             );
         }
 
-        // Check auth requirement
         client
             .fetchAuthRequired()
             .then((result) => {

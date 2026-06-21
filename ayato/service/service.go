@@ -10,9 +10,9 @@ import (
 
 // Service provides the business logic.
 type Service struct {
-	pkgNameRepo   repository.NameStore        // package name management
-	pkgBinaryRepo repository.BinaryRepository // package binary management
-	cfg           *conf.AyatoConfig           // config
+	pkgNameRepo   repository.NameStore
+	pkgBinaryRepo repository.BinaryRepository
+	cfg           *conf.AyatoConfig
 }
 
 // Servicer is the full interface of operations Service provides (mock boundary).
@@ -21,13 +21,11 @@ type Service struct {
 type Servicer interface {
 	InitAll() error
 
-	// --- file operations ---
 	GetFile(repoName, archName, name string) (stream.File, error)
 	UploadFile(repo string, files *domain.UploadFiles) error
 	RemovePkg(rname string, arch string, pkgname string) error
 	SignedURL(repo string, arch string, name string) (string, error)
 
-	// --- repository operations ---
 	RepoNames() ([]string, error)
 	Arches(repo string) ([]string, error)
 	Repo(repo string) (*domain.PacmanRepo, error)
@@ -37,7 +35,6 @@ type Servicer interface {
 	RepoFileList(repo, arch string) ([]string, error)
 }
 
-// New is the constructor for Service.
 func New(pkgNameRepo repository.NameStore, pkgBinaryRepo repository.BinaryRepository, config *conf.AyatoConfig) Servicer {
 	return &Service{
 		pkgNameRepo:   pkgNameRepo,

@@ -35,7 +35,6 @@ func (b *chrootBackend) Build(ctx context.Context, spec Spec) (*Result, error) {
 		return nil, errors.New("chroot backend requires Spec.SrcDir")
 	}
 
-	// Abort the whole build if a Timeout is set.
 	if b.opts.Timeout > 0 {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, b.opts.Timeout)
@@ -66,7 +65,6 @@ func (b *chrootBackend) Build(ctx context.Context, spec Spec) (*Result, error) {
 		return nil, utils.WrapErr(err, "failed to build package in chroot")
 	}
 
-	// Only take packages newly produced by this build.
 	built, err := collectNewPackages(spec.SrcDir, baseline)
 	if err != nil {
 		return nil, err

@@ -40,7 +40,6 @@ export function Header() {
             }
         };
         check();
-        // Check every 1 hour (3600000ms)
         const timer = setInterval(check, 3600000);
         return () => {
             ignore = true;

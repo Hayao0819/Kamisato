@@ -25,8 +25,6 @@ func validatePathComponent(c string) error {
 	return nil
 }
 
-// --- File operations ---
-
 func (l *LocalStore) StoreFile(repo string, arch string, file stream.SeekFile) error {
 	repoDir, err := l.getRepoDir(repo)
 	if err != nil {
@@ -96,8 +94,6 @@ func (l *LocalStore) DeleteFile(repo string, arch string, file string) error {
 	return nil
 }
 
-// --- Repository listing ---
-
 func (l *LocalStore) RepoNames() ([]string, error) {
 	if l.cfg.Store.LocalRepoDir == "" {
 		return nil, errors.New("local repository directory is not set")
@@ -151,8 +147,6 @@ func (l *LocalStore) Files(repo string, arch string) ([]string, error) {
 	}
 	return files, nil
 }
-
-// --- DB operations ---
 
 func (l *LocalStore) repoAdd(name string, arch string, fileName string, useSignedDB bool, gnupgDir *string) error {
 	repoDir, err := l.getRepoDir(name)

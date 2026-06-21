@@ -13,7 +13,6 @@ const fallbackLumineEnv: LumineEnv = {
 };
 
 export class APIClient {
-    // API request wrappers
     async fetchAllPkgs(repo: string, arch: string) {
         const res = await fetch(this.endpoints.allPkgs(repo, arch));
         if (!res.ok)

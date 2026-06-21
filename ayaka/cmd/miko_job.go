@@ -13,7 +13,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// mikoJobsCmd lists the build jobs known to miko.
 func mikoJobsCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "jobs",
@@ -40,7 +39,6 @@ func mikoJobsCmd() *cobra.Command {
 	}
 }
 
-// mikoStatusCmd prints the status of a single build job.
 func mikoStatusCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "status <id>",
@@ -67,7 +65,6 @@ func mikoStatusCmd() *cobra.Command {
 	}
 }
 
-// mikoLogsCmd streams the live build logs of a job.
 func mikoLogsCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "logs <id>",
@@ -87,7 +84,6 @@ func mikoLogsCmd() *cobra.Command {
 	}
 }
 
-// mikoCancelCmd cancels a queued or running build job.
 func mikoCancelCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "cancel <id>",
@@ -114,7 +110,6 @@ func mikoCancelCmd() *cobra.Command {
 	}
 }
 
-// mikoStatsCmd prints miko build service statistics.
 func mikoStatsCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "stats",
