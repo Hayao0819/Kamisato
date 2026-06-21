@@ -42,8 +42,9 @@ Lumine Web is a frontend application for the Arch Linux package repository backe
 
     If you use npm or yarn, use the appropriate command.
 4. Point the app at an ayato server from the in-app server dialog (it is stored in
-your browser). The embedded production server instead serves the URL via
-`/env.json` (`lumine --ayato-url`).
+your browser). The embedded production server can instead reverse-proxy `/api`
+and `/repo` to ayato with `lumine --ayato-url`, so the browser talks only to
+lumine (same origin, no CORS).
 
 ## Start Development Server
 

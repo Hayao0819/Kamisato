@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/http/httputil"
+	"net/url"
 	"os"
 
 	"github.com/Hayao0819/Kamisato/lumine/embed"
@@ -11,8 +13,9 @@ import (
 )
 
 // lumineEnv is served at /env.json and consumed by the web app's APIClient.
-// AYATO_URL is the ayato base URL the browser talks to; null lets the user set
-// it from the UI (stored in localStorage) when SERVER_CONFIGURABLE is true.
+// AYATO_URL is the base the browser uses: "" means same origin (lumine proxies
+// /api and /repo to ayato); null lets the user set it from the UI when
+// SERVER_CONFIGURABLE is true.
 type lumineEnv struct {
 	AyatoURL           *string `json:"AYATO_URL"`
 	ServerConfigurable bool    `json:"SERVER_CONFIGURABLE"`
@@ -34,25 +37,42 @@ func RootCmd() *cobra.Command {
 			if ayatoURL == "" {
 				ayatoURL = os.Getenv("LUMINE_AYATO_URL")
 			}
-			env := lumineEnv{ServerConfigurable: true}
+
+			mux := http.NewServeMux()
+
+			var env lumineEnv
 			if ayatoURL != "" {
-				env.AyatoURL = &ayatoURL
+				// Proxy /api and /repo to ayato so the browser only ever talks to
+				// lumine (same origin): no CORS, no cross-origin reachability issues.
+				target, err := url.Parse(ayatoURL)
+				if err != nil {
+					return fmt.Errorf("invalid ayato url %q: %w", ayatoURL, err)
+				}
+				proxy := httputil.NewSingleHostReverseProxy(target)
+				proxy.FlushInterval = -1 // stream SSE job logs as they arrive
+				mux.Handle("/api/", proxy)
+				mux.Handle("/repo/", proxy)
+				same := ""
+				env = lumineEnv{AyatoURL: &same}
+			} else {
+				// No upstream: the user sets the ayato URL from the UI.
+				env = lumineEnv{ServerConfigurable: true}
 			}
+
 			envJSON, err := json.Marshal(env)
 			if err != nil {
 				return fmt.Errorf("failed to encode env: %w", err)
 			}
-
-			http.Handle("/", h)
-			http.HandleFunc("/env.json", func(w http.ResponseWriter, r *http.Request) {
+			mux.HandleFunc("/env.json", func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
 				if _, err := w.Write(envJSON); err != nil {
 					http.Error(w, "failed to write config", http.StatusInternalServerError)
 				}
 			})
+			mux.Handle("/", h)
 
 			cmd.PrintErrln("Starting Lumine server on", addr)
-			if err := http.ListenAndServe(addr, nil); err != nil {
+			if err := http.ListenAndServe(addr, mux); err != nil {
 				return fmt.Errorf("failed to start server: %w", err)
 			}
 			return nil
@@ -61,7 +81,7 @@ func RootCmd() *cobra.Command {
 	}
 
 	cmd.Flags().StringVar(&addr, "addr", ":8080", "address to listen on")
-	cmd.Flags().StringVar(&ayatoURL, "ayato-url", "", "Ayato base URL advertised to the browser (env: LUMINE_AYATO_URL)")
+	cmd.Flags().StringVar(&ayatoURL, "ayato-url", "", "Ayato URL to proxy /api and /repo to (env: LUMINE_AYATO_URL); unset = configure it from the UI")
 
 	return cmd
 }
