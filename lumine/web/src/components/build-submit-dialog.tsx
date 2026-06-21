@@ -31,16 +31,22 @@ type SourceKind = "pkgbuild" | "git";
 export function BuildSubmitDialog({
     disabled,
     onSubmit,
+    initialRepo,
+    initialArch,
+    defaultOpen,
 }: {
     disabled?: boolean;
     onSubmit: (req: BuildRequest) => Promise<boolean>;
+    initialRepo?: string;
+    initialArch?: string;
+    defaultOpen?: boolean;
 }) {
-    const [open, setOpen] = useState(false);
+    const [open, setOpen] = useState(defaultOpen ?? false);
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    const [repo, setRepo] = useState("");
-    const [arch, setArch] = useState("x86_64");
+    const [repo, setRepo] = useState(initialRepo ?? "");
+    const [arch, setArch] = useState(initialArch ?? "x86_64");
     const [sourceKind, setSourceKind] = useState<SourceKind>("pkgbuild");
     const [pkgbuild, setPkgbuild] = useState("");
     const [gitUrl, setGitUrl] = useState("");

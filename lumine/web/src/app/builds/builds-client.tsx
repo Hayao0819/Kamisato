@@ -1,5 +1,6 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AuthGate } from "@/components/auth-gate";
 import { BuildJobDetail } from "@/components/build-job-detail";
@@ -52,6 +53,7 @@ export function BuildsPageClient() {
     const [filter, setFilter] = useState<StatusFilter>("all");
     const [detailId, setDetailId] = useState<string | null>(null);
     const [highlightId, setHighlightId] = useState<string | null>(null);
+    const searchParams = useSearchParams();
 
     const executable = api.endpoints.executable;
 
@@ -182,6 +184,9 @@ export function BuildsPageClient() {
                             <BuildSubmitDialog
                                 disabled={!executable}
                                 onSubmit={handleSubmit}
+                                initialRepo={searchParams.get("repo") ?? undefined}
+                                initialArch={searchParams.get("arch") ?? undefined}
+                                defaultOpen={searchParams.has("repo")}
                             />
                         </AuthGate>
                     }

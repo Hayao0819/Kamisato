@@ -1,5 +1,6 @@
 "use client";
-import { BugIcon, Download, ExternalLink } from "lucide-react";
+import { BugIcon, Download, ExternalLink, Hammer } from "lucide-react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { BugReportDialog } from "@/components/bug-report-dialog";
@@ -167,6 +168,17 @@ export default function ClientPackageDetailPage() {
                                     </Button>
                                 }
                             />
+                            <Link
+                                href={`/builds?repo=${encodeURIComponent(repo)}&arch=${encodeURIComponent(arch)}`}
+                            >
+                                <Button
+                                    variant="outline"
+                                    className="h-9 gap-1.5 rounded-sm text-[14px]"
+                                >
+                                    <Hammer className="h-4 w-4" />
+                                    miko でビルド
+                                </Button>
+                            </Link>
                         </>
                     }
                 />
