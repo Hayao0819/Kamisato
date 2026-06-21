@@ -12,14 +12,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// lumineEnv is served at /env.json and consumed by the web app's APIClient.
-// AYATO_URL is the base the browser uses: "" means same origin (lumine proxies
-// /api and /repo to ayato); null lets the user set it from the UI when
-// SERVER_CONFIGURABLE is true.
+// lumineEnv is served at /env.json. AYATO_URL is the API base; "" = same origin.
 type lumineEnv struct {
-	AyatoURL           *string `json:"AYATO_URL"`
-	ServerConfigurable bool    `json:"SERVER_CONFIGURABLE"`
-	Fallback           bool    `json:"FALLBACK"`
+	AyatoURL *string `json:"AYATO_URL"`
+	Fallback bool    `json:"FALLBACK"`
 }
 
 func RootCmd() *cobra.Command {
@@ -54,9 +50,6 @@ func RootCmd() *cobra.Command {
 				mux.Handle("/repo/", proxy)
 				same := ""
 				env = lumineEnv{AyatoURL: &same}
-			} else {
-				// No upstream: the user sets the ayato URL from the UI.
-				env = lumineEnv{ServerConfigurable: true}
 			}
 
 			envJSON, err := json.Marshal(env)

@@ -2,13 +2,11 @@ import type { BuildRequest, BuildStats, Job } from "./types";
 
 type LumineEnv = {
     AYATO_URL: string | null;
-    SERVER_CONFIGURABLE: boolean;
     FALLBACK: boolean;
 };
 
 const fallbackLumineEnv: LumineEnv = {
     AYATO_URL: null,
-    SERVER_CONFIGURABLE: true,
     FALLBACK: true,
 };
 
@@ -261,12 +259,7 @@ export class APIClient {
     }
 
     get serverUrl(): string | null {
-        const env = this.lumineEnv;
-        if (env.SERVER_CONFIGURABLE && typeof window !== "undefined") {
-            const localUrl = window.localStorage.getItem("lumine_api_base_url");
-            if (localUrl?.trim()) return localUrl.trim();
-        }
-        return env.AYATO_URL;
+        return this.lumineEnv.AYATO_URL;
     }
 }
 
