@@ -7,8 +7,10 @@ bin_dir="/bin"
 
 build_ayaka=true
 build_ayato=true
+build_miko=true
 build_lumine_go=true
 build_lumine_web=true
+build_kamisato=false
 enable_upx=true
 
 cd "$current_dir" || exit 1
@@ -47,7 +49,7 @@ check_requirements_pnpm() {
 }
 
 check_requirements() {
-    if [ "$build_ayaka" = true ] || [ "$build_ayato" = true ] || [ "$build_lumine_go" = true ]; then
+    if [ "$build_ayaka" = true ] || [ "$build_ayato" = true ] || [ "$build_miko" = true ] || [ "$build_lumine_go" = true ] || [ "$build_kamisato" = true ]; then
         if ! check_requirements_go; then
             return 1
         fi
@@ -112,11 +114,29 @@ parse_args() {
             build_ayato=false
             shift
             ;;
+        --miko)
+            build_miko=true
+            shift
+            ;;
+        --no-miko)
+            build_miko=false
+            shift
+            ;;
+        --kamisato)
+            build_kamisato=true
+            shift
+            ;;
+        --no-kamisato)
+            build_kamisato=false
+            shift
+            ;;
         --disable-all)
             build_ayaka=false
             build_ayato=false
+            build_miko=false
             build_lumine_go=false
             build_lumine_web=false
+            build_kamisato=false
             shift
             ;;
         --upx)
@@ -167,6 +187,28 @@ build_ayato() {
     build_go "$current_dir/ayato"
 }
 
+build_miko() {
+    build_go "$current_dir/miko"
+}
+
+# build_kamisato builds the combined `kamisato {ayato,miko,ayaka,lumine}` binary
+# from the repo root. It cannot reuse build_go because that derives the output
+# name from basename, which would collide with the repo directory name.
+build_kamisato() {
+    binary_file="$bin_dir/kamisato"
+    (
+        cd "$current_dir" || exit 1
+        go build -ldflags="-s -w" -trimpath -o "$binary_file" .
+        strip "$binary_file"
+        if [ "$enable_upx" = true ]; then
+            upx --best --lzma "$binary_file" || {
+                echo "Warning: UPX compression failed for $binary_file. Continuing without compression."
+            }
+        fi
+    )
+    unset binary_file
+}
+
 build_nextjs() {
     (
         cd "$1" || exit 1
@@ -200,6 +242,14 @@ main() {
 
     if [ $build_ayato = true ]; then
         build_ayato
+    fi
+
+    if [ "$build_miko" = true ]; then
+        build_miko
+    fi
+
+    if [ "$build_kamisato" = true ]; then
+        build_kamisato
     fi
 
     if [ "$build_lumine_web" = true ]; then
