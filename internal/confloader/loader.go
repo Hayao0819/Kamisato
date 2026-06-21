@@ -65,33 +65,18 @@ func (l *Loader[T]) PFlags(flags *pflag.FlagSet) *Loader[T] {
 
 // Load loads and merges config files based on Dirs() and Files() state
 func (l *Loader[T]) Load() error {
-	// Load files from directories
-	for _, dir := range l.dirs {
-		for _, filename := range l.filenames {
-			path := filepath.Join(dir, filename)
-
-			info, err := os.Stat(path)
-			if err != nil {
-				if os.IsNotExist(err) {
-					continue
-				}
-				return fmt.Errorf("failed to stat %s: %w", path, err)
+	// An absolute filename is used as-is; a relative one is searched under each
+	// dir. Joining an absolute path with a dir would mangle it.
+	for _, filename := range l.filenames {
+		if filepath.IsAbs(filename) {
+			if err := l.loadFile(filename); err != nil {
+				return err
 			}
-			if info.IsDir() {
-				continue
-			}
-
-			ext := filepath.Ext(path)
-			parser, err := parserForExtension(ext)
-			if err != nil {
-
-				slog.Debug("Skipping unsupported file", "path", path, "ext", ext)
-				continue
-			}
-
-			slog.Debug("Loading config", "path", path)
-			if err := l.k.Load(file.Provider(path), parser); err != nil {
-				return fmt.Errorf("failed to load %s: %w", path, err)
+			continue
+		}
+		for _, dir := range l.dirs {
+			if err := l.loadFile(filepath.Join(dir, filename)); err != nil {
+				return err
 			}
 		}
 	}
@@ -110,6 +95,33 @@ func (l *Loader[T]) Load() error {
 		}
 	}
 
+	return nil
+}
+
+// loadFile merges one config file. A missing file or unsupported extension is
+// skipped silently; other errors are returned.
+func (l *Loader[T]) loadFile(path string) error {
+	info, err := os.Stat(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return fmt.Errorf("failed to stat %s: %w", path, err)
+	}
+	if info.IsDir() {
+		return nil
+	}
+
+	parser, err := parserForExtension(filepath.Ext(path))
+	if err != nil {
+		slog.Debug("Skipping unsupported file", "path", path, "ext", filepath.Ext(path))
+		return nil
+	}
+
+	slog.Debug("Loading config", "path", path)
+	if err := l.k.Load(file.Provider(path), parser); err != nil {
+		return fmt.Errorf("failed to load %s: %w", path, err)
+	}
 	return nil
 }
 
