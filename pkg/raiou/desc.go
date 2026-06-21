@@ -205,7 +205,9 @@ func ParseDesc(r io.Reader) (*DESC, error) {
 			}
 			currentField = strings.Trim(line, "%")
 		} else if currentField != "" {
-			buffer = append(buffer, strings.TrimSpace(line))
+			if trimmed := strings.TrimSpace(line); trimmed != "" {
+				buffer = append(buffer, trimmed)
+			}
 		}
 	}
 	if err := flush(); err != nil {

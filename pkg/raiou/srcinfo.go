@@ -7,7 +7,8 @@ import (
 )
 
 // ArchStrings はアーキテクチャごとの値（depends, sums など）を保持します。
-type ArchStrings map[string]string
+// 同一 Arch に複数値があり得るため、キーごとにスライスで保持します。
+type ArchStrings map[string][]string
 
 // SrcinfoPackage は .SRCINFO 内の 1 パッケージ定義を表します。
 type SrcinfoPackage struct {
@@ -167,7 +168,7 @@ func archStringsFromGo(archStrings []go_srcinfo.ArchString) ArchStrings {
 	}
 	result := make(ArchStrings)
 	for _, archString := range archStrings {
-		result[archString.Arch] = archString.Value
+		result[archString.Arch] = append(result[archString.Arch], archString.Value)
 	}
 
 	return result

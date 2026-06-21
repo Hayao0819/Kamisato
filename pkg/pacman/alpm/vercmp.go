@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"os/exec"
 	"strconv"
+	"strings"
 )
 
 func VerCmp(v1, v2 string) (int, error) {
@@ -14,7 +15,7 @@ func VerCmp(v1, v2 string) (int, error) {
 	if err := vc.Run(); err != nil {
 		return 0, err
 	}
-	out, err := strconv.Atoi(stdout.String())
+	out, err := strconv.Atoi(strings.TrimSpace(stdout.String()))
 	if err != nil {
 		return 0, err
 	}
