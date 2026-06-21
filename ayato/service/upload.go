@@ -39,15 +39,23 @@ func (s *Service) UploadFile(repo string, files *domain.UploadFiles) error {
 		slog.Debug("store file success", "repo", repo, "arch", pi.Arch, "filename", pkgFileStream.FileName())
 		return fmt.Errorf("store file err: %s", err.Error())
 	}
+	storedName := path.Base(pkgFileStream.FileName())
+	// 後続処理が失敗した場合、保存済みバイナリをベストエフォートで除去し状態不整合を防ぐ。
+	cleanupStoredFile := func() {
+		if delErr := s.pkgBinaryRepo.DeleteFile(repo, pi.Arch, storedName); delErr != nil {
+			slog.Warn("failed to clean up stored pkg file after upload error", "repo", repo, "arch", pi.Arch, "filename", storedName, "err", delErr)
+		}
+	}
 	// パッケージDB更新
 	useSignedDB := false // TODO: 署名付きDB対応
 	var gnupgDir *string // TODO: gnupgDir存在チェック
 	if err := s.pkgBinaryRepo.RepoAdd(repo, pi.Arch, pkgFileStream, nil, useSignedDB, gnupgDir); err != nil {
+		cleanupStoredFile()
 		return fmt.Errorf("repo-add err: %s", err.Error())
 	}
 	// メタ情報保存
-	if err := s.pkgNameRepo.StorePackageFile(pi.PkgName, path.Base(pkgFileStream.FileName())); err != nil {
-		slog.Debug("store pkg file name success", "pkgname", pi.PkgName, "filename", path.Base(pkgFileStream.FileName()))
+	if err := s.pkgNameRepo.StorePackageFile(pi.PkgName, storedName); err != nil {
+		cleanupStoredFile()
 		return fmt.Errorf("store pkg file name err: %s", err.Error())
 	}
 	return nil

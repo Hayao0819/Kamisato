@@ -71,6 +71,7 @@ func (h *Handler) BlinkyUploadHandler(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, domain.APIError{Message: fmt.Sprintf("open file err: %s", err.Error())})
 		return
 	}
+	defer pkgStream.Close()
 	var sigStream *stream.FileStream
 	if sigHeader != nil {
 		sigStream, err = formFileStream(sigHeader)
@@ -83,6 +84,9 @@ func (h *Handler) BlinkyUploadHandler(ctx *gin.Context) {
 				slog.Warn("failed to open signature file", "error", err.Error())
 			}
 		}
+	}
+	if sigStream != nil {
+		defer sigStream.Close()
 	}
 	files := domain.UploadFiles{
 		PkgFile: pkgStream,

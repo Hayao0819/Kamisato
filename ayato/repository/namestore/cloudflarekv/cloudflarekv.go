@@ -2,6 +2,7 @@ package cloudflarekv
 
 import (
 	"context"
+	"errors"
 
 	"github.com/Hayao0819/Kamisato/ayato/repository/namestore/cloudflarekv/logger"
 	utils "github.com/Hayao0819/Kamisato/internal/utils"
@@ -49,7 +50,12 @@ func (c *CloudflareKV) PackageFile(packageName string) (string, error) {
 		Key:         packageName,
 	})
 	if err != nil {
-		return "", nil
+		// 正当な not-found（キー無し）のみ空文字を返し、それ以外の API エラーは握り潰さない。
+		var notFound *cloudflare.NotFoundError
+		if errors.As(err, &notFound) {
+			return "", nil
+		}
+		return "", utils.WrapErr(err, "failed to get worker KV entry")
 	}
 
 	return string(v), nil
