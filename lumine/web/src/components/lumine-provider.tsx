@@ -41,6 +41,8 @@ export default function LumineProvider({
             );
         }
 
+        if (!client.endpoints.executable) return;
+
         client
             .fetchAuthRequired()
             .then((result) => {
