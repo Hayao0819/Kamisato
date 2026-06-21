@@ -1,0 +1,84 @@
+# Example stack: ayato + miko + lumine, plus a Docker-in-Docker build daemon.
+# See README.md for roles and the walkthrough.
+
+name: kamisato-example
+
+services:
+  # build-tmp is shared with miko at the same path so the build container can
+  # bind-mount the sources miko writes there.
+  dind:
+    image: docker:dind
+    privileged: true
+    environment:
+      DOCKER_TLS_CERTDIR: ""
+    command: ["--host=tcp://0.0.0.0:2375", "--host=unix:///var/run/docker.sock", "--tls=false"]
+    networks: [kamisato]
+    volumes:
+      - build-tmp:/build-tmp
+      - dind-storage:/var/lib/docker
+    healthcheck:
+      test: ["CMD", "docker", "info"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  miko:
+    image: kamisato-example
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    command: ["miko", "-c", "/config/miko_config.json"]
+    environment:
+      DOCKER_HOST: tcp://dind:2375
+      TMPDIR: /build-tmp
+    networks: [kamisato]
+    volumes:
+      - ./config:/config:ro
+      - build-tmp:/build-tmp
+      - miko-jobs:/data/jobs
+    depends_on:
+      dind:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8081/healthz"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  ayato:
+    image: kamisato-example
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    command: ["ayato", "-c", "/config/ayato_config.json"]
+    ports:
+      - "127.0.0.1:8080:8080"
+    networks: [kamisato]
+    volumes:
+      - ./config:/config:ro
+      - ayato-data:/data
+    depends_on:
+      miko:
+        condition: service_started
+
+  lumine:
+    image: kamisato-example
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    command: ["lumine", "--addr", ":8080", "--ayato-url", "http://localhost:8080"]
+    ports:
+      - "127.0.0.1:3000:8080"
+    networks: [kamisato]
+    depends_on:
+      ayato:
+        condition: service_started
+
+networks:
+  kamisato:
+
+volumes:
+  build-tmp:
+  dind-storage:
+  miko-jobs:
+  ayato-data:

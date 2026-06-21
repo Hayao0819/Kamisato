@@ -1,0 +1,25 @@
+{
+  "debug": true,
+  "port": 8080,
+  "maxsize": 1000000000,
+  "auth": {
+    "username": "ayato",
+    "password": "password"
+  },
+  "store": {
+    "dbtype": "badgerdb",
+    "badgerdb": "/data/db",
+    "storagetype": "localfs",
+    "localrepodir": "/data/repo"
+  },
+  "miko": {
+    "url": "http://miko:8081",
+    "api_key": "example-build-key"
+  },
+  "repos": [
+    {
+      "name": "myrepo",
+      "arches": ["x86_64"]
+    }
+  ]
+}

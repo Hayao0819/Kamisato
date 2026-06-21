@@ -1,0 +1,17 @@
+{
+  "debug": true,
+  "port": 8081,
+  "executor": "container",
+  "concurrency": 2,
+  "build": {
+    "image": "archlinux:latest",
+    "timeout": 30
+  },
+  "api_keys": ["example-build-key"],
+  "ayato": {
+    "url": "http://ayato:8080",
+    "username": "ayato",
+    "password": "password"
+  },
+  "data_dir": "/data/jobs"
+}
