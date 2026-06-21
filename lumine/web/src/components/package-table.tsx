@@ -28,7 +28,6 @@ import {
     TableRow,
 } from "@/components/ui/table";
 import { useMobile } from "@/hooks/use-mobile";
-// import { getRepoFileEndpoint } from "@/lib/api";
 import type { PackageInfo } from "@/lib/types";
 import { BugReportDialog } from "./bug-report-dialog";
 import { useAPIClient } from "./lumine-provider";
@@ -69,7 +68,7 @@ export function PackageTable({
         return date.toLocaleDateString(); // Format as a localized date string
     };
 
-    // モバイル用のカードビュー
+    // Card view for mobile
     const renderMobileView = () => {
         return (
             <div className="grid grid-cols-1 gap-4">
@@ -164,7 +163,7 @@ export function PackageTable({
         );
     };
 
-    // デスクトップ用のテーブルビュー
+    // Table view for desktop
     const renderDesktopView = () => {
         return (
             <div className="rounded-md border">

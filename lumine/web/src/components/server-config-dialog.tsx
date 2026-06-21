@@ -3,7 +3,6 @@
 import { Settings } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-// import { SERVER_CONFIGURABLE } from "@/lib/api";
 import {
     Dialog,
     DialogContent,
@@ -36,13 +35,11 @@ export function ServerConfigDialog() {
         localStorage.setItem(STORAGE_KEY, url);
         toast({ title: "サーバーURLを保存しました" });
         setOpen(false);
-        window.location.reload(); // 設定反映のためリロード
+        window.location.reload(); // reload so the new server URL takes effect
     };
 
-    // console.log(api)
-
     if (!api.lumineEnv || !api.lumineEnv.SERVER_CONFIGURABLE) {
-        // 編集不可の場合はボタンをdisabledに
+        // disable the button when the URL is fixed and not editable
         return (
             <Button
                 variant="ghost"

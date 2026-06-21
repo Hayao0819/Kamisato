@@ -11,37 +11,14 @@ import {
     TableHead,
     TableRow,
 } from "@/components/ui/table";
-
-interface PackageDetail {
-    pkgname: string;
-    pkgbase: string;
-    pkgver: string;
-    pkgdesc: string;
-    url: string;
-    builddate: number;
-    packager: string;
-    size: number;
-    arch: string;
-    license: string[];
-    replaces: string[];
-    group: string[];
-    conflict: string[];
-    provides: string[];
-    backup: string[];
-    depend: string[];
-    optdepend: string[];
-    makedepend: string[];
-    checkdepend: string[];
-    xdata: Record<string, string>;
-    pkgtype: string;
-}
+import type { PackageInfo } from "@/lib/types";
 
 export default function ClientPackageDetailPage() {
     const searchParams = useSearchParams();
     const repo = searchParams.get("repo") || "";
     const arch = searchParams.get("arch") || "";
     const pkgbase = searchParams.get("pkgbase") || "";
-    const [pkg, setPkg] = useState<PackageDetail | null>(null);
+    const [pkg, setPkg] = useState<PackageInfo | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 

@@ -7,7 +7,6 @@ import { ServerConfigDialog } from "@/components/server-config-dialog";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "./auth-provider";
 import { useAPIClient } from "./lumine-provider";
-// import { getHelloEndpoint } from "@/lib/api";
 
 export function Header() {
     const [status, setStatus] = useState<
@@ -26,7 +25,7 @@ export function Header() {
             setStatus("loading");
             try {
                 const res = await apiRef.current.fetchHello();
-                // 418もsuccess扱い
+                // treat 418 as success too
                 if (!ignore)
                     setStatus(
                         res.ok || res.status === 418 ? "success" : "error",

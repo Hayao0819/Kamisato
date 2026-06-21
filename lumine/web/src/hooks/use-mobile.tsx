@@ -6,17 +6,16 @@ export function useMobile() {
     const [isMobile, setIsMobile] = useState(false);
 
     useEffect(() => {
-        // 初期状態を設定
+        // set the initial state
         setIsMobile(window.innerWidth < 768);
 
-        // リサイズイベントのリスナーを追加
+        // listen for resize events
         const handleResize = () => {
             setIsMobile(window.innerWidth < 768);
         };
 
         window.addEventListener("resize", handleResize);
 
-        // クリーンアップ関数
         return () => {
             window.removeEventListener("resize", handleResize);
         };

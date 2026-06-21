@@ -36,7 +36,7 @@ export function BugReportDialog({ packageInfo }: BugReportDialogProps) {
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        // ここでバグ報告を送信する処理を実装（モックなので実際には何もしない）
+        // submitting the bug report would go here (mock, so it does nothing)
         toast({
             title: "バグ報告を送信しました",
             description: `${packageInfo.pkgname} のバグ報告ありがとうございます。開発チームが確認します。`,

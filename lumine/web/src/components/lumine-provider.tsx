@@ -24,10 +24,7 @@ export default function LumineProvider({
     const [client, setClient] = useState<APIClient>(APIClient.fallback);
     const { setAuthRequired, setAuthRequiredLoading } = useAuth();
 
-    console.log("LumineProvider initialized with client:", client);
-
     useEffect(() => {
-        console.log("Initializing APIClient...");
         APIClient.init()
             .then((client) => {
                 setClient(client);
@@ -41,11 +38,6 @@ export default function LumineProvider({
         if (client.lumineEnv.FALLBACK) {
             console.warn(
                 "APIClient is using fallback mode. Some features may not work as expected.",
-            );
-        } else {
-            console.log(
-                "APIClient initialized successfully with environment:",
-                client.lumineEnv,
             );
         }
 
