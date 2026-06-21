@@ -1,7 +1,7 @@
 # Ayato | 綾人
 
-Ayato is a Blinkyd compatible backend for ayaka and blinky.It handles package hosting
-with automatic database updates.
+Ayato is a Blinkyd compatible backend for ayaka and blinky. It hosts packages and
+updates the repository database automatically, and proxies build requests to miko.
 
 ## Features
 
@@ -31,14 +31,3 @@ itself.
 
 In other words, you can host the Pacman package manager on almost any distribution.
 (I personally do not like using ArchLinux for server purposes.)
-
-## Todo
-
-- Implement basic features
-  - Store metadata
-  - Provide stored data
-- Multi-arch support
-- GPG sign support
-- API for lumine
-- repositoryをきれいにする
-  - PackageNameRepositoryとPackageBinaryRepositoryに分割する

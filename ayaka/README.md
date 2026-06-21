@@ -1,58 +1,44 @@
 # Ayaka | 綾華
 
-Ayaka is a command line front end. It builds packages locally and deploys them
-to Ayato or Blinky.
+Ayaka is the command-line client for a Kamisato repository. It manages local
+PKGBUILD sources and either builds them locally (clean chroot) or submits them to
+miko for a server-side build, then inspects and publishes the results on ayato.
 
-## Features
+## Supported environment
 
-- Build all packages within chroot environment
-- Upload built binary to blinkyd server
-- Ayaka works as client of blinkyd
-- Signing packages with GPG key
+Local chroot builds run only on Arch Linux (devtools). Remote builds (`ayaka miko`)
+work from any host.
 
-## Supported Environment
+## Configuration
 
-Ayaka works only on ArchLinux. Operation on Manjaro is not tested. It does not
-work with Pacman from CachyOS.
-
-## Usage
-
-### Configuration files
-
-`ayaka` is configured by two files.
-
-#### `.ayakarc.json`
-
-File for CLI configuration
+`.ayakarc.json` lists the source repositories:
 
 ```json
 {
-    "repodir": "../example/src/myrepo",
-    "destdir": "../example/out"
+    "repos": [
+        { "dir": "./myrepo", "destdir": "./out" }
+    ]
 }
 ```
 
-#### `repo.json`
-
-File for repository configuration
+Each source repository has a `repo.json` next to its packages:
 
 ```json
 {
     "name": "myrepo",
     "maintainer": "hayao <shun819.mail at gmail.com>",
-    "server": "example.com/myrepo"
+    "server": "",
+    "archbuild": "extra-x86_64-build"
 }
 ```
 
-Sample is available at [../example/src/myrepo/repo.json](../example/src/myrepo/repo.json).
+See [../example/ayaka](../example/ayaka) for a working sample.
 
-### Subcommands
+## Subcommands
 
-- `build` Build all packages in chroot environment
-- `list` Show package list
-
-## Todo
-
-- Mirroring repository to another server
-- Pull PKGBUILD from Git
-- monorepo support by ayakarc
+- `build` build locally, or `--remote` to build on miko
+- `miko` submit and inspect server-side builds (`build`, `jobs`, `status`, `logs`, `cancel`, `stats`)
+- `repo` publish packages to ayato
+- `server` manage ayato endpoints
+- `list` / `status` show source packages and their build state
+- `aur` manage PKGBUILDs taken from the AUR
