@@ -2,9 +2,9 @@
 package pkg
 
 import (
+	"context"
 	"log/slog"
 	"os"
-	"path"
 
 	utils "github.com/Hayao0819/Kamisato/internal/utils"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/builder"
@@ -25,25 +25,32 @@ func (p *SourcePackage) Build(target *builder.Target, dest string) error {
 			return err
 		}
 	}
+	// 成果物は OutDir(=dest) へ移されるため、ソースコピーを残す tmpdir は破棄する。
+	defer func() { _ = os.RemoveAll(tmpdir) }()
 
-	if err := target.Build(tmpdir); err != nil {
+	backend, err := builder.New(builder.KindChroot, builder.Options{})
+	if err != nil {
+		return utils.WrapErr(err, "failed to create build backend")
+	}
+
+	result, err := backend.Build(context.Background(), builder.Spec{
+		SrcDir:      tmpdir,
+		OutDir:      dest,
+		Arch:        target.Arch,
+		ArchBuild:   target.ArchBuild,
+		InstallPkgs: target.InstallPkgs,
+	})
+	if err != nil {
 		return utils.WrapErr(err, "failed to build package")
 	}
 
-	names, err := p.PkgFileNames()
-	if err != nil {
-		return utils.WrapErr(err, "failed to get package file names")
-	}
-
 	if target.SignKey != "" {
-		for _, name := range names {
-			src := path.Join(tmpdir, name)
-			if err := gpg.SignFile(target.SignKey, "", src); err != nil {
-				return utils.WrapErr(err, "failed to sign file: "+src)
+		for _, pkgPath := range result.Packages {
+			if err := gpg.SignFile(target.SignKey, "", pkgPath); err != nil {
+				return utils.WrapErr(err, "failed to sign file: "+pkgPath)
 			}
 		}
 	}
 
-	// ...（省略: ファイル移動処理など）...
 	return nil
 }
