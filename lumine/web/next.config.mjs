@@ -1,3 +1,5 @@
+import { fileURLToPath } from "node:url";
+
 /** @type {import('next').NextConfig} */
 const isDev = process.env.NODE_ENV === "development";
 
@@ -8,8 +10,8 @@ const nextConfig = {
     images: {
         unoptimized: true,
     },
-    distDir: "../embed/out",
     trailingSlash: true,
+    turbopack: { root: fileURLToPath(new URL(".", import.meta.url)) },
     // Dev: proxy /api and /repo to ayato (same origin), mirroring the lumine binary.
     // Prod is a static export served by that binary, which does the proxying.
     ...(isDev
@@ -23,7 +25,7 @@ const nextConfig = {
                   ];
               },
           }
-        : { output: "export" }),
+        : { output: "export", distDir: "../embed/out" }),
 };
 
 export default nextConfig;
