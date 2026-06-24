@@ -1,5 +1,6 @@
 "use client";
 
+import { MoreHorizontal } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AuthGate } from "@/components/auth-gate";
@@ -20,6 +21,7 @@ import { useAPIClient } from "@/components/lumine-provider";
 import { PageContainer } from "@/components/page-container";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
     Table,
     TableBody,
@@ -41,6 +43,15 @@ function emptyCounts(): Record<JobStatus, number> {
         failed: 0,
         cancelled: 0,
     };
+}
+
+function pkgLabel(job: Job): string {
+    const pkgs = job.packages ?? [];
+    if (pkgs.length === 0) return "—";
+    const name =
+        pkgs[0].split("/").pop()?.replace(/\.pkg\.tar\.[a-z0-9]+$/i, "") ??
+        pkgs[0];
+    return pkgs.length > 1 ? `${name} 他${pkgs.length - 1}件` : name;
 }
 
 export function BuildsPageClient() {
@@ -214,14 +225,12 @@ export function BuildsPageClient() {
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>ID</TableHead>
+                                    <TableHead>パッケージ</TableHead>
                                     <TableHead>リポ/アーキ</TableHead>
                                     <TableHead>状態</TableHead>
                                     <TableHead>作成日時</TableHead>
                                     <TableHead>所要時間</TableHead>
-                                    <TableHead className="text-right">
-                                        パッケージ
-                                    </TableHead>
+                                    <TableHead className="w-10" />
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -234,8 +243,14 @@ export function BuildsPageClient() {
                                         }
                                         className="cursor-pointer data-[highlight]:bg-primary/10"
                                     >
-                                        <TableCell className="font-mono text-xs">
-                                            {job.id.slice(0, 8)}
+                                        <TableCell className="max-w-[280px] truncate font-mono text-[13px]">
+                                            {job.packages?.length ? (
+                                                pkgLabel(job)
+                                            ) : (
+                                                <span className="text-muted-foreground">
+                                                    —
+                                                </span>
+                                            )}
                                         </TableCell>
                                         <TableCell className="whitespace-nowrap">
                                             <span className="text-foreground">
@@ -271,8 +286,19 @@ export function BuildsPageClient() {
                                                 job.ended_at,
                                             )}
                                         </TableCell>
-                                        <TableCell className="text-right tabular-nums">
-                                            {job.packages?.length ?? 0}
+                                        <TableCell className="text-right">
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-7 w-7 text-muted-foreground"
+                                                aria-label="詳細"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setDetailId(job.id);
+                                                }}
+                                            >
+                                                <MoreHorizontal className="h-4 w-4" />
+                                            </Button>
                                         </TableCell>
                                     </TableRow>
                                 ))}

@@ -1,6 +1,6 @@
 "use client";
 
-import { Ban, Loader2, ScrollText } from "lucide-react";
+import { Ban, Check, Copy, Loader2, ScrollText } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { AuthGate } from "@/components/auth-gate";
 import { useAPIClient } from "@/components/lumine-provider";
@@ -35,6 +35,15 @@ function MetaRow({
     );
 }
 
+function pkgLabel(job: Job): string {
+    const pkgs = job.packages ?? [];
+    if (pkgs.length === 0) return "ビルドジョブ";
+    const name =
+        pkgs[0].split("/").pop()?.replace(/\.pkg\.tar\.[a-z0-9]+$/i, "") ??
+        pkgs[0];
+    return pkgs.length > 1 ? `${name} 他${pkgs.length - 1}件` : name;
+}
+
 export function BuildJobDetail({
     job,
     open,
@@ -49,6 +58,7 @@ export function BuildJobDetail({
     const api = useAPIClient();
     const [logLines, setLogLines] = useState<string[]>([]);
     const [cancelling, setCancelling] = useState(false);
+    const [copied, setCopied] = useState(false);
     const logRef = useRef<HTMLPreElement>(null);
     const jobId = job?.id ?? null;
 
@@ -81,13 +91,20 @@ export function BuildJobDetail({
         }
     };
 
+    const copyId = () => {
+        if (!jobId) return;
+        navigator.clipboard?.writeText(jobId);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1500);
+    };
+
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="max-h-[88vh] gap-5 overflow-y-auto sm:max-w-3xl">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
-                        <span className="font-mono text-[15px]">
-                            {job ? job.id.slice(0, 12) : ""}
+                        <span className="font-mono text-[15px] break-all">
+                            {job ? pkgLabel(job) : ""}
                         </span>
                         {job && (
                             <Badge variant={STATUS_VARIANT[job.status]}>
@@ -99,15 +116,30 @@ export function BuildJobDetail({
 
                 {job && (
                     <>
+                        <div className="flex items-center gap-1.5 text-[12px] text-muted-foreground">
+                            <span className="shrink-0">ジョブID</span>
+                            <code className="break-all font-mono text-foreground/80">
+                                {job.id}
+                            </code>
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6 shrink-0"
+                                aria-label="IDをコピー"
+                                onClick={copyId}
+                            >
+                                {copied ? (
+                                    <Check className="h-3.5 w-3.5" />
+                                ) : (
+                                    <Copy className="h-3.5 w-3.5" />
+                                )}
+                            </Button>
+                        </div>
                         <dl className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3">
                             <MetaRow label="リポジトリ">{job.repo}</MetaRow>
                             <MetaRow label="アーキテクチャ">
                                 {job.arch}
-                            </MetaRow>
-                            <MetaRow label="パッケージ数">
-                                <span className="tabular-nums">
-                                    {job.packages?.length ?? 0}
-                                </span>
                             </MetaRow>
                             <MetaRow label="作成日時">
                                 {job.created_at
