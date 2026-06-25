@@ -10,7 +10,7 @@ import (
 	"path"
 	"strings"
 
-	"github.com/Hayao0819/Kamisato/ayato/blob"
+	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
 	"github.com/Hayao0819/Kamisato/ayato/stream"
 	"github.com/Hayao0819/Kamisato/internal/utils"
 	"github.com/aws/aws-sdk-go-v2/aws"

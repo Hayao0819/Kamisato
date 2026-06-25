@@ -49,24 +49,24 @@ func RootCmd() *cobra.Command {
 
 			slog.Debug("Configuration loaded", "port", cfg.Port, "debug", cfg.Debug, "repos", cfg.Repos, "maxsize", cfg.MaxSize, "dbtype", cfg.Store.DBType, "storagetype", cfg.Store.StorageType)
 
-			pkgNameRepo, pkgBinaryRepo, kvStore, err := repository.New(cfg)
+			pkgNameRepo, pkgBinaryRepo, authRepo, kvCloser, err := repository.New(cfg)
 			if err != nil {
 				return utils.WrapErr(err, "failed to initialize repository")
 			}
-			defer func() { _ = kvStore.Close() }()
+			defer func() { _ = kvCloser.Close() }()
 
-			s := service.New(pkgNameRepo, pkgBinaryRepo, cfg)
+			s := service.New(pkgNameRepo, pkgBinaryRepo, authRepo, cfg)
 			h := handler.New(s, cfg)
 			m := middleware.New(cfg)
 
 			// The admin allowlist is the only persisted auth state; it rides the
-			// shared kv store. Seed the bootstrap admin on first run. Sessions, CLI
-			// tokens, one-time codes, and OAuth state are all stateless-signed by
-			// the signer. Without a signer (no session_secret) the mutating routes
-			// fall back to closed-network trust (no allowlist to enforce); but
-			// conf.Validate requires a secret whenever GitHub login is enabled.
-			allow := auth.NewAllowlistRepo(kvStore)
-			if err := auth.SeedBootstrap(allow, cfg.Auth.BootstrapAdminGitHubID); err != nil {
+			// shared kv store behind the repository layer. Seed the bootstrap admin
+			// on first run through the service. Sessions, CLI tokens, one-time
+			// codes, and OAuth state are all stateless-signed by the signer.
+			// Without a signer (no session_secret) the mutating routes fall back to
+			// closed-network trust (no allowlist to enforce); but conf.Validate
+			// requires a secret whenever GitHub login is enabled.
+			if err := s.SeedBootstrapAdmin(cfg.Auth.BootstrapAdminGitHubID); err != nil {
 				return utils.WrapErr(err, "failed to seed bootstrap admin")
 			}
 			if len(cfg.Auth.SessionSecret) > 0 {
@@ -74,8 +74,8 @@ func RootCmd() *cobra.Command {
 				if serr != nil {
 					return utils.WrapErr(serr, "failed to build session signer")
 				}
-				h.WithAuth(allow, signer)
-				m.WithAuth(allow, signer)
+				h.WithAuth(signer)
+				m.WithAuth(s, signer)
 			}
 
 			engine := gin.New()

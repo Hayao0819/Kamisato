@@ -1,8 +1,10 @@
 // Package auth implements ayato's GitHub-OAuth authentication subsystem. All
 // auth state is stateless-signed (web sessions, CLI tokens, one-time CLI codes,
 // and pending OAuth states are HMAC-signed envelopes carried by the client)
-// EXCEPT the admin allowlist, which is the single piece of server-side state and
-// lives on the shared kv.Store. Everything is fail-closed: an empty allowlist
+// EXCEPT the admin allowlist, which is the single piece of server-side state.
+// That allowlist is persisted by the repository layer (AuthRepository) and
+// reached through the service; this package only mints/verifies signed envelopes
+// and never touches storage. Everything is fail-closed: an empty allowlist
 // denies, unknown ids are rejected, and signature checks are constant-time.
 package auth
 

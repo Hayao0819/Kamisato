@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-//go:generate mockgen -source=kv.go -destination=../test/mocks/kv.go -package=mocks -mock_names Store=MockKVStore
+//go:generate mockgen -source=kv.go -destination=../../test/mocks/kv.go -package=mocks -mock_names Store=MockKVStore
 
 // ErrNotFound is returned by Get when a key is absent (or has expired). Backends
 // never report a miss as ("", nil); they always surface it as ErrNotFound so

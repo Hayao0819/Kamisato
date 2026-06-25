@@ -10,7 +10,7 @@ import (
 	"github.com/Hayao0819/Kamisato/ayato/stream"
 )
 
-//go:generate mockgen -source=blob.go -destination=../test/mocks/blob.go -package=mocks -mock_names Store=MockBlobStore
+//go:generate mockgen -source=blob.go -destination=../../test/mocks/blob.go -package=mocks -mock_names Store=MockBlobStore
 
 // Store is the low-level backend contract for storing binaries (package files and
 // DBs). It is pure byte/file IO and knows nothing about pacman repositories: the

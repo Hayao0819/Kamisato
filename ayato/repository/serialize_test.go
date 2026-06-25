@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Hayao0819/Kamisato/ayato/blob"
+	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
 	"github.com/Hayao0819/Kamisato/ayato/stream"
 )
 

@@ -6,8 +6,8 @@ import (
 	"path"
 	"strings"
 
-	"github.com/Hayao0819/Kamisato/ayato/blob"
-	"github.com/Hayao0819/Kamisato/ayato/kv"
+	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
+	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
 	"github.com/Hayao0819/Kamisato/ayato/stream"
 	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/internal/utils"
@@ -15,7 +15,7 @@ import (
 	"github.com/samber/lo"
 )
 
-//go:generate mockgen -source=repository.go -destination=../test/mocks/repository.go -package=mocks -aux_files=github.com/Hayao0819/Kamisato/ayato/blob=../blob/blob.go
+//go:generate mockgen -source=repository.go -destination=../test/mocks/repository.go -package=mocks -aux_files=github.com/Hayao0819/Kamisato/ayato/repository/blob=blob/blob.go
 
 // NameStore maps package names to their stored file names (blinky-compatible).
 type NameStore interface {

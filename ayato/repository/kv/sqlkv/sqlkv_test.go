@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Hayao0819/Kamisato/ayato/kv"
-	"github.com/Hayao0819/Kamisato/ayato/kv/sqlkv"
+	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
+	"github.com/Hayao0819/Kamisato/ayato/repository/kv/sqlkv"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )

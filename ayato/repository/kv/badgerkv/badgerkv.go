@@ -7,8 +7,8 @@ import (
 	"errors"
 	"time"
 
-	"github.com/Hayao0819/Kamisato/ayato/kv"
-	"github.com/Hayao0819/Kamisato/ayato/kv/badgerkv/logger"
+	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
+	"github.com/Hayao0819/Kamisato/ayato/repository/kv/badgerkv/logger"
 	"github.com/Hayao0819/Kamisato/internal/utils"
 	"github.com/dgraph-io/badger/v3"
 )

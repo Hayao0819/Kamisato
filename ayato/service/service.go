@@ -16,6 +16,7 @@ import (
 type Service struct {
 	pkgNameRepo   repository.NameStore
 	pkgBinaryRepo repository.BinaryRepository
+	authRepo      repository.AuthRepository
 	cfg           *conf.AyatoConfig
 
 	// verifier is the loaded package-signature trust root, nil when no keyring
@@ -43,12 +44,21 @@ type Servicer interface {
 	PkgDetail(repo, arch, pkg string) (*raiou.PKGINFO, error)
 	PkgFiles(repo, arch, pkg string) ([]string, error)
 	RepoFileList(repo, arch string) ([]string, error)
+
+	// Auth/allowlist use cases (handler -> service -> repository). The GitHub
+	// login->id resolution stays in the handler; these take a resolved id.
+	IsAdmin(id int64) bool
+	AddAdmin(id int64, login string) error
+	RemoveAdmin(id int64) error
+	ListAdmins() ([]repository.AllowedAdmin, error)
+	SeedBootstrapAdmin(id int64) error
 }
 
-func New(pkgNameRepo repository.NameStore, pkgBinaryRepo repository.BinaryRepository, config *conf.AyatoConfig) Servicer {
+func New(pkgNameRepo repository.NameStore, pkgBinaryRepo repository.BinaryRepository, authRepo repository.AuthRepository, config *conf.AyatoConfig) Servicer {
 	s := &Service{
 		pkgNameRepo:   pkgNameRepo,
 		pkgBinaryRepo: pkgBinaryRepo,
+		authRepo:      authRepo,
 		cfg:           config,
 	}
 

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/Hayao0819/Kamisato/ayato/auth"
+	"github.com/Hayao0819/Kamisato/ayato/repository"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/oauth2"
 	githuboauth "golang.org/x/oauth2/github"
@@ -41,9 +42,11 @@ type githubUser struct {
 	Login string `json:"login"`
 }
 
-// oauthEnabled reports whether the GitHub login flow is configured.
+// oauthEnabled reports whether the GitHub login flow is configured. Auth is
+// "wired" when the signer is present (the service, which owns the allowlist, is
+// always present); GitHub login additionally needs the client id/secret.
 func (h *Handler) oauthEnabled() bool {
-	return h.signer != nil && h.allow != nil && h.cfg != nil && h.cfg.Auth.GitHub.ClientID != "" && h.cfg.Auth.GitHub.ClientSecret != ""
+	return h.signer != nil && h.cfg != nil && h.cfg.Auth.GitHub.ClientID != "" && h.cfg.Auth.GitHub.ClientSecret != ""
 }
 
 // externalBase returns the external (scheme, "scheme://host") used for the OAuth
@@ -227,7 +230,7 @@ func (h *Handler) GitHubCallbackHandler(c *gin.Context) {
 	}
 
 	// Fail-closed allowlist by numeric id.
-	if !h.allow.Has(user.ID) {
+	if !h.s.IsAdmin(user.ID) {
 		slog.Warn("github login denied (not allowlisted)", "github_id", user.ID, "login", user.Login)
 		c.JSON(http.StatusForbidden, gin.H{"error": "not allowed"})
 		return
@@ -348,7 +351,7 @@ func (h *Handler) setSessionCookie(c *gin.Context, value string, secure bool, ma
 // one-time code is single-use by construction: its 60s TTL plus the PKCE
 // verifier (which proves one-time possession) bound replay; no stored "used" set.
 func (h *Handler) CLIExchangeHandler(c *gin.Context) {
-	if h.signer == nil || h.allow == nil {
+	if h.signer == nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "auth not configured"})
 		return
 	}
@@ -376,7 +379,7 @@ func (h *Handler) CLIExchangeHandler(c *gin.Context) {
 	}
 
 	// Re-check allowlist at exchange time (fail-closed).
-	if !h.allow.Has(rec.GitHubID) {
+	if !h.s.IsAdmin(rec.GitHubID) {
 		c.JSON(http.StatusForbidden, gin.H{"error": "not allowed"})
 		return
 	}
@@ -397,7 +400,7 @@ func (h *Handler) CLIExchangeHandler(c *gin.Context) {
 
 // MeHandler reports the current session identity for the SPA.
 func (h *Handler) MeHandler(c *gin.Context) {
-	if h.signer == nil || h.allow == nil {
+	if h.signer == nil {
 		c.JSON(http.StatusOK, gin.H{"authenticated": false})
 		return
 	}
@@ -407,7 +410,7 @@ func (h *Handler) MeHandler(c *gin.Context) {
 		return
 	}
 	claims, err := h.signer.VerifyTyp(sid, auth.TypSession)
-	if err != nil || !h.allow.Has(claims.GitHubID) {
+	if err != nil || !h.s.IsAdmin(claims.GitHubID) {
 		c.JSON(http.StatusOK, gin.H{"authenticated": false})
 		return
 	}
@@ -435,13 +438,13 @@ func (h *Handler) LogoutHandler(c *gin.Context) {
 
 // AdminsListHandler lists allowlisted admins.
 func (h *Handler) AdminsListHandler(c *gin.Context) {
-	admins, err := h.allow.ListAllowed()
+	admins, err := h.s.ListAdmins()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "list"})
 		return
 	}
 	if admins == nil {
-		admins = []auth.AllowedAdmin{}
+		admins = []repository.AllowedAdmin{}
 	}
 	c.JSON(http.StatusOK, gin.H{"admins": admins})
 }
@@ -470,7 +473,7 @@ func (h *Handler) AdminsAddHandler(c *gin.Context) {
 		}
 		id, login = resolved.ID, resolved.Login
 	}
-	if err := h.allow.Add(id, login); err != nil {
+	if err := h.s.AddAdmin(id, login); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "add"})
 		return
 	}
@@ -484,7 +487,7 @@ func (h *Handler) AdminsRemoveHandler(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
 	}
-	if err := h.allow.Remove(id); err != nil {
+	if err := h.s.RemoveAdmin(id); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "remove"})
 		return
 	}

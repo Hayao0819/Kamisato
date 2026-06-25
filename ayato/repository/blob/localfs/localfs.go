@@ -7,7 +7,7 @@ import (
 	"os"
 	"path"
 
-	"github.com/Hayao0819/Kamisato/ayato/blob"
+	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
 	utils "github.com/Hayao0819/Kamisato/internal/utils"
 	"github.com/samber/lo"
 )

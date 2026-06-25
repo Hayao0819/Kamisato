@@ -7,32 +7,39 @@ import (
 	"time"
 
 	"github.com/Hayao0819/Kamisato/ayato/auth"
-	"github.com/Hayao0819/Kamisato/ayato/kv/badgerkv"
 	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/gin-gonic/gin"
 )
 
 const testSecret = "0123456789abcdef0123456789abcdef" // 32 bytes
 
-func testMiddleware(t *testing.T, bootstrap int64) (*Middleware, *auth.AllowlistRepo, *auth.Signer) {
+// fakeChecker is a minimal adminChecker: the allowlisted ids are a static set,
+// matching the fail-closed per-request re-check the middleware relies on.
+type fakeChecker struct {
+	allowed map[int64]bool
+}
+
+func (f fakeChecker) IsAdmin(id int64) bool {
+	if id <= 0 {
+		return false
+	}
+	return f.allowed[id]
+}
+
+func testMiddleware(t *testing.T, bootstrap int64) (*Middleware, *auth.Signer) {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
-	store, err := badgerkv.New(t.TempDir())
-	if err != nil {
-		t.Fatalf("badgerkv.New: %v", err)
-	}
-	t.Cleanup(func() { _ = store.Close() })
-	allow := auth.NewAllowlistRepo(store)
-	if err := auth.SeedBootstrap(allow, bootstrap); err != nil {
-		t.Fatalf("SeedBootstrap: %v", err)
+	checker := fakeChecker{allowed: map[int64]bool{}}
+	if bootstrap > 0 {
+		checker.allowed[bootstrap] = true
 	}
 	signer, err := auth.NewSigner([]string{testSecret})
 	if err != nil {
 		t.Fatalf("NewSigner: %v", err)
 	}
 	cfg := &conf.AyatoConfig{}
-	m := New(cfg).WithAuth(allow, signer)
-	return m, allow, signer
+	m := New(cfg).WithAuth(checker, signer)
+	return m, signer
 }
 
 func sessionToken(t *testing.T, s *auth.Signer, id int64, login string) string {
@@ -64,7 +71,7 @@ func run(m *Middleware, allowBasic bool, mutate func(*http.Request)) *httptest.R
 }
 
 func TestRequireAdminNoCredentials(t *testing.T) {
-	m, _, _ := testMiddleware(t, 42)
+	m, _ := testMiddleware(t, 42)
 	w := run(m, false, func(*http.Request) {})
 	if w.Code != http.StatusUnauthorized {
 		t.Fatalf("no creds: status = %d, want 401", w.Code)
@@ -72,7 +79,7 @@ func TestRequireAdminNoCredentials(t *testing.T) {
 }
 
 func TestRequireAdminBearerToken(t *testing.T) {
-	m, _, signer := testMiddleware(t, 42)
+	m, signer := testMiddleware(t, 42)
 	tok := cliToken(t, signer, 42, "alice")
 
 	w := run(m, false, func(req *http.Request) {
@@ -84,7 +91,7 @@ func TestRequireAdminBearerToken(t *testing.T) {
 }
 
 func TestRequireAdminBearerNotAllowlisted(t *testing.T) {
-	m, _, signer := testMiddleware(t, 42)
+	m, signer := testMiddleware(t, 42)
 	// Signed token for an id that is NOT on the allowlist: the per-request
 	// allow.Has re-check must reject it (the de-allowlist path).
 	tok := cliToken(t, signer, 99, "mallory")
@@ -98,7 +105,7 @@ func TestRequireAdminBearerNotAllowlisted(t *testing.T) {
 }
 
 func TestRequireAdminBearerWrongType(t *testing.T) {
-	m, _, signer := testMiddleware(t, 42)
+	m, signer := testMiddleware(t, 42)
 	// A session-typed token must not authenticate the Bearer path (type pinning).
 	tok := sessionToken(t, signer, 42, "alice")
 
@@ -111,7 +118,7 @@ func TestRequireAdminBearerWrongType(t *testing.T) {
 }
 
 func TestRequireAdminCookieRequiresSecFetch(t *testing.T) {
-	m, _, signer := testMiddleware(t, 42)
+	m, signer := testMiddleware(t, 42)
 	sid := sessionToken(t, signer, 42, "alice")
 
 	// Without Sec-Fetch-Site: same-origin the cookie path is rejected (CSRF).
@@ -133,7 +140,7 @@ func TestRequireAdminCookieRequiresSecFetch(t *testing.T) {
 }
 
 func TestRequireAdminBasicTokenBlinkyOnly(t *testing.T) {
-	m, _, signer := testMiddleware(t, 42)
+	m, signer := testMiddleware(t, 42)
 	tok := cliToken(t, signer, 42, "alice")
 
 	basic := func(req *http.Request) {

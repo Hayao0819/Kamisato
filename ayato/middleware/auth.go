@@ -10,11 +10,18 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// adminChecker is the slice of the service the middleware needs: a fail-closed
+// per-request allowlist check. The service satisfies it, but the middleware
+// depends only on this narrow contract — never on kv or the allowlist directly.
+type adminChecker interface {
+	IsAdmin(id int64) bool
+}
+
 // Middleware provides middleware for authentication, authorization, etc.
 type Middleware struct {
-	cfg    *conf.AyatoConfig
-	allow  *auth.AllowlistRepo // nil disables auth (closed-network trust only)
-	signer *auth.Signer        // verifies stateless session/CLI tokens
+	cfg     *conf.AyatoConfig
+	checker adminChecker // nil disables auth (closed-network trust only)
+	signer  *auth.Signer // verifies stateless session/CLI tokens
 }
 
 func New(cfg *conf.AyatoConfig) *Middleware {
@@ -23,10 +30,11 @@ func New(cfg *conf.AyatoConfig) *Middleware {
 	}
 }
 
-// WithAuth attaches the admin allowlist and the stateless signer used to verify
-// sessions/CLI tokens and to re-check the allowlist on every request.
-func (m *Middleware) WithAuth(allow *auth.AllowlistRepo, signer *auth.Signer) *Middleware {
-	m.allow = allow
+// WithAuth attaches the admin checker (the service) and the stateless signer
+// used to verify sessions/CLI tokens and to re-check the allowlist on every
+// request.
+func (m *Middleware) WithAuth(checker adminChecker, signer *auth.Signer) *Middleware {
+	m.checker = checker
 	m.signer = signer
 	return m
 }
@@ -47,7 +55,7 @@ const (
 // blinky-compatible routes so existing clients keep working.
 func (m *Middleware) RequireAdmin(allowBasic bool) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if m.allow == nil || m.signer == nil {
+		if m.checker == nil || m.signer == nil {
 			// Auth not configured: closed-network trust only (no allowlist to
 			// enforce). Pass through, matching apikey.Middleware semantics.
 			c.Next()
@@ -72,7 +80,7 @@ func (m *Middleware) RequireAdmin(allowBasic bool) gin.HandlerFunc {
 		// Re-check the allowlist on every request (fail-closed): a de-allowlisted
 		// admin is locked out immediately, even with a live signed session/token.
 		// This is what makes stateless tokens revocable.
-		if !m.allow.Has(id) {
+		if !m.checker.IsAdmin(id) {
 			c.AbortWithStatus(http.StatusForbidden)
 			return
 		}

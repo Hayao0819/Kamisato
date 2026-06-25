@@ -20,8 +20,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Hayao0819/Kamisato/ayato/kv"
-	"github.com/Hayao0819/Kamisato/ayato/kv/cfkv/logger"
+	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
+	"github.com/Hayao0819/Kamisato/ayato/repository/kv/cfkv/logger"
 	"github.com/Hayao0819/Kamisato/internal/utils"
 	"github.com/cloudflare/cloudflare-go"
 )

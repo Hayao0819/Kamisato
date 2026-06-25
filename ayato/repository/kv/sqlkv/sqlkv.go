@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/Hayao0819/Kamisato/ayato/kv"
+	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
 	"github.com/Hayao0819/Kamisato/internal/utils"
 	_ "github.com/lib/pq"
 	"gorm.io/driver/mysql"

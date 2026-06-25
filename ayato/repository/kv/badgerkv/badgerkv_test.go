@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Hayao0819/Kamisato/ayato/kv"
-	"github.com/Hayao0819/Kamisato/ayato/kv/badgerkv"
+	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
+	"github.com/Hayao0819/Kamisato/ayato/repository/kv/badgerkv"
 )
 
 func newStore(t *testing.T) *badgerkv.Store {

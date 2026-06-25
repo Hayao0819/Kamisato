@@ -8,14 +8,16 @@ import (
 	"testing"
 
 	"github.com/Hayao0819/Kamisato/ayato/auth"
-	"github.com/Hayao0819/Kamisato/ayato/kv/badgerkv"
+	"github.com/Hayao0819/Kamisato/ayato/repository"
+	"github.com/Hayao0819/Kamisato/ayato/repository/kv/badgerkv"
+	"github.com/Hayao0819/Kamisato/ayato/service"
 	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/gin-gonic/gin"
 )
 
 const testSecret = "0123456789abcdef0123456789abcdef" // 32 bytes
 
-func testHandler(t *testing.T) (*Handler, *auth.AllowlistRepo, *auth.Signer) {
+func testHandler(t *testing.T) (*Handler, service.Servicer, *auth.Signer) {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
 	store, err := badgerkv.New(t.TempDir())
@@ -23,19 +25,22 @@ func testHandler(t *testing.T) (*Handler, *auth.AllowlistRepo, *auth.Signer) {
 		t.Fatalf("badgerkv.New: %v", err)
 	}
 	t.Cleanup(func() { _ = store.Close() })
-	allow := auth.NewAllowlistRepo(store)
-	signer, err := auth.NewSigner([]string{testSecret})
-	if err != nil {
-		t.Fatalf("NewSigner: %v", err)
-	}
 
 	cfg := &conf.AyatoConfig{}
 	cfg.Auth.GitHub.ClientID = "cid"
 	cfg.Auth.GitHub.ClientSecret = "secret"
 	cfg.Auth.PublicOrigin = "https://repo.example.com"
 
-	h := New(nil, cfg).WithAuth(allow, signer)
-	return h, allow, signer
+	// The handler reaches the allowlist through the service, so back it with a
+	// real service over a badgerkv AuthRepository.
+	svc := service.New(nil, nil, repository.NewAuthRepository(store), cfg)
+	signer, err := auth.NewSigner([]string{testSecret})
+	if err != nil {
+		t.Fatalf("NewSigner: %v", err)
+	}
+
+	h := New(svc, cfg).WithAuth(signer)
+	return h, svc, signer
 }
 
 // TestCLIStartRejectsBadPort ensures /cli/start rejects non-integer / garbage /

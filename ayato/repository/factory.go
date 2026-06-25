@@ -1,15 +1,16 @@
 package repository
 
 import (
+	"io"
 	"log/slog"
 
-	"github.com/Hayao0819/Kamisato/ayato/blob"
-	"github.com/Hayao0819/Kamisato/ayato/blob/localfs"
-	"github.com/Hayao0819/Kamisato/ayato/blob/s3"
-	"github.com/Hayao0819/Kamisato/ayato/kv"
-	"github.com/Hayao0819/Kamisato/ayato/kv/badgerkv"
-	"github.com/Hayao0819/Kamisato/ayato/kv/cfkv"
-	"github.com/Hayao0819/Kamisato/ayato/kv/sqlkv"
+	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
+	"github.com/Hayao0819/Kamisato/ayato/repository/blob/localfs"
+	"github.com/Hayao0819/Kamisato/ayato/repository/blob/s3"
+	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
+	"github.com/Hayao0819/Kamisato/ayato/repository/kv/badgerkv"
+	"github.com/Hayao0819/Kamisato/ayato/repository/kv/cfkv"
+	"github.com/Hayao0819/Kamisato/ayato/repository/kv/sqlkv"
 	"github.com/Hayao0819/Kamisato/internal/conf"
 )
 
@@ -64,21 +65,24 @@ func initKVStore(cfg *conf.AyatoConfig) (kv.Store, error) {
 	}
 }
 
-// New creates the NameStore, BinaryRepository, and the shared kv.Store used by
-// the service. The returned kv.Store is the same store the NameStore is layered
-// over; it is also handed back so other subsystems can ride one abstraction.
-func New(cfg *conf.AyatoConfig) (NameStore, BinaryRepository, kv.Store, error) {
+// New creates the NameStore, BinaryRepository, and AuthRepository used by the
+// service, all riding a single shared kv.Store built here. The kv.Store is
+// returned only as an io.Closer (it satisfies io.Closer via Close): exposing it
+// that way lets the caller shut the store down on exit while hiding Get/Set, so
+// nothing outside this package can reach kv directly. The package-metadata
+// NameStore and the AuthRepository share that one kv.
+func New(cfg *conf.AyatoConfig) (NameStore, BinaryRepository, AuthRepository, io.Closer, error) {
 	kvStore, err := initKVStore(cfg)
 	if err != nil {
 		slog.Error("Failed to create key-value store", "error", err)
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 
 	binStore, err := initBinaryStore(cfg)
 	if err != nil {
 		slog.Error("Failed to create binary store", "error", err)
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 
-	return NewPackageMetadataRepo(kvStore), NewBinaryRepository(newSerializingStore(binStore), cfg), kvStore, nil
+	return NewPackageMetadataRepo(kvStore), NewBinaryRepository(newSerializingStore(binStore), cfg), NewAuthRepository(kvStore), kvStore, nil
 }

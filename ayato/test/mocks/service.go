@@ -13,6 +13,7 @@ import (
 	reflect "reflect"
 
 	domain "github.com/Hayao0819/Kamisato/ayato/domain"
+	repository "github.com/Hayao0819/Kamisato/ayato/repository"
 	stream "github.com/Hayao0819/Kamisato/ayato/stream"
 	raiou "github.com/Hayao0819/Kamisato/pkg/raiou"
 	gomock "go.uber.org/mock/gomock"
@@ -40,6 +41,20 @@ func NewMockServicer(ctrl *gomock.Controller) *MockServicer {
 // EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockServicer) EXPECT() *MockServicerMockRecorder {
 	return m.recorder
+}
+
+// AddAdmin mocks base method.
+func (m *MockServicer) AddAdmin(id int64, login string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AddAdmin", id, login)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// AddAdmin indicates an expected call of AddAdmin.
+func (mr *MockServicerMockRecorder) AddAdmin(id, login any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddAdmin", reflect.TypeOf((*MockServicer)(nil).AddAdmin), id, login)
 }
 
 // Arches mocks base method.
@@ -86,6 +101,35 @@ func (mr *MockServicerMockRecorder) InitAll() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InitAll", reflect.TypeOf((*MockServicer)(nil).InitAll))
 }
 
+// IsAdmin mocks base method.
+func (m *MockServicer) IsAdmin(id int64) bool {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IsAdmin", id)
+	ret0, _ := ret[0].(bool)
+	return ret0
+}
+
+// IsAdmin indicates an expected call of IsAdmin.
+func (mr *MockServicerMockRecorder) IsAdmin(id any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsAdmin", reflect.TypeOf((*MockServicer)(nil).IsAdmin), id)
+}
+
+// ListAdmins mocks base method.
+func (m *MockServicer) ListAdmins() ([]repository.AllowedAdmin, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListAdmins")
+	ret0, _ := ret[0].([]repository.AllowedAdmin)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListAdmins indicates an expected call of ListAdmins.
+func (mr *MockServicerMockRecorder) ListAdmins() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListAdmins", reflect.TypeOf((*MockServicer)(nil).ListAdmins))
+}
+
 // PkgDetail mocks base method.
 func (m *MockServicer) PkgDetail(repo, arch, pkg string) (*raiou.PKGINFO, error) {
 	m.ctrl.T.Helper()
@@ -129,6 +173,20 @@ func (m *MockServicer) Pkgs(repo, arch string) (*domain.PacmanPkgs, error) {
 func (mr *MockServicerMockRecorder) Pkgs(repo, arch any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Pkgs", reflect.TypeOf((*MockServicer)(nil).Pkgs), repo, arch)
+}
+
+// RemoveAdmin mocks base method.
+func (m *MockServicer) RemoveAdmin(id int64) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RemoveAdmin", id)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// RemoveAdmin indicates an expected call of RemoveAdmin.
+func (mr *MockServicerMockRecorder) RemoveAdmin(id any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RemoveAdmin", reflect.TypeOf((*MockServicer)(nil).RemoveAdmin), id)
 }
 
 // RemovePkg mocks base method.
@@ -188,6 +246,20 @@ func (m *MockServicer) RepoNames() ([]string, error) {
 func (mr *MockServicerMockRecorder) RepoNames() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RepoNames", reflect.TypeOf((*MockServicer)(nil).RepoNames))
+}
+
+// SeedBootstrapAdmin mocks base method.
+func (m *MockServicer) SeedBootstrapAdmin(id int64) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SeedBootstrapAdmin", id)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SeedBootstrapAdmin indicates an expected call of SeedBootstrapAdmin.
+func (mr *MockServicerMockRecorder) SeedBootstrapAdmin(id any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SeedBootstrapAdmin", reflect.TypeOf((*MockServicer)(nil).SeedBootstrapAdmin), id)
 }
 
 // SignedURL mocks base method.
