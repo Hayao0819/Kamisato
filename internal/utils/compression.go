@@ -36,7 +36,10 @@ func DetectCompression(r io.Reader) (io.ReadCloser, string, error) {
 		if err != nil {
 			return nil, "zstd", err
 		}
-		return io.NopCloser(zstdReader), "zstd", nil
+		// IOReadCloser's Close stops the decoder's background goroutine; a plain
+		// NopCloser would leave it reading the source after the caller closes,
+		// racing anyone who reuses (e.g. seeks) the underlying stream.
+		return zstdReader.IOReadCloser(), "zstd", nil
 	}
 
 	// detect xz format (magic bytes: fd 37 7a 58 5a 00)

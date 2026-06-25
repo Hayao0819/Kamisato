@@ -8,6 +8,11 @@ import (
 )
 
 func (s *Service) InitAll() error {
+	// Fail closed at startup if the signature trust root could not be
+	// established (keyring load failure, or RequireSign without a keyring).
+	if s.verifierErr != nil {
+		return s.verifierErr
+	}
 	repos := s.cfg.RepoNames()
 	if len(repos) == 0 {
 		slog.Warn("no repositories found in config, skipping initialization")

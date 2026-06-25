@@ -5,8 +5,10 @@ import (
 	"io"
 	"log/slog"
 	"path"
+	"strings"
 
 	"github.com/Hayao0819/Kamisato/ayato/domain"
+	"github.com/Hayao0819/Kamisato/ayato/stream"
 	pkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
 )
 
@@ -28,6 +30,43 @@ func (s *Service) UploadFile(repo string, files *domain.UploadFiles) error {
 	pi := p.PKGINFO()
 	slog.Info("get pkg from bin", "pkgname", pi.PkgName, "pkgver", pi.PkgVer)
 
+	// Cryptographic signature gate. Default policy (RequireSign=false) still
+	// always verifies a signature when one is present: a present-but-bad,
+	// untrusted, unknown, expired, or revoked signature is rejected regardless
+	// of RequireSign. A missing signature is allowed only when RequireSign is
+	// false. The .pkg.tar.zst was signed binary detached (--no-armor), so this
+	// uses CheckDetachedSignature.
+	hasSig := files.SigFile != nil
+	if s.cfg != nil && s.cfg.RequireSign && !hasSig {
+		return fmt.Errorf("package signature is required but none was provided")
+	}
+	if hasSig {
+		if s.verifier == nil {
+			// A signature is present but we have no trust root to check it
+			// against. We cannot let an unverifiable signature pass, so reject
+			// the upload rather than store a signature we never validated.
+			return fmt.Errorf("package signature present but no verify.keyring is configured to validate it")
+		}
+		if _, err := pkgFileStream.Seek(0, io.SeekStart); err != nil {
+			return fmt.Errorf("seek pkg file for verify err: %s", err.Error())
+		}
+		if _, err := files.SigFile.Seek(0, io.SeekStart); err != nil {
+			return fmt.Errorf("seek sig file for verify err: %s", err.Error())
+		}
+		fpr, verr := s.verifier.VerifyDetached(pkgFileStream, files.SigFile)
+		if verr != nil {
+			return fmt.Errorf("package signature verification failed: %s", verr.Error())
+		}
+		slog.Info("package signature verified", "pkgname", pi.PkgName, "fingerprint", fpr)
+	}
+
+	// pi.Arch comes from the uploaded package's .PKGINFO and is attacker
+	// controlled; reject anything that is not a single safe path component so it
+	// cannot escape the repo directory when used as a storage subdirectory.
+	if pi.Arch == "" || strings.ContainsRune(pi.Arch, '/') || strings.Contains(pi.Arch, "..") {
+		return fmt.Errorf("invalid package arch %q", pi.Arch)
+	}
+
 	// storeArch is where the file physically lives: an arch=any package is stored
 	// once under "any/" and shared by every arch via FetchFile's fallback. dbArches
 	// are the concrete architectures whose database registers the package.
@@ -38,9 +77,11 @@ func (s *Service) UploadFile(repo string, files *domain.UploadFiles) error {
 	}
 
 	storedName := path.Base(pkgFileStream.FileName())
+	storedSigName := storedName + ".sig"
 	useSignedDB := false // TODO: support signed DB
 	var gnupgDir *string // TODO: check gnupgDir existence
 	var added []string
+	sigStored := false
 	cleanup := func() {
 		for _, arch := range added {
 			if rmErr := s.pkgBinaryRepo.RepoRemove(repo, arch, pi.PkgName, useSignedDB, gnupgDir); rmErr != nil {
@@ -50,6 +91,11 @@ func (s *Service) UploadFile(repo string, files *domain.UploadFiles) error {
 		if delErr := s.pkgBinaryRepo.DeleteFile(repo, storeArch, storedName); delErr != nil {
 			slog.Warn("failed to clean up stored pkg file after upload error", "repo", repo, "arch", storeArch, "filename", storedName, "err", delErr)
 		}
+		if sigStored {
+			if delErr := s.pkgBinaryRepo.DeleteFile(repo, storeArch, storedSigName); delErr != nil {
+				slog.Warn("failed to clean up stored sig file after upload error", "repo", repo, "arch", storeArch, "filename", storedSigName, "err", delErr)
+			}
+		}
 	}
 
 	if _, err := pkgFileStream.Seek(0, io.SeekStart); err != nil {
@@ -57,6 +103,23 @@ func (s *Service) UploadFile(repo string, files *domain.UploadFiles) error {
 	}
 	if err := s.pkgBinaryRepo.StoreFile(repo, storeArch, pkgFileStream); err != nil {
 		return fmt.Errorf("store file err: %s", err.Error())
+	}
+
+	// Persist the verified signature alongside the package as
+	// "<storedName>.sig". StoreFile keys the on-disk name off FileName(), so the
+	// sig stream is re-wrapped under that exact name. Verification above already
+	// rejected an unverifiable sig, so anything we reach here is trusted.
+	if hasSig {
+		if _, err := files.SigFile.Seek(0, io.SeekStart); err != nil {
+			cleanup()
+			return fmt.Errorf("seek sig file err: %s", err.Error())
+		}
+		sigToStore := stream.NewFileStream(storedSigName, files.SigFile.ContentType(), files.SigFile)
+		if err := s.pkgBinaryRepo.StoreFile(repo, storeArch, sigToStore); err != nil {
+			cleanup()
+			return fmt.Errorf("store sig file err: %s", err.Error())
+		}
+		sigStored = true
 	}
 
 	for _, arch := range dbArches {
