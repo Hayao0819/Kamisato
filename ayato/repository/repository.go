@@ -96,6 +96,9 @@ type binaryRepository struct {
 	blob.Store
 	cfg  *conf.AyatoConfig
 	dbMu keyedMutex
+	// tool runs the repo-DB mutations; nil defaults to the blinky CLI. Injected
+	// (e.g. a fake) in tests so the orchestration runs without the repo-add binary.
+	tool repoDBTool
 }
 
 // NewBinaryRepository wraps a low-level blob.Store into a BinaryRepository with derived operations.

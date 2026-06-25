@@ -12,6 +12,24 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/utils"
 )
 
+// repoDBTool runs the pacman repo-DB mutations against a local DB path. The
+// default implementation (pacman.CLI) shells out to repo-add/repo-remove via
+// blinky; keeping it behind a port lets binaryRepository be unit-tested with a
+// fake tool and lets a Go-native implementation replace the CLI later without
+// touching this layer.
+type repoDBTool interface {
+	RepoAdd(dbPath, pkgFilePath string, useSignedDB bool, gnupgDir *string) error
+	RepoRemove(dbPath, pkg string, useSignedDB bool, gnupgDir *string) error
+}
+
+// repoTool returns the configured repo-DB tool, defaulting to the blinky CLI.
+func (r *binaryRepository) repoTool() repoDBTool {
+	if r.tool != nil {
+		return r.tool
+	}
+	return pacman.CLI{}
+}
+
 // dbArtifactBases are the canonical repo-DB archive names repo-add/repo-remove
 // read and rewrite. The matching ".db"/".files" entries are symlinks repo-add
 // regenerates, so only the archives need to be seeded into the temp working dir.
@@ -116,7 +134,7 @@ func (r *binaryRepository) RepoAdd(repo, arch string, pkg, sig stream.SeekFile, 
 	}
 
 	dbPath := path.Join(t, repo+".db.tar.gz")
-	if err := pacman.RepoAdd(dbPath, pkgPath, useSignedDB, gnupgDir); err != nil {
+	if err := r.repoTool().RepoAdd(dbPath, pkgPath, useSignedDB, gnupgDir); err != nil {
 		slog.Error("repo-add", "err", err)
 		return utils.WrapErr(err, "repo-add failed")
 	}
@@ -143,7 +161,7 @@ func (r *binaryRepository) RepoRemove(repo, arch, pkg string, useSignedDB bool, 
 		return errors.New("repository database not found")
 	}
 
-	if err := pacman.RepoRemove(dbPath, pkg, useSignedDB, gnupgDir); err != nil {
+	if err := r.repoTool().RepoRemove(dbPath, pkg, useSignedDB, gnupgDir); err != nil {
 		slog.Error("repo-remove", "err", err)
 		return utils.WrapErr(err, "repo-remove failed")
 	}
@@ -164,7 +182,7 @@ func (r *binaryRepository) InitArch(repo, arch string, useSignedDB bool, gnupgDi
 	defer os.RemoveAll(t)
 
 	dbPath := path.Join(t, repo+".db.tar.gz")
-	if err := pacman.RepoAdd(dbPath, "", useSignedDB, gnupgDir); err != nil {
+	if err := r.repoTool().RepoAdd(dbPath, "", useSignedDB, gnupgDir); err != nil {
 		slog.Error("repo-add init", "err", err)
 		return utils.WrapErr(err, "repo-add init failed")
 	}

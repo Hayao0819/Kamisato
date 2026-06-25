@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path"
 	"sort"
+	"strings"
 	"sync"
 	"testing"
 
@@ -185,4 +186,57 @@ func contains(s []string, v string) bool {
 		}
 	}
 	return false
+}
+
+// fakeTool stands in for the repo-add/repo-remove CLI: it just writes the
+// canonical DB quartet next to the db path, so the binaryRepository
+// orchestration (fetch -> tool -> store) can be exercised without the repo-add
+// binary. This is the payoff of the repoDBTool port.
+type fakeTool struct{}
+
+func (fakeTool) RepoAdd(dbPath, _ string, _ bool, _ *string) error { return writeFakeQuartet(dbPath) }
+func (fakeTool) RepoRemove(dbPath, _ string, _ bool, _ *string) error {
+	return writeFakeQuartet(dbPath)
+}
+
+func writeFakeQuartet(dbPath string) error {
+	dir := path.Dir(dbPath)
+	base := strings.TrimSuffix(path.Base(dbPath), ".db.tar.gz")
+	for _, n := range []string{base + ".db", base + ".db.tar.gz", base + ".files", base + ".files.tar.gz"} {
+		if err := os.WriteFile(path.Join(dir, n), []byte("db"), 0o644); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// TestRepoDBToolPort verifies, with an injected fake tool, that the
+// binaryRepository orchestration stores the full unified artifact set and never
+// stores the package file through the DB path. It needs no repo-add binary, so
+// it runs everywhere.
+func TestRepoDBToolPort(t *testing.T) {
+	want := []string{"r.db", "r.db.tar.gz", "r.files", "r.files.tar.gz"}
+	mem := newMemStore()
+	r := &binaryRepository{Store: mem, tool: fakeTool{}}
+
+	if err := r.InitArch("r", "x86_64", false, nil); err != nil {
+		t.Fatalf("InitArch: %v", err)
+	}
+	assertSuperset(t, mem.names("r", "x86_64"), want, "InitArch")
+
+	pkg := stream.NewFileStream("foo-1.0-1-x86_64.pkg.tar.zst", "application/octet-stream",
+		nopSeekCloser{bytes.NewReader([]byte("pkg"))})
+	if err := r.RepoAdd("r", "x86_64", pkg, nil, false, nil); err != nil {
+		t.Fatalf("RepoAdd: %v", err)
+	}
+	got := mem.names("r", "x86_64")
+	assertSuperset(t, got, want, "RepoAdd")
+	if contains(got, "foo-1.0-1-x86_64.pkg.tar.zst") {
+		t.Errorf("RepoAdd stored the package file through the DB path; the caller's StoreFile owns it")
+	}
+
+	if err := r.RepoRemove("r", "x86_64", "foo", false, nil); err != nil {
+		t.Fatalf("RepoRemove: %v", err)
+	}
+	assertSuperset(t, mem.names("r", "x86_64"), want, "RepoRemove")
 }
