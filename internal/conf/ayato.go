@@ -1,7 +1,10 @@
 package conf
 
 import (
+	"fmt"
 	"log/slog"
+	"net"
+	"net/url"
 	"path"
 
 	"github.com/spf13/pflag"
@@ -17,6 +20,23 @@ type AyatoConfig struct {
 	Store       StoreConfig     `koanf:"store"`
 	Build       BuildConfig     `koanf:"build"`
 	Miko        MikoUpstream    `koanf:"miko"`
+	Verify      VerifyConfig    `koanf:"verify"`
+}
+
+// VerifyConfig is the trust root for cryptographic package-signature
+// verification. Keyring points at a dedicated public-key file (armored or binary,
+// kept separate from Build.GnupgHome, which holds the signing private key).
+// TrustedKeys, when non-empty, pins which primary-key fingerprints are accepted.
+type VerifyConfig struct {
+	Keyring     string   `koanf:"keyring,omitempty"`
+	TrustedKeys []string `koanf:"trusted_keys,omitempty"`
+}
+
+// GitHubOAuthConfig is the confidential OAuth2 client used for "Sign in with
+// GitHub". Empty ClientID disables the GitHub login flow.
+type GitHubOAuthConfig struct {
+	ClientID     string `koanf:"client_id,omitempty"`
+	ClientSecret string `koanf:"client_secret,omitempty"`
 }
 
 // MikoUpstream is the internal build server ayato proxies build/job requests to.
@@ -32,13 +52,46 @@ type BuildConfig struct {
 }
 
 type AuthConfig struct {
-	Username string `koanf:"username"`
-	Password string `koanf:"password"`
+	Username string `koanf:"username,omitempty"`
+	Password string `koanf:"password,omitempty"`
+
+	// GitHub is the "Sign in with GitHub" OAuth2 client.
+	GitHub GitHubOAuthConfig `koanf:"github,omitempty"`
+	// PublicOrigin is the external lumine URL (e.g. https://repo.example.com)
+	// used to build the OAuth redirect_uri when X-Forwarded-* are absent.
+	PublicOrigin string `koanf:"public_origin,omitempty"`
+	// BootstrapAdminGitHubID is seeded into the admin allowlist on first run
+	// when the allowlist is empty.
+	BootstrapAdminGitHubID int64 `koanf:"bootstrap_admin_github_id,omitempty"`
+	// SessionCookieName is the web session cookie name (default "ayato_session").
+	SessionCookieName string `koanf:"session_cookie_name,omitempty"`
+	// SessionSecret holds one or more HMAC keys for the stateless auth signer
+	// (sessions, CLI tokens, one-time codes, OAuth state). The first key signs;
+	// ALL keys verify, so a key can be rotated by prepending a new one while
+	// tokens minted under the old key keep verifying. Each key must be >= 32
+	// bytes. Set via AYATO_AUTH_SESSION_SECRET.
+	SessionSecret []string `koanf:"session_secret,omitempty"`
+	// TrustedProxies are CIDRs/addresses (lumine) allowed to set X-Forwarded-*.
+	// Empty now means trust NONE: ClientIP() falls back to the real peer and any
+	// X-Forwarded-For is ignored. Set this to the fronting proxy's CIDR so the
+	// per-IP rate-limit key reflects the real client rather than a spoofed header.
+	TrustedProxies []string `koanf:"trusted_proxies,omitempty"`
+}
+
+// CookieName returns the configured session cookie name or the default.
+func (a AuthConfig) CookieName() string {
+	if a.SessionCookieName != "" {
+		return a.SessionCookieName
+	}
+	return "ayato_session"
 }
 
 type BinRepoConfig struct {
 	Name   string   `koanf:"name"`
 	Arches []string `koanf:"arches"`
+	// TrustedKeys optionally layers per-repo fingerprint pinning on top of the
+	// global Verify.TrustedKeys allowlist. The global keyring is the baseline.
+	TrustedKeys []string `koanf:"trusted_keys,omitempty"`
 }
 
 func LoadAyatoConfig(flags *pflag.FlagSet, configFile string) (*AyatoConfig, error) {
@@ -56,12 +109,81 @@ func LoadAyatoConfig(flags *pflag.FlagSet, configFile string) (*AyatoConfig, err
 		files = []string{"ayato_config.json", "ayato_config.toml", "ayato_config.yaml"}
 	}
 
-	return loadConfig[AyatoConfig](
+	cfg, err := loadConfig[AyatoConfig](
 		dirs,
 		files,
 		flags,
 		"AYATO",
 	)
+	if err != nil {
+		return nil, err
+	}
+	if err := cfg.Validate(); err != nil {
+		return nil, err
+	}
+	return cfg, nil
+}
+
+// Validate rejects an OAuth config that would let the redirect_uri or the
+// session-cookie Secure flag be derived from spoofable request headers: when
+// GitHub login is enabled, PublicOrigin is mandatory and must be an absolute
+// http(s) origin without a path.
+func (c *AyatoConfig) Validate() error {
+	githubEnabled := c.Auth.GitHub.ClientID != "" || c.Auth.GitHub.ClientSecret != ""
+	if !githubEnabled {
+		return nil
+	}
+	if c.Auth.GitHub.ClientID == "" || c.Auth.GitHub.ClientSecret == "" {
+		return fmt.Errorf("auth.github: client_id and client_secret are both required when GitHub login is enabled")
+	}
+	if c.Auth.PublicOrigin == "" {
+		return fmt.Errorf("auth.public_origin is required when GitHub login is enabled (e.g. https://repo.example.com)")
+	}
+	u, err := url.Parse(c.Auth.PublicOrigin)
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+		return fmt.Errorf("auth.public_origin must be an absolute http(s) URL with a host: %q", c.Auth.PublicOrigin)
+	}
+	if u.Path != "" && u.Path != "/" {
+		return fmt.Errorf("auth.public_origin must be an origin without a path: %q", c.Auth.PublicOrigin)
+	}
+	// The stateless signer is mandatory: without a secret there is no way to mint
+	// or verify sessions/tokens. At least one key must be >= 32 bytes.
+	if !hasUsableSessionSecret(c.Auth.SessionSecret) {
+		return fmt.Errorf("auth.session_secret is required when GitHub login is enabled and each key must be at least 32 bytes")
+	}
+	// The per-IP rate-limit key is only trustworthy when a known proxy is the sole
+	// X-Forwarded-For setter. Require trusted_proxies and reject trust-all entries
+	// that would let any peer spoof their client IP.
+	if len(c.Auth.TrustedProxies) == 0 {
+		return fmt.Errorf("auth.trusted_proxies is required when GitHub login is enabled (set it to the fronting proxy's CIDR)")
+	}
+	for _, p := range c.Auth.TrustedProxies {
+		if p == "*" {
+			return fmt.Errorf("auth.trusted_proxies must not trust all peers (%q): set it to the fronting proxy's CIDR", p)
+		}
+		// Reject any-net CIDRs (prefix length 0) in EVERY spelling. String
+		// matching specific forms like "0.0.0.0/0"/"::/0" misses equivalents such
+		// as "0.0.0.0/00" or "0000:0000::/0", so parse and check the real prefix.
+		if _, ipnet, err := net.ParseCIDR(p); err == nil {
+			if ones, _ := ipnet.Mask.Size(); ones == 0 {
+				return fmt.Errorf("auth.trusted_proxies must not trust an any-net CIDR (%q): set it to the fronting proxy's CIDR", p)
+			}
+		} else if net.ParseIP(p) == nil {
+			return fmt.Errorf("auth.trusted_proxies entry %q is not a valid IP or CIDR", p)
+		}
+	}
+	return nil
+}
+
+// hasUsableSessionSecret reports whether at least one configured secret meets the
+// minimum HMAC key length (32 bytes).
+func hasUsableSessionSecret(secrets []string) bool {
+	for _, s := range secrets {
+		if len(s) >= 32 {
+			return true
+		}
+	}
+	return false
 }
 
 func (c *AyatoConfig) DbPath() string {

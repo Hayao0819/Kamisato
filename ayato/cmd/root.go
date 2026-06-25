@@ -1,9 +1,13 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
+	"time"
 
+	"github.com/Hayao0819/Kamisato/ayato/auth"
 	"github.com/Hayao0819/Kamisato/ayato/handler"
 	"github.com/Hayao0819/Kamisato/ayato/middleware"
 	"github.com/Hayao0819/Kamisato/ayato/repository"
@@ -45,17 +49,55 @@ func RootCmd() *cobra.Command {
 
 			slog.Debug("Configuration loaded", "port", cfg.Port, "debug", cfg.Debug, "repos", cfg.Repos, "maxsize", cfg.MaxSize, "dbtype", cfg.Store.DBType, "storagetype", cfg.Store.StorageType)
 
-			pkgNameRepo, pkgBinaryRepo, err := repository.New(cfg)
+			pkgNameRepo, pkgBinaryRepo, kvStore, err := repository.New(cfg)
 			if err != nil {
 				return utils.WrapErr(err, "failed to initialize repository")
 			}
+			defer func() { _ = kvStore.Close() }()
+
 			s := service.New(pkgNameRepo, pkgBinaryRepo, cfg)
 			h := handler.New(s, cfg)
 			m := middleware.New(cfg)
 
+			// The admin allowlist is the only persisted auth state; it rides the
+			// shared kv store. Seed the bootstrap admin on first run. Sessions, CLI
+			// tokens, one-time codes, and OAuth state are all stateless-signed by
+			// the signer. Without a signer (no session_secret) the mutating routes
+			// fall back to closed-network trust (no allowlist to enforce); but
+			// conf.Validate requires a secret whenever GitHub login is enabled.
+			allow := auth.NewAllowlistRepo(kvStore)
+			if err := auth.SeedBootstrap(allow, cfg.Auth.BootstrapAdminGitHubID); err != nil {
+				return utils.WrapErr(err, "failed to seed bootstrap admin")
+			}
+			if len(cfg.Auth.SessionSecret) > 0 {
+				signer, serr := auth.NewSigner(cfg.Auth.SessionSecret)
+				if serr != nil {
+					return utils.WrapErr(serr, "failed to build session signer")
+				}
+				h.WithAuth(allow, signer)
+				m.WithAuth(allow, signer)
+			}
+
 			engine := gin.New()
 			engine.Use(gin.Recovery())
 			engine.Use(utils.GinLog())
+
+			// SetTrustedProxies only affects c.ClientIP()/c.RemoteIP() (the
+			// X-Forwarded-For chain); it does NOT gate c.GetHeader, so it has no
+			// bearing on the OAuth redirect_uri or cookie Secure, which derive from
+			// Auth.PublicOrigin. Baseline: trust NO proxy, so ClientIP() returns the
+			// real peer and the spoofable X-Forwarded-For is ignored (the rate-limit
+			// key is only trustworthy this way). Only when trusted_proxies is set
+			// (lumine's CIDR) do we honor XFF from those hops.
+			if err := engine.SetTrustedProxies(nil); err != nil {
+				return utils.WrapErr(err, "failed to reset trusted proxies")
+			}
+			if len(cfg.Auth.TrustedProxies) > 0 {
+				if err := engine.SetTrustedProxies(cfg.Auth.TrustedProxies); err != nil {
+					return utils.WrapErr(err, "failed to set trusted proxies")
+				}
+			}
+
 			if err := router.SetRoute(engine, h, m); err != nil {
 				return utils.WrapErr(err, "failed to set routing")
 			}
@@ -67,7 +109,18 @@ func RootCmd() *cobra.Command {
 			slog.Info("All services initialized")
 
 			slog.Info("Waiting on port", "port", cfg.Port)
-			if err := engine.Run(fmt.Sprintf(":%d", cfg.Port)); err != nil {
+			// ReadHeaderTimeout bounds slow-header (slowloris) attacks; IdleTimeout
+			// reaps idle keep-alives. No ReadTimeout or WriteTimeout: large package
+			// uploads (read body) and /repo downloads + proxied miko SSE (write) need
+			// unbounded durations; body size is bounded by cfg.MaxSize instead.
+			srv := &http.Server{
+				Addr:              fmt.Sprintf(":%d", cfg.Port),
+				Handler:           engine,
+				ReadHeaderTimeout: 10 * time.Second,
+				IdleTimeout:       120 * time.Second,
+				MaxHeaderBytes:    1 << 20,
+			}
+			if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 				return err
 			}
 			return nil
