@@ -1,4 +1,4 @@
-// Package s3 is a binary store (repository.Store) backed by S3/R2-compatible storage.
+// Package s3 is a binary store (blob.Store) backed by S3/R2-compatible storage.
 package s3
 
 import (
@@ -10,8 +10,8 @@ import (
 	"path"
 	"strings"
 
+	"github.com/Hayao0819/Kamisato/ayato/blob"
 	"github.com/Hayao0819/Kamisato/ayato/stream"
-	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/internal/utils"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/aws/retry"
@@ -21,13 +21,27 @@ import (
 	"github.com/samber/lo"
 )
 
+var _ blob.Store = (*S3)(nil)
+
+// Config holds the plain S3/R2 connection settings the store needs, decoupling
+// the IO layer from the conf package (the factory unpacks conf into this).
+type Config struct {
+	Bucket          string
+	Region          string
+	Endpoint        string
+	AccessKeyID     string
+	SecretAccessKey string
+	SessionToken    string
+	UsePathStyle    bool
+}
+
 type S3 struct {
 	storage *awss3.Client
 	ctx     context.Context
 	bucket  string
 }
 
-func New(cfg *conf.S3Config) (*S3, error) {
+func New(cfg *Config) (*S3, error) {
 	ctx := context.Background()
 	storage, err := newS3Client(ctx, cfg)
 	if err != nil {
@@ -40,7 +54,7 @@ func New(cfg *conf.S3Config) (*S3, error) {
 	}, nil
 }
 
-func newS3Client(ctx context.Context, cfg *conf.S3Config) (*awss3.Client, error) {
+func newS3Client(ctx context.Context, cfg *Config) (*awss3.Client, error) {
 	creds := credentials.NewStaticCredentialsProvider(
 		cfg.AccessKeyID,
 		cfg.SecretAccessKey,
@@ -188,39 +202,4 @@ func (s *s3ObjectStream) ContentType() string {
 		return s.contentType
 	}
 	return "application/octet-stream"
-}
-
-func writeReadSeekerToFile(name string, stream io.Reader) error {
-	file, err := os.Create(name)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-
-	if seeker, ok := stream.(io.ReadSeeker); ok {
-		if _, err = seeker.Seek(0, 0); err != nil {
-			return err
-		}
-	}
-	if _, err := io.Copy(file, stream); err != nil {
-		return err
-	}
-	if seeker, ok := stream.(io.ReadSeeker); ok {
-		if _, err := seeker.Seek(0, 0); err != nil {
-			return utils.WrapErr(err, "failed to seek stream after writing to file")
-		}
-	}
-	return nil
-}
-
-func writeStreamToFile(dir string, stream stream.File) (string, error) {
-	if stream == nil {
-		return "", nil
-	}
-	fp := path.Join(dir, stream.FileName())
-	if err := writeReadSeekerToFile(fp, stream); err != nil {
-		return "", err
-	}
-
-	return fp, nil
 }

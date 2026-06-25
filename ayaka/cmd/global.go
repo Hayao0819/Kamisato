@@ -15,13 +15,34 @@ var srcRepo []*repo.SourceRepo
 
 func initSrcRepos() error {
 	for _, r := range config.Repos {
-		sr, err := repo.GetSrcRepo(r.Dir)
+		repoconfig, err := conf.LoadSrcRepoConfig(r.Dir)
+		if err != nil {
+			return utils.WrapErr(err, "failed to load source repository config "+r.Dir)
+		}
+		sr, err := repo.GetSrcRepo(r.Dir, srcConfigFromConf(repoconfig))
 		if err != nil {
 			return utils.WrapErr(err, "failed to load source repository "+r.Dir)
 		}
 		srcRepo = append(srcRepo, sr)
 	}
 	return nil
+}
+
+// srcConfigFromConf adapts the loaded conf.SrcRepoConfig to the conf-free
+// repo.SrcConfig the domain layer consumes.
+func srcConfigFromConf(c *conf.SrcRepoConfig) *repo.SrcConfig {
+	if c == nil {
+		return nil
+	}
+	sc := &repo.SrcConfig{
+		Name:       c.Name,
+		Maintainer: c.Maintainer,
+		ArchBuild:  c.ArchBuild,
+		Server:     c.Server,
+	}
+	sc.InstallPkgs.Files = c.InstallPkgs.Files
+	sc.InstallPkgs.Names = c.InstallPkgs.Names
+	return sc
 }
 
 func getSrcRepo(name string) *repo.SourceRepo {

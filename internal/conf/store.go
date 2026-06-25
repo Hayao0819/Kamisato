@@ -1,14 +1,17 @@
 package conf
 
-// StoreConfig describes how metadata and binaries are stored.
+// StoreConfig describes how application data and binaries are stored.
 type StoreConfig struct {
-	// How metadata is stored
-	DBType       string     `koanf:"dbtype"` // "sql", "cfkv" or "badgerdb"
+	// DBType selects the shared generic key-value store backend
+	// ("badgerdb" | "cfkv" | "sql"). That one store holds package metadata and
+	// other app data, namespaced per consumer — it is not package-specific.
+	DBType       string     `koanf:"dbtype"`
 	CloudflareKV CFKVConfig `koanf:"cfkv"`
-	SQL          SqlConfig  `koanf:"sql"` // config for storing metadata in an SQL database
-	BadgerDB     string     `koanf:"badgerdb"`
+	SQL          SqlConfig  `koanf:"sql"`      // config for the SQL key-value backend
+	BadgerDB     string     `koanf:"badgerdb"` // base dir for the embedded BadgerDB
 
-	// How binaries are stored
+	// StorageType selects how binaries (package files and DBs) are stored; this
+	// is independent of DBType.
 	StorageType  string   `koanf:"storagetype"`  // "localfs" or "s3"
 	AWSS3        S3Config `koanf:"awss3"`        // config for storing binaries in S3
 	LocalRepoDir string   `koanf:"localrepodir"` // directory for storing binaries locally

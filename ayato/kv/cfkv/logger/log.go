@@ -1,3 +1,4 @@
+// Package logger adapts slog to the cloudflare-go client's logger interface.
 package logger
 
 import (
@@ -6,7 +7,6 @@ import (
 	"strings"
 )
 
-// Implements: https://pkg.go.dev/github.com/dgraph-io/badger/v4#Logger
 type CloudflareSlog struct {
 	logger *slog.Logger
 }
@@ -37,9 +37,9 @@ func (c *CloudflareSlog) Infof(format string, args ...interface{}) {
 	c.logger.Info(s)
 }
 
-func (b *CloudflareSlog) Debugf(format string, args ...interface{}) {
-	s := b.str(format, args...)
-	b.logger.Debug(s)
+func (c *CloudflareSlog) Debugf(format string, args ...interface{}) {
+	s := c.str(format, args...)
+	c.logger.Debug(s)
 }
 
 func NewCloudflareSlog(logger *slog.Logger) *CloudflareSlog {

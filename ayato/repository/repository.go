@@ -1,10 +1,13 @@
 package repository
 
 import (
+	"errors"
 	"fmt"
 	"path"
 	"strings"
 
+	"github.com/Hayao0819/Kamisato/ayato/blob"
+	"github.com/Hayao0819/Kamisato/ayato/kv"
 	"github.com/Hayao0819/Kamisato/ayato/stream"
 	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/internal/utils"
@@ -12,22 +15,7 @@ import (
 	"github.com/samber/lo"
 )
 
-//go:generate mockgen -source=repository.go -destination=../test/mocks/repository.go -package=mocks
-
-// Store is the low-level backend contract for storing binaries (package files and DBs).
-// Implemented directly by localfs / s3.
-type Store interface {
-	StoreFile(repo, arch string, file stream.SeekFile) error
-	StoreFileWithSignedURL(repo, arch, name string) (string, error)
-	DeleteFile(repo, arch, file string) error
-	FetchFile(repo, arch, file string) (stream.File, error)
-	RepoAdd(name, arch string, pkg, sig stream.SeekFile, useSignedDB bool, gnupgDir *string) error
-	RepoRemove(name, arch, pkg string, useSignedDB bool, gnupgDir *string) error
-	InitArch(name, arch string, useSignedDB bool, gnupgDir *string) error
-	RepoNames() ([]string, error)
-	Files(repo, arch string) ([]string, error)
-	Arches(repo string) ([]string, error)
-}
+//go:generate mockgen -source=repository.go -destination=../test/mocks/repository.go -package=mocks -aux_files=github.com/Hayao0819/Kamisato/ayato/blob=../blob/blob.go
 
 // NameStore maps package names to their stored file names (blinky-compatible).
 type NameStore interface {
@@ -36,10 +24,60 @@ type NameStore interface {
 	DeletePackageFileEntry(packageName string) error
 }
 
-// BinaryRepository is the high-level repository the service layer depends on.
-// It extends the low-level Store with pacman-specific derived operations.
+// pkgMetadataNamespace is the kv.Store namespace under which package-name ->
+// file-name entries live. It isolates this domain from any other consumer
+// (e.g. auth) riding the same shared kv.Store.
+const pkgMetadataNamespace = "pkgfile"
+
+// packageMetadataRepo adapts a generic kv.Store to the NameStore interface,
+// preserving the package-metadata contract the service layer depends on (notably
+// a miss surfacing as ("", nil) from PackageFile).
+type packageMetadataRepo struct {
+	kv kv.Store
+}
+
+// NewPackageMetadataRepo wraps a shared kv.Store as a NameStore scoped to the
+// package-metadata namespace.
+func NewPackageMetadataRepo(s kv.Store) NameStore {
+	return &packageMetadataRepo{kv: s}
+}
+
+// PackageFile returns the stored file name for a package. A miss is reported as
+// ("", nil) — not an error — so callers (service.resolvePackageFile) keep their
+// read-through-on-miss behaviour. The underlying kv.Store uniformly signals a
+// miss with kv.ErrNotFound, regardless of backend.
+func (r *packageMetadataRepo) PackageFile(name string) (string, error) {
+	v, err := r.kv.Get(pkgMetadataNamespace, name)
+	if errors.Is(err, kv.ErrNotFound) {
+		return "", nil
+	}
+	if err != nil {
+		return "", err
+	}
+	return string(v), nil
+}
+
+// StorePackageFile records that package packageName is stored as filePath. The
+// entry never expires (ttl 0): it is durable metadata, not a cache line.
+func (r *packageMetadataRepo) StorePackageFile(packageName, filePath string) error {
+	return r.kv.Set(pkgMetadataNamespace, packageName, []byte(filePath), 0)
+}
+
+// DeletePackageFileEntry removes the package's metadata entry.
+func (r *packageMetadataRepo) DeletePackageFileEntry(packageName string) error {
+	return r.kv.Delete(pkgMetadataNamespace, packageName)
+}
+
+// BinaryRepository is the high-level repository the service layer depends on. It
+// extends the pure byte/file IO of blob.Store with the pacman repo-DB domain
+// operations (RepoAdd/RepoRemove/InitArch) and other derived operations. The
+// blob.Store contract knows nothing about pacman; the read-modify-write of the
+// repo database lives here, in the domain layer.
 type BinaryRepository interface {
-	Store
+	blob.Store
+	RepoAdd(name, arch string, pkg, sig stream.SeekFile, useSignedDB bool, gnupgDir *string) error
+	RepoRemove(name, arch, pkg string, useSignedDB bool, gnupgDir *string) error
+	InitArch(name, arch string, useSignedDB bool, gnupgDir *string) error
 	FetchDB(repoName, archName string) (stream.File, error)
 	PkgNames(repoName, archName string) ([]string, error)
 	RemoteRepo(name, arch string) (*repo.RemoteRepo, error)
@@ -49,15 +87,19 @@ type BinaryRepository interface {
 	VerifyPkgRepo(name string) error
 }
 
-// binaryRepository embeds Store and adds only the derived operations
-// (low-level methods are auto-delegated via embedding, with no boilerplate).
+// binaryRepository embeds blob.Store (pure byte IO) and adds the pacman repo-DB
+// operations and other derived operations on top. dbMu serializes the per-(repo,
+// arch) database read-modify-writes (RepoAdd/RepoRemove/InitArch); it is distinct
+// from any locking the underlying blob.Store performs on StoreFile/DeleteFile, so
+// holding it while calling blob.StoreFile cannot deadlock.
 type binaryRepository struct {
-	Store
-	cfg *conf.AyatoConfig
+	blob.Store
+	cfg  *conf.AyatoConfig
+	dbMu keyedMutex
 }
 
-// NewBinaryRepository wraps a low-level Store into a BinaryRepository with derived operations.
-func NewBinaryRepository(store Store, cfg *conf.AyatoConfig) BinaryRepository {
+// NewBinaryRepository wraps a low-level blob.Store into a BinaryRepository with derived operations.
+func NewBinaryRepository(store blob.Store, cfg *conf.AyatoConfig) BinaryRepository {
 	return &binaryRepository{Store: store, cfg: cfg}
 }
 

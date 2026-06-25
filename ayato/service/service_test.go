@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/Hayao0819/Kamisato/ayato/blob/localfs"
 	"github.com/Hayao0819/Kamisato/ayato/repository"
-	"github.com/Hayao0819/Kamisato/ayato/repository/store/localfs"
 	"github.com/Hayao0819/Kamisato/ayato/service"
 	"github.com/Hayao0819/Kamisato/ayato/stream"
 	"github.com/Hayao0819/Kamisato/ayato/test/mocks"
@@ -147,7 +147,7 @@ func TestServiceLocalfsIntegration(t *testing.T) {
 	cfg.Store.StorageType = "localfs"
 	cfg.Store.LocalRepoDir = repoRoot
 
-	binRepo := repository.NewBinaryRepository(localfs.New(cfg), cfg)
+	binRepo := repository.NewBinaryRepository(localfs.New(repoRoot, []string{"myrepo"}), cfg)
 	svc := service.New(nil, binRepo, cfg)
 
 	t.Run("RepoNames", func(t *testing.T) {

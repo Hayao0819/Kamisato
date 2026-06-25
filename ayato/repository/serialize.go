@@ -3,6 +3,7 @@ package repository
 import (
 	"sync"
 
+	"github.com/Hayao0819/Kamisato/ayato/blob"
 	"github.com/Hayao0819/Kamisato/ayato/stream"
 )
 
@@ -28,11 +29,11 @@ func (k *keyedMutex) lock(key string) func() {
 }
 
 type serializingStore struct {
-	Store
+	blob.Store
 	mu keyedMutex
 }
 
-func newSerializingStore(s Store) Store {
+func newSerializingStore(s blob.Store) blob.Store {
 	return &serializingStore{Store: s}
 }
 
@@ -44,19 +45,4 @@ func (s *serializingStore) StoreFile(repo, arch string, file stream.SeekFile) er
 func (s *serializingStore) DeleteFile(repo, arch, file string) error {
 	defer s.mu.lock(repo + "/" + arch)()
 	return s.Store.DeleteFile(repo, arch, file)
-}
-
-func (s *serializingStore) RepoAdd(repo, arch string, pkg, sig stream.SeekFile, useSignedDB bool, gnupgDir *string) error {
-	defer s.mu.lock(repo + "/" + arch)()
-	return s.Store.RepoAdd(repo, arch, pkg, sig, useSignedDB, gnupgDir)
-}
-
-func (s *serializingStore) RepoRemove(repo, arch, pkg string, useSignedDB bool, gnupgDir *string) error {
-	defer s.mu.lock(repo + "/" + arch)()
-	return s.Store.RepoRemove(repo, arch, pkg, useSignedDB, gnupgDir)
-}
-
-func (s *serializingStore) InitArch(repo, arch string, useSignedDB bool, gnupgDir *string) error {
-	defer s.mu.lock(repo + "/" + arch)()
-	return s.Store.InitArch(repo, arch, useSignedDB, gnupgDir)
 }

@@ -1,3 +1,4 @@
+// Package logger adapts slog to BadgerDB's Logger interface.
 package logger
 
 import (

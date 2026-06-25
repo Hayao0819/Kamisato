@@ -6,13 +6,26 @@ import (
 	"log/slog"
 	"path/filepath"
 
-	"github.com/Hayao0819/Kamisato/internal/conf"
 	pkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
 	"github.com/Hayao0819/nahi/futils"
 )
 
+// SrcConfig is the source-repository configuration this package needs. It mirrors
+// the fields of conf.SrcRepoConfig so the domain layer stays free of the conf
+// package; callers (which already load the config) pass it into GetSrcRepo.
+type SrcConfig struct {
+	Name        string
+	Maintainer  string
+	ArchBuild   string
+	Server      string
+	InstallPkgs struct {
+		Files []string
+		Names []string
+	}
+}
+
 type SourceRepo struct {
-	Config *conf.SrcRepoConfig
+	Config *SrcConfig
 	Pkgs   []*pkg.SourcePackage
 }
 
@@ -41,15 +54,13 @@ func GetSrcDirs(repodir string) ([]string, error) {
 	return srcdirs, nil
 }
 
-func GetSrcRepo(repodir string) (*SourceRepo, error) {
+func GetSrcRepo(repodir string, cfg *SrcConfig) (*SourceRepo, error) {
 	repo := new(SourceRepo)
-	repoconfig, err := conf.LoadSrcRepoConfig(repodir)
-	if err != nil {
-		slog.Error("load repo config failed", "dir", repodir, "err", err)
-		return nil, err
+	if cfg == nil {
+		return nil, errors.New("source repo config is nil")
 	}
-	repo.Config = repoconfig
-	slog.Debug("loaded repo config", "dir", repodir, "config", repoconfig)
+	repo.Config = cfg
+	slog.Debug("loaded repo config", "dir", repodir, "config", cfg)
 
 	dirs, err := GetSrcDirs(repodir)
 	if err != nil {
