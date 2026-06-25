@@ -44,6 +44,14 @@ func NewMikoProxy(cfg *conf.AyatoConfig) (*MikoProxy, error) {
 			// Drop any client-supplied key before setting ours so a client
 			// cannot smuggle its own X-API-Key through to miko.
 			req.Header.Del(apikey.Header)
+			// Strip the end-user's Authorization (session is via cookie; CLI
+			// uses a Bearer token only ayato understands). Leaving it would
+			// leak a user's CLI token to miko, which authenticates with the
+			// shared X-API-Key set below — never the user's credentials.
+			req.Header.Del("Authorization")
+			// The end-user's session cookie must never cross into miko (which
+			// runs with docker.sock); miko authenticates only via X-API-Key.
+			req.Header.Del("Cookie")
 			if apiKey != "" {
 				req.Header.Set(apikey.Header, apiKey)
 			}
