@@ -21,6 +21,26 @@ type lumineEnv struct {
 	Fallback bool    `json:"FALLBACK"`
 }
 
+// newReverseProxy builds the ayato reverse proxy with a Rewrite hook instead of
+// the default Director. The default Director appends to the inbound
+// X-Forwarded-For, trusting spoofed values; instead we strip every
+// client-supplied forwarding header, then SetXForwarded repopulates them from
+// the real connection. SetURL must run before SetXForwarded so Host is correct.
+// FlushInterval=-1 streams SSE through without buffering.
+func newReverseProxy(target *url.URL) *httputil.ReverseProxy {
+	return &httputil.ReverseProxy{
+		FlushInterval: -1,
+		Rewrite: func(pr *httputil.ProxyRequest) {
+			pr.Out.Header.Del("X-Forwarded-For")
+			pr.Out.Header.Del("X-Forwarded-Host")
+			pr.Out.Header.Del("X-Forwarded-Proto")
+			pr.Out.Header.Del("Forwarded")
+			pr.SetURL(target)
+			pr.SetXForwarded()
+		},
+	}
+}
+
 func RootCmd() *cobra.Command {
 	var addr string
 	var ayatoURL string
@@ -56,8 +76,7 @@ func RootCmd() *cobra.Command {
 				if err != nil {
 					return fmt.Errorf("invalid ayato url %q: %w", ayatoURL, err)
 				}
-				proxy := httputil.NewSingleHostReverseProxy(target)
-				proxy.FlushInterval = -1
+				proxy := newReverseProxy(target)
 				forward := func(c *gin.Context) {
 					proxy.ServeHTTP(c.Writer, c.Request)
 				}

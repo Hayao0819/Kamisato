@@ -16,6 +16,13 @@ docker compose -f deploy/compose.yml up -d
 The image must carry the combined `kamisato` binary; build one from the repo
 `Dockerfile`.
 
+When GitHub login is enabled, ayato needs `auth.session_secret` (one or more
+keys, each >= 32 bytes; the first signs, all verify, so a key can be rotated by
+prepending a new one) and `auth.trusted_proxies` set to the fronting proxy's
+CIDR. The per-IP rate-limit key is only trustworthy when that proxy is the sole
+`X-Forwarded-For` setter; an empty `trusted_proxies` trusts none and falls back
+to the direct peer.
+
 ## GCP (Cloud Run skeleton)
 
 `terraform/` is a skeleton, not a turnkey module. It provisions a service account
