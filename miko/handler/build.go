@@ -90,6 +90,30 @@ func (h *Handler) JobLogsHandler(c *gin.Context) {
 		return
 	}
 
+	// Cap concurrent SSE readers per job so one job cannot tie up an unbounded
+	// number of long-lived streaming goroutines.
+	maxReaders := 8
+	if h.cfg != nil && h.cfg.MaxLogReaders > 0 {
+		maxReaders = h.cfg.MaxLogReaders
+	}
+	h.logReadersMu.Lock()
+	if h.logReaders[id] >= maxReaders {
+		h.logReadersMu.Unlock()
+		c.JSON(http.StatusTooManyRequests, gin.H{"error": "too many concurrent log readers for this job"})
+		return
+	}
+	h.logReaders[id]++
+	h.logReadersMu.Unlock()
+	defer func() {
+		h.logReadersMu.Lock()
+		if h.logReaders[id] <= 1 {
+			delete(h.logReaders, id)
+		} else {
+			h.logReaders[id]--
+		}
+		h.logReadersMu.Unlock()
+	}()
+
 	// Fallback: no live buffer, return whatever text we have.
 	if job.Log == nil {
 		c.String(http.StatusOK, job.Logs)
@@ -102,6 +126,11 @@ func (h *Handler) JobLogsHandler(c *gin.Context) {
 
 	ctx := c.Request.Context()
 
+	// Per-flush write deadline: a stuck/slow client makes Flush error out instead
+	// of pinning this goroutine forever.
+	rc := http.NewResponseController(c.Writer)
+	const flushDeadline = 30 * time.Second
+
 	// Poll instead of blocking in a goroutine: a goroutine parked in WaitFrom
 	// (sync.Cond, no context support) would leak when the client disconnects.
 	ticker := time.NewTicker(200 * time.Millisecond)
@@ -109,12 +138,11 @@ func (h *Handler) JobLogsHandler(c *gin.Context) {
 
 	offset := 0
 	emit := func() bool {
-		// Read closed before the buffer so a final write isn't missed.
-		closed := job.Log.Closed()
-		full := job.Log.String()
-		if len(full) > offset {
-			chunk := full[offset:]
-			lines := strings.Split(chunk, "\n")
+		// BytesFrom reads closed atomically with the bytes, so a final write
+		// isn't missed, and returns only the new chunk beyond offset.
+		chunk, total, closed := job.Log.BytesFrom(offset)
+		if len(chunk) > 0 {
+			lines := strings.Split(string(chunk), "\n")
 			// Drop the empty tail a chunk ending in "\n" produces.
 			if n := len(lines); n > 0 && lines[n-1] == "" {
 				lines = lines[:n-1]
@@ -122,8 +150,9 @@ func (h *Handler) JobLogsHandler(c *gin.Context) {
 			for _, line := range lines {
 				fmt.Fprintf(c.Writer, "data: %s\n\n", line)
 			}
+			_ = rc.SetWriteDeadline(time.Now().Add(flushDeadline))
 			c.Writer.Flush()
-			offset = len(full)
+			offset = total
 		}
 		return closed
 	}

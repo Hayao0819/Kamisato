@@ -18,7 +18,13 @@ type MikoConfig struct {
 	Concurrency       int    `koanf:"concurrency"`   // build workers (default 1)
 	MaxRetries        int    `koanf:"max_retries"`   // retry attempts on failure (default 0)
 	RetryBackoff      int    `koanf:"retry_backoff"` // seconds between retries (default 5)
-	Cache             struct {
+	// MaxLogBytes caps a single job's in-memory log buffer (default 16 MiB).
+	// Excess output is dropped after a truncation marker to bound memory.
+	MaxLogBytes int `koanf:"max_log_bytes"`
+	// MaxLogReaders caps concurrent SSE log readers per job (default 8) so a
+	// single job cannot tie up unbounded streaming goroutines.
+	MaxLogReaders int `koanf:"max_log_readers"`
+	Cache         struct {
 		Enabled        bool   `koanf:"enabled"`
 		PacmanCacheDir string `koanf:"pacman_cache_dir"`
 		CcacheDir      string `koanf:"ccache_dir"`

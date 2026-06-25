@@ -55,6 +55,12 @@ func RootCmd() *cobra.Command {
 			if cfg.RetryBackoff == 0 {
 				cfg.RetryBackoff = 5
 			}
+			if cfg.MaxLogBytes == 0 {
+				cfg.MaxLogBytes = 16 << 20
+			}
+			if cfg.MaxLogReaders == 0 {
+				cfg.MaxLogReaders = 8
+			}
 
 			if cfg.Debug {
 				utils.UseColorLog(slog.LevelDebug)
@@ -87,7 +93,14 @@ func RootCmd() *cobra.Command {
 			}
 			slog.Info("Routing initialized")
 
-			srv := &http.Server{Addr: fmt.Sprintf(":%d", cfg.Port), Handler: engine}
+			// No WriteTimeout: it would kill healthy long-lived SSE log streams.
+			// The per-flush write deadline in JobLogsHandler covers stuck writers.
+			srv := &http.Server{
+				Addr:              fmt.Sprintf(":%d", cfg.Port),
+				Handler:           engine,
+				ReadHeaderTimeout: 10 * time.Second,
+				IdleTimeout:       120 * time.Second,
+			}
 			go func() {
 				slog.Info("Waiting on port", "port", cfg.Port)
 				if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {

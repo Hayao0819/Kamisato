@@ -138,7 +138,7 @@ func (s *Service) Submit(req *domain.BuildRequest) (string, error) {
 		Status:    domain.JobStatusQueued,
 		Request:   req,
 		CreatedAt: time.Now(),
-		Log:       joblog.New(),
+		Log:       joblog.New(s.cfg.MaxLogBytes),
 	}
 
 	s.mu.Lock()
