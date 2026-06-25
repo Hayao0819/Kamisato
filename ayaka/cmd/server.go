@@ -16,6 +16,7 @@ func serverCmd() *cobra.Command {
 		servercmd.ListCmd(),
 		servercmd.AddCmd(),
 		serverLoginCmd(),
+		serverLogoutCmd(),
 		servercmd.RemoveCmd(),
 		servercmd.SetDefaultCmd(),
 	)

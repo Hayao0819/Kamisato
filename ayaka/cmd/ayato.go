@@ -35,7 +35,7 @@ func resolveAyatoServer(server string) (*ayatoServer, error) {
 	entry, ok := db.Servers[server]
 	if !ok {
 		return nil, utils.WrapErr(ErrServerNotFound, fmt.Sprintf(
-			"server %q is not registered; add it first with 'ayaka server login %s --username <user> --password <pass>'",
+			"server %q is not registered; log in first with 'ayaka server login %s'",
 			server, server))
 	}
 

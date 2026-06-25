@@ -148,7 +148,7 @@ func runRemoteBuild(o remoteBuildOpts) error {
 	}
 
 	slog.Info("submitting remote build", "server", srv.URL, "repo", o.repo)
-	jobID, err := ayatoclient.SubmitBuild(srv.URL, srv.Username, srv.Password, req)
+	jobID, err := ayatoclient.SubmitBuild(srv.URL, srv.Password, req)
 	if err != nil {
 		return utils.WrapErr(err, "failed to submit build")
 	}

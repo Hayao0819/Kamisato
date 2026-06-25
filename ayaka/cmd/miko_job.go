@@ -100,7 +100,7 @@ func mikoCancelCmd() *cobra.Command {
 				return err
 			}
 
-			if err := ayatoclient.CancelJob(srv.URL, srv.Username, srv.Password, args[0]); err != nil {
+			if err := ayatoclient.CancelJob(srv.URL, srv.Password, args[0]); err != nil {
 				return utils.WrapErr(err, "failed to cancel job")
 			}
 
