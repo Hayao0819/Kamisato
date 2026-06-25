@@ -22,7 +22,7 @@ export default function LumineProvider({
     children,
 }: Readonly<{ children: ReactNode }>) {
     const [client, setClient] = useState<APIClient>(APIClient.fallback);
-    const { setAuthRequired, setAuthRequiredLoading } = useAuth();
+    const { setMe } = useAuth();
 
     useEffect(() => {
         APIClient.init()
@@ -41,20 +41,21 @@ export default function LumineProvider({
             );
         }
 
-        if (!client.endpoints.executable) return;
+        if (!client.endpoints.executable) {
+            setMe({ authenticated: false });
+            return;
+        }
 
         client
-            .fetchAuthRequired()
-            .then((result) => {
-                setAuthRequired(result.required);
-                setAuthRequiredLoading(false);
+            .fetchMe()
+            .then((me) => {
+                setMe(me);
             })
             .catch((err) => {
-                console.error("Failed to check auth requirement:", err);
-                setAuthRequired(false);
-                setAuthRequiredLoading(false);
+                console.error("Failed to fetch session:", err);
+                setMe({ authenticated: false });
             });
-    }, [client, setAuthRequired, setAuthRequiredLoading]);
+    }, [client, setMe]);
 
     return (
         <APIClientContext.Provider value={client}>

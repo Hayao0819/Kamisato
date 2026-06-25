@@ -6,7 +6,6 @@ import { useEffect, useRef, useState } from "react";
 import { useCanMutate } from "@/components/auth-gate";
 import { LoginDialog } from "@/components/login-dialog";
 import { Button } from "@/components/ui/button";
-import { useAuth } from "./auth-provider";
 import { useAPIClient } from "./lumine-provider";
 
 export function Header() {
@@ -14,7 +13,6 @@ export function Header() {
         "success" | "error" | "loading" | "unset"
     >("loading");
     const api = useAPIClient();
-    const { authRequired } = useAuth();
     const canMutate = useCanMutate();
     const { theme, setTheme } = useTheme();
     const [mounted, setMounted] = useState(false);
@@ -71,7 +69,10 @@ export function Header() {
                         <div className="leading-tight">
                             <h1 className="text-lg md:text-xl font-bold text-arch-bar-foreground tracking-tight">
                                 Lumine
-                                <span className="text-primary"> Repository</span>
+                                <span className="text-primary">
+                                    {" "}
+                                    Repository
+                                </span>
                             </h1>
                             <p className="text-[11px] text-arch-bar-foreground/60 hidden sm:block">
                                 Arch Linux Package Repository
@@ -158,7 +159,7 @@ export function Header() {
                             </Button>
                         )}
 
-                        {authRequired && <LoginDialog />}
+                        {mounted && <LoginDialog />}
                     </nav>
                 </div>
             </div>

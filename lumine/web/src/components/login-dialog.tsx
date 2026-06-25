@@ -1,6 +1,6 @@
 "use client";
 
-import { Lock, LogIn, LogOut, User } from "lucide-react";
+import { Github, LogOut, User } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/components/auth-provider";
 import { Button } from "@/components/ui/button";
@@ -12,41 +12,15 @@ import {
     DialogTitle,
     DialogTrigger,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 
 export function LoginDialog() {
-    const { isAuthenticated, username, login, logout } = useAuth();
+    const { isAuthenticated, githubLogin, signIn, signOut } = useAuth();
     const { toast } = useToast();
     const [open, setOpen] = useState(false);
-    const [inputUsername, setInputUsername] = useState("");
-    const [inputPassword, setInputPassword] = useState("");
 
-    const handleLogin = (e: React.FormEvent) => {
-        e.preventDefault();
-
-        if (!inputUsername || !inputPassword) {
-            toast({
-                title: "エラー",
-                description: "ユーザー名とパスワードを入力してください",
-                variant: "destructive",
-            });
-            return;
-        }
-
-        login(inputUsername, inputPassword);
-        toast({
-            title: "ログイン成功",
-            description: `${inputUsername}としてログインしました`,
-        });
-        setOpen(false);
-        setInputUsername("");
-        setInputPassword("");
-    };
-
-    const handleLogout = () => {
-        logout();
+    const handleSignOut = async () => {
+        await signOut();
         toast({
             title: "ログアウト",
             description: "ログアウトしました",
@@ -63,28 +37,28 @@ export function LoginDialog() {
                         className="flex items-center gap-2"
                     >
                         <User className="w-4 h-4" />
-                        <span className="hidden sm:inline">{username}</span>
+                        <span className="hidden sm:inline">
+                            {githubLogin ?? "ログイン中"}
+                        </span>
                     </Button>
                 </DialogTrigger>
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>ログイン中</DialogTitle>
                         <DialogDescription>
-                            現在 {username} としてログインしています
+                            GitHub アカウントでログインしています
                         </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4">
                         <div className="p-4 border rounded-lg bg-muted/50">
                             <div className="flex items-center gap-2 text-sm">
-                                <User className="w-4 h-4" />
-                                <span className="font-semibold">
-                                    ユーザー名:
-                                </span>
-                                <span>{username}</span>
+                                <Github className="w-4 h-4" />
+                                <span className="font-semibold">GitHub:</span>
+                                <span>{githubLogin ?? "—"}</span>
                             </div>
                         </div>
                         <Button
-                            onClick={handleLogout}
+                            onClick={handleSignOut}
                             variant="destructive"
                             className="w-full"
                         >
@@ -101,7 +75,7 @@ export function LoginDialog() {
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
                 <Button variant="outline" className="flex items-center gap-2">
-                    <LogIn className="w-4 h-4" />
+                    <Github className="w-4 h-4" />
                     <span className="hidden sm:inline">ログイン</span>
                 </Button>
             </DialogTrigger>
@@ -109,54 +83,18 @@ export function LoginDialog() {
                 <DialogHeader>
                     <DialogTitle>ログイン</DialogTitle>
                     <DialogDescription>
-                        パッケージのアップロードには認証が必要です
+                        パッケージのアップロードやビルドには認証が必要です
                     </DialogDescription>
                 </DialogHeader>
-                <form onSubmit={handleLogin} className="space-y-4">
-                    <div className="space-y-2">
-                        <Label
-                            htmlFor="login-username"
-                            className="flex items-center gap-2"
-                        >
-                            <User className="w-4 h-4" />
-                            ユーザー名
-                        </Label>
-                        <Input
-                            id="login-username"
-                            type="text"
-                            value={inputUsername}
-                            onChange={(e) => setInputUsername(e.target.value)}
-                            placeholder="ユーザー名を入力"
-                            required
-                        />
-                    </div>
-                    <div className="space-y-2">
-                        <Label
-                            htmlFor="login-password"
-                            className="flex items-center gap-2"
-                        >
-                            <Lock className="w-4 h-4" />
-                            パスワード
-                        </Label>
-                        <Input
-                            id="login-password"
-                            type="password"
-                            value={inputPassword}
-                            onChange={(e) => setInputPassword(e.target.value)}
-                            placeholder="パスワードを入力"
-                            required
-                        />
-                    </div>
-                    <Button type="submit" className="w-full">
-                        <LogIn className="w-4 h-4 mr-2" />
-                        ログイン
+                <div className="space-y-4">
+                    <Button onClick={signIn} className="w-full">
+                        <Github className="w-4 h-4 mr-2" />
+                        GitHub でログイン
                     </Button>
-                </form>
-                <div className="text-xs text-muted-foreground">
-                    <p>
-                        ※ 認証情報はブラウザのローカルストレージに保存されます
+                    <p className="text-xs text-muted-foreground">
+                        GitHub
+                        の認証ページへ移動します。許可されたアカウントのみ操作できます。
                     </p>
-                    <p>※ サーバー設定により認証が不要な場合があります</p>
                 </div>
             </DialogContent>
         </Dialog>

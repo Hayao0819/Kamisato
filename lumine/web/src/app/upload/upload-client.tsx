@@ -8,7 +8,6 @@ import {
     XCircle,
 } from "lucide-react";
 import { useState } from "react";
-import { useAuth } from "@/components/auth-provider";
 import { AuthGate } from "@/components/auth-gate";
 import { useAPIClient } from "@/components/lumine-provider";
 import { PageContainer } from "@/components/page-container";
@@ -51,7 +50,6 @@ export function UploadPageClient() {
 function UploadForm() {
     const api = useAPIClient();
     const { toast } = useToast();
-    const { username, password } = useAuth();
     const { selectedRepo, setSelectedRepo, repos } = useRepoArch();
 
     const [packageFile, setPackageFile] = useState<File | null>(null);
@@ -101,8 +99,6 @@ function UploadForm() {
                 selectedRepo,
                 packageFile,
                 signatureFile,
-                username || undefined,
-                password || undefined,
                 (progress) => {
                     setUploadProgress(progress);
                 },

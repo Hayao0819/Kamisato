@@ -10,6 +10,33 @@ const fallbackLumineEnv: LumineEnv = {
     FALLBACK: true,
 };
 
+// Carries the HTTP status so the UI can tell "not signed in" (401) from
+// "signed in but not authorized / CSRF" (403). The message is what toast
+// handlers surface to the user.
+export class MutationError extends Error {
+    readonly status: number;
+    constructor(status: number, message: string) {
+        super(message);
+        this.name = "MutationError";
+        this.status = status;
+    }
+}
+
+function mutationError(
+    status: number,
+    fallback: string,
+    detail?: string,
+): MutationError {
+    if (status === 401) {
+        return new MutationError(status, "ログインが必要です");
+    }
+    if (status === 403) {
+        return new MutationError(status, "権限がありません");
+    }
+    const suffix = detail ? ` - ${detail}` : "";
+    return new MutationError(status, `${fallback}: ${status}${suffix}`);
+}
+
 export class APIClient {
     async fetchAllPkgs(repo: string, arch: string) {
         const res = await fetch(this.endpoints.allPkgs(repo, arch));
@@ -52,13 +79,30 @@ export class APIClient {
         return fetch(this.endpoints.teapot());
     }
 
-    async fetchAuthRequired() {
+    // Probes the cookie session. Same-origin fetch sends the HttpOnly cookie
+    // first-party, so no Authorization header is involved. Any failure is
+    // treated as "not signed in".
+    async fetchMe(): Promise<{
+        authenticated: boolean;
+        id?: number;
+        login?: string;
+    }> {
         try {
-            const res = await fetch(this.endpoints.authRequired());
-            if (!res.ok) return { required: false };
+            const res = await fetch(this.endpoints.authMe());
+            if (!res.ok) return { authenticated: false };
             return res.json();
         } catch {
-            return { required: false };
+            return { authenticated: false };
+        }
+    }
+
+    // Best-effort logout: POST and ignore the result. The cookie is cleared
+    // server-side; we never block on it.
+    async logout(): Promise<void> {
+        try {
+            await fetch(this.endpoints.logout(), { method: "POST" });
+        } catch {
+            // ignore: logout is best-effort
         }
     }
 
@@ -66,8 +110,6 @@ export class APIClient {
         repo: string,
         packageFile: File,
         signatureFile: File | null,
-        username?: string,
-        password?: string,
     ) {
         const formData = new FormData();
         formData.append("package", packageFile);
@@ -75,22 +117,17 @@ export class APIClient {
             formData.append("signature", signatureFile);
         }
 
-        const headers: HeadersInit = {};
-        if (username && password) {
-            const credentials = btoa(`${username}:${password}`);
-            headers.Authorization = `Basic ${credentials}`;
-        }
-
         const res = await fetch(this.endpoints.uploadPackage(repo), {
             method: "PUT",
-            headers,
             body: formData,
         });
 
         if (!res.ok) {
             const errorText = await res.text();
-            throw new Error(
-                `パッケージのアップロードに失敗しました: ${res.status} - ${errorText}`,
+            throw mutationError(
+                res.status,
+                `パッケージのアップロードに失敗しました`,
+                errorText,
             );
         }
 
@@ -99,53 +136,36 @@ export class APIClient {
 
     // Build jobs are owned by miko; ayato proxies these endpoints, so clients
     // never address miko directly.
-    async submitBuild(
-        req: BuildRequest,
-        username?: string,
-        password?: string,
-    ): Promise<{ job_id: string }> {
-        const headers: HeadersInit = { "Content-Type": "application/json" };
-        if (username && password) {
-            const credentials = btoa(`${username}:${password}`);
-            headers.Authorization = `Basic ${credentials}`;
-        }
-
+    async submitBuild(req: BuildRequest): Promise<{ job_id: string }> {
         const res = await fetch(this.endpoints.submitBuild(), {
             method: "POST",
-            headers,
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify(req),
         });
 
         if (!res.ok) {
             const errorText = await res.text();
-            throw new Error(
-                `ビルドの投入に失敗しました: ${res.status} - ${errorText}`,
+            throw mutationError(
+                res.status,
+                `ビルドの投入に失敗しました`,
+                errorText,
             );
         }
 
         return res.json();
     }
 
-    async cancelJob(
-        id: string,
-        username?: string,
-        password?: string,
-    ): Promise<void> {
-        const headers: HeadersInit = {};
-        if (username && password) {
-            const credentials = btoa(`${username}:${password}`);
-            headers.Authorization = `Basic ${credentials}`;
-        }
-
+    async cancelJob(id: string): Promise<void> {
         const res = await fetch(this.endpoints.cancelJob(id), {
             method: "DELETE",
-            headers,
         });
 
         if (!res.ok) {
             const errorText = await res.text();
-            throw new Error(
-                `ジョブのキャンセルに失敗しました: ${res.status} - ${errorText}`,
+            throw mutationError(
+                res.status,
+                `ジョブのキャンセルに失敗しました`,
+                errorText,
             );
         }
     }
@@ -181,8 +201,6 @@ export class APIClient {
         repo: string,
         packageFile: File,
         signatureFile: File | null,
-        username?: string,
-        password?: string,
         onProgress?: (progress: number) => void,
     ): Promise<string> {
         return new Promise((resolve, reject) => {
@@ -206,8 +224,10 @@ export class APIClient {
                     resolve(xhr.responseText);
                 } else {
                     reject(
-                        new Error(
-                            `パッケージのアップロードに失敗しました: ${xhr.status} - ${xhr.responseText}`,
+                        mutationError(
+                            xhr.status,
+                            "パッケージのアップロードに失敗しました",
+                            xhr.responseText,
                         ),
                     );
                 }
@@ -222,12 +242,6 @@ export class APIClient {
             });
 
             xhr.open("PUT", this.endpoints.uploadPackage(repo));
-
-            if (username && password) {
-                const credentials = btoa(`${username}:${password}`);
-                xhr.setRequestHeader("Authorization", `Basic ${credentials}`);
-            }
-
             xhr.send(formData);
         });
     }
@@ -284,8 +298,14 @@ class APIEndpoints {
     get teapot() {
         return () => `${this.apiUnstableUrl}/teapot`;
     }
-    get authRequired() {
-        return () => `${this.apiUnstableUrl}/auth/required`;
+    get authMe() {
+        return () => `${this.apiUnstableUrl}/auth/me`;
+    }
+    get logout() {
+        return () => `${this.apiUnstableUrl}/auth/logout`;
+    }
+    get githubLogin() {
+        return () => `${this.apiUnstableUrl}/auth/github/login`;
     }
     get allPkgs() {
         return (repo: string, arch: string) =>

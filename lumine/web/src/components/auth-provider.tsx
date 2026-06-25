@@ -1,90 +1,64 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useState } from "react";
 
 interface AuthContextType {
     isAuthenticated: boolean;
-    username: string | null;
-    password: string | null;
-    authRequired: boolean;
-    authRequiredLoading: boolean;
-    login: (username: string, password: string) => void;
-    logout: () => void;
-    setAuthRequired: (required: boolean) => void;
-    setAuthRequiredLoading: (loading: boolean) => void;
+    githubLogin: string | null;
+    githubId: number | null;
+    meLoading: boolean;
+    setMe: (m: { authenticated: boolean; login?: string; id?: number }) => void;
+    signIn: () => void;
+    signOut: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const AUTH_STORAGE_KEY = "lumine_auth_credentials";
-
 export function AuthProvider({ children }: { children: ReactNode }) {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
-    const [username, setUsername] = useState<string | null>(null);
-    const [password, setPassword] = useState<string | null>(null);
-    const [authRequired, setAuthRequired] = useState(false);
-    const [authRequiredLoading, setAuthRequiredLoading] = useState(true);
+    const [githubLogin, setGithubLogin] = useState<string | null>(null);
+    const [githubId, setGithubId] = useState<number | null>(null);
+    const [meLoading, setMeLoading] = useState(true);
 
-    useEffect(() => {
-        if (typeof window !== "undefined") {
-            const stored = localStorage.getItem(AUTH_STORAGE_KEY);
-            if (stored) {
-                try {
-                    const {
-                        username: storedUsername,
-                        password: storedPassword,
-                    } = JSON.parse(stored);
-                    if (storedUsername && storedPassword) {
-                        setUsername(storedUsername);
-                        setPassword(storedPassword);
-                        setIsAuthenticated(true);
-                    }
-                } catch (e) {
-                    console.error("Failed to parse stored credentials", e);
-                }
-            }
-        }
+    const setMe = useCallback(
+        (m: { authenticated: boolean; login?: string; id?: number }) => {
+            setIsAuthenticated(m.authenticated);
+            setGithubLogin(m.authenticated ? (m.login ?? null) : null);
+            setGithubId(m.authenticated ? (m.id ?? null) : null);
+            setMeLoading(false);
+        },
+        [],
+    );
+
+    // The 302-to-GitHub redirect and the Lax session cookie only work on a
+    // top-level navigation, never a fetch. The URL is relative so it resolves
+    // same-origin in both dev (next rewrite) and prod (lumine BFF).
+    const signIn = useCallback(() => {
+        window.location.assign("/api/unstable/auth/github/login");
     }, []);
 
-    const login = (newUsername: string, newPassword: string) => {
-        setUsername(newUsername);
-        setPassword(newPassword);
-        setIsAuthenticated(true);
-
-        if (typeof window !== "undefined") {
-            localStorage.setItem(
-                AUTH_STORAGE_KEY,
-                JSON.stringify({
-                    username: newUsername,
-                    password: newPassword,
-                }),
-            );
+    const signOut = useCallback(async () => {
+        try {
+            await fetch("/api/unstable/auth/logout", { method: "POST" });
+        } catch {
+            // ignore: logout is best-effort
         }
-    };
-
-    const logout = () => {
-        setUsername(null);
-        setPassword(null);
         setIsAuthenticated(false);
-
-        if (typeof window !== "undefined") {
-            localStorage.removeItem(AUTH_STORAGE_KEY);
-        }
-    };
+        setGithubLogin(null);
+        setGithubId(null);
+    }, []);
 
     return (
         <AuthContext.Provider
             value={{
                 isAuthenticated,
-                username,
-                password,
-                authRequired,
-                authRequiredLoading,
-                login,
-                logout,
-                setAuthRequired,
-                setAuthRequiredLoading,
+                githubLogin,
+                githubId,
+                meLoading,
+                setMe,
+                signIn,
+                signOut,
             }}
         >
             {children}

@@ -7,11 +7,11 @@ import { LoginDialog } from "@/components/login-dialog";
 
 // Gate on mount so the first client render matches SSR (avoids hydration mismatch).
 export function useCanMutate(): boolean {
-    const { authRequired, authRequiredLoading, isAuthenticated } = useAuth();
+    const { meLoading, isAuthenticated } = useAuth();
     const [mounted, setMounted] = useState(false);
     useEffect(() => setMounted(true), []);
-    if (!mounted || authRequiredLoading) return false;
-    return !authRequired || isAuthenticated;
+    if (!mounted || meLoading) return false;
+    return isAuthenticated;
 }
 
 export function LoginPrompt() {

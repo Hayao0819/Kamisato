@@ -24,7 +24,6 @@ import {
     useMobileNav,
 } from "@/hooks/use-console";
 import { buildPackagesQuery, parsePackagesQuery } from "@/lib/packages-url";
-import { useAuth } from "./auth-provider";
 import { useAPIClient } from "./lumine-provider";
 
 const NAV = [
@@ -111,7 +110,6 @@ export function ConsoleSidebar() {
     const searchParams = useSearchParams();
     const api = useAPIClient();
     const apiRef = useRef(api);
-    const { authRequired } = useAuth();
     const canMutate = useCanMutate();
     const { theme, setTheme } = useTheme();
     const [mounted, setMounted] = useState(false);
@@ -285,7 +283,7 @@ export function ConsoleSidebar() {
                                 )}
                             </button>
                         )}
-                        {authRequired && <LoginDialog />}
+                        {mounted && <LoginDialog />}
                     </span>
                 </div>
             </aside>

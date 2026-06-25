@@ -7,16 +7,15 @@ import { AuthGate } from "@/components/auth-gate";
 import { BuildJobDetail } from "@/components/build-job-detail";
 import { BuildQueueIndicator } from "@/components/build-queue-indicator";
 import {
+    formatDuration,
+    STATUS_LABEL,
+    STATUS_VARIANT,
+} from "@/components/build-status";
+import {
     BuildStatusFilter,
     type StatusFilter,
 } from "@/components/build-status-filter";
 import { BuildSubmitDialog } from "@/components/build-submit-dialog";
-import {
-    STATUS_LABEL,
-    STATUS_VARIANT,
-    formatDuration,
-} from "@/components/build-status";
-import { useAuth } from "@/components/auth-provider";
 import { useAPIClient } from "@/components/lumine-provider";
 import { PageContainer } from "@/components/page-container";
 import { PageHeader } from "@/components/page-header";
@@ -57,7 +56,6 @@ function pkgLabel(job: Job): string {
 export function BuildsPageClient() {
     const api = useAPIClient();
     const { toast } = useToast();
-    const { username, password } = useAuth();
 
     const [jobs, setJobs] = useState<Job[]>([]);
     const [stats, setStats] = useState<BuildStats | null>(null);
@@ -121,11 +119,7 @@ export function BuildsPageClient() {
     const handleSubmit = useCallback(
         async (req: BuildRequest): Promise<boolean> => {
             try {
-                const { job_id } = await api.submitBuild(
-                    req,
-                    username || undefined,
-                    password || undefined,
-                );
+                const { job_id } = await api.submitBuild(req);
                 toast({
                     title: "投入しました",
                     description: `ジョブ ${job_id.slice(0, 8)} を投入しました`,
@@ -146,17 +140,13 @@ export function BuildsPageClient() {
                 return false;
             }
         },
-        [api, username, password, toast, refresh],
+        [api, toast, refresh],
     );
 
     const handleCancel = useCallback(
         async (id: string) => {
             try {
-                await api.cancelJob(
-                    id,
-                    username || undefined,
-                    password || undefined,
-                );
+                await api.cancelJob(id);
                 toast({
                     title: "キャンセルしました",
                     description: `ジョブ ${id.slice(0, 8)} をキャンセルしました`,
@@ -173,7 +163,7 @@ export function BuildsPageClient() {
                 });
             }
         },
-        [api, username, password, toast, refresh],
+        [api, toast, refresh],
     );
 
     // Drop the highlight once the row is no longer the freshest focus.
@@ -195,8 +185,12 @@ export function BuildsPageClient() {
                             <BuildSubmitDialog
                                 disabled={!executable}
                                 onSubmit={handleSubmit}
-                                initialRepo={searchParams.get("repo") ?? undefined}
-                                initialArch={searchParams.get("arch") ?? undefined}
+                                initialRepo={
+                                    searchParams.get("repo") ?? undefined
+                                }
+                                initialArch={
+                                    searchParams.get("arch") ?? undefined
+                                }
                                 defaultOpen={searchParams.has("repo")}
                             />
                         </AuthGate>
