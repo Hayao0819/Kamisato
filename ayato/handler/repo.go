@@ -48,7 +48,7 @@ func (h *Handler) RepoFileHandler(ctx *gin.Context) {
 	if err != nil {
 		ctx.JSON(http.StatusNotFound, domain.APIError{
 			Message: "failed to serve " + fileName,
-			Reason:  err,
+			Reason:  err.Error(),
 		})
 		return
 	}

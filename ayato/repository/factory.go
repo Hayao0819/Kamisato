@@ -84,5 +84,5 @@ func New(cfg *conf.AyatoConfig) (NameStore, BinaryRepository, AuthRepository, io
 		return nil, nil, nil, nil, err
 	}
 
-	return NewPackageMetadataRepo(kvStore), NewBinaryRepository(newSerializingStore(binStore), cfg), NewAuthRepository(kvStore), kvStore, nil
+	return NewPackageMetadataRepo(kvStore), NewBinaryRepository(newSerializingStore(binStore)), NewAuthRepository(kvStore), kvStore, nil
 }

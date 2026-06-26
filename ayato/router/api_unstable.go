@@ -74,8 +74,9 @@ func SetRoute(e *gin.Engine, h *handler.Handler, m *middleware.Middleware) error
 		blinky := api.Group("")
 		{
 			blinky.Use(m.RateLimit(rate.Every(time.Second/10), 30), m.RequireAdmin(true))
-			blinky.PUT("/:repo/package", h.BlinkyUploadHandler)          // Blinky compatible
-			blinky.DELETE("/:repo/package/:name", h.BlinkyRemoveHandler) // Blinky compatible
+			blinky.PUT("/:repo/package", h.BlinkyUploadHandler)                // Blinky compatible
+			blinky.DELETE("/:repo/package/:name", h.BlinkyRemoveHandler)       // Blinky compatible (arch defaults to x86_64)
+			blinky.DELETE("/:repo/:arch/package/:name", h.BlinkyRemoveHandler) // explicit architecture
 		}
 
 		// miko proxy mutations require a session or Bearer CLI token (no Basic).

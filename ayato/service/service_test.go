@@ -14,6 +14,9 @@ import (
 	"github.com/Hayao0819/Kamisato/ayato/test/mocks"
 	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/internal/utils"
+	pkgpkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
+	"github.com/Hayao0819/Kamisato/pkg/raiou"
 	"go.uber.org/mock/gomock"
 )
 
@@ -104,13 +107,75 @@ func TestServiceRemovePkg(t *testing.T) {
 
 	// ValidateRepoName -> RepoNames contains "myrepo" -> ok
 	bin.EXPECT().RepoNames().Return([]string{"myrepo"}, nil)
-	name.EXPECT().PackageFile("mypkg").Return("mypkg-1.0-1-x86_64.pkg.tar.zst", nil)
+	name.EXPECT().PackageFile("x86_64", "mypkg").Return("mypkg-1.0-1-x86_64.pkg.tar.zst", nil)
+	// Concrete package scoped to its own arch: de-registered from that db, then the
+	// file is deleted; Files lists no signature, so none is removed.
+	bin.EXPECT().RepoRemove("myrepo", "x86_64", "mypkg", false, gomock.Nil()).Return(nil)
 	bin.EXPECT().DeleteFile("myrepo", "x86_64", "mypkg-1.0-1-x86_64.pkg.tar.zst").Return(nil)
-	name.EXPECT().DeletePackageFileEntry("mypkg").Return(nil)
+	bin.EXPECT().Files("myrepo", "x86_64").Return([]string{"mypkg-1.0-1-x86_64.pkg.tar.zst", "myrepo.db"}, nil)
+	name.EXPECT().DeletePackageFileEntry("x86_64", "mypkg").Return(nil)
 
 	svc := service.New(name, bin, nil, &conf.AyatoConfig{})
 	if err := svc.RemovePkg("myrepo", "x86_64", "mypkg"); err != nil {
 		t.Fatalf("RemovePkg failed: %v", err)
+	}
+}
+
+func TestServiceRemovePkgAny(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	bin := mocks.NewMockBinaryRepository(ctrl)
+	name := mocks.NewMockNameStore(ctrl)
+
+	cfg := &conf.AyatoConfig{
+		Repos: []conf.BinRepoConfig{{Name: "myrepo", Arches: []string{"x86_64", "aarch64"}}},
+	}
+
+	bin.EXPECT().RepoNames().Return([]string{"myrepo"}, nil) // ValidateRepoName
+	name.EXPECT().PackageFile("any", "mypkg").Return("mypkg-1.0-1-any.pkg.tar.zst", nil)
+	// arch="" (blinky route) on an any package: de-registered from every configured
+	// arch db; its file and signature live once under "any/" and go with the last
+	// arch.
+	bin.EXPECT().RepoRemove("myrepo", "x86_64", "mypkg", false, gomock.Nil()).Return(nil)
+	bin.EXPECT().RepoRemove("myrepo", "aarch64", "mypkg", false, gomock.Nil()).Return(nil)
+	bin.EXPECT().DeleteFile("myrepo", "any", "mypkg-1.0-1-any.pkg.tar.zst").Return(nil)
+	bin.EXPECT().Files("myrepo", "any").Return([]string{"mypkg-1.0-1-any.pkg.tar.zst", "mypkg-1.0-1-any.pkg.tar.zst.sig"}, nil)
+	bin.EXPECT().DeleteFile("myrepo", "any", "mypkg-1.0-1-any.pkg.tar.zst.sig").Return(nil)
+	name.EXPECT().DeletePackageFileEntry("any", "mypkg").Return(nil)
+
+	svc := service.New(name, bin, nil, cfg)
+	if err := svc.RemovePkg("myrepo", "", "mypkg"); err != nil {
+		t.Fatalf("RemovePkg(any, all arches) failed: %v", err)
+	}
+}
+
+func TestServiceRemovePkgAnyOneArch(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	bin := mocks.NewMockBinaryRepository(ctrl)
+	name := mocks.NewMockNameStore(ctrl)
+
+	cfg := &conf.AyatoConfig{
+		Repos: []conf.BinRepoConfig{{Name: "myrepo", Arches: []string{"x86_64", "aarch64"}}},
+	}
+
+	bin.EXPECT().RepoNames().Return([]string{"myrepo"}, nil) // ValidateRepoName
+	// Scoped to x86_64; the any package's file is keyed under "any".
+	name.EXPECT().PackageFile("x86_64", "mypkg").Return("", nil) // concrete miss
+	name.EXPECT().PackageFile("any", "mypkg").Return("mypkg-1.0-1-any.pkg.tar.zst", nil)
+	bin.EXPECT().RepoRemove("myrepo", "x86_64", "mypkg", false, gomock.Nil()).Return(nil)
+	// aarch64 still lists the package, so the shared any/ file is kept: no
+	// DeleteFile and no metadata deletion.
+	stillThere := &repo.RemoteRepo{Pkgs: []*pkgpkg.BinaryPackage{
+		pkgpkg.NewBinaryPackage("mypkg-1.0-1-any.pkg.tar.zst", &raiou.PKGINFO{PkgName: "mypkg", Arch: "any"}),
+	}}
+	bin.EXPECT().RemoteRepo("myrepo", "aarch64").Return(stillThere, nil)
+
+	svc := service.New(name, bin, nil, cfg)
+	if err := svc.RemovePkg("myrepo", "x86_64", "mypkg"); err != nil {
+		t.Fatalf("RemovePkg(any one arch) failed: %v", err)
 	}
 }
 
@@ -147,7 +212,7 @@ func TestServiceLocalfsIntegration(t *testing.T) {
 	cfg.Store.StorageType = "localfs"
 	cfg.Store.LocalRepoDir = repoRoot
 
-	binRepo := repository.NewBinaryRepository(localfs.New(repoRoot, []string{"myrepo"}), cfg)
+	binRepo := repository.NewBinaryRepository(localfs.New(repoRoot, []string{"myrepo"}))
 	svc := service.New(nil, binRepo, nil, cfg)
 
 	t.Run("RepoNames", func(t *testing.T) {

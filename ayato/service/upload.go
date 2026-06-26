@@ -18,7 +18,7 @@ func (s *Service) UploadFile(repo string, files *domain.UploadFiles) error {
 	slog.Info("upload pkg file", "file", files.PkgFile.FileName())
 	if s.pkgBinaryRepo.VerifyPkgRepo(repo) != nil {
 		slog.Warn("repository directory not found", "repo", repo)
-		if err := s.pkgBinaryRepo.Init(repo, false, nil); err != nil {
+		if err := s.initRepo(repo, false, nil); err != nil {
 			return fmt.Errorf("init repo err: %s", err.Error())
 		}
 	}
@@ -134,11 +134,29 @@ func (s *Service) UploadFile(repo string, files *domain.UploadFiles) error {
 		added = append(added, arch)
 	}
 
-	if err := s.pkgNameRepo.StorePackageFile(pi.PkgName, storedName); err != nil {
+	if err := s.pkgNameRepo.StorePackageFile(storeArch, pi.PkgName, storedName); err != nil {
 		cleanup()
 		return fmt.Errorf("store pkg file name err: %s", err.Error())
 	}
 	return nil
+}
+
+// configuredArches returns the repo's configured concrete architectures, with ""
+// and "any" filtered out (pacman has no os/any database; an arch=any package is
+// registered in each concrete arch instead). It is the single arch-expansion
+// helper shared by upload, remove, and the .db read-through.
+func (s *Service) configuredArches(repo string) []string {
+	rc := s.cfg.Repo(repo)
+	if rc == nil {
+		return nil
+	}
+	out := make([]string, 0, len(rc.Arches))
+	for _, a := range rc.Arches {
+		if a != "" && a != "any" {
+			out = append(out, a)
+		}
+	}
+	return out
 }
 
 // targetArches resolves the architecture databases an uploaded package is
@@ -150,16 +168,7 @@ func (s *Service) targetArches(repo, pkgArch string) ([]string, error) {
 	if pkgArch != "any" {
 		return []string{pkgArch}, nil
 	}
-	rc := s.cfg.Repo(repo)
-	if rc == nil {
-		return nil, fmt.Errorf("repository %q is not configured; cannot place an arch=any package", repo)
-	}
-	arches := make([]string, 0, len(rc.Arches))
-	for _, a := range rc.Arches {
-		if a != "" && a != "any" {
-			arches = append(arches, a)
-		}
-	}
+	arches := s.configuredArches(repo)
 	if len(arches) == 0 {
 		return nil, fmt.Errorf("repository %q has no architectures configured for an arch=any package", repo)
 	}

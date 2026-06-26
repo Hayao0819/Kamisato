@@ -6,10 +6,10 @@ import (
 	"path"
 	"strings"
 
+	"github.com/Hayao0819/Kamisato/ayato/domain"
 	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
 	"github.com/Hayao0819/Kamisato/ayato/stream"
-	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/internal/utils"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
 	"github.com/samber/lo"
@@ -17,11 +17,15 @@ import (
 
 //go:generate mockgen -source=repository.go -destination=../test/mocks/repository.go -package=mocks -aux_files=github.com/Hayao0819/Kamisato/ayato/repository/blob=blob/blob.go
 
-// NameStore maps package names to their stored file names (blinky-compatible).
+// NameStore maps a package's (arch, name) to its stored file name. arch is the
+// package's store arch — "any" for an arch=any package, otherwise the concrete
+// architecture whose directory holds the file. Keying by (arch, name) keeps the
+// same package name distinct across architectures (pacman's identity is the
+// (pkgname, arch) tuple), so a per-arch lookup never returns another arch's file.
 type NameStore interface {
-	PackageFile(name string) (string, error)
-	StorePackageFile(packageName, filePath string) error
-	DeletePackageFileEntry(packageName string) error
+	PackageFile(arch, name string) (string, error)
+	StorePackageFile(arch, packageName, filePath string) error
+	DeletePackageFileEntry(arch, packageName string) error
 }
 
 // pkgMetadataNamespace is the kv.Store namespace under which package-name ->
@@ -42,12 +46,19 @@ func NewPackageMetadataRepo(s kv.Store) NameStore {
 	return &packageMetadataRepo{kv: s}
 }
 
-// PackageFile returns the stored file name for a package. A miss is reported as
-// ("", nil) — not an error — so callers (service.resolvePackageFile) keep their
+// nameKey composes the (arch, name) NameStore key so the same package name never
+// collides across architectures. arch is the package's store arch ("any" or a
+// concrete arch).
+func nameKey(arch, name string) string {
+	return arch + "/" + name
+}
+
+// PackageFile returns the stored file name for (arch, name). A miss is reported
+// as ("", nil) — not an error — so callers (service.resolvePackage) keep their
 // read-through-on-miss behaviour. The underlying kv.Store uniformly signals a
 // miss with kv.ErrNotFound, regardless of backend.
-func (r *packageMetadataRepo) PackageFile(name string) (string, error) {
-	v, err := r.kv.Get(pkgMetadataNamespace, name)
+func (r *packageMetadataRepo) PackageFile(arch, name string) (string, error) {
+	v, err := r.kv.Get(pkgMetadataNamespace, nameKey(arch, name))
 	if errors.Is(err, kv.ErrNotFound) {
 		return "", nil
 	}
@@ -57,15 +68,15 @@ func (r *packageMetadataRepo) PackageFile(name string) (string, error) {
 	return string(v), nil
 }
 
-// StorePackageFile records that package packageName is stored as filePath. The
+// StorePackageFile records that (arch, packageName) is stored as filePath. The
 // entry never expires (ttl 0): it is durable metadata, not a cache line.
-func (r *packageMetadataRepo) StorePackageFile(packageName, filePath string) error {
-	return r.kv.Set(pkgMetadataNamespace, packageName, []byte(filePath), 0)
+func (r *packageMetadataRepo) StorePackageFile(arch, packageName, filePath string) error {
+	return r.kv.Set(pkgMetadataNamespace, nameKey(arch, packageName), []byte(filePath), 0)
 }
 
-// DeletePackageFileEntry removes the package's metadata entry.
-func (r *packageMetadataRepo) DeletePackageFileEntry(packageName string) error {
-	return r.kv.Delete(pkgMetadataNamespace, packageName)
+// DeletePackageFileEntry removes the (arch, packageName) metadata entry.
+func (r *packageMetadataRepo) DeletePackageFileEntry(arch, packageName string) error {
+	return r.kv.Delete(pkgMetadataNamespace, nameKey(arch, packageName))
 }
 
 // BinaryRepository is the high-level repository the service layer depends on. It
@@ -82,8 +93,6 @@ type BinaryRepository interface {
 	PkgNames(repoName, archName string) ([]string, error)
 	RemoteRepo(name, arch string) (*repo.RemoteRepo, error)
 	PkgFiles(repoName, archName, pkgName string) ([]string, error)
-	// Init initializes all architectures of the repository (configured + existing).
-	Init(name string, useSignedDB bool, gnupgDir *string) error
 	VerifyPkgRepo(name string) error
 }
 
@@ -94,7 +103,6 @@ type BinaryRepository interface {
 // holding it while calling blob.StoreFile cannot deadlock.
 type binaryRepository struct {
 	blob.Store
-	cfg  *conf.AyatoConfig
 	dbMu keyedMutex
 	// tool runs the repo-DB mutations; nil defaults to the blinky CLI. Injected
 	// (e.g. a fake) in tests so the orchestration runs without the repo-add binary.
@@ -102,8 +110,8 @@ type binaryRepository struct {
 }
 
 // NewBinaryRepository wraps a low-level blob.Store into a BinaryRepository with derived operations.
-func NewBinaryRepository(store blob.Store, cfg *conf.AyatoConfig) BinaryRepository {
-	return &binaryRepository{Store: store, cfg: cfg}
+func NewBinaryRepository(store blob.Store) BinaryRepository {
+	return &binaryRepository{Store: store}
 }
 
 // Arches lists the repository's architectures, dropping "any". An arch=any
@@ -178,39 +186,11 @@ func (r *binaryRepository) PkgNames(repoName, archName string) ([]string, error)
 	return names, nil
 }
 
-// PkgFiles returns the file list of a package in the repository.
-// TODO: not implemented (fetching the package file list).
+// PkgFiles returns the file list of a package. Not implemented: the .files
+// database is not parsed yet, so this reports domain.ErrNotImplemented rather
+// than a misleading empty list (the handler answers 501).
 func (r *binaryRepository) PkgFiles(repoName, archName, pkgName string) ([]string, error) {
-	db, err := r.FetchDB(repoName, archName)
-	if err != nil {
-		return nil, err
-	}
-	defer db.Close()
-	if _, err := repo.RemoteRepoFromDB(repoName, db); err != nil {
-		return nil, err
-	}
-	return nil, nil
-}
-
-// Init initializes all architectures of the repository (configured + existing).
-func (r *binaryRepository) Init(name string, useSignedDB bool, gnupgDir *string) error {
-	createdArches, err := r.Arches(name)
-	if err != nil {
-		createdArches = []string{}
-	}
-
-	repoconfig := r.cfg.Repo(name)
-	if repoconfig == nil {
-		return fmt.Errorf("repository %s not found in config", name)
-	}
-
-	arches := lo.Uniq(append(append([]string{}, createdArches...), repoconfig.Arches...))
-	for _, arch := range arches {
-		if err := r.InitArch(name, arch, useSignedDB, gnupgDir); err != nil {
-			return err
-		}
-	}
-	return nil
+	return nil, domain.ErrNotImplemented
 }
 
 // VerifyPkgRepo verifies that each architecture has all required files.

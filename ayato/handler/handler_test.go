@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Hayao0819/Kamisato/ayato/domain"
 	"github.com/Hayao0819/Kamisato/ayato/test/mocks"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/mock/gomock"
@@ -109,7 +110,9 @@ func TestBlinkyRemoveHandler(t *testing.T) {
 	ctrl, mockSvc, h := setup(t)
 	defer ctrl.Finish()
 
-	mockSvc.EXPECT().RemovePkg("myrepo", "x86_64", "mypkg").Return(nil)
+	// The blinky route carries no arch, so the handler passes "" — "remove from
+	// every arch that lists the package".
+	mockSvc.EXPECT().RemovePkg("myrepo", "", "mypkg").Return(nil)
 
 	r := gin.New()
 	r.DELETE("/:repo/package/:name", h.BlinkyRemoveHandler)
@@ -122,6 +125,44 @@ func TestBlinkyRemoveHandler(t *testing.T) {
 	}
 	if !strings.Contains(w.Body.String(), "removed") {
 		t.Errorf("body = %q, want to contain removed", w.Body.String())
+	}
+}
+
+func TestRemoveHandlerExplicitArch(t *testing.T) {
+	ctrl, mockSvc, h := setup(t)
+	defer ctrl.Finish()
+
+	mockSvc.EXPECT().RemovePkg("myrepo", "aarch64", "mypkg").Return(nil)
+
+	r := gin.New()
+	r.DELETE("/:repo/package/:name", h.BlinkyRemoveHandler)
+	r.DELETE("/:repo/:arch/package/:name", h.BlinkyRemoveHandler)
+
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodDelete, "/myrepo/aarch64/package/mypkg", nil))
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200: %s", w.Code, w.Body.String())
+	}
+	if !strings.Contains(w.Body.String(), "removed") {
+		t.Errorf("body = %q, want to contain removed", w.Body.String())
+	}
+}
+
+func TestPkgFilesHandlerNotImplemented(t *testing.T) {
+	ctrl, mockSvc, h := setup(t)
+	defer ctrl.Finish()
+
+	mockSvc.EXPECT().PkgFiles("myrepo", "x86_64", "mypkg").Return(nil, domain.ErrNotImplemented)
+
+	r := gin.New()
+	r.GET("/:repo/:arch/package/:name/files", h.PkgFilesHandler)
+
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/myrepo/x86_64/package/mypkg/files", nil))
+
+	if w.Code != http.StatusNotImplemented {
+		t.Fatalf("status = %d, want 501: %s", w.Code, w.Body.String())
 	}
 }
 

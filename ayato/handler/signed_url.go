@@ -30,7 +30,7 @@ func (h *Handler) SignedURLHandler(ctx *gin.Context) {
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, domain.APIError{
 			Message: "failed to generate signed URL",
-			Reason:  err,
+			Reason:  err.Error(),
 		})
 		return
 	}

@@ -173,7 +173,7 @@ func TestUploadFile_GoodSigStoresTwice(t *testing.T) {
 			return nil
 		}).Times(2)
 	bin.EXPECT().RepoAdd("myrepo", "x86_64", gomock.Any(), gomock.Nil(), false, gomock.Nil()).Return(nil)
-	name.EXPECT().StorePackageFile("foo", uploadName).Return(nil)
+	name.EXPECT().StorePackageFile("x86_64", "foo", uploadName).Return(nil)
 
 	svc := service.New(name, bin, nil, baseConfig(false, keyring))
 	files := &domain.UploadFiles{

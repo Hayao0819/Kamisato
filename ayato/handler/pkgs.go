@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"log/slog"
 	"net/http"
 
@@ -25,7 +26,7 @@ func (h *Handler) AllPkgsHandler(ctx *gin.Context) {
 		slog.Error("Failed to get packages", "error", err)
 		ctx.JSON(http.StatusInternalServerError, domain.APIError{
 			Message: "failed to get packages",
-			Reason:  err,
+			Reason:  err.Error(),
 		})
 		return
 	}
@@ -82,11 +83,15 @@ func (h *Handler) PkgFilesHandler(ctx *gin.Context) {
 		return
 	}
 	files, err := h.s.PkgFiles(repoName, archName, pkgName)
+	if errors.Is(err, domain.ErrNotImplemented) {
+		ctx.JSON(http.StatusNotImplemented, domain.APIError{Message: "package file listing is not implemented"})
+		return
+	}
 	if err != nil {
 		slog.Error("Failed to get package files", "error", err)
 		ctx.JSON(http.StatusInternalServerError, domain.APIError{
 			Message: "failed to get package files",
-			Reason:  err,
+			Reason:  err.Error(),
 		})
 		return
 	}
