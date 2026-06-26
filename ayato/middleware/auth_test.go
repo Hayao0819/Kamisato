@@ -70,6 +70,20 @@ func run(m *Middleware, allowBasic bool, mutate func(*http.Request)) *httptest.R
 	return w
 }
 
+// TestRequireAdminFailsClosedWithoutAuth: a middleware without WithAuth has no
+// checker/signer, so auth is unconfigured. RequireAdmin must fail closed (503),
+// never pass an unauthenticated request through.
+func TestRequireAdminFailsClosedWithoutAuth(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	m := New(&conf.AyatoConfig{})
+	for _, allowBasic := range []bool{true, false} {
+		w := run(m, allowBasic, func(*http.Request) {})
+		if w.Code != http.StatusServiceUnavailable {
+			t.Fatalf("allowBasic=%v: status = %d, want 503 (fail closed when auth is unconfigured)", allowBasic, w.Code)
+		}
+	}
+}
+
 func TestRequireAdminNoCredentials(t *testing.T) {
 	m, _ := testMiddleware(t, 42)
 	w := run(m, false, func(*http.Request) {})

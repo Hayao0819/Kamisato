@@ -20,7 +20,7 @@ type adminChecker interface {
 // Middleware provides middleware for authentication, authorization, etc.
 type Middleware struct {
 	cfg     *conf.AyatoConfig
-	checker adminChecker // nil disables auth (closed-network trust only)
+	checker adminChecker // nil = auth unconfigured; RequireAdmin fails closed (503)
 	signer  *auth.Signer // verifies stateless session/CLI tokens
 }
 
@@ -56,9 +56,11 @@ const (
 func (m *Middleware) RequireAdmin(allowBasic bool) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if m.checker == nil || m.signer == nil {
-			// Auth not configured: closed-network trust only (no allowlist to
-			// enforce). Pass through, matching apikey.Middleware semantics.
-			c.Next()
+			// Auth is not configured (no session secret / signer). Fail closed:
+			// never allow a mutating or admin route through unauthenticated.
+			// Configure auth.github + auth.session_secret to enable them; until
+			// then they are unavailable rather than open.
+			c.AbortWithStatus(http.StatusServiceUnavailable)
 			return
 		}
 

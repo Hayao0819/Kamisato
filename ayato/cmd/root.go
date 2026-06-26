@@ -63,9 +63,6 @@ func RootCmd() *cobra.Command {
 			// shared kv store behind the repository layer. Seed the bootstrap admin
 			// on first run through the service. Sessions, CLI tokens, one-time
 			// codes, and OAuth state are all stateless-signed by the signer.
-			// Without a signer (no session_secret) the mutating routes fall back to
-			// closed-network trust (no allowlist to enforce); but conf.Validate
-			// requires a secret whenever GitHub login is enabled.
 			if err := s.SeedBootstrapAdmin(cfg.Auth.BootstrapAdminGitHubID); err != nil {
 				return utils.WrapErr(err, "failed to seed bootstrap admin")
 			}
@@ -76,6 +73,11 @@ func RootCmd() *cobra.Command {
 				}
 				h.WithAuth(signer)
 				m.WithAuth(s, signer)
+			} else {
+				// No signer: the mutating and admin routes fail closed (503) rather
+				// than allowing unauthenticated access. Configure auth.session_secret
+				// (and auth.github) to enable them.
+				slog.Warn("authentication is not configured; mutating and admin routes will fail closed (503) until auth.session_secret and auth.github are set")
 			}
 
 			engine := gin.New()
