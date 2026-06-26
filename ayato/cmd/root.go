@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/Hayao0819/Kamisato/ayato/aur"
 	"github.com/Hayao0819/Kamisato/ayato/auth"
 	"github.com/Hayao0819/Kamisato/ayato/handler"
 	"github.com/Hayao0819/Kamisato/ayato/middleware"
@@ -15,6 +16,7 @@ import (
 	"github.com/Hayao0819/Kamisato/ayato/service"
 	"github.com/Hayao0819/Kamisato/internal/conf"
 	utils "github.com/Hayao0819/Kamisato/internal/utils"
+	"github.com/Hayao0819/Kamisato/pkg/aurweb"
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/cobra"
 )
@@ -104,6 +106,21 @@ func RootCmd() *cobra.Command {
 				return utils.WrapErr(err, "failed to set routing")
 			}
 			slog.Info("Routing initialized")
+
+			if cfg.AUR.Enabled {
+				aurBackend := aur.New(kvStore, cfg.AUR.Maintainer)
+				aurOpts := []aurweb.Option{aurweb.WithLogger(slog.Default())}
+				if cfg.AUR.Upstream.Enabled {
+					up := aurweb.NewAURUpstream(cfg.AUR.Upstream.RPCURL,
+						aurweb.WithGitBase(cfg.AUR.Upstream.GitBase),
+						aurweb.WithUserAgent(cfg.AUR.Upstream.UserAgent),
+					)
+					aurOpts = append(aurOpts, aurweb.WithUpstream(up))
+				}
+				aurSrv := aurweb.New(aurBackend, aurOpts...)
+				router.SetAUR(engine, m, aurSrv, aur.NewHandler(aurBackend))
+				slog.Info("aurweb-compatible API enabled", "upstream", cfg.AUR.Upstream.Enabled)
+			}
 
 			if err := s.InitAll(); err != nil {
 				return utils.WrapErr(err, "failed to initialize services")

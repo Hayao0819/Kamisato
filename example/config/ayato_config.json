@@ -17,6 +17,13 @@
     "url": "http://miko:8081",
     "api_key": "example-build-key"
   },
+  "aur": {
+    "enabled": true,
+    "maintainer": "myrepo-team",
+    "upstream": {
+      "enabled": true
+    }
+  },
   "repos": [
     {
       "name": "myrepo",

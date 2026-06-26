@@ -21,6 +21,22 @@ type AyatoConfig struct {
 	Build       BuildConfig     `koanf:"build"`
 	Miko        MikoUpstream    `koanf:"miko"`
 	Verify      VerifyConfig    `koanf:"verify"`
+	AUR         AURConfig       `koanf:"aur"`
+}
+
+// AURConfig turns ayato into an aurweb-compatible host. When Enabled, ayato
+// serves /rpc and redirects "<host>/<pkgbase>.git" for the PKGBUILD sources it
+// has registered, falling through to the real AUR for everything else. Sources
+// are registered by admins as external git URLs; ayato parses their .SRCINFO and
+// keeps only the derived metadata (it stores no git state itself).
+type AURConfig struct {
+	Enabled bool `koanf:"enabled"`
+	// Maintainer is the default synthetic maintainer label for registered
+	// packages that do not carry their own.
+	Maintainer string `koanf:"maintainer,omitempty"`
+	// Upstream is the real-AUR fallback. Disabled Upstream makes ayato's AUR a
+	// closed set limited to registered packages.
+	Upstream UpstreamConfig `koanf:"upstream,omitempty"`
 }
 
 // VerifyConfig is the trust root for cryptographic package-signature
