@@ -42,24 +42,11 @@ func (s *S3) StoreFileWithSignedURL(repo string, arch string, name string) (stri
 	return presignResult.URL, nil
 }
 
-func fileAliasResolver(repo, _, filename string) string {
-	if filename == repo+".db" {
-		return repo + ".db.tar.gz"
-	}
-	if filename == repo+".files" {
-		return repo + ".files.tar.gz"
-	}
-	return filename
-}
-
+// FetchFile fetches an object by its exact name — pure byte IO, with no pacman
+// naming knowledge. The repo-DB artifacts (<repo>.db, .db.tar.gz, .files,
+// .files.tar.gz) are each written as real objects by the repository layer's
+// storeArtifacts, so the bare <repo>.db is served directly, the same as localfs.
 func (s *S3) FetchFile(repo string, arch string, name string) (stream.File, error) {
-	if name == repo+".db" {
-		name = repo + ".db.tar.gz"
-	}
-	if name == repo+".files" {
-		name = repo + ".files.tar.gz"
-	}
-
 	o, err := s.getObject(key(repo, arch, name))
 	if err != nil {
 		return nil, err
@@ -99,18 +86,10 @@ func (s *S3) Files(repo string, arch string) ([]string, error) {
 		return nil, err
 	}
 
-	l = lo.Map(l, func(name string, _ int) string {
+	files := lo.Map(l, func(name string, _ int) string {
 		return path.Base(name)
 	})
 
-	for _, name := range l {
-		r := fileAliasResolver(repo, arch, name)
-		if r != name {
-			l = append(l, r)
-		}
-	}
-	ul := lo.Uniq(l)
-
-	slog.Debug("get files", "repo", repo, "arch", arch, "files", ul)
-	return ul, nil
+	slog.Debug("get files", "repo", repo, "arch", arch, "files", files)
+	return files, nil
 }
