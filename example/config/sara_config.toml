@@ -1,0 +1,47 @@
+# sara — local aurweb-compatible overlay.
+#
+# Point your AUR helper at sara and it resolves overlay packages first, falling
+# through to the real AUR for everything else:
+#
+#   yay --aururl http://127.0.0.1:10713 --aurrpcurl http://127.0.0.1:10713/rpc? ...
+#
+# or in paru.conf:  AurUrl = http://127.0.0.1:10713
+#
+# sara never executes a PKGBUILD; it reads only the committed .SRCINFO. Pin each
+# overlay to a commit so an upstream change cannot silently alter resolution.
+
+port = 10713
+bind = "127.0.0.1"
+# cache_dir = "~/.cache/sara"   # default; where overlays are cloned
+refresh_minutes = 30            # 0 = sync only at startup
+
+[upstream]
+enabled = true
+# rpc_url = "https://aur.archlinux.org/rpc"   # default
+# git_base = "https://aur.archlinux.org"      # default, derived from rpc_url
+# user_agent = "kamisato-aurweb/1.0 (+https://github.com/Hayao0819/Kamisato)"
+
+# Each overlay is an AUR-identical git repo: PKGBUILD + .SRCINFO at the root
+# (split packages allowed). Higher priority wins on a name collision; overlays
+# always beat the upstream AUR.
+[[overlays]]
+name = "my-pkgbuilds"
+url = "https://github.com/me/my-pkgbuilds.git"
+ref = "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0" # pin to a commit
+priority = 10
+maintainer = "me"
+
+[[overlays]]
+name = "hardened-firefox"
+url = "https://git.example.com/hardened-firefox.git"
+ref = "v1.4.0"
+priority = 20
+maintainer = "security-team"
+
+# A remote ayato instance that hosts its own PKGBUILDs. sara fetches its catalog
+# and ranks it above the upstream AUR (but below local git overlays). git clone
+# of an ayato-hosted package redirects to that package's real git URL.
+[[ayato]]
+name = "team-repo"
+url = "https://repo.example.com"
+priority = 50

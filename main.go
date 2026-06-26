@@ -7,6 +7,7 @@ import (
 	ayato "github.com/Hayao0819/Kamisato/ayato/cmd"
 	lumine "github.com/Hayao0819/Kamisato/lumine/cmd"
 	miko "github.com/Hayao0819/Kamisato/miko/cmd"
+	sara "github.com/Hayao0819/Kamisato/sara/cmd"
 	"github.com/spf13/cobra"
 )
 
@@ -19,6 +20,7 @@ func rootCmd() *cobra.Command {
 	cmd.AddCommand(ayato.RootCmd())
 	cmd.AddCommand(lumine.RootCmd())
 	cmd.AddCommand(miko.RootCmd())
+	cmd.AddCommand(sara.RootCmd())
 	return &cmd
 }
 
