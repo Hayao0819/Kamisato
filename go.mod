@@ -1,6 +1,6 @@
 module github.com/Hayao0819/Kamisato
 
-go 1.24.2
+go 1.25.0
 
 require (
 	github.com/BrenekH/blinky v0.0.0-20250521044104-66006d341e49
@@ -42,6 +42,8 @@ require (
 	gorm.io/driver/sqlite v1.6.0
 	gorm.io/gorm v1.30.1
 )
+
+require mvdan.cc/sh/v3 v3.13.1 // indirect
 
 require (
 	filippo.io/edwards25519 v1.1.0 // indirect
@@ -138,9 +140,9 @@ require (
 	golang.org/x/arch v0.20.0 // indirect
 	golang.org/x/crypto v0.41.0 // indirect
 	golang.org/x/net v0.43.0 // indirect
-	golang.org/x/sync v0.16.0 // indirect
-	golang.org/x/sys v0.39.0 // indirect
-	golang.org/x/term v0.34.0 // indirect
+	golang.org/x/sync v0.17.0 // indirect
+	golang.org/x/sys v0.42.0 // indirect
+	golang.org/x/term v0.41.0 // indirect
 	golang.org/x/text v0.28.0 // indirect
 	golang.org/x/time v0.12.0
 	google.golang.org/protobuf v1.36.8 // indirect
