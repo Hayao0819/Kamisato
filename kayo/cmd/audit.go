@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/Hayao0819/Kamisato/internal/conf"
+	"github.com/Hayao0819/Kamisato/internal/llmaudit"
 	"github.com/Hayao0819/Kamisato/internal/utils"
 	"github.com/Hayao0819/Kamisato/kayo/audit"
 	"github.com/Hayao0819/Kamisato/kayo/trust"
@@ -88,6 +89,7 @@ func aurMeta(ctx context.Context, cfg *conf.KayoConfig, name, pkgbase string) (m
 
 func auditCmd() *cobra.Command {
 	var ref string
+	var llm bool
 	cmd := &cobra.Command{
 		Use:   "audit <package|dir|git-url>",
 		Short: "Statically audit a PKGBUILD and check maintainer trust",
@@ -114,7 +116,9 @@ func auditCmd() *cobra.Command {
 			}
 			verdict := store.Evaluate(r.Source, r.Pkgbase, r.Maintainer)
 
-			printReport(cmd.OutOrStdout(), r, report, verdict)
+			out := cmd.OutOrStdout()
+			printReport(out, r, report, verdict)
+			printLLMAdvisory(cmd.Context(), out, cfg, r.Dir, llm)
 			if report.Max() >= audit.SevHigh {
 				return utils.NewErr("audit found high-severity issues")
 			}
@@ -122,7 +126,52 @@ func auditCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&ref, "ref", "", "git ref or commit to check out")
+	// Not "--llm": that flag name collides with the [llm] config section and the
+	// loader would try to decode a bool onto the struct.
+	cmd.Flags().BoolVar(&llm, "llm-advisory", false, "also run the LLM advisory pass (overrides config)")
 	return cmd
+}
+
+// printLLMAdvisory runs the optional, advisory-only LLM triage and prints it. It
+// runs when config enables it or force is set, and is strictly best-effort: any
+// failure prints a note and is swallowed, never affecting the audit's verdict or
+// exit code (an LLM is nondeterministic and prompt-injectable, so it must not
+// gate anything).
+func printLLMAdvisory(ctx context.Context, w io.Writer, cfg *conf.KayoConfig, dir string, force bool) {
+	if !cfg.LLM.Enabled && !force {
+		return
+	}
+	pkgbuild, err := os.ReadFile(filepath.Join(dir, "PKGBUILD"))
+	if err != nil {
+		fmt.Fprintf(w, "llm:        skipped (%v)\n", err)
+		return
+	}
+	var install []byte
+	if matches, _ := filepath.Glob(filepath.Join(dir, "*.install")); len(matches) > 0 {
+		install, _ = os.ReadFile(matches[0])
+	}
+
+	model, err := llmaudit.NewModel(cfg.LLM.Provider, cfg.LLM.Model, cfg.LLM.BaseURL)
+	if err != nil {
+		fmt.Fprintf(w, "llm:        unavailable (%v)\n", err)
+		return
+	}
+	adv, err := llmaudit.Advise(ctx, model, string(pkgbuild), string(install))
+	if err != nil {
+		fmt.Fprintf(w, "llm:        advisory failed (%v)\n", err)
+		return
+	}
+	printAdvisory(w, adv)
+}
+
+func printAdvisory(w io.Writer, a *llmaudit.Advisory) {
+	fmt.Fprintf(w, "llm advisory: risk=%s (not a gate)\n", a.Risk)
+	if a.Summary != "" {
+		fmt.Fprintf(w, "  %s\n", a.Summary)
+	}
+	for _, f := range a.Findings {
+		fmt.Fprintf(w, "  [%s] %s — %s\n", f.Severity, f.Title, f.Detail)
+	}
 }
 
 func printReport(w io.Writer, r resolved, report audit.Report, verdict trust.Verdict) {

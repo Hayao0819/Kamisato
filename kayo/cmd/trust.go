@@ -54,6 +54,7 @@ func trustAddCmd() *cobra.Command {
 
 			out := cmd.OutOrStdout()
 			printReport(out, r, report, store.Evaluate(r.Source, r.Pkgbase, r.Maintainer))
+			printLLMAdvisory(cmd.Context(), out, cfg, r.Dir, false)
 			if report.Max() >= audit.SevHigh && !force {
 				return utils.NewErr("refusing to trust: high-severity findings (use --force to override)")
 			}

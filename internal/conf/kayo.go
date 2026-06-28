@@ -38,6 +38,23 @@ type KayoConfig struct {
 	Upstream UpstreamConfig  `koanf:"upstream"`
 	Overlays []OverlayConfig `koanf:"overlays"`
 	Ayato    []AyatoSource   `koanf:"ayato"`
+	LLM      LLMConfig       `koanf:"llm,omitempty"`
+}
+
+// LLMConfig configures the optional LLM advisory pass over a PKGBUILD, run only
+// by the human-driven audit/trust commands (never the resolve path). It is
+// advisory, not a gate. The API key comes from the provider's standard
+// environment variable, never from config.
+type LLMConfig struct {
+	// Enabled runs the advisory by default on audit/trust add. The --llm flag can
+	// force it on for a single run when this is false.
+	Enabled bool `koanf:"enabled"`
+	// Provider is anthropic (default), openai, or ollama.
+	Provider string `koanf:"provider,omitempty"`
+	// Model overrides the provider's default model.
+	Model string `koanf:"model,omitempty"`
+	// BaseURL overrides the provider endpoint (and is the ollama server URL).
+	BaseURL string `koanf:"base_url,omitempty"`
 }
 
 // AyatoSource is a remote ayato instance federated as a package source. ayato
