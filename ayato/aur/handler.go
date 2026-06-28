@@ -7,19 +7,19 @@ import (
 	"time"
 
 	"github.com/Hayao0819/Kamisato/ayato/domain"
-	"github.com/Hayao0819/Kamisato/internal/saraproto"
+	"github.com/Hayao0819/Kamisato/internal/kayoproto"
 	"github.com/gin-gonic/gin"
 )
 
 // Handler exposes the admin-only management surface for registered AUR sources
-// and the sara-facing catalog. signer is nil when catalog signing is disabled.
+// and the kayo-facing catalog. signer is nil when catalog signing is disabled.
 type Handler struct {
 	b      *Backend
 	signer *CatalogSigner
 }
 
 // NewHandler builds the management handler over a Backend. A nil signer serves
-// the catalog unsigned (legacy); sara refuses that for any pinned source.
+// the catalog unsigned (legacy); kayo refuses that for any pinned source.
 func NewHandler(b *Backend, signer *CatalogSigner) *Handler {
 	return &Handler{b: b, signer: signer}
 }
@@ -48,10 +48,10 @@ func (h *Handler) RegisterHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"pkgbase": pkgbase, "packages": names})
 }
 
-// CatalogHandler returns the sara-facing catalog as a signed envelope. It is
-// public: sara verifies the signature rather than relying on credentials. The
+// CatalogHandler returns the kayo-facing catalog as a signed envelope. It is
+// public: kayo verifies the signature rather than relying on credentials. The
 // inner Payload is a json.RawMessage, so gin's c.JSON re-serializes it verbatim
-// and the bytes sara verifies equal the bytes ayato signed.
+// and the bytes kayo verifies equal the bytes ayato signed.
 func (h *Handler) CatalogHandler(c *gin.Context) {
 	cat, err := h.b.Catalog(c.Request.Context())
 	if err != nil {
@@ -62,8 +62,8 @@ func (h *Handler) CatalogHandler(c *gin.Context) {
 	}
 
 	if h.signer == nil {
-		payload, _ := json.Marshal(saraproto.SignedPayload{IssuedAt: time.Now().UTC(), Catalog: cat})
-		c.JSON(http.StatusOK, saraproto.CatalogEnvelope{Payload: payload, Alg: "none"})
+		payload, _ := json.Marshal(kayoproto.SignedPayload{IssuedAt: time.Now().UTC(), Catalog: cat})
+		c.JSON(http.StatusOK, kayoproto.CatalogEnvelope{Payload: payload, Alg: "none"})
 		return
 	}
 	env, err := h.signer.Sign(cat)

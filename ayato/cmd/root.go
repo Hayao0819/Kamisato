@@ -132,7 +132,7 @@ func RootCmd() *cobra.Command {
 					}
 					slog.Info("AUR catalog signing enabled", "key_id", signer.KeyID())
 				} else {
-					slog.Warn("AYATO_AUR_SIGNING_SEED is unset; the sara-facing catalog is served unsigned")
+					slog.Warn("AYATO_AUR_SIGNING_SEED is unset; the kayo-facing catalog is served unsigned")
 				}
 				aurSrv := aurweb.New(aurBackend, aurOpts...)
 				router.SetAUR(engine, m, aurSrv, aur.NewHandler(aurBackend, signer))

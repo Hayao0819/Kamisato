@@ -17,7 +17,7 @@ func aurCmd() *cobra.Command {
 }
 
 // aurKeygenCmd prints a fresh signing seed for the operator to set as
-// AYATO_AUR_SIGNING_SEED, plus the public key to pin in sara.
+// AYATO_AUR_SIGNING_SEED, plus the public key to pin in kayo.
 func aurKeygenCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "keygen",
@@ -35,7 +35,7 @@ func aurKeygenCmd() *cobra.Command {
 			out := cmd.OutOrStdout()
 			fmt.Fprintf(out, "AYATO_AUR_SIGNING_SEED=%s\n", seed)
 			fmt.Fprintf(out, "# key_id: %s\n", signer.KeyID())
-			fmt.Fprintf(out, "# pin this pubkey in sara: %s\n", signer.PublicKeyB64())
+			fmt.Fprintf(out, "# pin this pubkey in kayo: %s\n", signer.PublicKeyB64())
 			return nil
 		},
 	}

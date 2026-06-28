@@ -4,7 +4,7 @@
 // those into the HTTP surface that yay, paru and other AUR helpers speak to.
 //
 // The package is framework-neutral: it depends only on net/http, so it mounts
-// equally well in a plain mux (sara) or behind gin (ayato).
+// equally well in a plain mux (kayo) or behind gin (ayato).
 package aurweb
 
 // Version is the only aurweb RPC version this package exposes. aurweb itself

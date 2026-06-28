@@ -1,0 +1,12 @@
+[Trigger]
+Operation = Install
+Operation = Upgrade
+Type = Package
+Target = *
+
+[Action]
+Description = Verifying package trust with kayo...
+When = PreTransaction
+Exec = @EXEC@
+NeedsTargets
+AbortOnFail

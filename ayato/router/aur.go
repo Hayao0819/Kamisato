@@ -14,8 +14,8 @@ import (
 // is admin-only; the read-only aurweb surface (/rpc, /<pkgbase>.git, /cgit/...)
 // is mounted as the root fallback so it never shadows ayato's own routes.
 func SetAUR(e *gin.Engine, m *middleware.Middleware, srv http.Handler, h *aur.Handler) {
-	// Public sara-facing catalog + signing public key (no admin credentials;
-	// sara verifies the catalog's signature instead).
+	// Public kayo-facing catalog + signing public key (no admin credentials;
+	// kayo verifies the catalog's signature instead).
 	e.GET("/api/unstable/aur/catalog", h.CatalogHandler)
 	e.GET("/api/unstable/aur/pubkey", h.PubkeyHandler)
 

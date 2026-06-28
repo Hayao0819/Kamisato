@@ -17,7 +17,7 @@ import (
 
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
 	"github.com/Hayao0819/Kamisato/internal/gitcmd"
-	"github.com/Hayao0819/Kamisato/internal/saraproto"
+	"github.com/Hayao0819/Kamisato/internal/kayoproto"
 	"github.com/Hayao0819/Kamisato/internal/utils"
 	"github.com/Hayao0819/Kamisato/pkg/aurweb"
 	"github.com/Hayao0819/Kamisato/pkg/raiou"
@@ -193,16 +193,16 @@ func (b *Backend) All(_ context.Context) ([]aurweb.Pkg, error) {
 	return b.all()
 }
 
-// Catalog is the sara-facing view: every managed package plus the git source URL
+// Catalog is the kayo-facing view: every managed package plus the git source URL
 // of each pkgbase.
-func (b *Backend) Catalog(_ context.Context) (saraproto.Catalog, error) {
+func (b *Backend) Catalog(_ context.Context) (kayoproto.Catalog, error) {
 	pkgs, err := b.all()
 	if err != nil {
-		return saraproto.Catalog{}, err
+		return kayoproto.Catalog{}, err
 	}
 	entries, err := b.kv.List(nsBase)
 	if err != nil {
-		return saraproto.Catalog{}, err
+		return kayoproto.Catalog{}, err
 	}
 	sources := make(map[string]string, len(entries))
 	for _, e := range entries {
@@ -211,7 +211,7 @@ func (b *Backend) Catalog(_ context.Context) (saraproto.Catalog, error) {
 			sources[e.Key] = rec.URL
 		}
 	}
-	return saraproto.Catalog{Packages: pkgs, Sources: sources}, nil
+	return kayoproto.Catalog{Packages: pkgs, Sources: sources}, nil
 }
 
 func (b *Backend) SourceURL(_ context.Context, pkgbase string) (string, bool, error) {

@@ -8,7 +8,7 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/Hayao0819/Kamisato/internal/saraproto"
+	"github.com/Hayao0819/Kamisato/internal/kayoproto"
 	"github.com/Hayao0819/Kamisato/internal/utils"
 )
 
@@ -20,8 +20,8 @@ func KeyID(pub ed25519.PublicKey) string {
 	return hex.EncodeToString(sum[:])[:16]
 }
 
-// CatalogSigner is ayato's Ed25519 identity for the sara-facing catalog. ayato is
-// the sole holder of the private seed; sara verifies with a pinned public key —
+// CatalogSigner is ayato's Ed25519 identity for the kayo-facing catalog. ayato is
+// the sole holder of the private seed; kayo verifies with a pinned public key —
 // the asymmetric anchor the unsigned AUR cannot provide.
 type CatalogSigner struct {
 	keyID string
@@ -51,18 +51,18 @@ func (s *CatalogSigner) PublicKeyB64() string { return base64.StdEncoding.Encode
 
 // Sign marshals the freshness payload once and returns a detached signature over
 // those exact bytes (pure Ed25519, no pre-hash).
-func (s *CatalogSigner) Sign(cat saraproto.Catalog) (saraproto.CatalogEnvelope, error) {
+func (s *CatalogSigner) Sign(cat kayoproto.Catalog) (kayoproto.CatalogEnvelope, error) {
 	now := time.Now().UTC()
-	p := saraproto.SignedPayload{KeyID: s.keyID, IssuedAt: now, Catalog: cat}
+	p := kayoproto.SignedPayload{KeyID: s.keyID, IssuedAt: now, Catalog: cat}
 	if s.ttl > 0 {
 		p.ExpiresAt = now.Add(s.ttl)
 	}
 	payload, err := json.Marshal(p)
 	if err != nil {
-		return saraproto.CatalogEnvelope{}, utils.WrapErr(err, "aur: marshal signed payload")
+		return kayoproto.CatalogEnvelope{}, utils.WrapErr(err, "aur: marshal signed payload")
 	}
 	sig := ed25519.Sign(s.priv, payload)
-	return saraproto.CatalogEnvelope{
+	return kayoproto.CatalogEnvelope{
 		Payload:   payload,
 		Alg:       "ed25519",
 		KeyID:     s.keyID,
