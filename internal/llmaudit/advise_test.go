@@ -58,6 +58,19 @@ func TestAdviseStripsFencesAndProse(t *testing.T) {
 	}
 }
 
+func TestAdviseExtractsJSONAmidBraceProse(t *testing.T) {
+	// A brace in surrounding prose (e.g. an echoed ${pkgname}) must not derail
+	// extraction; the first substring that parses as an object wins.
+	fm := &fakeModel{reply: `The recipe uses ${pkgname}, result: {"risk":"low","summary":"ok","findings":[]}`}
+	adv, err := Advise(context.Background(), fm, "pkgname=x", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if adv.Risk != "low" {
+		t.Errorf("risk = %q, want low", adv.Risk)
+	}
+}
+
 func TestAdviseUnknownRisk(t *testing.T) {
 	fm := &fakeModel{reply: `{"risk":"catastrophic","summary":"s","findings":[]}`}
 	adv, err := Advise(context.Background(), fm, "pkgname=x", "")
