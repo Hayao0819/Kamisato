@@ -169,3 +169,21 @@ func (c *Composite) SourceURL(ctx context.Context, pkgbase string) (string, bool
 	}
 	return "", false, nil
 }
+
+// Resolve returns the winning record for a pkgname and the trust namespace of
+// the source that provided it (highest tier, then priority). Unlike Info it is
+// ungated, so a caller can apply its own trust evaluation.
+func (c *Composite) Resolve(ctx context.Context, name string) (aurweb.Pkg, string, bool) {
+	for _, e := range c.entries {
+		pkgs, err := e.backend.Info(ctx, []string{name})
+		if err != nil {
+			continue
+		}
+		for _, p := range pkgs {
+			if p.Name == name {
+				return p, e.source, true
+			}
+		}
+	}
+	return aurweb.Pkg{}, "", false
+}

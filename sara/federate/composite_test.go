@@ -103,3 +103,22 @@ func TestGate(t *testing.T) {
 		t.Errorf("overlay should always pass clean: keep=%v desc=%q", keep, gp.Description)
 	}
 }
+
+func TestResolve(t *testing.T) {
+	high := &stub{pkgs: map[string]aurweb.Pkg{"foo": {Name: "foo", PackageBase: "foo"}}}
+	low := &stub{pkgs: map[string]aurweb.Pkg{"foo": {Name: "foo"}, "bar": {Name: "bar", PackageBase: "bar"}}}
+	c := New()
+	c.Add(low, TierAyato, 1, "low")
+	c.Add(high, TierAyato, 10, "high")
+	ctx := context.Background()
+
+	if _, src, ok := c.Resolve(ctx, "foo"); !ok || src != "high" {
+		t.Errorf("foo resolved from %q ok=%v, want high tier", src, ok)
+	}
+	if _, src, ok := c.Resolve(ctx, "bar"); !ok || src != "low" {
+		t.Errorf("bar resolved from %q, want low", src)
+	}
+	if _, _, ok := c.Resolve(ctx, "zzz"); ok {
+		t.Error("zzz should not resolve")
+	}
+}

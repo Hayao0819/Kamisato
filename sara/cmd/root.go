@@ -13,10 +13,8 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/internal/utils"
 	"github.com/Hayao0819/Kamisato/pkg/aurweb"
-	ayatosrc "github.com/Hayao0819/Kamisato/sara/ayato"
 	"github.com/Hayao0819/Kamisato/sara/federate"
 	"github.com/Hayao0819/Kamisato/sara/gitserve"
-	"github.com/Hayao0819/Kamisato/sara/overlay"
 	"github.com/Hayao0819/Kamisato/sara/trust"
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/cobra"
@@ -34,7 +32,7 @@ func RootCmd() *cobra.Command {
 	cmd.Flags().IntP("port", "p", 0, "Listen port (default 10713)")
 	cmd.SilenceErrors = true
 	cmd.SilenceUsage = true
-	cmd.AddCommand(auditCmd(), trustCmd(), updateCmd())
+	cmd.AddCommand(auditCmd(), trustCmd(), updateCmd(), verifyCmd(), hookCmd())
 	return &cmd
 }
 
@@ -66,31 +64,14 @@ func run(cmd *cobra.Command, _ []string) error {
 	}
 	mode := cfg.ResolvedEnforceMode()
 
-	comp := federate.New()
+	comp, err := buildComposite(ctx, cfg)
+	if err != nil {
+		return err
+	}
 	comp.SetGate(store, mode)
-	if len(cfg.Overlays) > 0 {
-		reg := overlay.New(cfg.ResolvedCacheDir(), cfg.Overlays)
-		slog.Info("Syncing overlays", "count", len(cfg.Overlays), "cache", cfg.ResolvedCacheDir())
-		if err := reg.Sync(ctx); err != nil {
-			return utils.WrapErr(err, "initial overlay sync failed")
-		}
-		comp.Add(reg, federate.TierOverlay, 0, "overlay")
-	}
-	for _, a := range cfg.Ayato {
-		src := ayatosrc.New(a.Name, a.URL)
-		if err := src.Sync(ctx); err != nil {
-			slog.Error("ayato source initial sync failed", "name", a.Name, "error", err)
-		}
-		comp.Add(src, federate.TierAyato, a.Priority, a.Name)
-		slog.Info("ayato source added", "name", a.Name, "url", a.URL, "priority", a.Priority)
-	}
 
 	opts := []aurweb.Option{aurweb.WithLogger(slog.Default())}
-	if cfg.Upstream.Enabled {
-		up := aurweb.NewAURUpstream(cfg.Upstream.RPCURL,
-			aurweb.WithGitBase(cfg.Upstream.GitBase),
-			aurweb.WithUserAgent(cfg.Upstream.UserAgent),
-		)
+	if up := upstreamClient(cfg); up != nil {
 		// Gate upstream-AUR results through the same trust store (source "aur").
 		opts = append(opts, aurweb.WithUpstream(&federate.TrustUpstream{AURUpstream: up, Store: store, Mode: mode}))
 		slog.Info("Upstream AUR fallback enabled", "git_base", up.GitBase(), "enforce_mode", mode)
