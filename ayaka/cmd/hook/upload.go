@@ -3,6 +3,7 @@ package hookcmd
 import (
 	"fmt"
 	"log/slog"
+	"net/http"
 	"path/filepath"
 	"time"
 
@@ -87,17 +88,16 @@ func hookUploadCmd() *cobra.Command {
 				return utils.WrapErr(err, "resolving the ayato server/credentials (set up root's db with 'sudo ayaka server login')")
 			}
 			// pacman blocks until a PostTransaction hook exits, and the blinky
-			// client has no timeout, so a stalled server would hang the whole
-			// transaction. Bound the upload and fail the hook instead.
-			done := make(chan error, 1)
-			go func() { done <- client.UploadPackageFiles(repo, files...) }()
-			select {
-			case err := <-done:
-				if err != nil {
-					return utils.WrapErr(err, "failed to upload packages")
-				}
-			case <-time.After(timeout):
-				return utils.NewErrf("upload timed out after %s; the ayato server may be slow or unreachable", timeout)
+			// client uses http.DefaultClient with no timeout, so a stalled or
+			// unreachable server would hang the whole transaction. Bound the
+			// request so that on the deadline the client aborts the in-flight
+			// upload (it is cancelled, not left running in the background) and
+			// returns an error. Mutating the process-global client is safe here:
+			// this hook is a one-shot invocation whose only network call is this
+			// upload.
+			http.DefaultClient.Timeout = timeout
+			if err := client.UploadPackageFiles(repo, files...); err != nil {
+				return utils.WrapErr(err, "failed to upload packages (the server may be slow or unreachable)")
 			}
 			out := cmd.OutOrStdout()
 			for _, f := range files {
