@@ -1,0 +1,133 @@
+name: Install Kamisato
+description: Install selected Kamisato CLIs (ayaka, ayato, miko, lumine) onto the runner and add them to PATH.
+
+inputs:
+  ayaka:
+    description: Install the ayaka CLI.
+    default: "true"
+  ayato:
+    description: Install the ayato server binary.
+    default: "false"
+  miko:
+    description: Install the miko server binary (source method only; not published as a release binary).
+    default: "false"
+  lumine:
+    description: Install the lumine server binary.
+    default: "false"
+  method:
+    description: '"source" (go install, current code) or "release" (download a published GitHub Release).'
+    default: source
+  version:
+    description: 'For method=source: a git ref (branch/tag/commit), e.g. "main" or "v1.0.0". For method=release: a release tag or "latest". Note: releases v0.0.1/v0.0.2 predate the current CLI spec — do not use them.'
+    default: main
+  repository:
+    description: owner/repo to install from.
+    default: Hayao0819/Kamisato
+  token:
+    description: GitHub token for release downloads. Defaults to the job token.
+    default: ""
+  source_dir:
+    description: For method=source, build from this local checkout instead of cloning.
+    default: ""
+
+outputs:
+  version:
+    description: The resolved version/ref that was installed.
+    value: ${{ steps.install.outputs.version }}
+
+runs:
+  using: composite
+  steps:
+    - id: install
+      shell: bash
+      env:
+        IN_AYAKA: ${{ inputs.ayaka }}
+        IN_AYATO: ${{ inputs.ayato }}
+        IN_MIKO: ${{ inputs.miko }}
+        IN_LUMINE: ${{ inputs.lumine }}
+        IN_METHOD: ${{ inputs.method }}
+        IN_VERSION: ${{ inputs.version }}
+        IN_REPO: ${{ inputs.repository }}
+        IN_SOURCE_DIR: ${{ inputs.source_dir }}
+        GH_TOKEN: ${{ inputs.token || github.token }}
+      run: |
+        set -euo pipefail
+
+        tools=()
+        [ "$IN_AYAKA" = "true" ] && tools+=(ayaka) || true
+        [ "$IN_AYATO" = "true" ] && tools+=(ayato) || true
+        [ "$IN_MIKO" = "true" ] && tools+=(miko) || true
+        [ "$IN_LUMINE" = "true" ] && tools+=(lumine) || true
+        if [ ${#tools[@]} -eq 0 ]; then
+          echo "::error::no tools selected; set at least one of ayaka/ayato/miko/lumine to true"
+          exit 1
+        fi
+        echo "Installing ${tools[*]} (method=$IN_METHOD, version=$IN_VERSION)"
+
+        bindir="$RUNNER_TEMP/kamisato-bin"
+        mkdir -p "$bindir"
+
+        case "$(uname -m)" in
+          x86_64 | amd64) arch=amd64 ;;
+          aarch64 | arm64) arch=arm64 ;;
+          *) echo "::error::unsupported architecture $(uname -m)"; exit 1 ;;
+        esac
+
+        resolved="$IN_VERSION"
+
+        case "$IN_METHOD" in
+          source)
+            if ! command -v go >/dev/null 2>&1; then
+              echo "::error::method=source needs Go; add actions/setup-go before this step"
+              exit 1
+            fi
+            if [ -n "$IN_SOURCE_DIR" ]; then
+              src="$IN_SOURCE_DIR"
+            else
+              src="$RUNNER_TEMP/kamisato-src"
+              rm -rf "$src"
+              git clone --filter=blob:none "https://github.com/$IN_REPO" "$src"
+              git -C "$src" checkout "$IN_VERSION"
+            fi
+            flags=(--bin "$bindir" --disable-all --no-upx)
+            [ "$IN_AYAKA" = "true" ] && flags+=(--ayaka) || true
+            [ "$IN_AYATO" = "true" ] && flags+=(--ayato) || true
+            [ "$IN_MIKO" = "true" ] && flags+=(--miko) || true
+            [ "$IN_LUMINE" = "true" ] && flags+=(--lumine) || true
+            (cd "$src" && ./install.sh "${flags[@]}")
+            ;;
+          release)
+            # miko is not shipped as a release binary (Docker image only).
+            for t in "${tools[@]}"; do
+              if [ "$t" = "miko" ]; then
+                echo "::error::miko has no release binary; use method=source or the Docker image"
+                exit 1
+              fi
+            done
+            tmp="$(mktemp -d)"
+            tagargs=()
+            [ "$IN_VERSION" != "latest" ] && tagargs+=("$IN_VERSION") || true
+            gh release download "${tagargs[@]}" \
+              --repo "$IN_REPO" \
+              --pattern "ayaka-project_*_linux_${arch}.tar.gz" \
+              --dir "$tmp"
+            tar -xzf "$tmp"/ayaka-project_*_linux_"${arch}".tar.gz -C "$tmp"
+            for t in "${tools[@]}"; do
+              if [ ! -f "$tmp/$t" ]; then
+                echo "::error::$t not found in the release archive"
+                exit 1
+              fi
+              install -m 0755 "$tmp/$t" "$bindir/$t"
+            done
+            resolved="$(gh release view "${tagargs[@]}" --repo "$IN_REPO" --json tagName -q .tagName 2>/dev/null || echo "$IN_VERSION")"
+            ;;
+          *)
+            echo "::error::method must be 'source' or 'release'"
+            exit 1
+            ;;
+        esac
+
+        echo "$bindir" >>"$GITHUB_PATH"
+        echo "version=$resolved" >>"$GITHUB_OUTPUT"
+        echo "Installed to $bindir:"
+        ls -1 "$bindir"
