@@ -1,20 +1,28 @@
 package aur
 
 import (
+	"encoding/json"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/Hayao0819/Kamisato/ayato/domain"
+	"github.com/Hayao0819/Kamisato/internal/saraproto"
 	"github.com/gin-gonic/gin"
 )
 
-// Handler exposes the admin-only management surface for registered AUR sources.
+// Handler exposes the admin-only management surface for registered AUR sources
+// and the sara-facing catalog. signer is nil when catalog signing is disabled.
 type Handler struct {
-	b *Backend
+	b      *Backend
+	signer *CatalogSigner
 }
 
-// NewHandler builds the management handler over a Backend.
-func NewHandler(b *Backend) *Handler { return &Handler{b: b} }
+// NewHandler builds the management handler over a Backend. A nil signer serves
+// the catalog unsigned (legacy); sara refuses that for any pinned source.
+func NewHandler(b *Backend, signer *CatalogSigner) *Handler {
+	return &Handler{b: b, signer: signer}
+}
 
 type registerRequest struct {
 	GitURL     string `json:"git_url"`
@@ -40,8 +48,10 @@ func (h *Handler) RegisterHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"pkgbase": pkgbase, "packages": names})
 }
 
-// CatalogHandler returns the sara-facing catalog (managed packages + sources).
-// It is public: sara reads it without admin credentials.
+// CatalogHandler returns the sara-facing catalog as a signed envelope. It is
+// public: sara verifies the signature rather than relying on credentials. The
+// inner Payload is a json.RawMessage, so gin's c.JSON re-serializes it verbatim
+// and the bytes sara verifies equal the bytes ayato signed.
 func (h *Handler) CatalogHandler(c *gin.Context) {
 	cat, err := h.b.Catalog(c.Request.Context())
 	if err != nil {
@@ -50,7 +60,28 @@ func (h *Handler) CatalogHandler(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, domain.APIError{Message: "failed to build catalog"})
 		return
 	}
-	c.JSON(http.StatusOK, cat)
+
+	if h.signer == nil {
+		payload, _ := json.Marshal(saraproto.SignedPayload{IssuedAt: time.Now().UTC(), Catalog: cat})
+		c.JSON(http.StatusOK, saraproto.CatalogEnvelope{Payload: payload, Alg: "none"})
+		return
+	}
+	env, err := h.signer.Sign(cat)
+	if err != nil {
+		slog.Error("AUR catalog sign failed", "error", err)
+		c.JSON(http.StatusInternalServerError, domain.APIError{Message: "failed to sign catalog"})
+		return
+	}
+	c.JSON(http.StatusOK, env)
+}
+
+// PubkeyHandler publishes the signing public key for TOFU bootstrap and tooling.
+func (h *Handler) PubkeyHandler(c *gin.Context) {
+	if h.signer == nil {
+		c.JSON(http.StatusNotFound, domain.APIError{Message: "catalog signing is not enabled"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"alg": "ed25519", "key_id": h.signer.KeyID(), "pubkey": h.signer.PublicKeyB64()})
 }
 
 // ListHandler returns the registered pkgbases.

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/Hayao0819/Kamisato/ayato/aur"
@@ -117,9 +118,25 @@ func RootCmd() *cobra.Command {
 					)
 					aurOpts = append(aurOpts, aurweb.WithUpstream(up))
 				}
+				// The catalog signing seed comes only from the environment, never
+				// the config file (it is a private key).
+				var signer *aur.CatalogSigner
+				if seed := os.Getenv("AYATO_AUR_SIGNING_SEED"); seed != "" {
+					ttl := time.Duration(cfg.AUR.CatalogTTLMinutes) * time.Minute
+					if ttl <= 0 {
+						ttl = 60 * time.Minute
+					}
+					signer, err = aur.NewCatalogSigner(seed, ttl)
+					if err != nil {
+						return utils.WrapErr(err, "failed to build catalog signer")
+					}
+					slog.Info("AUR catalog signing enabled", "key_id", signer.KeyID())
+				} else {
+					slog.Warn("AYATO_AUR_SIGNING_SEED is unset; the sara-facing catalog is served unsigned")
+				}
 				aurSrv := aurweb.New(aurBackend, aurOpts...)
-				router.SetAUR(engine, m, aurSrv, aur.NewHandler(aurBackend))
-				slog.Info("aurweb-compatible API enabled", "upstream", cfg.AUR.Upstream.Enabled)
+				router.SetAUR(engine, m, aurSrv, aur.NewHandler(aurBackend, signer))
+				slog.Info("aurweb-compatible API enabled", "upstream", cfg.AUR.Upstream.Enabled, "signed", signer != nil)
 			}
 
 			if err := s.InitAll(); err != nil {
@@ -149,6 +166,7 @@ func RootCmd() *cobra.Command {
 	cmd.PersistentFlags().StringP("config", "c", "", "Config file")
 	cmd.SilenceErrors = true
 	cmd.SilenceUsage = true
+	cmd.AddCommand(aurCmd())
 
 	return &cmd
 }

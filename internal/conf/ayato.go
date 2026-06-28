@@ -37,6 +37,10 @@ type AURConfig struct {
 	// Upstream is the real-AUR fallback. Disabled Upstream makes ayato's AUR a
 	// closed set limited to registered packages.
 	Upstream UpstreamConfig `koanf:"upstream,omitempty"`
+	// CatalogTTLMinutes bounds how long sara treats a signed catalog as fresh
+	// (the signed ExpiresAt); 0 uses a sane default. The signing seed is supplied
+	// ONLY via the AYATO_AUR_SIGNING_SEED env var, never this config file.
+	CatalogTTLMinutes int `koanf:"catalog_ttl_minutes,omitempty"`
 }
 
 // VerifyConfig is the trust root for cryptographic package-signature
