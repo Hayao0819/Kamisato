@@ -1,0 +1,11 @@
+[Trigger]
+Operation = Install
+Operation = Upgrade
+Type = Package
+Target = *
+
+[Action]
+Description = Uploading installed packages to the ayato repository...
+When = PostTransaction
+Exec = @EXEC@
+NeedsTargets
