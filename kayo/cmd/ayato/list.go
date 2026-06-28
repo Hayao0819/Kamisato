@@ -1,23 +1,14 @@
-package cmd
+package ayatocmd
 
 import (
 	"fmt"
 	"time"
 
 	"github.com/Hayao0819/Kamisato/internal/conf"
-	"github.com/Hayao0819/Kamisato/internal/utils"
 	ayatosrc "github.com/Hayao0819/Kamisato/kayo/ayato"
+	"github.com/Hayao0819/Kamisato/kayo/cmd/shared"
 	"github.com/spf13/cobra"
 )
-
-func ayatoCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "ayato",
-		Short: "Inspect federated ayato sources and their pinned signing keys",
-	}
-	cmd.AddCommand(ayatoListCmd(), ayatoPinCmd())
-	return cmd
-}
 
 // ayatoListCmd shows the configured ayato sources next to the keys kayo has
 // pinned (whether hard-pinned in config or learned via TOFU).
@@ -27,7 +18,7 @@ func ayatoListCmd() *cobra.Command {
 		Short: "List configured ayato sources and pinned keys",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			cfg, err := loadConfig(cmd)
+			cfg, err := shared.LoadConfig(cmd)
 			if err != nil {
 				return err
 			}
@@ -45,42 +36,6 @@ func ayatoListCmd() *cobra.Command {
 			for _, p := range pins.Entries() {
 				fmt.Fprintf(out, "  %s\tkey_id %s\tlast_issued %s\n", p.Name, keyOrDash(p.KeyID), watermark(p.LastIssued))
 			}
-			return nil
-		},
-	}
-}
-
-// ayatoPinCmd fetches the key a source currently advertises and prints it so the
-// operator can paste it into config as a hard pin, upgrading from TOFU.
-func ayatoPinCmd() *cobra.Command {
-	return &cobra.Command{
-		Use:   "pin <name>",
-		Short: "Fetch a source's advertised signing key to pin in config",
-		Args:  cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			cfg, err := loadConfig(cmd)
-			if err != nil {
-				return err
-			}
-			var src *conf.AyatoSource
-			for i := range cfg.Ayato {
-				if cfg.Ayato[i].Name == args[0] {
-					src = &cfg.Ayato[i]
-					break
-				}
-			}
-			if src == nil {
-				return utils.NewErrf("no ayato source named %q in config", args[0])
-			}
-
-			pub, keyID, err := ayatosrc.FetchPubkey(cmd.Context(), src.URL)
-			if err != nil {
-				return err
-			}
-			out := cmd.OutOrStdout()
-			fmt.Fprintf(out, "# verify this key_id out of band before trusting it: %s\n", keyID)
-			fmt.Fprintf(out, "# then set it on the %q source in config:\n", src.Name)
-			fmt.Fprintf(out, "pubkey = %q\n", pub)
 			return nil
 		},
 	}

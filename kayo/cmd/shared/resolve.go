@@ -1,4 +1,4 @@
-package cmd
+package shared
 
 import (
 	"context"
@@ -12,9 +12,9 @@ import (
 	"github.com/Hayao0819/Kamisato/pkg/raiou"
 )
 
-// resolved is an audit target reduced to the facts the trust model needs: where
+// Resolved is an audit target reduced to the facts the trust model needs: where
 // it came from, its pkgbase, the maintainer ACCOUNT that owns it, and the commit.
-type resolved struct {
+type Resolved struct {
 	Dir        string
 	Source     string
 	Pkgbase    string
@@ -22,9 +22,9 @@ type resolved struct {
 	Commit     string
 }
 
-// resolve turns a target (a directory, a git URL, or an AUR package name) into a
+// Resolve turns a target (a directory, a git URL, or an AUR package name) into a
 // checked-out dir plus its provenance. cleanup must be called.
-func resolve(ctx context.Context, cfg *conf.KayoConfig, target, ref string) (resolved, func(), error) {
+func Resolve(ctx context.Context, cfg *conf.KayoConfig, target, ref string) (Resolved, func(), error) {
 	cleanup := func() {}
 
 	var dir, source string
@@ -40,12 +40,12 @@ func resolve(ctx context.Context, cfg *conf.KayoConfig, target, ref string) (res
 		var err error
 		dir, cleanup, err = audit.Clone(ctx, url, ref)
 		if err != nil {
-			return resolved{}, func() {}, err
+			return Resolved{}, func() {}, err
 		}
 	}
 
 	commit, _ := audit.HeadCommit(ctx, dir)
-	r := resolved{Dir: dir, Source: source, Pkgbase: readPkgbase(dir, target), Commit: commit}
+	r := Resolved{Dir: dir, Source: source, Pkgbase: readPkgbase(dir, target), Commit: commit}
 	if source == "aur" {
 		r.Maintainer, r.Pkgbase = aurMeta(ctx, cfg, target, r.Pkgbase)
 	}

@@ -1,17 +1,12 @@
 package cmd
 
 import (
-	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/internal/utils"
 	"github.com/Hayao0819/Kamisato/kayo/audit"
+	"github.com/Hayao0819/Kamisato/kayo/cmd/shared"
 	"github.com/Hayao0819/Kamisato/kayo/trust"
 	"github.com/spf13/cobra"
 )
-
-func loadConfig(cmd *cobra.Command) (*conf.KayoConfig, error) {
-	configFile, _ := cmd.Flags().GetString("config")
-	return conf.LoadKayoConfig(cmd.Flags(), configFile)
-}
 
 func auditCmd() *cobra.Command {
 	var ref string
@@ -21,12 +16,12 @@ func auditCmd() *cobra.Command {
 		Short: "Statically audit a PKGBUILD and check maintainer trust",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cfg, err := loadConfig(cmd)
+			cfg, err := shared.LoadConfig(cmd)
 			if err != nil {
 				return err
 			}
 
-			r, cleanup, err := resolve(cmd.Context(), cfg, args[0], ref)
+			r, cleanup, err := shared.Resolve(cmd.Context(), cfg, args[0], ref)
 			defer cleanup()
 			if err != nil {
 				return err
@@ -43,8 +38,8 @@ func auditCmd() *cobra.Command {
 			verdict := store.Evaluate(r.Source, r.Pkgbase, r.Maintainer)
 
 			out := cmd.OutOrStdout()
-			printReport(out, r, report, verdict)
-			printLLMAdvisory(cmd.Context(), out, cfg, r.Dir, llm)
+			shared.PrintReport(out, r, report, verdict)
+			shared.PrintLLMAdvisory(cmd.Context(), out, cfg, r.Dir, llm)
 			if report.Max() >= audit.SevHigh {
 				return utils.NewErr("audit found high-severity issues")
 			}

@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/Hayao0819/Kamisato/internal/utils"
+	"github.com/Hayao0819/Kamisato/kayo/cmd/shared"
 	"github.com/Hayao0819/Kamisato/kayo/trust"
 	"github.com/Hayao0819/Kamisato/pkg/aurweb"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/hook"
@@ -23,7 +24,7 @@ func verifyCmd() *cobra.Command {
 		Use:   "verify [pkgname...]",
 		Short: "Check that packages being installed are trusted (pacman hook entry point)",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cfg, err := loadConfig(cmd)
+			cfg, err := shared.LoadConfig(cmd)
 			if err != nil {
 				return err
 			}
@@ -40,11 +41,11 @@ func verifyCmd() *cobra.Command {
 				return err
 			}
 			ctx := cmd.Context()
-			comp, err := buildComposite(ctx, cfg)
+			comp, err := shared.BuildComposite(ctx, cfg)
 			if err != nil {
 				return err
 			}
-			up := upstreamClient(cfg)
+			up := shared.UpstreamClient(cfg)
 			enforce := strict || cfg.ResolvedEnforceMode() == "enforce"
 
 			type resolved struct {

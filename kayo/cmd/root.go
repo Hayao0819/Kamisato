@@ -12,6 +12,10 @@ import (
 
 	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/internal/utils"
+	ayatocmd "github.com/Hayao0819/Kamisato/kayo/cmd/ayato"
+	hookcmd "github.com/Hayao0819/Kamisato/kayo/cmd/hook"
+	"github.com/Hayao0819/Kamisato/kayo/cmd/shared"
+	trustcmd "github.com/Hayao0819/Kamisato/kayo/cmd/trust"
 	"github.com/Hayao0819/Kamisato/kayo/federate"
 	"github.com/Hayao0819/Kamisato/kayo/gitserve"
 	"github.com/Hayao0819/Kamisato/kayo/trust"
@@ -32,7 +36,7 @@ func RootCmd() *cobra.Command {
 	cmd.Flags().IntP("port", "p", 0, "Listen port (default 10713)")
 	cmd.SilenceErrors = true
 	cmd.SilenceUsage = true
-	cmd.AddCommand(auditCmd(), trustCmd(), updateCmd(), verifyCmd(), hookCmd(), ayatoCmd())
+	cmd.AddCommand(auditCmd(), trustcmd.Cmd(), updateCmd(), verifyCmd(), hookcmd.Cmd(), ayatocmd.Cmd())
 	return &cmd
 }
 
@@ -64,14 +68,14 @@ func run(cmd *cobra.Command, _ []string) error {
 	}
 	mode := cfg.ResolvedEnforceMode()
 
-	comp, err := buildComposite(ctx, cfg)
+	comp, err := shared.BuildComposite(ctx, cfg)
 	if err != nil {
 		return err
 	}
 	comp.SetGate(store, mode)
 
 	opts := []aurweb.Option{aurweb.WithLogger(slog.Default())}
-	if up := upstreamClient(cfg); up != nil {
+	if up := shared.UpstreamClient(cfg); up != nil {
 		// Gate upstream-AUR results through the same trust store (source "aur").
 		opts = append(opts, aurweb.WithUpstream(&federate.TrustUpstream{AURUpstream: up, Store: store, Mode: mode}))
 		slog.Info("Upstream AUR fallback enabled", "git_base", up.GitBase(), "enforce_mode", mode)

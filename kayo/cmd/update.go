@@ -8,6 +8,7 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/gitcmd"
 	"github.com/Hayao0819/Kamisato/internal/utils"
 	"github.com/Hayao0819/Kamisato/kayo/audit"
+	"github.com/Hayao0819/Kamisato/kayo/cmd/shared"
 	"github.com/Hayao0819/Kamisato/kayo/gitserve"
 	"github.com/Hayao0819/Kamisato/kayo/trust"
 	"github.com/spf13/cobra"
@@ -23,12 +24,12 @@ func updateCmd() *cobra.Command {
 		Short: "Review changes since the approved commit and re-pin with --approve",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cfg, err := loadConfig(cmd)
+			cfg, err := shared.LoadConfig(cmd)
 			if err != nil {
 				return err
 			}
 
-			r, cleanup, err := resolve(cmd.Context(), cfg, args[0], "")
+			r, cleanup, err := shared.Resolve(cmd.Context(), cfg, args[0], "")
 			defer cleanup()
 			if err != nil {
 				return err
@@ -57,7 +58,7 @@ func updateCmd() *cobra.Command {
 			case ap.Commit == r.Commit:
 				fmt.Fprintln(out, "no commit change since approval")
 			default:
-				fmt.Fprintf(out, "commit: %s -> %s\n", short(ap.Commit), short(r.Commit))
+				fmt.Fprintf(out, "commit: %s -> %s\n", shared.Short(ap.Commit), shared.Short(r.Commit))
 				if names := diffNames(cmd.Context(), r.Dir, ap.Commit, r.Commit); len(names) > 0 {
 					fmt.Fprintln(out, "changed files:")
 					for _, n := range names {
@@ -65,7 +66,7 @@ func updateCmd() *cobra.Command {
 					}
 				}
 			}
-			printFindings(out, report)
+			shared.PrintFindings(out, report)
 
 			if !approve {
 				fmt.Fprintln(out, "(dry run; re-run with --approve to advance the pin)")
@@ -90,7 +91,7 @@ func updateCmd() *cobra.Command {
 			if err := store.Save(); err != nil {
 				return err
 			}
-			fmt.Fprintf(out, "re-pinned %s at %s\n", r.Pkgbase, short(r.Commit))
+			fmt.Fprintf(out, "re-pinned %s at %s\n", r.Pkgbase, shared.Short(r.Commit))
 			return nil
 		},
 	}

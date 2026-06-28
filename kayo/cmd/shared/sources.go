@@ -1,4 +1,4 @@
-package cmd
+package shared
 
 import (
 	"context"
@@ -12,9 +12,9 @@ import (
 	"github.com/Hayao0819/Kamisato/pkg/aurweb"
 )
 
-// buildComposite creates and syncs the overlay and ayato sources into an
+// BuildComposite creates and syncs the overlay and ayato sources into an
 // ungated Composite, shared by the daemon and the verify command.
-func buildComposite(ctx context.Context, cfg *conf.KayoConfig) (*federate.Composite, error) {
+func BuildComposite(ctx context.Context, cfg *conf.KayoConfig) (*federate.Composite, error) {
 	comp := federate.New()
 	if len(cfg.Overlays) > 0 {
 		reg := overlay.New(cfg.ResolvedCacheDir(), cfg.Overlays)
@@ -57,8 +57,8 @@ func buildComposite(ctx context.Context, cfg *conf.KayoConfig) (*federate.Compos
 	return comp, nil
 }
 
-// upstreamClient builds the AUR upstream from config, or nil when disabled.
-func upstreamClient(cfg *conf.KayoConfig) *aurweb.AURUpstream {
+// UpstreamClient builds the AUR upstream from config, or nil when disabled.
+func UpstreamClient(cfg *conf.KayoConfig) *aurweb.AURUpstream {
 	if !cfg.Upstream.Enabled {
 		return nil
 	}
