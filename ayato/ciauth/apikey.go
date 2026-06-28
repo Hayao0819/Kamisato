@@ -28,9 +28,8 @@ func newAPIKeyAuth(cfg []conf.CIAPIKey) *apiKeyAuth {
 	return a
 }
 
-// authorize constant-time-compares the presented key against every configured
-// key without an early return, so timing does not reveal which key matched, then
-// checks the matched key's repo scope.
+// authorize constant-time-compares the presented key against every key with no
+// early return, so timing doesn't reveal which matched, then checks its repo scope.
 func (a *apiKeyAuth) authorize(presented, repo string) (*Principal, bool) {
 	p := []byte(presented)
 	matched := -1

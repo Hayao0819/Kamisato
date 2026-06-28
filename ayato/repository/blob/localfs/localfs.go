@@ -14,10 +14,8 @@ import (
 
 var _ blob.Store = (*LocalStore)(nil)
 
-// LocalStore is a blob.Store backed by the local filesystem. Like the kv
-// backends, it takes plain configuration values (the repo root and the set of
-// known repo names) rather than the conf package, keeping the IO layer
-// domain-free.
+// LocalStore takes plain config values (repo root, known repo names) rather than
+// the conf package, keeping the IO layer domain-free.
 type LocalStore struct {
 	repoDir   string
 	repoNames []string

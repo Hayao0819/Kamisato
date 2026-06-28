@@ -12,8 +12,8 @@ import (
 	"github.com/Hayao0819/Kamisato/pkg/raiou"
 )
 
-// Resolved is an audit target reduced to the facts the trust model needs: where
-// it came from, its pkgbase, the maintainer ACCOUNT that owns it, and the commit.
+// Resolved is an audit target reduced to what the trust model needs: source,
+// pkgbase, the maintainer ACCOUNT that owns it, and the commit.
 type Resolved struct {
 	Dir        string
 	Source     string
@@ -52,7 +52,6 @@ func Resolve(ctx context.Context, cfg *conf.KayoConfig, target, ref string) (Res
 	return r, cleanup, nil
 }
 
-// readPkgbase parses the .SRCINFO pkgbase, falling back to the target's basename.
 func readPkgbase(dir, fallback string) string {
 	if si, err := raiou.ParseSrcinfoFile(filepath.Join(dir, ".SRCINFO")); err == nil && si.PkgBase != "" {
 		return si.PkgBase

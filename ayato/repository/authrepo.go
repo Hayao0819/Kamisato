@@ -7,10 +7,7 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/utils"
 )
 
-// allowNS is the kv namespace holding the admin allowlist: one entry per
-// allowed GitHub id (key = decimal id, value = login label). It is the ONLY
-// persisted auth state — sessions, CLI tokens, one-time codes, and OAuth state
-// are all stateless-signed.
+// allowNS namespaces the admin allowlist, the only persisted auth state; sessions, tokens, and OAuth state are all stateless-signed.
 const allowNS = "allow"
 
 type AllowedAdmin struct {
@@ -18,24 +15,17 @@ type AllowedAdmin struct {
 	Login string `json:"login"`
 }
 
-// AuthRepository persists the auth domain's server-side state. Today that is the
-// admin allowlist; the interface is named for the domain (not the allowlist) so
-// future auth state can join without a rename. Everything is fail-closed: an
-// empty allowlist denies, unknown ids are rejected, and any non-positive id is
-// refused.
+// AuthRepository persists the admin allowlist. Fail-closed: an empty allowlist,
+// an unknown id, or a non-positive id all deny.
 //
 //go:generate mockgen -source=authrepo.go -destination=../test/mocks/authrepo.go -package=mocks
 type AuthRepository interface {
 	AddAdmin(id int64, login string) error
 	RemoveAdmin(id int64) error
-	// Fail-closed: a non-positive id or any read miss returns false, so an empty
-	// allowlist denies everyone.
 	IsAdmin(id int64) bool
 	ListAdmins() ([]AllowedAdmin, error)
 }
 
-// authRepository is the admin allowlist on the shared kv.Store, namespaced under
-// allowNS. It shares the one kv built by New with the package-metadata store.
 type authRepository struct {
 	kv kv.Store
 }

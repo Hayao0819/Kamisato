@@ -82,7 +82,6 @@ func (s *PinStore) SetLastIssued(name string, t time.Time) error {
 	return s.saveLocked()
 }
 
-// PinInfo is a read-only view of one pinned source for display.
 type PinInfo struct {
 	Name       string
 	KeyID      string
@@ -92,7 +91,6 @@ type PinInfo struct {
 	LastIssued time.Time
 }
 
-// Entries returns every pin as a display view, sorted by name.
 func (s *PinStore) Entries() []PinInfo {
 	s.mu.Lock()
 	defer s.mu.Unlock()

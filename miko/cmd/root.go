@@ -21,7 +21,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// RootCmd returns the root command for the miko build server.
 func RootCmd() *cobra.Command {
 	cmd := cobra.Command{
 		Use: "miko",

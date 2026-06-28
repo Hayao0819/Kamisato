@@ -62,10 +62,8 @@ func RootCmd() *cobra.Command {
 			h := handler.New(s, cfg)
 			m := middleware.New(cfg)
 
-			// The admin allowlist is the only persisted auth state; it rides the
-			// shared kv store behind the repository layer. Seed the bootstrap admin
-			// on first run through the service. Sessions, CLI tokens, one-time
-			// codes, and OAuth state are all stateless-signed by the signer.
+			// The admin allowlist is the only persisted auth state; sessions, CLI
+			// tokens, one-time codes, and OAuth state are all stateless-signed.
 			if err := s.SeedBootstrapAdmin(cfg.Auth.BootstrapAdminGitHubID); err != nil {
 				return utils.WrapErr(err, "failed to seed bootstrap admin")
 			}
@@ -77,9 +75,8 @@ func RootCmd() *cobra.Command {
 				h.WithAuth(signer)
 				m.WithAuth(s, signer)
 			} else {
-				// No signer: the mutating and admin routes fail closed (503) rather
-				// than allowing unauthenticated access. Configure auth.session_secret
-				// (and auth.github) to enable them.
+				// No signer: mutating and admin routes fail closed (503) rather than
+				// allowing unauthenticated access.
 				slog.Warn("authentication is not configured; mutating and admin routes will fail closed (503) until auth.session_secret and auth.github are set")
 			}
 
@@ -95,13 +92,9 @@ func RootCmd() *cobra.Command {
 			engine.Use(gin.Recovery())
 			engine.Use(utils.GinLog())
 
-			// SetTrustedProxies only affects c.ClientIP()/c.RemoteIP() (the
-			// X-Forwarded-For chain); it does NOT gate c.GetHeader, so it has no
-			// bearing on the OAuth redirect_uri or cookie Secure, which derive from
-			// Auth.PublicOrigin. Baseline: trust NO proxy, so ClientIP() returns the
-			// real peer and the spoofable X-Forwarded-For is ignored (the rate-limit
-			// key is only trustworthy this way). Only when trusted_proxies is set
-			// (lumine's CIDR) do we honor XFF from those hops.
+			// Trust no proxy by default so ClientIP() is the real peer and the
+			// spoofable X-Forwarded-For is ignored (the rate-limit key is only
+			// trustworthy this way); honor XFF only behind trusted_proxies.
 			if err := engine.SetTrustedProxies(nil); err != nil {
 				return utils.WrapErr(err, "failed to reset trusted proxies")
 			}

@@ -12,7 +12,6 @@ import (
 	"github.com/Hayao0819/Kamisato/pkg/aurweb"
 )
 
-// memKV is a minimal in-memory kv.Store for tests.
 type memKV struct {
 	data map[string]map[string][]byte
 }

@@ -12,29 +12,23 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/utils"
 )
 
-// Token type discriminators. Verify checks the envelope HMAC and expiry; callers
-// must additionally pin the expected Typ via VerifyTyp so a token minted for one
-// purpose (e.g. an OAuth state) can never be replayed as another (e.g. a
-// session).
+// Token type discriminators. Callers must pin the expected Typ via VerifyTyp so a
+// token minted for one purpose can never be replayed as another.
 const (
 	TypSession = "session"
 	TypCLI     = "cli"
 	TypCode    = "code"
 	TypState   = "state"
-	// TypBearer is the web SPA's session token: minted by the popup/postMessage
-	// login and presented as Authorization: Bearer by a cross-origin static SPA.
-	// It is distinct from TypCLI so the two delivery paths can carry different
-	// lifetimes and be reasoned about separately.
+	// TypBearer is the web SPA session token, distinct from TypCLI so the two
+	// delivery paths can carry different lifetimes.
 	TypBearer = "bearer"
 )
 
-// minSecretBytes is the minimum HMAC key length. 32 bytes (256 bits) matches the
-// SHA-256 output and keeps the key from being the weak point.
+// minSecretBytes (32) matches the SHA-256 output so the key isn't the weak point.
 const minSecretBytes = 32
 
-// Claims is the stateless token payload. The same struct backs every token type;
-// Typ disambiguates them and unused fields are omitted from the wire form. Exp
-// is always set — Verify rejects an elapsed token regardless of type.
+// Claims is the stateless token payload shared by every token type; Typ
+// disambiguates them. Exp is always set and Verify rejects an elapsed token.
 type Claims struct {
 	Typ       string
 	GitHubID  int64
@@ -49,16 +43,14 @@ type Claims struct {
 	Exp       time.Time
 }
 
-// Signer mints and verifies stateless HMAC-SHA256 tokens. secrets[0] signs; ALL
-// secrets are tried on verify, so a secret can be rotated by prepending a new
-// one while old tokens keep verifying against the trailing entries.
+// Signer mints and verifies stateless HMAC-SHA256 tokens. secrets[0] signs; all
+// secrets verify, so prepending a new secret rotates it while old tokens still verify.
 type Signer struct {
 	secrets [][]byte
 }
 
-// NewSigner builds a Signer from one or more shared secrets. The first secret
-// signs; every secret verifies. Each secret must be at least 32 bytes; an empty
-// list or any short secret is rejected (fail-closed configuration).
+// NewSigner builds a Signer from one or more shared secrets. Each must be at least
+// 32 bytes; an empty list or any short secret is rejected (fail-closed).
 func NewSigner(secrets []string) (*Signer, error) {
 	if len(secrets) == 0 {
 		return nil, utils.NewErr("auth: at least one session secret is required")
@@ -79,8 +71,7 @@ func mac(key []byte, payloadB64 string) []byte {
 	return h.Sum(nil)
 }
 
-// Sign serializes c and returns base64url(payload) + "." + base64url(HMAC). The
-// signing key is secrets[0].
+// Sign returns base64url(payload).base64url(HMAC), signed with secrets[0].
 func (s *Signer) Sign(c Claims) (string, error) {
 	payload, err := json.Marshal(c)
 	if err != nil {
@@ -91,9 +82,8 @@ func (s *Signer) Sign(c Claims) (string, error) {
 	return payloadB64 + "." + sigB64, nil
 }
 
-// Verify checks the envelope signature against every configured secret
-// (constant-time), unmarshals the payload, and rejects an expired token. It does
-// NOT check Typ — callers use VerifyTyp to pin the expected type.
+// Verify checks the signature against every secret (constant-time) and rejects an
+// expired token. It does NOT check Typ — callers use VerifyTyp for that.
 func (s *Signer) Verify(token string) (*Claims, error) {
 	payloadB64, sigB64, ok := strings.Cut(token, ".")
 	if !ok || payloadB64 == "" || sigB64 == "" {
@@ -127,8 +117,8 @@ func (s *Signer) Verify(token string) (*Claims, error) {
 	return &c, nil
 }
 
-// VerifyTyp verifies token and additionally requires its Typ to equal typ. A
-// token minted for a different purpose is rejected even with a valid signature.
+// VerifyTyp verifies token and additionally requires Typ == typ, rejecting a token
+// minted for another purpose even with a valid signature.
 func (s *Signer) VerifyTyp(token, typ string) (*Claims, error) {
 	c, err := s.Verify(token)
 	if err != nil {

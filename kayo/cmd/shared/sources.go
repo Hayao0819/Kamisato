@@ -57,7 +57,6 @@ func BuildComposite(ctx context.Context, cfg *conf.KayoConfig) (*federate.Compos
 	return comp, nil
 }
 
-// UpstreamClient builds the AUR upstream from config, or nil when disabled.
 func UpstreamClient(cfg *conf.KayoConfig) *aurweb.AURUpstream {
 	if !cfg.Upstream.Enabled {
 		return nil

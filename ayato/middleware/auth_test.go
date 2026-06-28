@@ -13,8 +13,7 @@ import (
 
 const testSecret = "0123456789abcdef0123456789abcdef" // 32 bytes
 
-// fakeChecker is a minimal adminChecker: the allowlisted ids are a static set,
-// matching the fail-closed per-request re-check the middleware relies on.
+// fakeChecker is a minimal adminChecker backed by a static allowlist.
 type fakeChecker struct {
 	allowed map[int64]bool
 }
@@ -70,9 +69,7 @@ func run(m *Middleware, allowBasic bool, mutate func(*http.Request)) *httptest.R
 	return w
 }
 
-// TestRequireAdminFailsClosedWithoutAuth: a middleware without WithAuth has no
-// checker/signer, so auth is unconfigured. RequireAdmin must fail closed (503),
-// never pass an unauthenticated request through.
+// Without WithAuth there is no checker/signer, so RequireAdmin must fail closed (503).
 func TestRequireAdminFailsClosedWithoutAuth(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	m := New(&conf.AyatoConfig{})
@@ -106,8 +103,8 @@ func TestRequireAdminBearerToken(t *testing.T) {
 
 func TestRequireAdminBearerNotAllowlisted(t *testing.T) {
 	m, signer := testMiddleware(t, 42)
-	// Signed token for an id that is NOT on the allowlist: the per-request
-	// allow.Has re-check must reject it (the de-allowlist path).
+	// Signed token for an id NOT on the allowlist: the per-request IsAdmin
+	// re-check must reject it (the de-allowlist path).
 	tok := cliToken(t, signer, 99, "mallory")
 
 	w := run(m, false, func(req *http.Request) {
@@ -143,7 +140,6 @@ func TestRequireAdminCookieRequiresSecFetch(t *testing.T) {
 		t.Fatalf("cookie without Sec-Fetch-Site: status = %d, want 403", w.Code)
 	}
 
-	// With the header set, the same cookie is accepted.
 	w = run(m, false, func(req *http.Request) {
 		req.AddCookie(&http.Cookie{Name: m.cfg.Auth.CookieName(), Value: sid})
 		req.Header.Set("Sec-Fetch-Site", "same-origin")

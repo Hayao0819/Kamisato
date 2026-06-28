@@ -20,8 +20,6 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
-// --- mock-based unit tests ---
-
 func TestServiceRepoNames(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -108,8 +106,7 @@ func TestServiceRemovePkg(t *testing.T) {
 	// ValidateRepoName -> RepoNames contains "myrepo" -> ok
 	bin.EXPECT().RepoNames().Return([]string{"myrepo"}, nil)
 	name.EXPECT().PackageFile("x86_64", "mypkg").Return("mypkg-1.0-1-x86_64.pkg.tar.zst", nil)
-	// Concrete package scoped to its own arch: de-registered from that db, then the
-	// file is deleted; Files lists no signature, so none is removed.
+	// Concrete package scoped to its arch: de-registered, file deleted; Files lists no sig, so none removed.
 	bin.EXPECT().RepoRemove("myrepo", "x86_64", "mypkg", false, gomock.Nil()).Return(nil)
 	bin.EXPECT().DeleteFile("myrepo", "x86_64", "mypkg-1.0-1-x86_64.pkg.tar.zst").Return(nil)
 	bin.EXPECT().Files("myrepo", "x86_64").Return([]string{"mypkg-1.0-1-x86_64.pkg.tar.zst", "myrepo.db"}, nil)
@@ -134,9 +131,7 @@ func TestServiceRemovePkgAny(t *testing.T) {
 
 	bin.EXPECT().RepoNames().Return([]string{"myrepo"}, nil) // ValidateRepoName
 	name.EXPECT().PackageFile("any", "mypkg").Return("mypkg-1.0-1-any.pkg.tar.zst", nil)
-	// arch="" (blinky route) on an any package: de-registered from every configured
-	// arch db; its file and signature live once under "any/" and go with the last
-	// arch.
+	// arch="" (blinky route) on an any package: de-registered from every arch db; its file and sig live once under "any/" and go with the last arch.
 	bin.EXPECT().RepoRemove("myrepo", "x86_64", "mypkg", false, gomock.Nil()).Return(nil)
 	bin.EXPECT().RepoRemove("myrepo", "aarch64", "mypkg", false, gomock.Nil()).Return(nil)
 	bin.EXPECT().DeleteFile("myrepo", "any", "mypkg-1.0-1-any.pkg.tar.zst").Return(nil)
@@ -166,8 +161,7 @@ func TestServiceRemovePkgAnyOneArch(t *testing.T) {
 	name.EXPECT().PackageFile("x86_64", "mypkg").Return("", nil) // concrete miss
 	name.EXPECT().PackageFile("any", "mypkg").Return("mypkg-1.0-1-any.pkg.tar.zst", nil)
 	bin.EXPECT().RepoRemove("myrepo", "x86_64", "mypkg", false, gomock.Nil()).Return(nil)
-	// aarch64 still lists the package, so the shared any/ file is kept: no
-	// DeleteFile and no metadata deletion.
+	// aarch64 still lists it, so the shared any/ file is kept: no DeleteFile, no metadata deletion.
 	stillThere := &repo.RemoteRepo{Pkgs: []*pkgpkg.BinaryPackage{
 		pkgpkg.NewBinaryPackage("mypkg-1.0-1-any.pkg.tar.zst", &raiou.PKGINFO{PkgName: "mypkg", Arch: "any"}),
 	}}
@@ -192,11 +186,8 @@ func TestServicePkgFilesError(t *testing.T) {
 	}
 }
 
-// --- integration test: service -> repository -> localfs (real filesystem) ---
-
 func TestServiceLocalfsIntegration(t *testing.T) {
 	repoRoot := t.TempDir()
-	// repoRoot/myrepo/x86_64/foo.pkg.tar.zst
 	archDir := filepath.Join(repoRoot, "myrepo", "x86_64")
 	if err := os.MkdirAll(archDir, 0o755); err != nil {
 		t.Fatal(err)

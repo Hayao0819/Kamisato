@@ -9,17 +9,15 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// GitHubLoginHandler starts a WEB "Sign in with GitHub" flow: it mints a signed
-// state token (carrying the browser binding) and redirects to GitHub's consent
-// page. No server-side state is written — the signed token IS the state.
+// Starts the web GitHub flow. No server-side state is written — the signed token
+// IS the state.
 func (h *Handler) GitHubLoginHandler(c *gin.Context) {
 	if !h.oauthEnabled() {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "github login not configured"})
 		return
 	}
-	// Bind the flow to THIS browser: a random nonce travels in a host-only
-	// SameSite=Lax cookie and only its hash is signed into the state. The callback
-	// requires the cookie to match, defeating login-CSRF / session fixation
+	// Bind the flow to this browser: a random nonce rides a SameSite=Lax cookie and
+	// only its hash is signed into the state, defeating login-CSRF / fixation
 	// (RFC 6749 §10.12).
 	nonce, err := auth.NewState()
 	if err != nil {
@@ -41,11 +39,8 @@ func (h *Handler) GitHubLoginHandler(c *gin.Context) {
 	c.Redirect(http.StatusFound, h.oauthConfig(c).AuthCodeURL(state))
 }
 
-// CLIStartHandler starts a CLI flow. ayaka opens this URL in the user's browser
-// with the loopback port, a PKCE S256 challenge, and a state. The loopback URL
-// is reconstructed server-side from the integer port (never a full URL); ayaka's
-// original state is carried inside the signed state token so the callback can
-// echo it back unchanged. The signed token IS the state sent to GitHub.
+// Starts the CLI flow. The loopback is reconstructed server-side from the integer
+// port (never a full URL); ayaka's state rides inside the signed state token.
 func (h *Handler) CLIStartHandler(c *gin.Context) {
 	if !h.oauthEnabled() {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "github login not configured"})
@@ -89,11 +84,8 @@ func (h *Handler) CLIStartHandler(c *gin.Context) {
 	c.Redirect(http.StatusFound, h.oauthConfig(c).AuthCodeURL(state))
 }
 
-// WebStartHandler starts a cross-origin web-bearer flow for a static SPA. The
-// SPA opens this in a popup with a PKCE S256 challenge and its own state nonce.
-// Like the CLI flow, PKCE (not a browser-binding cookie) ties the eventual code
-// to the SPA that began it, so no state cookie is set; the callback returns the
-// one-time code to the SPA via postMessage rather than a redirect.
+// Cross-origin web-bearer flow: PKCE (not a binding cookie) ties the code to the
+// SPA, so no state cookie is set; the code returns via postMessage.
 func (h *Handler) WebStartHandler(c *gin.Context) {
 	if !h.oauthEnabled() {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "github login not configured"})

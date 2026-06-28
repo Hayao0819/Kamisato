@@ -43,8 +43,7 @@ func testHandler(t *testing.T) (*Handler, service.Servicer, *auth.Signer) {
 	return h, svc, signer
 }
 
-// TestCLIStartRejectsBadPort ensures /cli/start rejects non-integer / garbage /
-// out-of-range ports with 400 (no redirect, no open-redirect surface).
+// Bad ports must 400, not redirect (no open-redirect surface).
 func TestCLIStartRejectsBadPort(t *testing.T) {
 	h, _, _ := testHandler(t)
 
@@ -61,9 +60,8 @@ func TestCLIStartRejectsBadPort(t *testing.T) {
 	}
 }
 
-// TestCLIStartAcceptsGoodPort ensures a plain integer port is accepted and the
-// flow redirects to GitHub's authorize endpoint. The state sent to GitHub is the
-// signed state token carrying the integer port, challenge, and ayaka's state.
+// A good port redirects to GitHub; the state is the signed token carrying the
+// port, challenge, and ayaka's state.
 func TestCLIStartAcceptsGoodPort(t *testing.T) {
 	h, _, signer := testHandler(t)
 	r := gin.New()
@@ -80,8 +78,8 @@ func TestCLIStartAcceptsGoodPort(t *testing.T) {
 		t.Fatalf("Location = %q, want GitHub authorize redirect", loc)
 	}
 
-	// The signed state must verify as a CLI flow carrying the integer port,
-	// challenge, and ayaka's original state — never a caller-supplied URL.
+	// State must verify as a CLI flow with the port, challenge, and ayaka's state —
+	// never a caller-supplied URL.
 	u, err := url.Parse(loc)
 	if err != nil {
 		t.Fatalf("parse Location: %v", err)
@@ -95,15 +93,12 @@ func TestCLIStartAcceptsGoodPort(t *testing.T) {
 	}
 }
 
-// TestCLILoopbackReconstructedServerSide verifies the callback's CLI branch
-// builds the loopback URL from the stored integer port only (host pinned to
-// 127.0.0.1), echoes ayaka's original state, and redirects a one-time CODE —
-// never honoring an arbitrary target and never carrying a token.
+// The loopback is built from the stored integer port only (host pinned to
+// 127.0.0.1) and the redirect carries a one-time CODE, never an arbitrary target
+// or a token.
 func TestCLILoopbackReconstructedServerSide(t *testing.T) {
 	h, _, signer := testHandler(t)
 
-	// Drive finishCLILogin directly with state claims carrying the port and the
-	// original ayaka state.
 	rec := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(rec)
 	c.Request = httptest.NewRequest(http.MethodGet, "/cb?state=s", nil)
@@ -139,9 +134,8 @@ func TestCLILoopbackReconstructedServerSide(t *testing.T) {
 	}
 }
 
-// TestGitHubLoginBindsStateToBrowser verifies the web login flow sets the
-// ayato_oauth_state cookie and signs its hash into the state binding, so a
-// callback from a different browser (no matching cookie) cannot redeem it.
+// Login sets the binding cookie and signs its hash into the state, so a callback
+// from a different browser cannot redeem it.
 func TestGitHubLoginBindsStateToBrowser(t *testing.T) {
 	h, _, signer := testHandler(t)
 	r := gin.New()
@@ -175,8 +169,8 @@ func TestGitHubLoginBindsStateToBrowser(t *testing.T) {
 		t.Fatalf("login must set the %s binding cookie", oauthStateCookieName)
 	}
 
-	// The signed state must verify, be a web (non-CLI) flow, and carry the hash
-	// of the browser-held cookie nonce as its binding.
+	// State must verify as a web (non-CLI) flow carrying the cookie nonce's hash as
+	// its binding.
 	rec, err := signer.VerifyTyp(state, auth.TypState)
 	if err != nil {
 		t.Fatalf("verify state: %v", err)

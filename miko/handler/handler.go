@@ -7,13 +7,11 @@ import (
 	"github.com/Hayao0819/Kamisato/miko/service"
 )
 
-// Handler serves the miko build API.
 type Handler struct {
 	cfg *conf.MikoConfig
 	s   service.Servicer
 
-	// logReadersMu guards logReaders, the per-job count of in-flight SSE log
-	// readers used to cap concurrent streams (see JobLogsHandler).
+	// logReadersMu guards logReaders, the per-job in-flight SSE reader count used to cap concurrent streams.
 	logReadersMu sync.Mutex
 	logReaders   map[string]int
 }

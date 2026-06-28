@@ -29,21 +29,17 @@ func (s *Service) UploadFile(repo string, files *domain.UploadFiles) error {
 	pi := p.PKGINFO()
 	slog.Info("get pkg from bin", "pkgname", pi.PkgName, "pkgver", pi.PkgVer)
 
-	// Cryptographic signature gate. Default policy (RequireSign=false) still
-	// always verifies a signature when one is present: a present-but-bad,
-	// untrusted, unknown, expired, or revoked signature is rejected regardless
-	// of RequireSign. A missing signature is allowed only when RequireSign is
-	// false. The .pkg.tar.zst was signed binary detached (--no-armor), so this
-	// uses CheckDetachedSignature.
+	// Even with RequireSign=false, a present signature is always verified: a bad,
+	// untrusted, expired, or revoked sig is rejected; only a missing sig is
+	// allowed. Signatures are binary detached (--no-armor).
 	hasSig := files.SigFile != nil
 	if s.cfg != nil && s.cfg.RequireSign && !hasSig {
 		return fmt.Errorf("package signature is required but none was provided")
 	}
 	if hasSig {
 		if s.verifier == nil {
-			// A signature is present but we have no trust root to check it
-			// against. We cannot let an unverifiable signature pass, so reject
-			// the upload rather than store a signature we never validated.
+			// A signature is present but there is no trust root to verify it;
+			// reject rather than store an unvalidated signature.
 			return fmt.Errorf("package signature present but no verify.keyring is configured to validate it")
 		}
 		if _, err := pkgFileStream.Seek(0, io.SeekStart); err != nil {
@@ -59,16 +55,16 @@ func (s *Service) UploadFile(repo string, files *domain.UploadFiles) error {
 		slog.Info("package signature verified", "pkgname", pi.PkgName, "fingerprint", fpr)
 	}
 
-	// pi.Arch comes from the uploaded package's .PKGINFO and is attacker
-	// controlled; reject anything that is not a single safe path component so it
-	// cannot escape the repo directory when used as a storage subdirectory.
+	// pi.Arch comes from attacker-controlled .PKGINFO; reject anything that is not
+	// a single safe path component so it cannot escape the repo dir as a storage
+	// subdirectory.
 	if pi.Arch == "" || strings.ContainsRune(pi.Arch, '/') || strings.Contains(pi.Arch, "..") {
 		return fmt.Errorf("invalid package arch %q", pi.Arch)
 	}
 
 	// storeArch is where the file physically lives: an arch=any package is stored
-	// once under "any/" and shared by every arch via FetchFile's fallback. dbArches
-	// are the concrete architectures whose database registers the package.
+	// once under "any/" and shared via FetchFile's fallback. dbArches are the
+	// arches whose database registers the package.
 	storeArch := pi.Arch
 	dbArches, err := s.targetArches(repo, pi.Arch)
 	if err != nil {
@@ -104,10 +100,8 @@ func (s *Service) UploadFile(repo string, files *domain.UploadFiles) error {
 		return fmt.Errorf("store file err: %s", err.Error())
 	}
 
-	// Persist the verified signature alongside the package as
-	// "<storedName>.sig". StoreFile keys the on-disk name off FileName(), so the
-	// sig stream is re-wrapped under that exact name. Verification above already
-	// rejected an unverifiable sig, so anything we reach here is trusted.
+	// StoreFile keys the on-disk name off FileName(), so re-wrap the sig under
+	// "<storedName>.sig". Verification above already rejected unverifiable sigs.
 	if hasSig {
 		if _, err := files.SigFile.Seek(0, io.SeekStart); err != nil {
 			cleanup()
@@ -140,10 +134,9 @@ func (s *Service) UploadFile(repo string, files *domain.UploadFiles) error {
 	return nil
 }
 
-// configuredArches returns the repo's configured concrete architectures, with ""
-// and "any" filtered out (pacman has no os/any database; an arch=any package is
-// registered in each concrete arch instead). It is the single arch-expansion
-// helper shared by upload, remove, and the .db read-through.
+// configuredArches returns the repo's concrete arches, dropping "" and "any"
+// (pacman has no os/any database; an arch=any package is registered in each
+// concrete arch instead).
 func (s *Service) configuredArches(repo string) []string {
 	rc := s.cfg.Repo(repo)
 	if rc == nil {
@@ -158,11 +151,9 @@ func (s *Service) configuredArches(repo string) []string {
 	return out
 }
 
-// targetArches resolves the architecture databases an uploaded package is
-// registered in. A concrete arch maps to itself. arch=any expands to every
-// configured arch of the repo, because pacman has no os/any database: an any
-// package must be in each arch's db to be installable there (its file is shared
-// from the "any/" directory by FetchFile).
+// A concrete arch maps to itself; arch=any expands to every configured arch
+// because pacman has no os/any database, so an any package must be in each
+// arch's db to be installable.
 func (s *Service) targetArches(repo, pkgArch string) ([]string, error) {
 	if pkgArch != "any" {
 		return []string{pkgArch}, nil

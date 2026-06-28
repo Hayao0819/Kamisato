@@ -72,10 +72,8 @@ func (h *Handler) JobStatsHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, h.s.Stats())
 }
 
-// JobLogsHandler streams the build logs for a job as Server-Sent Events.
-// While the job is running it tails the live joblog.Buffer; once the buffer is
-// closed the stream ends. If the job has no live buffer it falls back to the
-// accumulated text.
+// JobLogsHandler streams a job's build logs as Server-Sent Events, tailing the
+// live buffer and falling back to accumulated text when there is none.
 // GET /api/unstable/jobs/:id/logs
 func (h *Handler) JobLogsHandler(c *gin.Context) {
 	id := c.Param("id")
@@ -85,8 +83,7 @@ func (h *Handler) JobLogsHandler(c *gin.Context) {
 		return
 	}
 
-	// Cap concurrent SSE readers per job so one job cannot tie up an unbounded
-	// number of long-lived streaming goroutines.
+	// Cap concurrent SSE readers per job to bound long-lived streaming goroutines.
 	maxReaders := 8
 	if h.cfg != nil && h.cfg.MaxLogReaders > 0 {
 		maxReaders = h.cfg.MaxLogReaders
@@ -121,8 +118,7 @@ func (h *Handler) JobLogsHandler(c *gin.Context) {
 
 	ctx := c.Request.Context()
 
-	// Per-flush write deadline: a stuck/slow client makes Flush error out instead
-	// of pinning this goroutine forever.
+	// Per-flush write deadline: a stuck client makes Flush error instead of pinning this goroutine.
 	rc := http.NewResponseController(c.Writer)
 	const flushDeadline = 30 * time.Second
 
@@ -133,8 +129,7 @@ func (h *Handler) JobLogsHandler(c *gin.Context) {
 
 	offset := 0
 	emit := func() bool {
-		// BytesFrom reads closed atomically with the bytes, so a final write
-		// isn't missed, and returns only the new chunk beyond offset.
+		// BytesFrom reads closed atomically with the bytes, so the final write isn't missed.
 		chunk, total, closed := job.Log.BytesFrom(offset)
 		if len(chunk) > 0 {
 			lines := strings.Split(string(chunk), "\n")

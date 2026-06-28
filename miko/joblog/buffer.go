@@ -9,14 +9,12 @@ import (
 	"sync"
 )
 
-// Buffer is an append-only log buffer. It implements io.Writer (the build
-// backend writes to it) and lets readers wait for new bytes from an offset
-// until the buffer is closed.
+// Buffer is an append-only log buffer implementing io.Writer; readers wait for
+// new bytes from an offset until it is closed.
 type Buffer struct {
 	mu sync.Mutex
-	// maxBytes caps the accumulated log size to bound memory; <= 0 means
-	// unbounded. Once reached, further writes are dropped after a one-time
-	// truncation marker so a runaway build cannot exhaust memory.
+	// maxBytes caps accumulated log size to bound memory (<= 0 means unbounded).
+	// Past the cap, writes are dropped after a one-time truncation marker.
 	maxBytes  int
 	truncated bool
 	cond      *sync.Cond
@@ -31,10 +29,9 @@ func New(maxBytes int) *Buffer {
 	return b
 }
 
-// Write appends p and wakes any blocked readers. It never returns an error.
-// Once the buffer reaches maxBytes the payload is dropped (a one-time truncation
-// marker is appended instead) but Write still reports len(p) written so the
-// caller's io.Copy does not abort.
+// Write appends p and wakes blocked readers; it never errors. Past maxBytes the
+// payload is dropped, but Write still reports len(p) so the caller's io.Copy
+// does not abort.
 func (b *Buffer) Write(p []byte) (int, error) {
 	b.mu.Lock()
 	if b.maxBytes > 0 && b.buf.Len() >= b.maxBytes {
@@ -81,10 +78,9 @@ func (b *Buffer) Closed() bool {
 	return b.closed
 }
 
-// BytesFrom returns a copy of the bytes from offset onward without blocking,
-// along with the current total length and the closed flag. offset is clamped to
-// [0, total], mirroring WaitFrom. Callers advance their offset by the returned
-// total, so each byte is emitted exactly once.
+// BytesFrom returns a copy of the bytes from offset onward without blocking, plus
+// the total length and closed flag. offset is clamped to [0, total]; callers
+// advance offset by total so each byte is emitted exactly once.
 func (b *Buffer) BytesFrom(offset int) (data []byte, total int, closed bool) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -103,9 +99,8 @@ func (b *Buffer) BytesFrom(offset int) (data []byte, total int, closed bool) {
 }
 
 // WaitFrom blocks until there are bytes beyond offset or the buffer is closed,
-// then returns a copy of the bytes from offset onward together with the closed
-// flag. When closed and no new bytes remain it returns (nil, true). The caller
-// advances offset by len(data) and loops until closed.
+// then returns a copy from offset onward with the closed flag. Returns (nil, true)
+// when closed with nothing new; the caller advances offset by len(data) and loops.
 func (b *Buffer) WaitFrom(offset int) (data []byte, closed bool) {
 	b.mu.Lock()
 	defer b.mu.Unlock()

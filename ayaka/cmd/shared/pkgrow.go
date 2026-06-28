@@ -9,8 +9,7 @@ import (
 	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
 )
 
-// PkgRow is one line of `ayaka list` output. Its fields are the columns a
-// --format template can reference (e.g. {{.Package}}).
+// PkgRow is one `ayaka list` row; its fields are the columns a --format template references (e.g. {{.Package}}).
 type PkgRow struct {
 	Repo      string `json:"repo"`
 	Package   string `json:"package"`
@@ -20,14 +19,12 @@ type PkgRow struct {
 	Build     string `json:"build"`
 }
 
-// DefaultListFormat shows every column with a header. It is the Docker-style
-// `table` form so the output aligns and is labelled by default.
+// DefaultListFormat is the Docker-style `table` form: every column, aligned, with a header.
 const DefaultListFormat = "table {{.Package}}\t{{.Installed}}\t{{.Local}}\t{{.Remote}}\t{{.Build}}"
 
-// BuildPkgRows assembles one row per source package. The remote version, miko
-// build status, and installed version are gathered best-effort and only when
-// the format actually references those columns, so a local-only format stays
-// fast and works offline.
+// BuildPkgRows builds one row per source package. Remote version, build status,
+// and installed version are fetched only when the format references them, so a
+// local-only format stays fast and offline.
 func BuildPkgRows(repos []*repo.SourceRepo, format, server string) []PkgRow {
 	wantRemote := formatNeeds(format, "Remote")
 	wantBuild := formatNeeds(format, "Build")
@@ -78,8 +75,7 @@ func BuildPkgRows(repos []*repo.SourceRepo, format, server string) []PkgRow {
 	return rows
 }
 
-// formatNeeds reports whether the format string references the given field,
-// so the expensive lookup behind that column can be skipped otherwise.
+// formatNeeds reports whether format references field, gating that column's lookup.
 func formatNeeds(format, field string) bool {
 	if format == "json" {
 		return true
@@ -96,9 +92,9 @@ func firstInstalled(installed map[string]string, names []string) string {
 	return ""
 }
 
-// LatestJobStatus returns the status of the most recent miko job that built the
-// package in the repo. A job matches when its repo agrees and it either targets
-// one of the package names or is a whole-repo build (no packages listed).
+// LatestJobStatus returns the status of the latest miko job for the package. A
+// job matches on repo and either a named package or a whole-repo build (no
+// packages listed).
 func LatestJobStatus(jobs []ayatoclient.Job, repoName string, names []string) string {
 	want := make(map[string]bool, len(names))
 	for _, n := range names {
@@ -129,8 +125,7 @@ func LatestJobStatus(jobs []ayatoclient.Job, repoName string, names []string) st
 	return status
 }
 
-// ayatoBaseBestEffort returns the ayato base URL for build-status lookups: the
-// --server value, else the serverdb default, else "" when neither is set.
+// ayatoBaseBestEffort resolves the ayato base URL: --server, else serverdb default, else "".
 func ayatoBaseBestEffort(server string) string {
 	if server != "" {
 		return server
@@ -142,8 +137,7 @@ func ayatoBaseBestEffort(server string) string {
 	return db.DefaultServer
 }
 
-// orDash renders an empty value as "-" so columns stay aligned and obviously
-// empty.
+// orDash renders an empty value as "-" so columns stay aligned.
 func orDash(s string) string {
 	if s == "" {
 		return "-"

@@ -17,7 +17,6 @@ func newTestAuthRepo(t *testing.T) AuthRepository {
 }
 
 func TestAuthRepoFailClosed(t *testing.T) {
-	// Empty allowlist denies everyone.
 	r := newTestAuthRepo(t)
 	if r.IsAdmin(1) {
 		t.Fatalf("empty allowlist must deny id 1")
@@ -26,7 +25,6 @@ func TestAuthRepoFailClosed(t *testing.T) {
 		t.Fatalf("non-positive ids must be denied")
 	}
 
-	// AddAdmin rejects non-positive ids.
 	if err := r.AddAdmin(0, "x"); err == nil {
 		t.Fatalf("AddAdmin(0) must be rejected")
 	}
@@ -34,7 +32,6 @@ func TestAuthRepoFailClosed(t *testing.T) {
 		t.Fatalf("AddAdmin(-1) must be rejected")
 	}
 
-	// Unknown id is denied even with another id present.
 	if err := r.AddAdmin(42, "alice"); err != nil {
 		t.Fatalf("AddAdmin: %v", err)
 	}

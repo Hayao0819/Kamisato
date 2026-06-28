@@ -10,8 +10,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// ayatoListCmd shows the configured ayato sources next to the keys kayo has
-// pinned (whether hard-pinned in config or learned via TOFU).
 func ayatoListCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "list",

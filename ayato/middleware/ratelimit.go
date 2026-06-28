@@ -10,16 +10,14 @@ import (
 	"golang.org/x/time/rate"
 )
 
-// rlEntry is a per-client token-bucket limiter with a last-seen timestamp used
-// by the idle sweep to evict stale clients.
+// rlEntry pairs a client's limiter with a last-seen time for the idle sweep.
 type rlEntry struct {
 	limiter  *rate.Limiter
 	lastSeen time.Time
 }
 
-// rateLimiter is the shared per-IP limiter state behind RateLimit. A background
-// ticker evicts clients idle longer than rlIdleTTL so the map cannot grow
-// unbounded under churn (e.g. rotating source IPs).
+// rateLimiter is the shared per-IP limiter state behind RateLimit. Idle clients
+// are swept so the map can't grow unbounded under IP churn.
 type rateLimiter struct {
 	mu       sync.Mutex
 	clients  map[string]*rlEntry
@@ -29,16 +27,12 @@ type rateLimiter struct {
 }
 
 const (
-	// rlIdleTTL is how long a client may sit idle before its limiter is evicted.
-	rlIdleTTL = 10 * time.Minute
-	// rlSweepEvery is the eviction sweep interval.
+	rlIdleTTL    = 10 * time.Minute
 	rlSweepEvery = time.Minute
 )
 
-// RateLimit returns a per-IP rate-limiting middleware: each client IP gets its
-// own token bucket of rate r with the given burst. Requests over the limit are
-// rejected with 429 and a Retry-After header. The limiter map is swept on a
-// background ticker so idle clients are evicted and memory stays bounded.
+// RateLimit returns a per-IP token-bucket middleware (rate r, given burst) that
+// rejects excess requests with 429 and a Retry-After header.
 func (m *Middleware) RateLimit(r rate.Limit, burst int) gin.HandlerFunc {
 	rl := &rateLimiter{
 		clients: make(map[string]*rlEntry),
@@ -66,8 +60,6 @@ func (m *Middleware) RateLimit(r rate.Limit, burst int) gin.HandlerFunc {
 	}
 }
 
-// limiterFor returns the client's limiter, lazily creating it, and refreshes its
-// last-seen timestamp.
 func (rl *rateLimiter) limiterFor(ip string) *rate.Limiter {
 	rl.mu.Lock()
 	defer rl.mu.Unlock()
@@ -80,7 +72,7 @@ func (rl *rateLimiter) limiterFor(ip string) *rate.Limiter {
 	return e.limiter
 }
 
-// startSweeper launches the idle-eviction loop once per limiter.
+// startSweeper launches the idle-eviction loop, at most once.
 func (rl *rateLimiter) startSweeper() {
 	rl.mu.Lock()
 	if rl.sweepRun {

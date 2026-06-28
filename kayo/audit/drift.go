@@ -8,11 +8,9 @@ import (
 	"mvdan.cc/sh/v3/syntax"
 )
 
-// driftCheck flags where the committed .SRCINFO (the machine-readable metadata
-// helpers parse) understates or contradicts the PKGBUILD that actually runs —
-// the "manifest confusion" class. It is static: the PKGBUILD is parsed, never
-// executed, so a dynamic pkgver() or $()-built value can't be resolved and is
-// skipped rather than guessed.
+// driftCheck flags "manifest confusion": where the committed .SRCINFO contradicts
+// the PKGBUILD that runs. Static only — a dynamic pkgver() or $()-built value can't
+// be resolved, so it is skipped rather than guessed.
 func driftCheck(pkgbuild []byte, si *raiou.SRCINFO) []Finding {
 	decl, dynamicVer := declared(pkgbuild)
 	var out []Finding
@@ -39,9 +37,8 @@ func driftCheck(pkgbuild []byte, si *raiou.SRCINFO) []Finding {
 	return out
 }
 
-// declared extracts literal top-level assignments (scalars and arrays) from the
-// PKGBUILD AST, and reports whether a pkgver() function makes the version
-// dynamic. Non-literal values (expansions, command substitutions) are omitted.
+// declared extracts literal top-level assignments from the PKGBUILD AST; the bool
+// reports whether a pkgver() makes the version dynamic. Non-literals are omitted.
 func declared(src []byte) (map[string][]string, bool) {
 	f, err := syntax.NewParser(syntax.Variant(syntax.LangBash)).Parse(bytes.NewReader(src), "PKGBUILD")
 	if err != nil {

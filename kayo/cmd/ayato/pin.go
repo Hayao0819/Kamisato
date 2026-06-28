@@ -10,8 +10,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// ayatoPinCmd fetches the key a source currently advertises and prints it so the
-// operator can paste it into config as a hard pin, upgrading from TOFU.
 func ayatoPinCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "pin <name>",

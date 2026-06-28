@@ -23,10 +23,8 @@ func (s *Service) ListAdmins() ([]repository.AllowedAdmin, error) {
 	return s.authRepo.ListAdmins()
 }
 
-// SeedBootstrapAdmin seeds id onto the allowlist when id > 0 and the allowlist is
-// currently empty, matching the previous on-disk bootstrap behaviour. A
-// bootstrap id <= 0 is ignored (no seed), leaving the allowlist empty
-// (fail-closed: denies all).
+// SeedBootstrapAdmin seeds id only when the allowlist is empty; id <= 0 is
+// ignored, leaving the allowlist empty (fail-closed: denies all).
 func (s *Service) SeedBootstrapAdmin(id int64) error {
 	if id <= 0 {
 		return nil

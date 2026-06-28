@@ -14,15 +14,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// hookUploadCmd is the hook's runtime entry point. pacman feeds it the installed
-// package names; it locates each one's built file and uploads it to the repo.
-//
-// IMPORTANT: pacman does NOT copy `pacman -U`-installed files (how makepkg/paru/
-// yay install a locally-built package) into CacheDir, so the cache alone cannot
-// locate foreign packages — exactly the ones this hook exists to publish. Set
-// makepkg's PKGDEST (or pass --build-dir) to a persistent directory so built
-// packages land somewhere the hook can find them; that directory is searched
-// before the cache. A package whose file is found nowhere is logged and skipped.
+// hookUploadCmd is the hook's pacman entry point. pacman does not copy
+// `pacman -U`-installed files (locally-built foreign packages) into CacheDir, so
+// set makepkg's PKGDEST or --build-dir; those dirs are searched before the cache.
 func hookUploadCmd() *cobra.Command {
 	var repo, pacmanConf string
 	var cacheOverride, buildDirs []string
@@ -43,9 +37,9 @@ func hookUploadCmd() *cobra.Command {
 				return nil
 			}
 
-			// By default only publish foreign packages (AUR/locally built); the
-			// hook's Target=* otherwise fires for every official-repo package in a
-			// -Syu, which already lives on mirrors and shouldn't flood the repo.
+			// By default only publish foreign (AUR/local) packages; the hook's
+			// Target=* otherwise fires for every official-repo package, which
+			// already lives on mirrors.
 			if !all {
 				foreign, err := alpm.ForeignPackages()
 				if err != nil {
@@ -88,14 +82,10 @@ func hookUploadCmd() *cobra.Command {
 				// The hook runs as root, so this resolves against root's server db.
 				return utils.WrapErr(err, "resolving the ayato server/credentials (set up root's db with 'sudo ayaka server login')")
 			}
-			// pacman blocks until a PostTransaction hook exits, and the blinky
-			// client uses http.DefaultClient with no timeout, so a stalled or
-			// unreachable server would hang the whole transaction. Bound the
-			// request so that on the deadline the client aborts the in-flight
-			// upload (it is cancelled, not left running in the background) and
-			// returns an error. Mutating the process-global client is safe here:
-			// this hook is a one-shot invocation whose only network call is this
-			// upload.
+			// pacman blocks until a PostTransaction hook exits and blinky uses
+			// http.DefaultClient (no timeout), so a stalled server would hang the
+			// whole transaction. Bound it; mutating the global client is safe in
+			// this one-shot.
 			http.DefaultClient.Timeout = timeout
 			if err := client.UploadPackageFiles(repo, files...); err != nil {
 				return utils.WrapErr(err, "failed to upload packages (the server may be slow or unreachable)")

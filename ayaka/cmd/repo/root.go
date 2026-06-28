@@ -4,9 +4,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// Cmd groups the commands that publish to and prune the distribution repo
-// on ayato. The verbs mirror Arch's repo-add / repo-remove: `repo add` uploads
-// built package files, `repo remove` takes them back out.
+// Cmd groups the commands that publish to and prune the ayato distribution repo,
+// mirroring Arch's repo-add / repo-remove.
 func Cmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "repo",

@@ -1,17 +1,9 @@
-// Package cfkv implements kv.Store on top of Cloudflare Workers KV. Keys are
-// namespaced by joining ns and key with a NUL byte (ns + "\x00" + key); List
-// uses the Workers KV list-keys API filtered by the namespace prefix.
+// Package cfkv implements kv.Store on top of Cloudflare Workers KV.
 //
-// Workers KV is eventually consistent, so a write may not be immediately visible
-// to a subsequent read on a different edge node. That is acceptable for the
-// package-metadata read-through cache that rides this store, but callers needing
-// read-after-write should not assume it.
-//
-// The admin allowlist also rides this store. Because of eventual consistency,
-// REMOVING an admin (de-allowlisting) may not take effect immediately on every
-// edge node, briefly leaving a removed admin able to act until the delete
-// propagates. Deployments that need strict, immediate revocation should use a
-// strongly-consistent DBType (sql) or the embedded badgerdb for the KV.
+// Workers KV is eventually consistent: a write may not be immediately visible on
+// another edge node, and de-allowlisting an admin may briefly leave them able to
+// act until the delete propagates. Deployments needing strict, immediate
+// revocation should use the sql or badger backend instead.
 package cfkv
 
 import (
@@ -57,9 +49,7 @@ func (s *Store) accountIdentifier() *cloudflare.ResourceContainer {
 
 func composite(ns, key string) string { return ns + sep + key }
 
-// A Cloudflare not-found is mapped to kv.ErrNotFound (the previous
-// package-metadata wrapper instead returned ("", nil), which this fixes so
-// misses surface uniformly).
+// A Cloudflare not-found is mapped to kv.ErrNotFound so misses surface uniformly.
 func (s *Store) Get(ns, key string) ([]byte, error) {
 	v, err := s.client.GetWorkersKV(s.ctx, s.accountIdentifier(), cloudflare.GetWorkersKVParams{
 		NamespaceID: s.namespaceId,
@@ -75,10 +65,9 @@ func (s *Store) Get(ns, key string) ([]byte, error) {
 	return v, nil
 }
 
-// A positive ttl uses Workers KV's native expiration_ttl (via the bulk-write
-// API, the only WriteWorkers* params that carries a TTL); ttl == 0 writes
-// without expiry. Cloudflare rejects a TTL below 60 seconds, so this is best
-// used with minute-scale or no expiry.
+// A positive ttl uses Workers KV's native expiration_ttl, which only the
+// bulk-write API carries; ttl == 0 writes without expiry. Cloudflare rejects a
+// TTL below 60s, so use minute-scale or no expiry.
 func (s *Store) Set(ns, key string, value []byte, ttl time.Duration) error {
 	if ttl <= 0 {
 		_, err := s.client.WriteWorkersKVEntry(s.ctx, s.accountIdentifier(), cloudflare.WriteWorkersKVEntryParams{
@@ -107,9 +96,9 @@ func (s *Store) Delete(ns, key string) error {
 	return utils.WrapErr(err, "cfkv: delete")
 }
 
-// List pages through the Workers KV list-keys API filtered by the namespace
-// prefix and fetches each value (the list API returns key names only). Expired
-// keys are excluded by Cloudflare from the listing.
+// List pages through the Workers KV list-keys API by namespace prefix, fetching
+// each value separately (the list API returns key names only). Cloudflare
+// excludes expired keys from the listing.
 func (s *Store) List(ns string) ([]kv.Entry, error) {
 	prefix := ns + sep
 	var out []kv.Entry

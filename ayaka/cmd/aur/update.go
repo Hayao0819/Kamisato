@@ -5,7 +5,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// aurUpdateCmd pulls already-tracked AUR packages in a source repository.
 func aurUpdateCmd() *cobra.Command {
 	var force bool
 	const aurBase = "https://aur.archlinux.org"
@@ -20,7 +19,6 @@ func aurUpdateCmd() *cobra.Command {
 			}
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		},
-		// TODO: update every tracked package when no package name is given.
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runAurFetch(cmd, args[0], args[1:], aurBase, force)
 		},

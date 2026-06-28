@@ -14,7 +14,6 @@ import (
 	"github.com/Hayao0819/Kamisato/pkg/aurweb"
 )
 
-// Syncer is a source that can refresh itself.
 type Syncer interface {
 	Sync(ctx context.Context) error
 }
@@ -56,8 +55,6 @@ func (c *Composite) SetGate(store *trust.Store, mode string) {
 	c.store, c.mode = store, mode
 }
 
-// Add registers a source in a trust tier under a namespace. A higher tier
-// always wins a collision; priority only breaks ties within a tier.
 func (c *Composite) Add(b aurweb.Backend, tier Tier, priority int, source string) {
 	c.add(entry{backend: b, tier: tier, priority: priority, source: source})
 }

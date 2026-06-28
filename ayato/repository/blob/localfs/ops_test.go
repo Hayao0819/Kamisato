@@ -2,8 +2,7 @@ package localfs
 
 import "testing"
 
-// TestValidatePathComponentRejectsTraversal locks the guard that keeps an
-// attacker-controlled package arch / filename from escaping the repo directory.
+// Locks the guard against attacker-controlled arch / filename escaping the repo dir.
 func TestValidatePathComponentRejectsTraversal(t *testing.T) {
 	bad := []string{"", ".", "..", "../x", "a/b", "x/../y", "/abs", "etc/passwd"}
 	for _, c := range bad {

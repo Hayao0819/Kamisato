@@ -40,7 +40,7 @@ func DetectType(r io.Reader) (FileType, error) {
 
 		parts := strings.SplitN(trimmed, "=", 2)
 		if len(parts) != 2 {
-			continue // invalid line, skip; not useful for type detection
+			continue
 		}
 		key := strings.TrimSpace(parts[0])
 		value := strings.TrimSpace(parts[1])
@@ -48,7 +48,7 @@ func DetectType(r io.Reader) (FileType, error) {
 		switch key {
 		case "format":
 			if value == "2" {
-				return TypeBUILDINFO, nil //  specific to BUILDINFO
+				return TypeBUILDINFO, nil
 			}
 		case "pkgarch", "pkgbuild_sha256sum", "builddir", "startdir", "buildtool", "buildtoolver", "buildenv", "options", "installed":
 			return TypeBUILDINFO, nil // keywords specific to BUILDINFO

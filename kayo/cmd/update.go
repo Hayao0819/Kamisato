@@ -14,9 +14,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// updateCmd reviews what changed since the approved commit (feature 3): a
-// changed maintainer account, the commit delta and changed files, and a fresh
-// audit. With --approve it advances the pin.
 func updateCmd() *cobra.Command {
 	var approve, force bool
 	cmd := &cobra.Command{
@@ -76,7 +73,6 @@ func updateCmd() *cobra.Command {
 				return utils.NewErr("refusing to approve: high-severity findings (use --force)")
 			}
 
-			// Re-pin the served tree to the newly approved commit.
 			if err := gitserve.Materialize(cmd.Context(), cfg.ServedRoot(), r.Pkgbase, r.Dir, r.Commit); err != nil {
 				return utils.WrapErr(err, "failed to re-pin reviewed commit")
 			}
@@ -100,8 +96,8 @@ func updateCmd() *cobra.Command {
 	return cmd
 }
 
-// diffNames lists files changed between two commits, best-effort (empty on any
-// error, e.g. a force-pushed history where the old commit is gone).
+// diffNames lists files changed between two commits, best-effort: empty on any error,
+// e.g. a force-pushed history where the old commit is gone.
 func diffNames(ctx context.Context, dir, from, to string) []string {
 	if from == "" || to == "" {
 		return nil

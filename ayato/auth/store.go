@@ -1,11 +1,8 @@
-// Package auth implements ayato's GitHub-OAuth authentication subsystem. All
-// auth state is stateless-signed (web sessions, CLI tokens, one-time CLI codes,
-// and pending OAuth states are HMAC-signed envelopes carried by the client)
-// EXCEPT the admin allowlist, which is the single piece of server-side state.
-// That allowlist is persisted by the repository layer (AuthRepository) and
-// reached through the service; this package only mints/verifies signed envelopes
-// and never touches storage. Everything is fail-closed: an empty allowlist
-// denies, unknown ids are rejected, and signature checks are constant-time.
+// Package auth implements ayato's GitHub-OAuth auth. Every auth artifact (web
+// sessions, CLI tokens, one-time codes, pending OAuth states) is a stateless
+// HMAC-signed envelope carried by the client, so this package mints/verifies but
+// never touches storage. Fail-closed throughout; the admin allowlist is the only
+// server-side state and lives in the repository layer, not here.
 package auth
 
 import (
@@ -17,7 +14,6 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/utils"
 )
 
-// randToken returns n random bytes encoded as URL-safe base64 without padding.
 func randToken(n int) (string, error) {
 	b := make([]byte, n)
 	if _, err := rand.Read(b); err != nil {
@@ -26,13 +22,12 @@ func randToken(n int) (string, error) {
 	return base64.RawURLEncoding.EncodeToString(b), nil
 }
 
-// NewState returns a fresh crypto-random nonce. It is used to mint the web
-// OAuth binding nonce (only its hash is signed into the state token) and as the
-// CLI fallback state echoed back on the loopback redirect.
+// NewState returns a fresh crypto-random nonce: the web OAuth binding nonce (only
+// its hash is signed into the state token) and the CLI loopback fallback state.
 func NewState() (string, error) { return randToken(32) }
 
-// HashHex returns the hex SHA-256 of s. Used to bind the web OAuth state token
-// to a browser-held cookie nonce without carrying the plaintext nonce.
+// HashHex returns the hex SHA-256 of s, used to bind the OAuth state token to a
+// browser cookie nonce without carrying the plaintext nonce.
 func HashHex(s string) string {
 	sum := sha256.Sum256([]byte(s))
 	return fmt.Sprintf("%x", sum[:])

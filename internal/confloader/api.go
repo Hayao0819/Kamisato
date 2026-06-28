@@ -2,7 +2,6 @@ package confloader
 
 import "github.com/spf13/pflag"
 
-// SimpleLoad loads config from directories and filenames only.
 func SimpleLoad[T any](dir []string, files []string) (*T, error) {
 	l := New[T](".").Dirs(dir...).Files(files...)
 	if err := l.Load(); err != nil {
@@ -11,7 +10,6 @@ func SimpleLoad[T any](dir []string, files []string) (*T, error) {
 	return l.Get()
 }
 
-// Load loads config by merging files, environment variables and pflag.
 func Load[T any](
 	dirs []string,
 	files []string,

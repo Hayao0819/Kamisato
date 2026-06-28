@@ -1,7 +1,6 @@
-// Package ayato makes a remote ayato instance act as a kayo package source. It
-// fetches the instance's catalog (its own-hosted PKGBUILDs plus their git URLs)
-// and implements aurweb.Backend so kayo can federate ayato alongside local git
-// overlays and the upstream AUR.
+// Package ayato makes a remote ayato instance act as a kayo package source: it
+// fetches the instance's catalog and implements aurweb.Backend so kayo can federate
+// ayato alongside local git overlays and the upstream AUR.
 package ayato
 
 import (
@@ -19,7 +18,6 @@ const (
 	maxCatalogBytes = 32 << 20
 )
 
-// Options configures a Source.
 type Options struct {
 	Name, BaseURL   string
 	PubKey          string        // explicit hard pin (base64); "" => trust-on-first-use or Insecure

@@ -14,11 +14,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// GitHubCallbackHandler completes both web and CLI flows: it verifies the signed
-// state, exchanges the code for an access token, resolves the GitHub identity,
-// applies the fail-closed allowlist check, and then either sets a signed session
-// cookie (web) or redirects a one-time CODE to the loopback (CLI). The GitHub
-// access token is discarded once identity is resolved.
+// Completes both the web and CLI OAuth flows.
 func (h *Handler) GitHubCallbackHandler(c *gin.Context) {
 	if !h.oauthEnabled() {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "github login not configured"})
@@ -30,9 +26,8 @@ func (h *Handler) GitHubCallbackHandler(c *gin.Context) {
 		return
 	}
 
-	// Cookie web flow: the state must be redeemed by the SAME browser that began
-	// it. The binding cookie is single-use, so clear it regardless of the outcome.
-	// The CLI and web-bearer flows bind via PKCE instead, so they skip this check.
+	// Web cookie flow: the state must be redeemed by the same browser (binding
+	// cookie, cleared either way). CLI and web-bearer flows bind via PKCE instead.
 	if !st.CLI && !st.Web {
 		scheme, _ := h.externalBase(c)
 		nonce, cerr := c.Cookie(oauthStateCookieName)
@@ -74,8 +69,7 @@ func (h *Handler) GitHubCallbackHandler(c *gin.Context) {
 	h.finishWebLogin(c, user)
 }
 
-// resolveGitHubUser exchanges the code for a token, calls GET /user, and
-// discards the token. Any error fails closed (returns ok=false).
+// Any error fails closed (ok=false).
 func (h *Handler) resolveGitHubUser(c *gin.Context, code string) (githubUser, bool) {
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 15*time.Second)
 	defer cancel()
@@ -93,9 +87,7 @@ func (h *Handler) resolveGitHubUser(c *gin.Context, code string) (githubUser, bo
 	}
 	req.Header.Set("Authorization", "Bearer "+tok.AccessToken)
 	req.Header.Set("Accept", "application/vnd.github+json")
-	// The access token's only use is this single /user call; it is never stored
-	// (no session/token record keeps it), so it is discarded when this function
-	// returns.
+	// The access token is used only for this /user call and never stored.
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		slog.Warn("github /user request failed", "error", err)
@@ -113,10 +105,8 @@ func (h *Handler) resolveGitHubUser(c *gin.Context, code string) (githubUser, bo
 	return u, true
 }
 
-// finishWebLogin mints a fresh signed session token (fixation defense: a new
-// envelope is issued every login, no stored sid to keep), sets a host-only
-// HttpOnly SameSite=Lax cookie (Secure when the external scheme is https), and
-// redirects to "/" (never an attacker-supplied target).
+// Fresh session token every login (fixation defense); redirects to "/" only,
+// never an attacker-supplied target.
 func (h *Handler) finishWebLogin(c *gin.Context, user githubUser) {
 	value, err := h.signer.Sign(auth.Claims{
 		Typ:      auth.TypSession,
@@ -133,9 +123,8 @@ func (h *Handler) finishWebLogin(c *gin.Context, user githubUser) {
 	c.Redirect(http.StatusFound, "/")
 }
 
-// finishCLILogin mints a one-time signed CODE (never a token) and redirects it to
-// the server-reconstructed loopback, echoing ayaka's ORIGINAL state back so its
-// own state-equality check passes. No session cookie is set for CLI.
+// Returns a one-time CODE (never a token) to the server-reconstructed loopback,
+// echoing ayaka's original state so its state-equality check passes.
 func (h *Handler) finishCLILogin(c *gin.Context, st *auth.Claims, user githubUser) {
 	oneTime, err := h.signer.Sign(auth.Claims{
 		Typ:       auth.TypCode,
@@ -148,8 +137,7 @@ func (h *Handler) finishCLILogin(c *gin.Context, st *auth.Claims, user githubUse
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "code"})
 		return
 	}
-	// Reconstruct the loopback URL server-side from the integer port only and
-	// echo ayaka's original state (carried in the signed state token).
+	// Build the loopback from the integer port only, never a caller-supplied URL.
 	target := url.URL{
 		Scheme:   "http",
 		Host:     "127.0.0.1:" + strconv.Itoa(st.Port),
@@ -159,9 +147,8 @@ func (h *Handler) finishCLILogin(c *gin.Context, st *auth.Claims, user githubUse
 	c.Redirect(http.StatusFound, target.String())
 }
 
-// finishWebBearerLogin mints a one-time signed CODE (Web=true) and returns it to
-// the SPA through the postMessage bridge page — never a token. The SPA redeems
-// the code at /auth/web/exchange with its PKCE verifier. No session cookie is set.
+// Returns a one-time CODE (never a token) to the SPA via the postMessage bridge;
+// redeemed at /auth/web/exchange with PKCE.
 func (h *Handler) finishWebBearerLogin(c *gin.Context, st *auth.Claims, user githubUser) {
 	oneTime, err := h.signer.Sign(auth.Claims{
 		Typ:       auth.TypCode,

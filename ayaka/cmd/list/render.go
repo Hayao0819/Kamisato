@@ -11,8 +11,7 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/utils"
 )
 
-// pkgHeader is rendered through the format template to produce the table header
-// row, the same way Docker derives headers from the format string.
+// pkgHeader is run through the format template to produce the table header row, as Docker does.
 var pkgHeader = shared.PkgRow{
 	Repo:      "REPO",
 	Package:   "PACKAGE",
@@ -22,9 +21,9 @@ var pkgHeader = shared.PkgRow{
 	Build:     "BUILD",
 }
 
-// renderRows writes the rows according to the format string. "json" emits one
-// JSON object per line; a "table " prefix aligns the columns under a header;
-// any other template is executed per row with no header.
+// renderRows writes rows per the format: "json" emits one object per line, a
+// "table " prefix aligns columns under a header, any other template runs per row
+// with no header.
 func renderRows(out io.Writer, format string, rows []shared.PkgRow) error {
 	if format == "json" {
 		enc := json.NewEncoder(out)

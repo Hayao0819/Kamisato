@@ -11,9 +11,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// Cmd regenerates the .SRCINFO files of the source packages. With no
-// argument it covers every configured repository; pass a repo name to limit it
-// to one.
+// Cmd regenerates .SRCINFO files; with no argument it covers every configured repository.
 func Cmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "srcinfo [repo]",

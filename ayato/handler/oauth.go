@@ -38,21 +38,15 @@ type githubUser struct {
 	Login string `json:"login"`
 }
 
-// oauthEnabled reports whether the GitHub login flow is configured. Auth is
-// "wired" when the signer is present (the service, which owns the allowlist, is
-// always present); GitHub login additionally needs the client id/secret.
+// GitHub login needs the signer wired plus a configured client id/secret.
 func (h *Handler) oauthEnabled() bool {
 	return h.signer != nil && h.cfg != nil && h.cfg.Auth.GitHub.ClientID != "" && h.cfg.Auth.GitHub.ClientSecret != ""
 }
 
-// externalBase returns ayato's OWN external (scheme, "scheme://host") used for
-// the OAuth redirect_uri and the cookie Secure decision. The callback always
-// lands on ayato, so this prefers SelfOrigin (ayato's own URL) and falls back to
-// PublicOrigin — the two are identical in the same-origin/BFF deployment, and
-// diverge only when the SPA is served cross-origin (bearer mode). X-Forwarded-*
-// is deliberately NOT consulted: gin's SetTrustedProxies does not gate
-// c.GetHeader, so it is spoofable by any direct peer. The request-host fallback
-// runs only when neither origin is configured (OAuth disabled).
+// ayato's own origin for the OAuth redirect_uri and the cookie Secure flag.
+// Prefers SelfOrigin, then PublicOrigin. X-Forwarded-* is ignored because gin
+// does not gate c.GetHeader, so it is spoofable; the request host is used only
+// when neither origin is configured.
 func (h *Handler) externalBase(c *gin.Context) (scheme, base string) {
 	if h.cfg != nil {
 		if s, b, ok := originOf(h.cfg.Auth.SelfOrigin); ok {
@@ -69,8 +63,7 @@ func (h *Handler) externalBase(c *gin.Context) (scheme, base string) {
 	return s, s + "://" + c.Request.Host
 }
 
-// spaOrigin returns the browser-facing SPA origin (PublicOrigin), used as the
-// exact postMessage target for the web-bearer login. Empty when unset.
+// SPA origin (PublicOrigin) used as the exact postMessage target; empty when unset.
 func (h *Handler) spaOrigin() string {
 	if h.cfg != nil {
 		if _, b, ok := originOf(h.cfg.Auth.PublicOrigin); ok {
@@ -80,7 +73,6 @@ func (h *Handler) spaOrigin() string {
 	return ""
 }
 
-// originOf parses raw into its (scheme, "scheme://host") origin.
 func originOf(raw string) (scheme, base string, ok bool) {
 	if raw == "" {
 		return "", "", false
@@ -92,8 +84,6 @@ func originOf(raw string) (scheme, base string, ok bool) {
 	return u.Scheme, u.Scheme + "://" + u.Host, true
 }
 
-// oauthConfig builds the confidential OAuth2 client with the redirect_uri
-// pinned to this server's callback under the external origin.
 func (h *Handler) oauthConfig(c *gin.Context) *oauth2.Config {
 	_, base := h.externalBase(c)
 	return &oauth2.Config{
@@ -105,9 +95,7 @@ func (h *Handler) oauthConfig(c *gin.Context) *oauth2.Config {
 	}
 }
 
-// setOAuthStateCookie stores the web-flow binding nonce in a host-only,
-// HttpOnly, SameSite=Lax cookie. Lax is required so the cookie returns on the
-// top-level cross-site redirect from GitHub back to the callback.
+// SameSite=Lax so the cookie returns on GitHub's top-level cross-site redirect back.
 func (h *Handler) setOAuthStateCookie(c *gin.Context, nonce string, secure bool) {
 	http.SetCookie(c.Writer, &http.Cookie{
 		Name:     oauthStateCookieName,
@@ -132,9 +120,7 @@ func (h *Handler) clearOAuthStateCookie(c *gin.Context, secure bool) {
 	})
 }
 
-// setSessionCookie sets the host-only session cookie. http.SetCookie is used
-// directly (instead of gin's c.SetCookie) so we can omit Domain entirely,
-// yielding a host-only cookie.
+// Uses http.SetCookie (not gin's c.SetCookie) to omit Domain for a host-only cookie.
 func (h *Handler) setSessionCookie(c *gin.Context, value string, secure bool, maxAge int) {
 	ck := &http.Cookie{
 		Name:     h.cfg.Auth.CookieName(),
@@ -144,16 +130,13 @@ func (h *Handler) setSessionCookie(c *gin.Context, value string, secure bool, ma
 		HttpOnly: true,
 		Secure:   secure,
 		SameSite: http.SameSiteLaxMode,
-		// Domain intentionally empty -> host-only cookie.
 	}
 	http.SetCookie(c.Writer, ck)
 }
 
-// webAuthBridgeTmpl is the popup page the web-bearer callback returns. It posts
-// the one-time code (and the SPA's original state) to its opener at the exact
-// SPA origin, then closes. The payload is base64-encoded JSON so no value is
-// interpolated into HTML/JS, and the postMessage target is the configured SPA
-// origin (never "*"), so the code reaches only the legitimate opener.
+// Popup that postMessages the one-time code to its opener at the exact SPA
+// origin (never "*"), then closes. The payload is base64 JSON so nothing is
+// interpolated into HTML/JS.
 const webAuthBridgeTmpl = `<!doctype html><meta charset="utf-8"><title>Signing in…</title><body><script>
 (function () {
   try {
@@ -166,9 +149,8 @@ const webAuthBridgeTmpl = `<!doctype html><meta charset="utf-8"><title>Signing i
 })();
 </script>Signing in…</body>`
 
-// renderWebAuthBridge writes the popup bridge page that hands the one-time code
-// back to the SPA. It requires PublicOrigin (the postMessage target); without it
-// there is no trusted opener to deliver the code to, so it fails closed.
+// Fails closed without PublicOrigin: there is no trusted postMessage target to
+// deliver the code to.
 func (h *Handler) renderWebAuthBridge(c *gin.Context, code, state string) {
 	origin := h.spaOrigin()
 	if origin == "" {

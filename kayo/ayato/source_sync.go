@@ -62,10 +62,9 @@ func (s *Source) Sync(ctx context.Context) error {
 		}
 		verified = true
 		if s.pins != nil {
-			// The watermark MUST reach disk before the index swaps: otherwise the
-			// served catalog advances to T2 while the persisted floor stays at T1,
-			// and a restart would re-accept a replayed T1<t<=T2 catalog. Treat a
-			// persist failure as fatal and keep the last-good catalog (fail-closed).
+			// The watermark MUST reach disk before the index swaps: otherwise the served
+			// catalog advances to T2 while the persisted floor stays at T1, so a restart
+			// would re-accept a replayed T1<t<=T2 catalog. Persist failure is fatal (fail-closed).
 			if perr := s.pins.SetLastIssued(s.name, signed.IssuedAt); perr != nil {
 				return utils.WrapErr(perr, "ayato "+s.name+": persist rollback watermark")
 			}
@@ -91,14 +90,11 @@ func (s *Source) Sync(ctx context.Context) error {
 	return nil
 }
 
-// Verified reports whether the currently-served catalog is signature-verified
-// AND still fresh. The freshness bound matters because a failed re-sync leaves
-// the last-good catalog in place (fail-closed): without it, an attacker who
-// blocks kayo->ayato could freeze a verified-but-aging catalog and keep its
-// delegation bypass alive forever. It falls closed at the tighter of the
-// catalog's own signed ExpiresAt and kayo's maxAge ceiling — the same bound
-// CheckFreshness applies at sync time — so a source using short-lived
-// attestations for revocation is honored continuously, not just at the swap.
+// Verified reports whether the served catalog is signature-verified AND still fresh.
+// Freshness matters because a failed re-sync keeps the last-good catalog (fail-closed):
+// without an expiry, an attacker who blocks kayo->ayato could freeze an aging catalog
+// and keep its delegation alive forever. The bound is the tighter of the catalog's
+// signed ExpiresAt and kayo's maxAge, so short-lived attestations revoke continuously.
 func (s *Source) Verified() bool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -162,10 +158,9 @@ func (s *Source) fetch(ctx context.Context, path string) ([]byte, error) {
 	return io.ReadAll(io.LimitReader(resp.Body, maxCatalogBytes))
 }
 
-// FetchPubkey retrieves the catalog-signing public key an ayato base URL
-// advertises, for an operator converting a TOFU pin into a hard config pin.
-// The key is unauthenticated on its own — verify the key_id out of band before
-// pasting it into config.
+// FetchPubkey retrieves the catalog-signing public key an ayato base URL advertises,
+// for an operator converting a TOFU pin into a hard config pin. The key is
+// unauthenticated on its own — verify the key_id out of band before trusting it.
 func FetchPubkey(ctx context.Context, baseURL string) (pubkey, keyID string, err error) {
 	s, err := New(Options{Name: "fetch", BaseURL: baseURL, Insecure: true})
 	if err != nil {

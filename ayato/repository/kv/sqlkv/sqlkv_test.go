@@ -16,8 +16,7 @@ import (
 
 func newStore(t *testing.T) *sqlkv.Store {
 	t.Helper()
-	// A private in-memory database per test. Without the gorm sqlite driver this
-	// Open fails; skip with a clear note in that case.
+	// In-memory database per test; skip with a clear note if the gorm sqlite driver is absent.
 	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
 	if err != nil {
 		t.Skipf("sqlite driver unavailable, skipping sqlkv tests: %v", err)

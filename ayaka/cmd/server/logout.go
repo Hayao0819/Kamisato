@@ -9,10 +9,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// LogoutCmd clears the locally stored CLI token while keeping the server
-// registered. The token is a stateless signed envelope and cannot be revoked
-// server-side: it stops working once its TTL elapses, the id is removed from the
-// allowlist, or the signer secret is rotated.
+// LogoutCmd clears the locally stored CLI token but keeps the server registered.
+// The token is a stateless signed envelope, so it cannot be revoked server-side;
+// it only stops working at TTL expiry, allowlist removal, or signer rotation.
 func LogoutCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "logout <server_url>",

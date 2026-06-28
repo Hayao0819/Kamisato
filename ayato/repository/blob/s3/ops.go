@@ -12,10 +12,8 @@ import (
 	"github.com/samber/lo"
 )
 
-// StoreFile stores the package object only. The database is updated by a
-// separate RepoAdd call (the service drives both), matching the localfs store
-// and letting an arch=any file be stored under "any/" without creating an "any"
-// database.
+// StoreFile stores the package object only; the repo DB is updated separately by
+// RepoAdd, so an arch=any file lands under "any/" without creating an "any" DB.
 func (s *S3) StoreFile(repo string, arch string, file stream.SeekFile) error {
 	k := key(repo, arch, file.FileName())
 	if err := s.putObject(k, file); err != nil {
@@ -42,10 +40,9 @@ func (s *S3) StoreFileWithSignedURL(repo string, arch string, name string) (stri
 	return presignResult.URL, nil
 }
 
-// FetchFile fetches an object by its exact name — pure byte IO, with no pacman
-// naming knowledge. The repo-DB artifacts (<repo>.db, .db.tar.gz, .files,
-// .files.tar.gz) are each written as real objects by the repository layer's
-// storeArtifacts, so the bare <repo>.db is served directly, the same as localfs.
+// FetchFile fetches an object by its exact name, with no pacman naming logic: the
+// repo-DB artifacts are real objects written by the repository layer, so a bare
+// <repo>.db is served directly.
 func (s *S3) FetchFile(repo string, arch string, name string) (stream.File, error) {
 	o, err := s.getObject(key(repo, arch, name))
 	if err != nil {

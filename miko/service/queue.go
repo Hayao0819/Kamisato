@@ -7,10 +7,8 @@ import (
 	"github.com/Hayao0819/Kamisato/miko/domain"
 )
 
-// defaultQueueSize is the buffer size of the in-memory job queue.
 const defaultQueueSize = 128
 
-// queue is an in-memory job queue backed by a buffered channel.
 type queue struct {
 	jobs chan *domain.BuildJob
 }
@@ -21,7 +19,6 @@ func newQueue() *queue {
 	}
 }
 
-// push enqueues a job. It returns an error if the queue is full.
 func (q *queue) push(job *domain.BuildJob) error {
 	select {
 	case q.jobs <- job:
@@ -31,12 +28,10 @@ func (q *queue) push(job *domain.BuildJob) error {
 	}
 }
 
-// len returns the number of jobs currently waiting in the queue channel.
 func (q *queue) len() int {
 	return len(q.jobs)
 }
 
-// pop blocks until a job is available or the context is cancelled.
 func (q *queue) pop(ctx context.Context) (*domain.BuildJob, bool) {
 	select {
 	case <-ctx.Done():

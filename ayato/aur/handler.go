@@ -12,15 +12,15 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// Handler exposes the admin-only management surface for registered AUR sources
-// and the kayo-facing catalog. signer is nil when catalog signing is disabled.
+// Handler is the admin-only management surface for registered AUR sources and the
+// kayo-facing catalog.
 type Handler struct {
 	b      *Backend
 	signer *CatalogSigner
 }
 
-// NewHandler builds the management handler over a Backend. A nil signer serves
-// the catalog unsigned (legacy); kayo refuses that for any pinned source.
+// A nil signer serves the catalog unsigned (legacy); kayo refuses that for any
+// pinned source.
 func NewHandler(b *Backend, signer *CatalogSigner) *Handler {
 	return &Handler{b: b, signer: signer}
 }
@@ -31,8 +31,7 @@ type registerRequest struct {
 	Maintainer string `json:"maintainer"`
 }
 
-// RegisterHandler registers (or re-registers) an external PKGBUILD git repo by
-// parsing its .SRCINFO. POST body: {git_url, ref?, maintainer?}.
+// RegisterHandler registers an external PKGBUILD repo. Body: {git_url, ref?, maintainer?}.
 func (h *Handler) RegisterHandler(c *gin.Context) {
 	var req registerRequest
 	if err := c.ShouldBindJSON(&req); err != nil || req.GitURL == "" {
@@ -40,9 +39,8 @@ func (h *Handler) RegisterHandler(c *gin.Context) {
 		return
 	}
 
-	// A rejected remote (bad scheme, SSRF target, plaintext http) is a client
-	// error, not an upstream failure: answer 400 instead of a blanket 502. Register
-	// re-validates before cloning, so this only changes the status code, not trust.
+	// Validate here only to answer 400 (client error) instead of a blanket 502;
+	// Register re-validates before cloning, so this is not the trust boundary.
 	if err := gitcmd.ValidateRemote(req.GitURL); err != nil {
 		c.JSON(http.StatusBadRequest, domain.APIError{Message: "invalid git_url", Reason: err.Error()})
 		return
@@ -57,10 +55,9 @@ func (h *Handler) RegisterHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"pkgbase": pkgbase, "packages": names})
 }
 
-// CatalogHandler returns the kayo-facing catalog as a signed envelope. It is
-// public: kayo verifies the signature rather than relying on credentials. The
-// inner Payload is a json.RawMessage, so gin's c.JSON re-serializes it verbatim
-// and the bytes kayo verifies equal the bytes ayato signed.
+// CatalogHandler serves the catalog as a signed envelope. It is public: kayo
+// verifies the signature instead of credentials. Payload is a json.RawMessage so
+// c.JSON re-emits the exact bytes ayato signed.
 func (h *Handler) CatalogHandler(c *gin.Context) {
 	cat, err := h.b.Catalog(c.Request.Context())
 	if err != nil {

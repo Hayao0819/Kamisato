@@ -13,7 +13,6 @@ import (
 	pacmanrepo "github.com/Hayao0819/Kamisato/pkg/pacman/repo"
 )
 
-// RemoteBuildOpts collects the inputs for a server-side build submission.
 type RemoteBuildOpts struct {
 	Repo      string
 	Server    string
@@ -26,9 +25,8 @@ type RemoteBuildOpts struct {
 	Pkgs      []string
 }
 
-// RunRemoteBuild submits a build to ayato and prints the resulting job id. The
-// source is either a git repository (--git) or, by default, the local PKGBUILD
-// of the named source package in the repo.
+// RunRemoteBuild submits a build to ayato and prints the job id. The source is
+// --git, else the local PKGBUILD of the named source package.
 func RunRemoteBuild(o RemoteBuildOpts) error {
 	srv, err := ResolveAyatoServer(o.Server)
 	if err != nil {
@@ -76,9 +74,8 @@ func RunRemoteBuild(o RemoteBuildOpts) error {
 	return nil
 }
 
-// readLocalSource reads the PKGBUILD and accompanying files of a source package
-// in the named repo. When pkgs names a single package that one is used;
-// otherwise the repo must hold exactly one source package.
+// readLocalSource reads the PKGBUILD and files of a source package in the repo.
+// With one named package that one is used, else the repo must hold exactly one.
 func readLocalSource(repo string, pkgs []string) (string, map[string]string, error) {
 	srcrepo := GetSrcRepo(repo)
 	if srcrepo == nil {
@@ -120,9 +117,8 @@ func readLocalSource(repo string, pkgs []string) (string, map[string]string, err
 	return pkgbuild, files, nil
 }
 
-// selectSourcePkg picks the source package to submit. With no package named it
-// requires the repo to hold exactly one; otherwise it matches a single named
-// package by pkgbase or package name.
+// selectSourcePkg picks the source package to submit: with none named the repo
+// must hold exactly one, else it matches one by pkgbase or package name.
 func selectSourcePkg(srcrepo *pacmanrepo.SourceRepo, pkgs []string) (*pkg.SourcePackage, error) {
 	if len(pkgs) == 0 {
 		switch len(srcrepo.Pkgs) {

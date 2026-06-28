@@ -31,7 +31,6 @@ type SourceRepo struct {
 
 func GetSrcDirs(repodir string) ([]string, error) {
 	slog.Debug("get src dirs", "dir", repodir)
-	// srcdirs, err := flist.Get(repodir, flist.WithDirOnly(), flist.WithExactDepth(0))
 	srcdirs := []string{}
 	err := filepath.WalkDir(repodir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -73,7 +72,6 @@ func GetSrcRepo(repodir string, cfg *SrcConfig) (*SourceRepo, error) {
 	}
 
 	for _, dir := range dirs {
-		// slog.Info("get pkg from src", "dir", dir)
 		p, err := pkg.OpenSourcePackage(dir)
 		if err != nil {
 			slog.Error("get pkg from src failed", "dir", dir, "err", err)

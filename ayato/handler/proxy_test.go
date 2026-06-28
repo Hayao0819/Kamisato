@@ -8,9 +8,8 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/conf"
 )
 
-// TestMikoProxyStripsAuthorization verifies the Director removes a client's
-// Authorization header (and X-API-Key) before forwarding to miko, so a user's
-// CLI Bearer token never leaks to the build server.
+// The Director must strip the client's Authorization and X-API-Key so a CLI
+// token never leaks to miko.
 func TestMikoProxyStripsAuthorization(t *testing.T) {
 	cfg := &conf.AyatoConfig{}
 	cfg.Miko.URL = "http://miko.internal:8081"

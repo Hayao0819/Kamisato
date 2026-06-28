@@ -4,10 +4,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// Cmd groups the client commands for the miko build service. ayaka never
-// talks to miko directly: every request goes to an ayato endpoint, which
-// reverse-proxies it to miko. The --server flag therefore names an ayato
-// server, and is shared by all miko subcommands.
+// Cmd groups the miko build-service commands. ayaka never talks to miko
+// directly: requests go to an ayato endpoint that reverse-proxies to miko, so
+// --server names an ayato server.
 func Cmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "miko",

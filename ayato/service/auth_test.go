@@ -9,9 +9,8 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/conf"
 )
 
-// newAuthService builds a real service backed by a badgerkv-backed
-// AuthRepository so the allowlist use cases exercise the full
-// service -> repository -> kv path.
+// newAuthService builds a real badgerkv-backed service so tests exercise the
+// full service -> repository -> kv path.
 func newAuthService(t *testing.T) service.Servicer {
 	t.Helper()
 	store, err := badgerkv.New(t.TempDir())

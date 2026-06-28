@@ -8,7 +8,6 @@ import (
 	"strings"
 )
 
-// BUILDINFO represents the parsed .BUILDINFO file (version 2).
 type BUILDINFO struct {
 	Format            int               `json:"format" yml:"format" toml:"format"`
 	PkgName           string            `json:"pkgname" yml:"pkgname" toml:"pkgname"`

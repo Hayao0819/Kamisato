@@ -18,15 +18,12 @@ type Service struct {
 	authRepo      repository.AuthRepository
 	cfg           *conf.AyatoConfig
 
-	// verifier is the loaded package-signature trust root, nil when no keyring
-	// is configured. verifierErr records a fail-closed startup error (a load
-	// failure, or RequireSign without a usable trust root) surfaced by InitAll.
+	// verifier is the signature trust root, nil when no keyring is configured.
+	// verifierErr records a fail-closed startup error surfaced by InitAll.
 	verifier    *gpg.Keyring
 	verifierErr error
 }
 
-// Servicer is the full interface of operations Service provides (mock boundary).
-//
 //go:generate mockgen -source=service.go -destination=../test/mocks/service.go -package=mocks
 type Servicer interface {
 	InitAll() error
@@ -44,8 +41,8 @@ type Servicer interface {
 	PkgFiles(repo, arch, pkg string) ([]string, error)
 	RepoFileList(repo, arch string) ([]string, error)
 
-	// Auth/allowlist use cases (handler -> service -> repository). The GitHub
-	// login->id resolution stays in the handler; these take a resolved id.
+	// Auth/allowlist use cases. GitHub login->id resolution stays in the handler,
+	// so these take a resolved id.
 	IsAdmin(id int64) bool
 	AddAdmin(id int64, login string) error
 	RemoveAdmin(id int64) error
@@ -61,11 +58,10 @@ func New(pkgNameRepo repository.NameStore, pkgBinaryRepo repository.BinaryReposi
 		cfg:           config,
 	}
 
-	// Load the trust root for package-signature verification. The keyring is a
-	// dedicated public-key file, separate from Build.GnupgHome (the signing
-	// private key). When RequireSign is set we cannot fail closed without a
-	// trust root, so a missing or unloadable keyring is a startup error
-	// surfaced by InitAll; otherwise the verifier simply stays nil.
+	// The keyring is a public-key file, separate from Build.GnupgHome (the signing
+	// private key). Without a trust root we cannot fail closed, so under
+	// RequireSign a missing or unloadable keyring is a startup error surfaced by
+	// InitAll; otherwise the verifier stays nil.
 	if config != nil && config.Verify.Keyring != "" {
 		kr, err := gpg.LoadKeyring(config.Verify.Keyring, config.Verify.TrustedKeys)
 		if err != nil {

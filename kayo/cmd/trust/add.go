@@ -11,10 +11,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// trustAddCmd whitelists a package: it resolves the source, audits the recipe,
-// pins the current commit, and trusts the package's maintainer ACCOUNT (from the
-// AUR RPC, not any git email). It refuses on high-severity findings unless
-// --force.
+// trustAddCmd whitelists a package and trusts its maintainer ACCOUNT — from the AUR
+// RPC, not any git email, which is the trust anchor.
 func trustAddCmd() *cobra.Command {
 	var ref string
 	var force bool

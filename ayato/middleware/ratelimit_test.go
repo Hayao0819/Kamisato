@@ -55,14 +55,12 @@ func TestRateLimitPerIP(t *testing.T) {
 	m := newRLMiddleware()
 	r := rlEngine(m, rate.Every(time.Hour), 1)
 
-	// First IP exhausts its single token.
 	if w := doReq(r, "10.0.0.1:1"); w.Code != http.StatusOK {
 		t.Fatalf("ip1 first: status = %d, want 200", w.Code)
 	}
 	if w := doReq(r, "10.0.0.1:1"); w.Code != http.StatusTooManyRequests {
 		t.Fatalf("ip1 second: status = %d, want 429", w.Code)
 	}
-	// A different IP is unaffected.
 	if w := doReq(r, "10.0.0.2:1"); w.Code != http.StatusOK {
 		t.Fatalf("ip2 first: status = %d, want 200 (independent bucket)", w.Code)
 	}

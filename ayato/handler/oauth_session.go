@@ -9,11 +9,8 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// CLIExchangeHandler completes the CLI PKCE exchange. ayaka POSTs the one-time
-// code plus its PKCE verifier over its DIRECT ayato connection (so the token is
-// never placed in a URL). On success it returns a freshly signed CLI token. The
-// one-time code is single-use by construction: its 60s TTL plus the PKCE
-// verifier (which proves one-time possession) bound replay; no stored "used" set.
+// CLI PKCE exchange. The one-time code is single-use by construction: its 60s TTL
+// plus the PKCE verifier bound replay, with no stored "used" set.
 func (h *Handler) CLIExchangeHandler(c *gin.Context) {
 	if h.signer == nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "auth not configured"})
@@ -28,9 +25,8 @@ func (h *Handler) CLIExchangeHandler(c *gin.Context) {
 		return
 	}
 
-	// Verify the signed one-time code. The PKCE challenge that ayaka registered at
-	// /cli/start travels state -> code, so the presented verifier proves
-	// possession of that challenge.
+	// The PKCE challenge ayaka registered at /cli/start rides state -> code, so the
+	// presented verifier proves possession.
 	rec, err := h.signer.VerifyTyp(body.Code, auth.TypCode)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid or used code"})
@@ -62,12 +58,8 @@ func (h *Handler) CLIExchangeHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"token": token, "login": rec.Login, "id": rec.GitHubID})
 }
 
-// WebExchangeHandler completes the web-bearer PKCE exchange. The static SPA POSTs
-// the one-time code (delivered to it via postMessage) plus its PKCE verifier and
-// receives a short-lived bearer token it presents as Authorization: Bearer. As in
-// the CLI exchange, PKCE possession plus the code's 60s TTL bound replay. The code
-// must be a web code (Web=true) so a CLI/cookie code can never be redeemed for a
-// web bearer token here.
+// Web-bearer PKCE exchange. The code must be a web code (Web=true) so a CLI/cookie
+// code can never be redeemed for a bearer token here.
 func (h *Handler) WebExchangeHandler(c *gin.Context) {
 	if h.signer == nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "auth not configured"})
@@ -109,9 +101,8 @@ func (h *Handler) WebExchangeHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"token": token, "login": rec.Login, "id": rec.GitHubID})
 }
 
-// MeHandler reports the signed-in identity. It accepts the cookie session
-// (same-origin/BFF mode) or a Bearer token (cross-origin bearer mode); the
-// allowlist is re-checked so a de-allowlisted id reads as unauthenticated.
+// Accepts the cookie session or a Bearer token; the allowlist is re-checked so a
+// de-allowlisted id reads as unauthenticated.
 func (h *Handler) MeHandler(c *gin.Context) {
 	if h.signer == nil {
 		c.JSON(http.StatusOK, gin.H{"authenticated": false})
@@ -135,12 +126,11 @@ func (h *Handler) MeHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"authenticated": false})
 }
 
-// LogoutHandler clears the session cookie. Sessions are stateless, so there is
-// no server-side record to delete; clearing the cookie ends the session for the
-// browser, and the signed token would otherwise expire by TTL.
+// Sessions are stateless: clearing the cookie ends the session; the signed token
+// otherwise expires by TTL.
 func (h *Handler) LogoutHandler(c *gin.Context) {
-	// Defense-in-depth against logout CSRF: reject a cross-site caller. The SPA
-	// logs out via same-origin fetch; non-browser callers send no Sec-Fetch-Site.
+	// Defense-in-depth vs logout CSRF: reject cross-site callers (non-browser
+	// callers send no Sec-Fetch-Site).
 	if sfs := c.GetHeader("Sec-Fetch-Site"); sfs != "" && sfs != "same-origin" {
 		c.AbortWithStatus(http.StatusForbidden)
 		return

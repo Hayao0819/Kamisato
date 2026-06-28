@@ -68,14 +68,12 @@ func TestVerifyRejectsTamper(t *testing.T) {
 	s, _ := NewSigner([]string{secretA})
 	tok, _ := s.Sign(Claims{Typ: TypSession, GitHubID: 1, Exp: time.Now().Add(time.Hour)})
 
-	// Flip a character in the payload segment; the recomputed HMAC must not match.
 	payload, sig, _ := strings.Cut(tok, ".")
 	tampered := flipFirst(payload) + "." + sig
 	if _, err := s.Verify(tampered); err == nil {
 		t.Fatal("tampered payload must be rejected")
 	}
 
-	// Garbage envelope shapes are rejected too.
 	for _, bad := range []string{"", ".", "noseparator", "a.", ".b", "a.b.c"} {
 		if _, err := s.Verify(bad); err == nil {
 			t.Fatalf("malformed token %q must be rejected", bad)
@@ -83,17 +81,15 @@ func TestVerifyRejectsTamper(t *testing.T) {
 	}
 }
 
-// TestVerifyRotation signs with a NEW secret and confirms a Signer configured
-// with [new, old] still verifies, and that the trailing (old) secret continues
-// to verify tokens minted under it — the rotation property.
+// TestVerifyRotation verifies the rotation property: a Signer holding [new, old]
+// accepts tokens minted under either secret.
 func TestVerifyRotation(t *testing.T) {
-	signNew, _ := NewSigner([]string{secretB}) // mint under the new key only
+	signNew, _ := NewSigner([]string{secretB})
 	tokNew, _ := signNew.Sign(Claims{Typ: TypCLI, GitHubID: 7, Exp: time.Now().Add(time.Hour)})
 
-	signOld, _ := NewSigner([]string{secretA}) // mint under the old key only
+	signOld, _ := NewSigner([]string{secretA})
 	tokOld, _ := signOld.Sign(Claims{Typ: TypCLI, GitHubID: 8, Exp: time.Now().Add(time.Hour)})
 
-	// During rotation the live signer holds [new, old]: both verify.
 	rotating, _ := NewSigner([]string{secretB, secretA})
 	if c, err := rotating.Verify(tokNew); err != nil || c.GitHubID != 7 {
 		t.Fatalf("new-key token must verify under rotation: c=%+v err=%v", c, err)

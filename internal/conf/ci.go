@@ -28,10 +28,9 @@ type CIGitHubOIDC struct {
 	Publishers []CIOIDCPublisher `koanf:"publishers"`
 }
 
-// CIOIDCPublisher allowlists one GitHub source repository. Authorization matches
-// RepositoryID (immutable, survives rename) when set, else Repository, and
-// requires the token's ref to be in AllowRefs. PublishRepos is the destination
-// scope: the ayato/pacman repositories it may publish to ("*" = any).
+// CIOIDCPublisher allowlists one GitHub source repo. Authorization matches
+// RepositoryID (immutable, survives rename) when set, else Repository, and the
+// token's ref must be in AllowRefs. PublishRepos is the destination scope ("*" = any).
 type CIOIDCPublisher struct {
 	Repository   string   `koanf:"repository"`
 	RepositoryID string   `koanf:"repository_id"`

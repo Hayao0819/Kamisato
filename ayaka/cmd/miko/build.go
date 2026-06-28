@@ -8,8 +8,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// mikoBuildCmd submits a build job to miko through ayato and prints the job id.
-// The source is either a git/AUR repository (--git) or, by default, the local
+// mikoBuildCmd submits a build to miko: a git/AUR repo (--git), else the local
 // PKGBUILD of the named source package. `ayaka build --remote` delegates here.
 func mikoBuildCmd() *cobra.Command {
 	var (

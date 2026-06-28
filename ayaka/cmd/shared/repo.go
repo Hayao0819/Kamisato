@@ -7,8 +7,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// AddRepoServerFlags registers the server-selection flags shared by repo add
-// and repo remove.
+// AddRepoServerFlags registers the shared server-selection flags.
 func AddRepoServerFlags(cmd *cobra.Command) {
 	cmd.Flags().StringP("server", "s", "", "ayato server (default: serverdb default)")
 	cmd.Flags().String("username", "", "Username for server login (overrides saved value)")
@@ -16,8 +15,7 @@ func AddRepoServerFlags(cmd *cobra.Command) {
 	cmd.Flags().BoolP("ask-pass", "K", false, "Prompt for password interactively")
 }
 
-// RepoClient resolves the ayato endpoint and credentials from the flags and the
-// server database, then returns a Blinky-compatible client for it.
+// RepoClient resolves the endpoint and credentials from flags and the serverdb, returning a Blinky client.
 func RepoClient(cmd *cobra.Command) (*clientlib.BlinkyClient, error) {
 	serverFlag, err := cmd.Flags().GetString("server")
 	if err != nil {

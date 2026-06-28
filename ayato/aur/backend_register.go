@@ -13,10 +13,8 @@ import (
 	"github.com/Hayao0819/Kamisato/pkg/raiou"
 )
 
-// Register clones gitURL (at ref, if given) into a throwaway temp dir, parses
-// its .SRCINFO, and persists the derived aurweb records plus the pkgbase->URL
-// mapping. The clone is deleted before returning; only metadata survives. It
-// returns the pkgnames it registered.
+// Register clones gitURL (at ref, if given) into a throwaway dir and persists only
+// the metadata ingested from its .SRCINFO; it returns the registered pkgnames.
 func (b *Backend) Register(ctx context.Context, gitURL, ref, maintainer string) (pkgbase string, names []string, err error) {
 	dir, err := os.MkdirTemp("", "ayato-aur-*")
 	if err != nil {
@@ -24,16 +22,14 @@ func (b *Backend) Register(ctx context.Context, gitURL, ref, maintainer string) 
 	}
 	defer func() { _ = os.RemoveAll(dir) }()
 
-	// Strict: gitURL comes from an admin request, so validate it and refuse
-	// file/ext transports and private-network hosts (SSRF/RCE guard).
+	// gitURL is admin-supplied, so Strict rejects file/ext transports and
+	// private-network hosts (SSRF/RCE guard).
 	if err := gitcmd.Clone(ctx, gitcmd.CloneOptions{URL: gitURL, Dir: dir, Ref: ref, Depth: 1, Strict: true}); err != nil {
 		return "", nil, err
 	}
 	return b.ingest(ctx, dir, gitURL, maintainer)
 }
 
-// ingest parses the .SRCINFO in a checked-out dir and persists the derived
-// records, recording source as the pkgbase's clone URL.
 func (b *Backend) ingest(ctx context.Context, dir, source, maintainer string) (pkgbase string, names []string, err error) {
 	si, err := raiou.ParseSrcinfoFile(filepath.Join(dir, ".SRCINFO"))
 	if err != nil {

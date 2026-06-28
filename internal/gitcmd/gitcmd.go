@@ -46,7 +46,7 @@ func Run(ctx context.Context, dir string, args ...string) error {
 	return nil
 }
 
-// Output runs a git subcommand and returns stdout.
+// Output runs a git subcommand and returns its combined output (stdout and stderr).
 func Output(ctx context.Context, dir string, args ...string) (string, error) {
 	out, err := command(ctx, dir, args, nil).CombinedOutput()
 	if err != nil {
@@ -80,7 +80,6 @@ type CloneOptions struct {
 	Bare bool
 }
 
-// Clone clones o.URL into o.Dir.
 func Clone(ctx context.Context, o CloneOptions) error {
 	var extra []string
 	if o.Strict {

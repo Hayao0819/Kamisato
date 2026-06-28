@@ -12,9 +12,9 @@ type StoreConfig struct {
 
 	// StorageType selects how binaries (package files and DBs) are stored; this
 	// is independent of DBType.
-	StorageType  string   `koanf:"storagetype"`  // "localfs" or "s3"
-	AWSS3        S3Config `koanf:"awss3"`        // config for storing binaries in S3
-	LocalRepoDir string   `koanf:"localrepodir"` // directory for storing binaries locally
+	StorageType  string   `koanf:"storagetype"` // "localfs" or "s3"
+	AWSS3        S3Config `koanf:"awss3"`
+	LocalRepoDir string   `koanf:"localrepodir"`
 }
 
 // CFKVConfig is the Cloudflare Workers KV configuration.

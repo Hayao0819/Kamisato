@@ -11,9 +11,8 @@ var uploadHookTemplate string
 
 const uploadHookFileName = "ayaka-upload.hook"
 
-// Cmd manages the pacman PostTransaction hook that publishes every freshly
-// installed package to an ayato repository. The build-once-share-many flow: a
-// package built locally lands in the repo so other machines pull it as a binary.
+// Cmd manages the pacman PostTransaction hook for build-once-share-many: a
+// locally-built package lands in the ayato repo so other machines pull the binary.
 func Cmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "hook",

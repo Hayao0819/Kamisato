@@ -7,7 +7,6 @@ import (
 	"strings"
 )
 
-// ListenAddr returns the host:port kayo binds to.
 func (c *KayoConfig) ListenAddr() string {
 	bind := c.Bind
 	if bind == "" {
@@ -16,7 +15,6 @@ func (c *KayoConfig) ListenAddr() string {
 	return fmt.Sprintf("%s:%d", bind, c.Port)
 }
 
-// ResolvedCacheDir returns the configured cache dir or a sensible default.
 func (c *KayoConfig) ResolvedCacheDir() string {
 	if c.CacheDir != "" {
 		return c.CacheDir
@@ -40,8 +38,6 @@ func (c *KayoConfig) AyatoPinStorePath() string {
 	return filepath.Join(filepath.Dir(c.ResolvedTrustStore()), "known_ayato.json")
 }
 
-// ResolvedTrustStore returns the configured trust-store path or a default under
-// the user config dir.
 func (c *KayoConfig) ResolvedTrustStore() string {
 	if c.TrustStore != "" {
 		return c.TrustStore
@@ -52,7 +48,6 @@ func (c *KayoConfig) ResolvedTrustStore() string {
 	return filepath.Join(os.TempDir(), "kayo-trust.json")
 }
 
-// AURGitBase returns the git origin used to clone AUR packages for auditing.
 func (c *KayoConfig) AURGitBase() string {
 	if c.Upstream.GitBase != "" {
 		return strings.TrimRight(c.Upstream.GitBase, "/")
@@ -60,7 +55,6 @@ func (c *KayoConfig) AURGitBase() string {
 	return "https://aur.archlinux.org"
 }
 
-// ResolvedEnforceMode returns "enforce" or the default "warn".
 func (c *KayoConfig) ResolvedEnforceMode() string {
 	if c.EnforceMode == "enforce" {
 		return "enforce"

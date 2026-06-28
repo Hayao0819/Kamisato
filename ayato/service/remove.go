@@ -7,19 +7,10 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/utils"
 )
 
-// RemovePkg removes a package from the repository, mirroring UploadFile in
-// reverse and following the pkgctl/dbscripts model where the architecture scopes
-// the removal:
-//
-//   - arch == "" or "any": de-register the package from every architecture
-//     database that lists it (the blinky-compatible route carries no arch and
-//     means "remove this package from the repository").
-//   - arch == a concrete architecture: de-register from only that arch's database
-//     (e.g. drop an arch=any package from x86_64 while leaving aarch64).
-//
-// The package file is deleted only once no database references it anymore: a
-// concrete package's file is unique to its arch and goes with it; an arch=any
-// package's shared file under "any/" survives until the last arch drops it.
+// arch "" or "any" de-registers the package from every arch database; a concrete
+// arch de-registers only that one. The file is deleted once no database
+// references it: a concrete file goes with its arch, an arch=any file shared
+// under "any/" survives until the last arch drops it.
 func (s *Service) RemovePkg(rname string, arch string, pkgname string) error {
 	if err := s.ValidateRepoName(rname); err != nil {
 		slog.Error("validate repo name failed", "repo", rname, "error", err.Error())
@@ -33,8 +24,8 @@ func (s *Service) RemovePkg(rname string, arch string, pkgname string) error {
 
 	allArches := arch == "" || arch == "any"
 
-	// Which databases to de-register from. A concrete package lives in exactly one
-	// arch; an arch=any package is registered in every configured arch.
+	// A concrete package lives in exactly one arch; an arch=any package is
+	// registered in every configured arch.
 	var dbArches []string
 	if storeArch == "any" {
 		if allArches {
@@ -60,8 +51,8 @@ func (s *Service) RemovePkg(rname string, arch string, pkgname string) error {
 		}
 	}
 
-	// Keep the shared file of an arch=any package that another arch still lists
-	// (a per-arch removal). A concrete package's file always goes with its arch.
+	// Keep the shared arch=any file while another arch still lists it; a concrete
+	// file always goes with its arch.
 	if storeArch == "any" && !allArches && s.stillRegistered(rname, pkgname, dbArches) {
 		return nil
 	}
@@ -76,9 +67,8 @@ func (s *Service) RemovePkg(rname string, arch string, pkgname string) error {
 	return nil
 }
 
-// stillRegistered reports whether pkgname remains in any configured arch database
-// outside the just-removed set — i.e. whether a shared (arch=any) file is still
-// in use and must be kept.
+// stillRegistered reports whether a shared arch=any file is still in use (listed
+// by an arch outside the just-removed set) and must be kept.
 func (s *Service) stillRegistered(repo, pkgname string, removed []string) bool {
 	removedSet := make(map[string]struct{}, len(removed))
 	for _, a := range removed {
@@ -99,10 +89,9 @@ func (s *Service) stillRegistered(repo, pkgname string, removed []string) bool {
 	return false
 }
 
-// deleteSignatureIfPresent removes "<pkgFile>.sig" when it exists, best-effort. A
-// package may legitimately be unsigned, so a missing signature is not an error
-// (blinky removes the .sig and tolerates its absence); listing first avoids the
-// blob backend logging a spurious delete failure for unsigned packages.
+// deleteSignatureIfPresent best-effort removes "<pkgFile>.sig". A package may be
+// unsigned, so a missing sig is not an error; listing first avoids the blob
+// backend logging a spurious delete failure.
 func (s *Service) deleteSignatureIfPresent(repo, arch, pkgFile string) {
 	sig := pkgFile + ".sig"
 	files, err := s.pkgBinaryRepo.Files(repo, arch)

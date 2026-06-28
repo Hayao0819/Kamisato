@@ -7,18 +7,16 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/utils"
 )
 
-// AyatoServer is a resolved ayato endpoint: the base URL plus the Basic-auth
-// credentials stored for it in the blinky server database.
+// AyatoServer is a resolved ayato endpoint: base URL plus credentials from the blinky server database.
 type AyatoServer struct {
 	URL      string
 	Username string
 	Password string
 }
 
-// ResolveAyatoServer looks up the ayato base URL and credentials from the same
-// serverdb the other commands use. When server is empty the database's default
-// server is used. The same store backs blinky uploads, so a server registered
-// with `ayaka server add` works here too.
+// ResolveAyatoServer looks up the base URL and credentials in the serverdb,
+// using the default server when server is empty. This is the same store blinky
+// uploads use, so a server from `ayaka server add` works here too.
 func ResolveAyatoServer(server string) (*AyatoServer, error) {
 	db, err := blinky_util.ReadServerDB()
 	if err != nil {

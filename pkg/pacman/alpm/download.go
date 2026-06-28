@@ -62,6 +62,5 @@ func GetCleanPkgBinary(names ...string) ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get repo db files: %w", err)
 	}
-	// ... (omitted: package file fetch logic) ...
 	return nil, nil
 }

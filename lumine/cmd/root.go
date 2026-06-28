@@ -15,22 +15,20 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// lumineEnv is served at /env.json. AYATO_URL is the API base; "" = same origin.
-// AUTH_MODE selects how the SPA authenticates: "cookie" (same-origin session
-// cookie behind this BFF/proxy) or "bearer" (the SPA calls ayato cross-origin
-// with a token; no proxy).
+// lumineEnv is served at /env.json. AYATO_URL "" means same origin. AUTH_MODE is
+// "cookie" (same-origin session cookie via this proxy) or "bearer" (SPA calls
+// ayato cross-origin with a token, no proxy).
 type lumineEnv struct {
 	AyatoURL *string `json:"AYATO_URL"`
 	AuthMode string  `json:"AUTH_MODE"`
 	Fallback bool    `json:"FALLBACK"`
 }
 
-// newReverseProxy builds the ayato reverse proxy with a Rewrite hook instead of
-// the default Director. The default Director appends to the inbound
-// X-Forwarded-For, trusting spoofed values; instead we strip every
-// client-supplied forwarding header, then SetXForwarded repopulates them from
-// the real connection. SetURL must run before SetXForwarded so Host is correct.
-// FlushInterval=-1 streams SSE through without buffering.
+// newReverseProxy uses a Rewrite hook, not the default Director: the Director
+// appends to inbound X-Forwarded-For (trusting spoofed values), so we strip the
+// client-supplied forwarding headers and let SetXForwarded refill them from the
+// real connection. SetURL must precede SetXForwarded so Host is correct, and
+// FlushInterval=-1 streams SSE without buffering.
 func newReverseProxy(target *url.URL) *httputil.ReverseProxy {
 	return &httputil.ReverseProxy{
 		FlushInterval: -1,
@@ -78,16 +76,13 @@ func RootCmd() *cobra.Command {
 			var env lumineEnv
 			switch authMode {
 			case "bearer":
-				// Bearer mode: no proxy. The static SPA calls ayato cross-origin
-				// and authenticates with a token, so ayato stays a distinct origin
-				// the SPA addresses directly.
+				// Bearer mode: no proxy; the SPA calls ayato cross-origin with a token.
 				if ayatoURL == "" {
 					return fmt.Errorf("--auth-mode bearer requires --ayato-url (the cross-origin ayato URL the SPA calls directly)")
 				}
 				env = lumineEnv{AyatoURL: &ayatoURL, AuthMode: "bearer"}
 			case "cookie", "":
-				// Cookie mode: front ayato same-origin so the session cookie is
-				// first-party. With no --ayato-url the SPA has no API base.
+				// Cookie mode: proxy ayato same-origin so the session cookie stays first-party.
 				if ayatoURL != "" {
 					target, err := url.Parse(ayatoURL)
 					if err != nil {

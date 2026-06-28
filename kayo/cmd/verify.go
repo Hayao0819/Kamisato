@@ -15,9 +15,7 @@ import (
 )
 
 // verifyCmd is the install-time backstop the pacman PreTransaction hook calls.
-// It resolves each target to its source and maintainer and checks it against the
-// trust store; in enforce mode (or with --strict) an untrusted package fails the
-// transaction. Official-repo packages are not ours to gate and are skipped.
+// Official-repo packages are not ours to gate, so they are skipped.
 func verifyCmd() *cobra.Command {
 	var strict bool
 	cmd := &cobra.Command{

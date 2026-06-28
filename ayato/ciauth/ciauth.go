@@ -1,10 +1,8 @@
-// Package ciauth authorizes non-interactive CI uploads to ayato. A CI caller is
-// a repository identity, not a GitHub user, so it is a principal distinct from
-// the admin allowlist: it can only publish, scoped to specific ayato repos.
-//
-// Two credential types are supported and are routed by header shape to exactly
-// one verifier. A presented-but-invalid CI credential is terminal (the caller
-// must not fall back to a weaker check), which is what makes the routing safe.
+// Package ciauth authorizes non-interactive CI uploads. A CI caller is a
+// repository identity, not a GitHub user: a distinct principal that may only
+// publish to scoped repos. Credentials route by header shape to exactly one
+// verifier, and a presented-but-invalid credential is terminal (no fallback to a
+// weaker check), which is what makes the routing safe.
 package ciauth
 
 import (
@@ -16,13 +14,11 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/utils"
 )
 
-// Principal is an authorized CI identity.
 type Principal struct {
 	Via string // "apikey" | "oidc"
 	ID  string // key name, or the GitHub repository
 }
 
-// Outcome is the result of routing a request to a CI verifier.
 type Outcome int
 
 const (
@@ -41,8 +37,8 @@ type Authorizer struct {
 	oidc   *oidcAuth
 }
 
-// New builds an Authorizer. It performs OIDC issuer discovery when OIDC is
-// enabled, so it makes a network call and may fail at startup.
+// New performs OIDC issuer discovery when OIDC is enabled, so it makes a network
+// call and may fail at startup.
 func New(ctx context.Context, cfg conf.CIAuthConfig) (*Authorizer, error) {
 	a := &Authorizer{}
 	if len(cfg.APIKeys) > 0 {
@@ -58,7 +54,6 @@ func New(ctx context.Context, cfg conf.CIAuthConfig) (*Authorizer, error) {
 	return a, nil
 }
 
-// Enabled reports whether any CI method is configured.
 func (a *Authorizer) Enabled() bool {
 	return a != nil && (a.apikey != nil || a.oidc != nil)
 }
@@ -70,8 +65,7 @@ func (a *Authorizer) Enabled() bool {
 //   - Authorization: Bearer <jwt>  -> OIDC verifier only (3 segments / 2 dots)
 //   - neither                      -> OutcomeNone (let the caller try admin auth)
 //
-// A credential routed to a verifier that is unconfigured or rejects it yields
-// OutcomeDeny; there is no fallthrough from a failed verifier to a weaker one.
+// A failed or unconfigured verifier yields OutcomeDeny; there is no fallthrough.
 func (a *Authorizer) Authorize(ctx context.Context, h http.Header, ayatoRepo string) (Outcome, *Principal) {
 	if k := h.Get("X-API-Key"); k != "" {
 		if a.apikey == nil {
@@ -96,9 +90,9 @@ func (a *Authorizer) Authorize(ctx context.Context, h http.Header, ayatoRepo str
 	return OutcomeNone, nil
 }
 
-// bearerJWT returns the bearer value only when it is shaped like a JWT (three
-// dot-separated segments). ayato's own HMAC token is two segments, so this only
-// routes; the RS256 signature check in the OIDC verifier is the real boundary.
+// bearerJWT returns the bearer value only if it's shaped like a JWT (3 dot-separated
+// segments). ayato's own HMAC token has 2, so this only routes — the OIDC RS256
+// check is the real boundary.
 func bearerJWT(h http.Header) (string, bool) {
 	authz := h.Get("Authorization")
 	if !strings.HasPrefix(authz, "Bearer ") {

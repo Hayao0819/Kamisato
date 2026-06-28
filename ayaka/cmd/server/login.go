@@ -22,9 +22,8 @@ import (
 
 const loginTimeout = 3 * time.Minute
 
-// LoginCmd logs into an ayato server with a browser-based GitHub OAuth
-// loopback (RFC 8252) + PKCE flow and stores the issued CLI token in the server
-// database. --token skips the browser for headless use.
+// LoginCmd logs into ayato via a GitHub OAuth loopback (RFC 8252) + PKCE flow
+// and stores the issued CLI token. --token skips the browser for headless use.
 func LoginCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "login <server_url>",
@@ -85,8 +84,7 @@ func saveLogin(cmd *cobra.Command, server, login, token string, setDefault bool)
 	return utils.WrapErr(blinky_util.SaveServerDB(db), "failed to save server database")
 }
 
-// browserLogin runs the loopback OAuth+PKCE flow and returns the issued CLI
-// token and the resolved GitHub login.
+// browserLogin runs the loopback OAuth+PKCE flow.
 func browserLogin(cmd *cobra.Command, server string, noBrowser bool) (token, login string, err error) {
 	verifier := oauth2.GenerateVerifier()
 	challenge := oauth2.S256ChallengeFromVerifier(verifier)

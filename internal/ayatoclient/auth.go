@@ -10,8 +10,7 @@ import (
 )
 
 // ExchangeCLICode trades a one-time CLI code plus its PKCE verifier for a CLI
-// token over ayaka's direct ayato connection. It returns the issued token and
-// the resolved GitHub identity.
+// token over ayaka's direct ayato connection.
 func ExchangeCLICode(base, code, verifier string) (token, login string, id int64, err error) {
 	body, err := json.Marshal(struct {
 		Code         string `json:"code"`

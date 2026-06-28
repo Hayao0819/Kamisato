@@ -6,9 +6,8 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/conf"
 )
 
-// Eventually planned to depend only on Service.
 type Handler struct {
-	cfg    *conf.AyatoConfig // planned to reduce dependency in the future
+	cfg    *conf.AyatoConfig
 	s      service.Servicer
 	signer *auth.Signer // nil when auth is not wired (tests)
 }
@@ -20,10 +19,7 @@ func New(service service.Servicer, cfg *conf.AyatoConfig) *Handler {
 	}
 }
 
-// WithAuth attaches the stateless signer. The signer mints/verifies sessions,
-// CLI tokens, one-time codes, and OAuth state; it is the only auth dependency
-// the handler holds directly. The admin allowlist is reached through the service
-// (h.s). Set during server startup; tests construct handlers without it.
+// WithAuth attaches the stateless signer; set at startup, tests omit it (signer stays nil).
 func (h *Handler) WithAuth(signer *auth.Signer) *Handler {
 	h.signer = signer
 	return h

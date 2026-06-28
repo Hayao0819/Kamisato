@@ -6,9 +6,9 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// SetRoute registers the miko build API routes under /api/unstable. Routes
-// require a valid API key when one is configured; with none set the server
-// trusts the closed network. ayato is the only caller.
+// SetRoute registers the build API under /api/unstable. Routes require an API
+// key when configured; with none set the server trusts the closed network
+// (ayato is the only caller).
 func SetRoute(e *gin.Engine, h *handler.Handler, v *apikey.Verifier) error {
 	// Health probes carry no API key, so they live outside the /api/unstable group.
 	e.GET("/healthz", func(c *gin.Context) { c.String(200, "ok") })

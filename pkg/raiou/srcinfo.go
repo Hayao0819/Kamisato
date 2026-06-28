@@ -6,11 +6,9 @@ import (
 	go_srcinfo "github.com/Morganamilo/go-srcinfo"
 )
 
-// ArchStrings holds per-architecture values (depends, sums, etc.).
-// A single arch can have multiple values, so each key maps to a slice.
+// ArchStrings maps an architecture to its values; a single arch can have multiple.
 type ArchStrings map[string][]string
 
-// SrcinfoPackage represents a single package definition in a .SRCINFO.
 type SrcinfoPackage struct {
 	PkgName    string      `mapstructure:"pkgname" json:"pkgname" yml:"pkgname" toml:"pkgname"`
 	PkgDesc    string      `mapstructure:"pkgdesc" json:"pkgdesc" yml:"pkgdesc" toml:"pkgdesc"`
@@ -49,7 +47,6 @@ type SrcinfoBase struct {
 	CheckDepends ArchStrings `mapstructure:"checkdepends" json:"checkdepends" yml:"checkdepends" toml:"checkdepends"`
 }
 
-// SRCINFO represents an entire .SRCINFO file (pkgbase + each package).
 type SRCINFO struct {
 	SrcinfoBase    `mapstructure:",squash"`
 	SrcinfoPackage `mapstructure:",squash"`

@@ -7,9 +7,7 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/utils"
 )
 
-// TestSentinelErrorsMatchThroughWrap confirms every command-layer sentinel
-// stays matchable with errors.Is after utils.WrapErr adds context, including
-// through more than one layer of wrapping.
+// TestSentinelErrorsMatchThroughWrap confirms sentinels stay errors.Is-matchable through nested WrapErr.
 func TestSentinelErrorsMatchThroughWrap(t *testing.T) {
 	sentinels := map[string]error{
 		"ErrInvalidRepoName":    ErrInvalidRepoName,
@@ -32,8 +30,7 @@ func TestSentinelErrorsMatchThroughWrap(t *testing.T) {
 	}
 }
 
-// TestSentinelErrorsAreDistinct guards against accidentally aliasing two
-// sentinels, and confirms a wrapped sentinel does not match a different one.
+// TestSentinelErrorsAreDistinct guards against aliasing distinct sentinels.
 func TestSentinelErrorsAreDistinct(t *testing.T) {
 	if stderrors.Is(ErrServerNotFound, ErrNoServerSpecified) {
 		t.Error("ErrServerNotFound and ErrNoServerSpecified compare equal")

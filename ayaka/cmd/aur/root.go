@@ -12,9 +12,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// Cmd groups the commands that pull PKGBUILDs from the AUR into a local
-// source repository: `aur add` to take in a new package and `aur update` to
-// follow upstream changes.
+// Cmd groups the commands that pull PKGBUILDs from the AUR into a source repository.
 func Cmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "aur",
@@ -28,8 +26,7 @@ func Cmd() *cobra.Command {
 	return cmd
 }
 
-// runAurFetch clones or updates each named AUR package under the given source
-// repository. add and update share this path: a missing package is cloned, an
+// runAurFetch is the shared add/update path: a missing package is cloned, an
 // existing one is pulled.
 func runAurFetch(cmd *cobra.Command, repoName string, pkgs []string, aurBase string, force bool) error {
 	if shared.GetSrcRepo(repoName) == nil {
@@ -56,7 +53,6 @@ func runAurFetch(cmd *cobra.Command, repoName string, pkgs []string, aurBase str
 	return nil
 }
 
-// updateAurPkg clones or updates a single AUR git repository under repoDir.
 func updateAurPkg(cobraCmd *cobra.Command, repoDir, aurBase, name string, force bool) error {
 	targetDir := filepath.Join(repoDir, name)
 	gitDir := filepath.Join(targetDir, ".git")
@@ -72,7 +68,7 @@ func updateAurPkg(cobraCmd *cobra.Command, repoDir, aurBase, name string, force 
 		return nil
 	}
 
-	// Only remove when we want to re-fetch an existing directory that is not a git repo
+	// force only matters for an existing non-git directory we want to re-fetch.
 	if force {
 		slog.Info("force remove non-git directory", "name", name, "dir", targetDir)
 		if err := os.RemoveAll(targetDir); err != nil {

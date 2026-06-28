@@ -7,8 +7,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// Cmd lists the packages in the source repositories as a table, with their
-// installed/local/remote versions and miko build status. The columns are
+// Cmd lists source packages with their versions and build status; columns are
 // selectable with a Docker-style --format template.
 func Cmd() *cobra.Command {
 	var format string

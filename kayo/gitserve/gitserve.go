@@ -20,8 +20,7 @@ import (
 const pinnedBranch = "kayo-pinned"
 
 // Materialize (re)builds root/<pkgbase>.git as a bare repo whose HEAD is the
-// reviewed commit, cloned from the already-checked-out sourceDir. A git client
-// cloning it receives exactly that commit.
+// reviewed commit, cloned from the already-checked-out sourceDir.
 func Materialize(ctx context.Context, root, pkgbase, sourceDir, commit string) error {
 	if commit == "" {
 		return utils.NewErr("cannot materialize without a pinned commit")

@@ -6,7 +6,6 @@ import (
 	"github.com/spf13/pflag"
 )
 
-// MikoConfig is the configuration for the miko build server.
 type MikoConfig struct {
 	Debug    bool        `koanf:"debug"`
 	Port     int         `koanf:"port"`
@@ -46,7 +45,6 @@ type MikoConfig struct {
 	} `koanf:"ayato"`
 }
 
-// LoadMikoConfig loads the miko configuration mirroring LoadAyatoConfig.
 func LoadMikoConfig(flags *pflag.FlagSet, configFile string) (*MikoConfig, error) {
 	if err := LoadEnv(); err != nil {
 		slog.Error("Failed to load env", "error", err)

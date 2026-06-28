@@ -11,9 +11,9 @@ import (
 	"golang.org/x/time/rate"
 )
 
-// rlEngineTrusted mirrors the production wiring in ayato/cmd/root.go: it resets
-// trusted proxies to nil (baseline: trust NONE) and only sets the configured
-// CIDR when provided. This is what makes c.ClientIP() return the real peer.
+// rlEngineTrusted mirrors production wiring (ayato/cmd/root.go): trust NONE by
+// default, set the configured CIDR only when given. That is what makes
+// c.ClientIP() return the real peer.
 func rlEngineTrusted(t *testing.T, m *Middleware, limit rate.Limit, burst int, trusted []string) *gin.Engine {
 	t.Helper()
 	r := gin.New()

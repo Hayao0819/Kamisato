@@ -1,12 +1,9 @@
-// Package trust is kayo's local trust store: the whitelist of approved packages
-// (pinned to a reviewed commit, recorded under the maintainer ACCOUNT that owned
-// them at review time) and the set of maintainer accounts the user vouches for.
-//
-// The anchor is the maintainer account, never a git commit email: aurweb
-// authenticates the pushing account (SSH key) but does not validate commit
-// author/committer email, so email is attacker-settable and untrustworthy. The
-// trustworthy identity is the RPC Maintainer (account username), namespaced per
-// source so an account on one source can't impersonate the same name on another.
+// Package trust is kayo's local trust store: approved packages (each pinned to a
+// reviewed commit under the maintainer ACCOUNT that owned it) and the maintainer
+// accounts the user vouches for. The anchor is the maintainer account, never a git
+// commit email — aurweb authenticates the pushing account but not commit author
+// email, so email is attacker-settable. Accounts are namespaced per source so a name
+// on one source can't impersonate the same name on another.
 package trust
 
 import (
@@ -108,7 +105,6 @@ func (s *Store) IsMaintainerTrusted(source, account string) bool {
 	return ok
 }
 
-// Approve records (or updates) a package approval.
 func (s *Store) Approve(a Approval) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -118,7 +114,6 @@ func (s *Store) Approve(a Approval) {
 	s.data.Approvals[a.Pkgbase] = a
 }
 
-// Approval returns the approval for a pkgbase, if any.
 func (s *Store) Approval(pkgbase string) (Approval, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -132,7 +127,6 @@ func (s *Store) RemoveApproval(pkgbase string) {
 	delete(s.data.Approvals, pkgbase)
 }
 
-// Maintainers returns the trusted maintainers, sorted.
 func (s *Store) Maintainers() []TrustedMaintainer {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -146,7 +140,6 @@ func (s *Store) Maintainers() []TrustedMaintainer {
 	return out
 }
 
-// Approvals returns the approved packages, sorted by pkgbase.
 func (s *Store) Approvals() []Approval {
 	s.mu.Lock()
 	defer s.mu.Unlock()

@@ -14,8 +14,6 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
-// TestJobLogsHandlerEmitsLinesOnce streams a closed buffer and asserts each line
-// is emitted exactly once as an SSE data frame.
 func TestJobLogsHandlerEmitsLinesOnce(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	ctrl := gomock.NewController(t)
@@ -49,8 +47,6 @@ func TestJobLogsHandlerEmitsLinesOnce(t *testing.T) {
 	}
 }
 
-// TestJobLogsHandlerReaderCap asserts the (N+1)th concurrent reader of one job
-// gets 429. The first N readers are simulated by pre-incrementing the counter.
 func TestJobLogsHandlerReaderCap(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	ctrl := gomock.NewController(t)

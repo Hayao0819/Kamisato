@@ -26,8 +26,8 @@ const pkginfoBody = "pkgname = foo\n" +
 	"arch = x86_64\n" +
 	"xdata = pkgtype=pkg\n"
 
-// buildPkgArchive returns a valid .pkg.tar.zst byte payload containing a minimal
-// .PKGINFO so ReadBinaryPackage can parse name/ver/arch.
+// buildPkgArchive returns a .pkg.tar.zst with a minimal .PKGINFO so
+// ReadBinaryPackage can parse name/ver/arch.
 func buildPkgArchive(t *testing.T) []byte {
 	t.Helper()
 	var tarBuf bytes.Buffer
@@ -94,7 +94,6 @@ func pkgStream(name string, data []byte) *stream.FileStream {
 
 const uploadName = "foo-1.0-1-x86_64.pkg.tar.zst"
 
-// baseConfig is a single-repo, single-arch config used by the upload tests.
 func baseConfig(requireSign bool, keyring string) *conf.AyatoConfig {
 	cfg := &conf.AyatoConfig{
 		RequireSign: requireSign,

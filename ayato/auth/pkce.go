@@ -6,9 +6,8 @@ import (
 	"golang.org/x/oauth2"
 )
 
-// VerifyPKCE reports whether the RFC 7636 S256 challenge of verifier equals the
-// stored challenge, constant-time. An empty verifier or challenge fails closed.
-// The S256 transform is delegated to x/oauth2 rather than hand-rolled.
+// VerifyPKCE constant-time-compares the RFC 7636 S256 challenge of verifier against
+// the stored challenge; an empty verifier or challenge fails closed.
 func VerifyPKCE(verifier, challenge string) bool {
 	if verifier == "" || challenge == "" {
 		return false

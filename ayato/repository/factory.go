@@ -13,8 +13,7 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/conf"
 )
 
-// initBinaryStore unpacks the conf into the plain values the backends take,
-// keeping the IO layer conf-free (mirroring the kv backends).
+// initBinaryStore keeps the IO layer conf-free by unpacking conf into the plain values the backends take.
 func initBinaryStore(cfg *conf.AyatoConfig) (blob.Store, error) {
 	if cfg.Store.StorageType == "s3" {
 		slog.Warn("Using S3 is still experimental, please use with caution")
@@ -42,8 +41,6 @@ func initBinaryStore(cfg *conf.AyatoConfig) (blob.Store, error) {
 	return localfs.New(cfg.Store.LocalRepoDir, repoNames), nil
 }
 
-// initKVStore builds the shared key-value store backing package metadata and
-// (later) other app data; backend is selected by cfg.Store.DBType.
 func initKVStore(cfg *conf.AyatoConfig) (kv.Store, error) {
 	switch cfg.Store.DBType {
 	case "sql", "external":
@@ -62,11 +59,9 @@ func initKVStore(cfg *conf.AyatoConfig) (kv.Store, error) {
 	}
 }
 
-// New creates the NameStore, BinaryRepository, and AuthRepository used by the
-// service, all riding a single shared kv.Store built here. That store is also
-// returned so additional consumers (the optional AUR backend) can partition
-// their own data under separate namespaces rather than opening a second store
-// against the same locked BadgerDB directory; the caller closes it on exit.
+// New returns the shared kv.Store alongside the repositories so other consumers
+// (e.g. the AUR backend) can partition their own namespaces instead of opening a
+// second store against the same locked BadgerDB dir; the caller closes it.
 func New(cfg *conf.AyatoConfig) (NameStore, BinaryRepository, AuthRepository, kv.Store, error) {
 	kvStore, err := initKVStore(cfg)
 	if err != nil {

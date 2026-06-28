@@ -32,8 +32,7 @@ func ResolvePath(baseDir, targetPath string) string {
 	return filepath.Clean(joined)
 }
 
-// CopyDir recursively copies a directory tree from src to dst.
-// dst must not exist (it will be created).
+// CopyDir recursively copies the src tree to dst, which must not already exist (it is created).
 func CopyDir(src, dst string) error {
 	srcInfo, err := os.Stat(src)
 	if err != nil {
@@ -111,8 +110,7 @@ func copyFile(srcFile, dstFile string, mode fs.FileMode) error {
 	return err
 }
 
-// ChmodRecursive recursively sets permissions for all files and directories.
-// dirMode is applied to directories, fileMode to regular files.
+// ChmodRecursive applies dirMode to directories and fileMode to files under root.
 func ChmodRecursive(root string, dirMode, fileMode fs.FileMode) error {
 	return filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {

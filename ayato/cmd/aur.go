@@ -16,8 +16,6 @@ func aurCmd() *cobra.Command {
 	return cmd
 }
 
-// aurKeygenCmd prints a fresh signing seed for the operator to set as
-// AYATO_AUR_SIGNING_SEED, plus the public key to pin in kayo.
 func aurKeygenCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "keygen",

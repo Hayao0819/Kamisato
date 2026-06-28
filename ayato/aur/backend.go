@@ -1,9 +1,7 @@
-// Package aur is ayato's aurweb Backend. ayato is stateless, so it does not host
-// git itself: an admin registers an external git URL, ayato parses that repo's
-// .SRCINFO once (an ephemeral clone it immediately discards), and keeps only the
-// derived metadata in the shared kv store. RPC is answered from kv; a git clone
-// of a registered pkgbase is redirected to the registered URL. Anything not
-// registered falls through to the real AUR.
+// Package aur is ayato's stateless aurweb Backend: an admin registers an external
+// git URL, ayato parses its .SRCINFO from an ephemeral clone it discards, and keeps
+// only the derived metadata in kv. A registered pkgbase's git clone is redirected to
+// the registered URL; anything unregistered falls through to the real AUR.
 package aur
 
 import (
@@ -25,22 +23,18 @@ const (
 	nsBase = "aurbase" // pkgbase -> JSON(baseRecord)
 )
 
-// baseRecord tracks a registered pkgbase: its git clone URL (the git-clone
-// redirect target) and the pkgnames it produced, so a later removal can clean up
-// every derived entry.
+// baseRecord stores a registered pkgbase's clone URL and the pkgnames it produced,
+// so removal can clean up every derived entry.
 type baseRecord struct {
 	URL   string   `json:"url"`
 	Names []string `json:"names"`
 }
 
-// Backend implements aurweb.Backend over a kv.Store.
 type Backend struct {
 	kv           kv.Store
 	defaultMaint string
 }
 
-// defaultMaintainer is the maintainer label applied to registered packages that
-// do not carry their own.
 func New(store kv.Store, defaultMaintainer string) *Backend {
 	return &Backend{kv: store, defaultMaint: defaultMaintainer}
 }
@@ -102,8 +96,6 @@ func (b *Backend) All(_ context.Context) ([]aurweb.Pkg, error) {
 	return b.all()
 }
 
-// Catalog is the kayo-facing view: every managed package plus the git source URL
-// of each pkgbase.
 func (b *Backend) Catalog(_ context.Context) (kayoproto.Catalog, error) {
 	pkgs, err := b.all()
 	if err != nil {

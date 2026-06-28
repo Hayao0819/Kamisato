@@ -25,8 +25,7 @@ func (h *Handler) AdminsListHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"admins": admins})
 }
 
-// AdminsAddHandler adds an admin by numeric id, or by GitHub login (resolved to
-// an id via the GitHub API).
+// Accepts a numeric id, or a GitHub login resolved to an id via the GitHub API.
 func (h *Handler) AdminsAddHandler(c *gin.Context) {
 	var body struct {
 		ID    int64  `json:"id"`
@@ -69,8 +68,7 @@ func (h *Handler) AdminsRemoveHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
 
-// resolveGitHubLogin looks up a public GitHub user by login to get the numeric
-// id (no auth required for public profiles).
+// No auth needed: public GitHub profiles are world-readable.
 func resolveGitHubLogin(ctx context.Context, login string) (githubUser, error) {
 	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()

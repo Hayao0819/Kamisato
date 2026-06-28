@@ -8,10 +8,8 @@ import (
 	"testing"
 )
 
-// TestReverseProxyNormalizesForwarded asserts the Rewrite proxy replaces a
-// spoofed inbound X-Forwarded-For with the real RemoteAddr (not appends to it),
-// and strips the other client-supplied forwarding headers so the upstream cannot
-// be lied to about the client.
+// The proxy must replace spoofed forwarding headers from the real connection
+// (not append), so the upstream cannot be lied to about the client.
 func TestReverseProxyNormalizesForwarded(t *testing.T) {
 	var gotXFF, gotForwarded, gotXFHost, gotXFProto string
 	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -48,8 +46,7 @@ func TestReverseProxyNormalizesForwarded(t *testing.T) {
 	}
 	defer resp.Body.Close()
 
-	// The spoofed value must be replaced, not appended. The real client of the
-	// proxy is 127.0.0.1, so XFF must be exactly that, with no "1.2.3.4" left.
+	// Spoofed value must be replaced, not appended; the real client is 127.0.0.1.
 	if strings.Contains(gotXFF, "1.2.3.4") {
 		t.Errorf("X-Forwarded-For still contains spoofed value: %q", gotXFF)
 	}
@@ -64,8 +61,7 @@ func TestReverseProxyNormalizesForwarded(t *testing.T) {
 	if strings.Contains(gotForwarded, "evil.example.com") {
 		t.Errorf("Forwarded header leaked spoofed host: %q", gotForwarded)
 	}
-	// X-Forwarded-Host/Proto are reset by SetXForwarded; the spoofed evil host
-	// must not survive.
+	// SetXForwarded resets X-Forwarded-Host/Proto, so the spoofed values must not survive.
 	if gotXFHost == "evil.example.com" {
 		t.Errorf("X-Forwarded-Host leaked spoofed value: %q", gotXFHost)
 	}

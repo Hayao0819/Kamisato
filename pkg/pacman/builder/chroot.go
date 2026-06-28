@@ -55,7 +55,6 @@ func (b *chrootBackend) Build(ctx context.Context, spec Spec) (*Result, error) {
 		ArchBuild:   spec.ArchBuild,
 		InstallPkgs: spec.InstallPkgs,
 	}
-	// If a LogWriter is set, capture build output while still writing to the console.
 	if spec.LogWriter != nil {
 		target.Output = io.MultiWriter(os.Stdout, spec.LogWriter)
 	}

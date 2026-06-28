@@ -21,11 +21,8 @@ var (
 	ErrJobNotCancelable = errors.New("job is already terminal")
 )
 
-// Servicer is the interface exposed by the miko build service.
-//
 //go:generate mockgen -source=service.go -destination=../test/mocks/service.go -package=mocks
 type Servicer interface {
-	// Submit enqueues a build request and returns the assigned job ID.
 	Submit(req *domain.BuildRequest) (string, error)
 	Status(id string) (*domain.BuildJob, error)
 	// List returns all jobs, newest first.
@@ -36,8 +33,6 @@ type Servicer interface {
 	Run(ctx context.Context)
 }
 
-// Service holds the build configuration, the job queue and an in-memory job
-// store backed by optional on-disk persistence.
 type Service struct {
 	cfg     *conf.MikoConfig
 	queue   *queue

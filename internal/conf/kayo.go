@@ -36,18 +36,16 @@ type KayoConfig struct {
 	LLM      LLMConfig       `koanf:"llm,omitempty"`
 }
 
-// LLMConfig configures the optional LLM advisory pass over a PKGBUILD, run only
-// by the human-driven audit/trust commands (never the resolve path). It is
-// advisory, not a gate. The API key comes from the provider's standard
-// environment variable, never from config.
+// LLMConfig configures the optional LLM advisory pass over a PKGBUILD, run only by
+// the human-driven audit/trust commands (never the resolve path) and advisory, not a
+// gate. The API key comes from the provider's standard env var, never config.
 type LLMConfig struct {
 	// Enabled runs the advisory by default on audit/trust add. The --llm flag can
 	// force it on for a single run when this is false.
 	Enabled bool `koanf:"enabled"`
 	// Provider is anthropic (default), openai, or ollama.
 	Provider string `koanf:"provider,omitempty"`
-	// Model overrides the provider's default model.
-	Model string `koanf:"model,omitempty"`
+	Model    string `koanf:"model,omitempty"`
 	// BaseURL overrides the provider endpoint (and is the ollama server URL).
 	BaseURL string `koanf:"base_url,omitempty"`
 }
@@ -61,8 +59,7 @@ type UpstreamConfig struct {
 	RPCURL string `koanf:"rpc_url"`
 	// GitBase overrides the git clone origin for redirects; empty derives it
 	// from RPCURL.
-	GitBase string `koanf:"git_base"`
-	// UserAgent overrides the request User-Agent sent upstream.
+	GitBase   string `koanf:"git_base"`
 	UserAgent string `koanf:"user_agent"`
 }
 
@@ -152,11 +149,10 @@ func (c *KayoConfig) Validate() error {
 		}
 	}
 
-	// ayato federation persists TOFU pins and the anti-rollback watermark beside
-	// the trust store. If trust_store is unset and we cannot find a user config
-	// dir, ResolvedTrustStore silently falls back to a world-writable, reboot-wiped
-	// temp path — an unacceptable home for trust anchors. Refuse to start and make
-	// the operator set trust_store explicitly.
+	// ayato federation stores TOFU pins and the anti-rollback watermark beside the
+	// trust store. Without trust_store and a user config dir, ResolvedTrustStore falls
+	// back to a world-writable, reboot-wiped temp path — unacceptable for trust
+	// anchors — so refuse to start.
 	if len(c.Ayato) > 0 && c.TrustStore == "" {
 		if _, err := os.UserConfigDir(); err != nil {
 			return fmt.Errorf("ayato federation needs a durable trust_store: set trust_store (no user config dir found, refusing the temp-dir fallback)")

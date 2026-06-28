@@ -37,7 +37,6 @@ func TestBufferCapEnforced(t *testing.T) {
 	}
 
 	got := b.String()
-	// Len must never exceed max plus the one truncation marker.
 	marker := "--- log truncated"
 	if !strings.Contains(got, marker) {
 		t.Fatalf("expected truncation marker, got %q", got)
@@ -45,13 +44,11 @@ func TestBufferCapEnforced(t *testing.T) {
 	if c := strings.Count(got, marker); c != 1 {
 		t.Errorf("truncation marker appeared %d times, want exactly 1", c)
 	}
-	// Real data plus marker; must be far below totalWritten (the cap drops the
-	// overwhelming majority of the 500 written bytes).
+	// With the cap, len must be far below the total written (most bytes dropped).
 	if b.Len() >= totalWritten {
 		t.Errorf("buffer len %d should be far below total written %d", b.Len(), totalWritten)
 	}
-	// Bounded: at most maxBytes overshot by one full write, plus the marker. Never
-	// the full totalWritten.
+	// Bounded by maxBytes + one full write + the marker, never the full total.
 	markerFull := "\n--- log truncated (max 64 bytes) ---\n"
 	if upper := max + len(chunk) + len(markerFull); b.Len() > upper {
 		t.Errorf("buffer len %d exceeds bound %d (cap + one write + marker)", b.Len(), upper)

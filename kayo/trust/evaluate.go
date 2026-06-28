@@ -18,7 +18,6 @@ func (d Decision) String() string {
 	return "needs-review"
 }
 
-// Verdict is the result of Evaluate.
 type Verdict struct {
 	Decision Decision
 	Reasons  []string

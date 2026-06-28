@@ -23,8 +23,8 @@ import (
 
 var _ blob.Store = (*S3)(nil)
 
-// Config holds the plain S3/R2 connection settings the store needs, decoupling
-// the IO layer from the conf package (the factory unpacks conf into this).
+// Config holds plain S3/R2 connection settings, decoupling the IO layer from the
+// conf package.
 type Config struct {
 	Bucket          string
 	Region          string

@@ -14,10 +14,9 @@ import (
 	"github.com/Hayao0819/Kamisato/kayo/trust"
 )
 
-// PrintLLMAdvisory runs the optional, advisory-only LLM triage and prints it.
-// Strictly best-effort: any failure prints a note and is swallowed, never
-// affecting the audit's verdict or exit code — an LLM is nondeterministic and
-// prompt-injectable, so it must not gate anything.
+// PrintLLMAdvisory runs the optional, advisory-only LLM triage. Strictly best-effort:
+// any failure is swallowed and never affects the verdict or exit code — an LLM is
+// nondeterministic and prompt-injectable, so it must not gate anything.
 func PrintLLMAdvisory(ctx context.Context, w io.Writer, cfg *conf.KayoConfig, dir string, force bool) {
 	if !cfg.LLM.Enabled && !force {
 		return

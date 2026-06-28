@@ -12,17 +12,16 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/utils"
 )
 
-// KeyID is the human-comparable handle for a public key: the first 16 hex chars
-// of its SHA-256. Used in logs and out-of-band pin confirmation, never for crypto
-// decisions.
+// KeyID is a human-comparable handle (first 16 hex of SHA-256) for logs and
+// out-of-band pin confirmation, never for crypto decisions.
 func KeyID(pub ed25519.PublicKey) string {
 	sum := sha256.Sum256(pub)
 	return hex.EncodeToString(sum[:])[:16]
 }
 
-// CatalogSigner is ayato's Ed25519 identity for the kayo-facing catalog. ayato is
-// the sole holder of the private seed; kayo verifies with a pinned public key —
-// the asymmetric anchor the unsigned AUR cannot provide.
+// CatalogSigner is ayato's Ed25519 identity for the catalog: ayato alone holds the
+// private seed and kayo verifies with a pinned public key — the asymmetric anchor
+// the unsigned AUR cannot provide.
 type CatalogSigner struct {
 	keyID string
 	priv  ed25519.PrivateKey
@@ -30,9 +29,8 @@ type CatalogSigner struct {
 	ttl   time.Duration
 }
 
-// NewCatalogSigner builds a signer from a base64 32-byte seed (ed25519.SeedSize).
-// The seed must come from the environment (AYATO_AUR_SIGNING_SEED), never a config
-// file on disk.
+// NewCatalogSigner builds a signer from a base64 32-byte seed. The seed must come
+// from the environment (AYATO_AUR_SIGNING_SEED), never a config file on disk.
 func NewCatalogSigner(seedB64 string, ttl time.Duration) (*CatalogSigner, error) {
 	seed, err := base64.StdEncoding.DecodeString(seedB64)
 	if err != nil {
@@ -49,8 +47,8 @@ func NewCatalogSigner(seedB64 string, ttl time.Duration) (*CatalogSigner, error)
 func (s *CatalogSigner) KeyID() string        { return s.keyID }
 func (s *CatalogSigner) PublicKeyB64() string { return base64.StdEncoding.EncodeToString(s.pub) }
 
-// Sign marshals the freshness payload once and returns a detached signature over
-// those exact bytes (pure Ed25519, no pre-hash).
+// Sign returns a detached signature over the exact marshaled payload bytes (pure
+// Ed25519, no pre-hash).
 func (s *CatalogSigner) Sign(cat kayoproto.Catalog) (kayoproto.CatalogEnvelope, error) {
 	now := time.Now().UTC()
 	p := kayoproto.SignedPayload{KeyID: s.keyID, IssuedAt: now, Catalog: cat}

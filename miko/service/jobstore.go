@@ -44,8 +44,8 @@ func (s *Service) update(id string, fn func(*domain.BuildJob)) {
 	}
 }
 
-// maxStoredJobs caps the in-memory job store. The store is not persisted, so
-// this only bounds memory; older terminal jobs are dropped first.
+// maxStoredJobs caps the in-memory job store to bound memory; older terminal
+// jobs are dropped first (and removed from disk when persistence is on).
 const maxStoredJobs = 500
 
 // evictLocked drops the oldest terminal (success/failed) jobs until the store

@@ -4,9 +4,8 @@ import "testing"
 
 const testSessionSecret = "0123456789abcdef0123456789abcdef" // 32 bytes
 
-// githubCfg builds a fully valid GitHub-enabled config (signer secret + trusted
-// proxies present) with the given public origin, so individual tests can perturb
-// one field at a time.
+// githubCfg builds a fully valid GitHub-enabled config so each test can perturb one
+// field at a time.
 func githubCfg(origin string) *AyatoConfig {
 	c := &AyatoConfig{}
 	c.Auth.GitHub.ClientID = "cid"
@@ -61,7 +60,6 @@ func TestValidateRequiresSessionSecret(t *testing.T) {
 		t.Fatal("GitHub enabled without session_secret must fail")
 	}
 
-	// A secret shorter than 32 bytes does not count as usable.
 	c.Auth.SessionSecret = []string{"too-short"}
 	if err := c.Validate(); err == nil {
 		t.Fatal("session_secret under 32 bytes must fail")

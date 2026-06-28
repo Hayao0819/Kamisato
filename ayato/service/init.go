@@ -8,8 +8,7 @@ import (
 )
 
 func (s *Service) InitAll() error {
-	// Fail closed at startup if the signature trust root could not be
-	// established (keyring load failure, or RequireSign without a keyring).
+	// Fail closed if the signature trust root could not be established.
 	if s.verifierErr != nil {
 		return s.verifierErr
 	}
@@ -28,10 +27,8 @@ func (s *Service) InitAll() error {
 	return nil
 }
 
-// initRepo creates the repository's per-architecture databases. Arch expansion is
-// a service concern (the repository layer no longer reads config): it unions the
-// architectures already created on disk with the configured ones, dropping "any"
-// (pacman has no os/any database).
+// Arch expansion lives in the service, not the repository layer: union the
+// on-disk and configured arches, dropping "any" (pacman has no os/any database).
 func (s *Service) initRepo(repo string, useSignedDB bool, gnupgDir *string) error {
 	existing, err := s.pkgBinaryRepo.Arches(repo)
 	if err != nil {

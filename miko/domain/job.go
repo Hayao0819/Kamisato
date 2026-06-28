@@ -6,7 +6,6 @@ import (
 	"github.com/Hayao0819/Kamisato/miko/joblog"
 )
 
-// JobStatus represents the lifecycle state of a build job.
 type JobStatus string
 
 const (
@@ -17,15 +16,12 @@ const (
 	JobStatusCancelled JobStatus = "cancelled"
 )
 
-// BuildRequest is the input for submitting a build.
 type BuildRequest struct {
 	Repo string `json:"repo"`
 	Arch string `json:"arch"`
-	// Git clones a git/AUR repository as the build source. Mutually exclusive
-	// with Pkgbuild; exactly one source must be provided.
+	// Mutually exclusive with Pkgbuild; exactly one source must be provided.
 	Git *GitSource `json:"git,omitempty"`
-	// Pkgbuild is the raw PKGBUILD contents, used as the build source when Git
-	// is not set.
+	// Pkgbuild is the raw PKGBUILD contents.
 	Pkgbuild string `json:"pkgbuild,omitempty"`
 	// Files are extra filename->contents written alongside the Pkgbuild source.
 	Files map[string]string `json:"files,omitempty"`
@@ -44,7 +40,6 @@ type GitSource struct {
 	Subdir string `json:"subdir,omitempty"`
 }
 
-// BuildJob tracks a single build through the queue and worker.
 type BuildJob struct {
 	ID       string    `json:"id"`
 	Repo     string    `json:"repo"`
@@ -60,12 +55,10 @@ type BuildJob struct {
 	StartedAt *time.Time    `json:"started_at,omitempty"`
 	EndedAt   *time.Time    `json:"ended_at,omitempty"`
 
-	// Log is the live build-log buffer, populated by the worker and streamed by
-	// the logs endpoint. Set by the service on Submit. Not serialized.
+	// Log is the live build-log buffer, set by the service on Submit.
 	Log *joblog.Buffer `json:"-"`
 }
 
-// BuildStats is a snapshot of the build service served by the stats endpoint.
 type BuildStats struct {
 	Workers     int               `json:"workers"`
 	QueueLength int               `json:"queue_length"`

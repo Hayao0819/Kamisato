@@ -10,21 +10,18 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// MikoProxy reverse-proxies build/job requests to the internal miko build
-// server. Clients never reach miko directly; ayato authenticates to it with the
-// shared API key. miko owns job state, so ayato is a pure pass-through here.
+// Reverse-proxies build/job requests to the internal miko server; clients never
+// reach miko directly and ayato authenticates with the shared API key.
 type MikoProxy struct {
 	proxy *httputil.ReverseProxy
 }
 
-// MikoProxy builds the reverse proxy to miko from the handler's config. It
-// returns nil when no upstream is configured so the router skips the routes.
+// Returns nil when no upstream is configured so the router skips the miko routes.
 func (h *Handler) MikoProxy() (*MikoProxy, error) {
 	return NewMikoProxy(h.cfg)
 }
 
-// NewMikoProxy builds a reverse proxy targeting cfg.Miko.URL. It returns nil
-// when no upstream is configured so the router can skip wiring the routes.
+// Returns nil when no upstream is configured so the router can skip the routes.
 func NewMikoProxy(cfg *conf.AyatoConfig) (*MikoProxy, error) {
 	if cfg == nil || cfg.Miko.URL == "" {
 		return nil, nil
@@ -44,10 +41,8 @@ func NewMikoProxy(cfg *conf.AyatoConfig) (*MikoProxy, error) {
 			// Drop any client-supplied key before setting ours so a client
 			// cannot smuggle its own X-API-Key through to miko.
 			req.Header.Del(apikey.Header)
-			// Strip the end-user's Authorization (session is via cookie; CLI
-			// uses a Bearer token only ayato understands). Leaving it would
-			// leak a user's CLI token to miko, which authenticates with the
-			// shared X-API-Key set below — never the user's credentials.
+			// Strip the user's Authorization; leaving it would leak their CLI
+			// token to miko, which authenticates only via the shared X-API-Key.
 			req.Header.Del("Authorization")
 			// The end-user's session cookie must never cross into miko (which
 			// runs with docker.sock); miko authenticates only via X-API-Key.
@@ -64,16 +59,13 @@ func NewMikoProxy(cfg *conf.AyatoConfig) (*MikoProxy, error) {
 	return &MikoProxy{proxy: proxy}, nil
 }
 
-// Handler proxies the current request to miko under a fixed upstream path.
-// Use it for routes with no dynamic segment.
+// For routes with no dynamic segment; proxies to a fixed upstream path.
 func (p *MikoProxy) Handler(upstreamPath string) gin.HandlerFunc {
 	return p.HandlerFunc(func(*gin.Context) string { return upstreamPath })
 }
 
-// HandlerFunc proxies the current request to miko, computing the upstream path
-// per request via build. Pinning the path here (rather than copying the client
-// path) keeps a client from steering the proxy at an arbitrary miko endpoint;
-// the request body, query, method, and headers pass through.
+// Pinning the upstream path (not copying the client path) stops a client from
+// steering the proxy at an arbitrary miko endpoint.
 func (p *MikoProxy) HandlerFunc(build func(c *gin.Context) string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Request.URL.Path = build(c)

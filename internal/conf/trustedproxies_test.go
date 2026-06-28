@@ -19,14 +19,11 @@ func TestRedteam_TrustAllMixedWithCIDR(t *testing.T) {
 	}
 }
 
-// TestRedteam_TrustAllSpellingBypass verifies the trust-all rejection is a
-// SEMANTIC check (parse each entry as a CIDR and reject prefix length 0), so
-// equivalent spellings of the any-net cannot slip past Validate. A purely
-// string-based guard over {"*","0.0.0.0/0","::/0"} would miss these and let gin
-// trust every peer, re-enabling the spoofed-XFF rate-limit-key attack.
+// TestRedteam_TrustAllSpellingBypass verifies the trust-all rejection is semantic
+// (parse each entry, reject prefix length 0) so any-net spellings can't slip past
+// Validate — a string-only guard would let gin trust every peer and re-enable the
+// spoofed-XFF rate-limit attack.
 func TestRedteam_TrustAllSpellingBypass(t *testing.T) {
-	// Every any-net spelling, plus invalid/whitespace-padded entries, must be
-	// rejected (fail-closed config).
 	for _, v := range []string{
 		"0.0.0.0/0",
 		"::/0",
@@ -43,7 +40,6 @@ func TestRedteam_TrustAllSpellingBypass(t *testing.T) {
 		}
 	}
 
-	// A legitimate fronting-proxy CIDR or single IP is accepted.
 	for _, v := range []string{"172.16.0.0/12", "10.0.0.5", "fd00::/8"} {
 		c := githubCfg("https://repo.example.com")
 		c.Auth.TrustedProxies = []string{v}

@@ -62,7 +62,6 @@ func TestLocalParseAllDescFiles(t *testing.T) {
 			continue
 		}
 
-		// fail the test if there are unknown keys
 		if len(desc.ExtraFields) > 0 {
 			t.Errorf("unknown keys found in %s: %v", descPath, keysOf(desc.ExtraFields))
 		}

@@ -1,10 +1,8 @@
-// Package audit statically inspects a PKGBUILD and its install scriptlets for the
-// behaviours real AUR supply-chain attacks have used: piping downloads to a
-// shell, fetching dependencies during the build, raw sockets, obfuscation,
-// persistence, and insecure sources. Behavioural checks walk the bash AST
-// (mvdan.cc/sh) rather than matching lines, so they see across line breaks and
-// ignore comments and strings; string-level facts (insecure URLs, weak
-// checksums) stay as regex. The PKGBUILD is never executed.
+// Package audit statically inspects a PKGBUILD and its install scriptlets for
+// behaviours seen in AUR supply-chain attacks. Behavioural checks walk the bash AST
+// (mvdan.cc/sh) instead of matching lines, so they see across line breaks and ignore
+// comments and strings; string-level facts (insecure URLs, weak checksums) stay as
+// regex. The PKGBUILD is never executed.
 package audit
 
 import (
@@ -18,7 +16,6 @@ import (
 	"github.com/Hayao0819/Kamisato/pkg/raiou"
 )
 
-// Severity ranks a finding.
 type Severity int
 
 const (
@@ -41,7 +38,6 @@ func (s Severity) String() string {
 	}
 }
 
-// Finding is one triggered check.
 type Finding struct {
 	Code     string
 	Severity Severity
@@ -49,12 +45,10 @@ type Finding struct {
 	Detail   string
 }
 
-// Report is the result of scanning one package directory.
 type Report struct {
 	Findings []Finding
 }
 
-// Max returns the highest severity among the findings (SevInfo if none).
 func (r Report) Max() Severity {
 	highest := SevInfo
 	for _, f := range r.Findings {
@@ -86,7 +80,6 @@ var installStringChecks = []regexCheck{
 	{"INSTALL-PERSIST", SevMedium, "installs persistence (service/timer/cron) as root", regexp.MustCompile(`(?i)(systemctl\s+enable|/etc/systemd/system|crontab|/etc/cron)`)},
 }
 
-// Scan inspects the PKGBUILD (and any *.install) in dir.
 func Scan(dir string) (Report, error) {
 	pkgbuild, err := os.ReadFile(filepath.Join(dir, "PKGBUILD"))
 	if err != nil {

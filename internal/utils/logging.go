@@ -44,13 +44,6 @@ func UseColorLog(level slog.Level) {
 	slog.SetDefault(l)
 }
 
-// func UseLog(level slog.Level) {
-// 	h := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
-// 		Level: level,
-// 	}))
-// 	slog.SetDefault(h)
-// }
-
 func GinLog() gin.HandlerFunc {
 	config := sloggin.Config{
 		DefaultLevel:   slog.LevelDebug,

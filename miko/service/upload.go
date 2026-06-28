@@ -11,9 +11,9 @@ import (
 )
 
 // signAndUpload signs each built package with the requested GPG key (when set)
-// and uploads it, together with its detached signature, to ayato via the blinky
-// client. With Concurrency > 1 several of these run at once sharing
-// cfg.Build.GnupgHome; gpg locks its own keyring, so concurrent signing is safe.
+// and uploads it with its detached signature to ayato via the blinky client.
+// With Concurrency > 1 these share cfg.Build.GnupgHome, but gpg locks its own
+// keyring, so concurrent signing is safe.
 func signAndUpload(cfg *conf.MikoConfig, repo, gpgKey string, packages []string) error {
 	client, err := blinky_clientlib.New(cfg.Ayato.URL, cfg.Ayato.Username, cfg.Ayato.Password)
 	if err != nil {
@@ -36,7 +36,6 @@ func signAndUpload(cfg *conf.MikoConfig, repo, gpgKey string, packages []string)
 	return nil
 }
 
-// uploadOne uploads a single package (and optional signature) to the repo.
 func uploadOne(client *blinky_clientlib.BlinkyClient, repo, pkgPath, sigPath string) error {
 	pkgFile, err := os.Open(pkgPath)
 	if err != nil {
@@ -44,8 +43,7 @@ func uploadOne(client *blinky_clientlib.BlinkyClient, repo, pkgPath, sigPath str
 	}
 	defer func() { _ = pkgFile.Close() }()
 
-	// signatureFile is passed as nil when no signature was produced; the blinky
-	// client treats a nil reader as "no signature".
+	// A nil signature reader tells the blinky client there is no signature.
 	var sigFile *os.File
 	if sigPath != "" {
 		sigFile, err = os.Open(sigPath)

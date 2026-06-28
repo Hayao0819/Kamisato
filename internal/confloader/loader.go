@@ -62,7 +62,6 @@ func (l *Loader[T]) PFlags(flags *pflag.FlagSet) *Loader[T] {
 	return l
 }
 
-// Load loads and merges config files based on Dirs() and Files() state
 func (l *Loader[T]) Load() error {
 	// An absolute filename is used as-is; a relative one is searched under each
 	// dir. Joining an absolute path with a dir would mangle it.

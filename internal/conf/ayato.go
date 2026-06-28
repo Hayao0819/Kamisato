@@ -24,29 +24,24 @@ type AyatoConfig struct {
 	AUR         AURConfig       `koanf:"aur"`
 }
 
-// AURConfig turns ayato into an aurweb-compatible host. When Enabled, ayato
-// serves /rpc and redirects "<host>/<pkgbase>.git" for the PKGBUILD sources it
-// has registered, falling through to the real AUR for everything else. Sources
-// are registered by admins as external git URLs; ayato parses their .SRCINFO and
-// keeps only the derived metadata (it stores no git state itself).
+// AURConfig makes ayato an aurweb-compatible host: when Enabled it serves /rpc and
+// git redirects for registered PKGBUILD sources, falling through to the real AUR
+// otherwise, and keeps only the derived .SRCINFO metadata (no git state).
 type AURConfig struct {
 	Enabled bool `koanf:"enabled"`
-	// Maintainer is the default synthetic maintainer label for registered
-	// packages that do not carry their own.
+	// Maintainer is the default synthetic maintainer for registered packages lacking one.
 	Maintainer string `koanf:"maintainer,omitempty"`
 	// Upstream is the real-AUR fallback. Disabled Upstream makes ayato's AUR a
 	// closed set limited to registered packages.
 	Upstream UpstreamConfig `koanf:"upstream,omitempty"`
-	// CatalogTTLMinutes bounds how long kayo treats a signed catalog as fresh
-	// (the signed ExpiresAt); 0 uses a sane default. The signing seed is supplied
-	// ONLY via the AYATO_AUR_SIGNING_SEED env var, never this config file.
+	// CatalogTTLMinutes bounds how long kayo treats a signed catalog as fresh; 0 uses
+	// a default. The signing seed comes ONLY from AYATO_AUR_SIGNING_SEED, never config.
 	CatalogTTLMinutes int `koanf:"catalog_ttl_minutes,omitempty"`
 }
 
-// VerifyConfig is the trust root for cryptographic package-signature
-// verification. Keyring points at a dedicated public-key file (armored or binary,
-// kept separate from Build.GnupgHome, which holds the signing private key).
-// TrustedKeys, when non-empty, pins which primary-key fingerprints are accepted.
+// VerifyConfig is the trust root for package-signature verification. Keyring is a
+// public-key file, separate from Build.GnupgHome (the signing private key).
+// TrustedKeys, when set, pins which primary-key fingerprints are accepted.
 type VerifyConfig struct {
 	Keyring     string   `koanf:"keyring,omitempty"`
 	TrustedKeys []string `koanf:"trusted_keys,omitempty"`
@@ -75,41 +70,34 @@ type AuthConfig struct {
 	Username string `koanf:"username,omitempty"`
 	Password string `koanf:"password,omitempty"`
 
-	// GitHub is the "Sign in with GitHub" OAuth2 client.
 	GitHub GitHubOAuthConfig `koanf:"github,omitempty"`
 	// PublicOrigin is the browser-facing SPA origin (e.g. https://repo.example.com):
-	// the CORS allow-origin for cross-origin (bearer-mode) callers and the
-	// postMessage target the web-bearer login posts the one-time code to. In the
-	// same-origin (cookie/BFF) deployment it is also where the OAuth flow lands.
+	// the CORS allow-origin for bearer-mode callers and the postMessage target for the
+	// one-time login code. In the same-origin/BFF deployment the OAuth flow lands here.
 	PublicOrigin string `koanf:"public_origin,omitempty"`
-	// SelfOrigin is ayato's OWN externally-reachable origin, used to build the
-	// OAuth redirect_uri (the callback always hits ayato, never the static SPA).
-	// Leave empty in the same-origin/BFF deployment, where it equals PublicOrigin;
-	// set it to ayato's own URL (e.g. https://ayato.example.run.app) only when the
-	// SPA is served cross-origin (bearer mode) so the callback resolves to ayato.
+	// SelfOrigin is ayato's OWN externally-reachable origin for building the OAuth
+	// redirect_uri. Leave empty in same-origin/BFF (equals PublicOrigin); set it only
+	// when the SPA is served cross-origin (bearer mode) so the callback resolves to
+	// ayato.
 	SelfOrigin string `koanf:"self_origin,omitempty"`
 	// BootstrapAdminGitHubID is seeded into the admin allowlist on first run
 	// when the allowlist is empty.
 	BootstrapAdminGitHubID int64 `koanf:"bootstrap_admin_github_id,omitempty"`
 	// SessionCookieName is the web session cookie name (default "ayato_session").
 	SessionCookieName string `koanf:"session_cookie_name,omitempty"`
-	// SessionSecret holds one or more HMAC keys for the stateless auth signer
-	// (sessions, CLI tokens, one-time codes, OAuth state). The first key signs;
-	// ALL keys verify, so a key can be rotated by prepending a new one while
-	// tokens minted under the old key keep verifying. Each key must be >= 32
-	// bytes. Set via AYATO_AUTH_SESSION_SECRET.
+	// SessionSecret holds HMAC keys for the stateless auth signer. The first signs;
+	// all verify, so a key rotates by prepending a new one. Each must be >= 32 bytes.
+	// Set via AYATO_AUTH_SESSION_SECRET.
 	SessionSecret []string `koanf:"session_secret,omitempty"`
-	// TrustedProxies are CIDRs/addresses (lumine) allowed to set X-Forwarded-*.
-	// Empty now means trust NONE: ClientIP() falls back to the real peer and any
-	// X-Forwarded-For is ignored. Set this to the fronting proxy's CIDR so the
-	// per-IP rate-limit key reflects the real client rather than a spoofed header.
+	// TrustedProxies are CIDRs/addresses allowed to set X-Forwarded-*. Empty trusts
+	// none, so ClientIP() ignores X-Forwarded-For and uses the real peer. Set the
+	// fronting proxy's CIDR so the per-IP rate-limit key reflects the real client.
 	TrustedProxies []string `koanf:"trusted_proxies,omitempty"`
 	// CI holds non-interactive publish credentials (API key / GitHub OIDC) for CI
 	// pipelines on the upload route, separate from the user admin allowlist.
 	CI CIAuthConfig `koanf:"ci,omitempty"`
 }
 
-// CookieName returns the configured session cookie name or the default.
 func (a AuthConfig) CookieName() string {
 	if a.SessionCookieName != "" {
 		return a.SessionCookieName
@@ -153,10 +141,9 @@ func LoadAyatoConfig(flags *pflag.FlagSet, configFile string) (*AyatoConfig, err
 	return cfg, nil
 }
 
-// Validate rejects an OAuth config that would let the redirect_uri or the
-// session-cookie Secure flag be derived from spoofable request headers: when
-// GitHub login is enabled, PublicOrigin is mandatory and must be an absolute
-// http(s) origin without a path.
+// Validate rejects an OAuth config whose redirect_uri or session-cookie Secure flag
+// could be derived from spoofable request headers: with GitHub login on,
+// PublicOrigin is mandatory and must be an absolute http(s) origin without a path.
 func (c *AyatoConfig) Validate() error {
 	if err := c.Auth.CI.validate(); err != nil {
 		return err
@@ -178,8 +165,6 @@ func (c *AyatoConfig) Validate() error {
 	if u.Path != "" && u.Path != "/" {
 		return fmt.Errorf("auth.public_origin must be an origin without a path: %q", c.Auth.PublicOrigin)
 	}
-	// SelfOrigin is optional (defaults to PublicOrigin) but, when set, must be an
-	// absolute origin without a path, same as PublicOrigin.
 	if c.Auth.SelfOrigin != "" {
 		su, serr := url.Parse(c.Auth.SelfOrigin)
 		if serr != nil || (su.Scheme != "http" && su.Scheme != "https") || su.Host == "" {
@@ -189,14 +174,12 @@ func (c *AyatoConfig) Validate() error {
 			return fmt.Errorf("auth.self_origin must be an origin without a path: %q", c.Auth.SelfOrigin)
 		}
 	}
-	// The stateless signer is mandatory: without a secret there is no way to mint
-	// or verify sessions/tokens. At least one key must be >= 32 bytes.
+	// The stateless signer is mandatory: no secret means no sessions/tokens.
 	if !hasUsableSessionSecret(c.Auth.SessionSecret) {
 		return fmt.Errorf("auth.session_secret is required when GitHub login is enabled and each key must be at least 32 bytes")
 	}
 	// The per-IP rate-limit key is only trustworthy when a known proxy is the sole
-	// X-Forwarded-For setter. Require trusted_proxies and reject trust-all entries
-	// that would let any peer spoof their client IP.
+	// X-Forwarded-For setter, so require trusted_proxies and reject trust-all.
 	if len(c.Auth.TrustedProxies) == 0 {
 		return fmt.Errorf("auth.trusted_proxies is required when GitHub login is enabled (set it to the fronting proxy's CIDR)")
 	}
@@ -204,9 +187,8 @@ func (c *AyatoConfig) Validate() error {
 		if p == "*" {
 			return fmt.Errorf("auth.trusted_proxies must not trust all peers (%q): set it to the fronting proxy's CIDR", p)
 		}
-		// Reject any-net CIDRs (prefix length 0) in EVERY spelling. String
-		// matching specific forms like "0.0.0.0/0"/"::/0" misses equivalents such
-		// as "0.0.0.0/00" or "0000:0000::/0", so parse and check the real prefix.
+		// Reject any-net CIDRs (prefix length 0) in every spelling: string-matching
+		// "0.0.0.0/0"/"::/0" misses equivalents like "0.0.0.0/00", so parse instead.
 		if _, ipnet, err := net.ParseCIDR(p); err == nil {
 			if ones, _ := ipnet.Mask.Size(); ones == 0 {
 				return fmt.Errorf("auth.trusted_proxies must not trust an any-net CIDR (%q): set it to the fronting proxy's CIDR", p)
@@ -218,8 +200,6 @@ func (c *AyatoConfig) Validate() error {
 	return nil
 }
 
-// hasUsableSessionSecret reports whether at least one configured secret meets the
-// minimum HMAC key length (32 bytes).
 func hasUsableSessionSecret(secrets []string) bool {
 	for _, s := range secrets {
 		if len(s) >= 32 {

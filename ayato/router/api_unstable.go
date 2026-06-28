@@ -24,11 +24,9 @@ func SetRoute(e *gin.Engine, h *handler.Handler, m *middleware.Middleware) error
 		return utils.WrapErr(err, "miko プロキシの初期化に失敗")
 	}
 
-	// authLimit throttles the unauthenticated auth endpoints per client IP.
-	// 5 req/s sustained with a burst of 20 is generous for a normal SPA session
-	// (a handful of probes) yet tight enough to blunt credential-stuffing and
-	// OAuth-state flooding. The callback (driven by GitHub) and logout are
-	// excluded. ClientIP() is only trustworthy with trusted_proxies configured.
+	// Throttle unauthenticated auth endpoints per client IP (5 req/s, burst 20)
+	// to blunt credential-stuffing and OAuth-state flooding; the callback and
+	// logout are excluded. ClientIP() is only trustworthy with trusted_proxies.
 	authLimit := m.RateLimit(rate.Every(time.Second/5), 20)
 
 	{
@@ -40,13 +38,11 @@ func SetRoute(e *gin.Engine, h *handler.Handler, m *middleware.Middleware) error
 			api.GET("/repos", h.ReposHandler)
 			api.GET("/repos/:repo/archs", h.ArchesHandler)
 			api.GET("/:repo/:arch/package", h.AllPkgsHandler)
-			api.GET("/:repo/:arch/package/:name", h.PkgDetailHandler) // TODO: not yet implemented (detail fetch)
+			api.GET("/:repo/:arch/package/:name", h.PkgDetailHandler)
 			api.GET("/:repo/:arch/package/:name/files", h.PkgFilesHandler)
 		}
 
-		// Public GitHub-OAuth endpoints (no auth middleware): the login flow,
-		// the GitHub callback, the CLI and web-bearer start/exchange, and the
-		// session probes.
+		// Public GitHub-OAuth endpoints (no auth middleware).
 		{
 			api.GET("/auth/github/login", authLimit, h.GitHubLoginHandler)
 			api.GET("/auth/github/callback", h.GitHubCallbackHandler)
@@ -59,8 +55,8 @@ func SetRoute(e *gin.Engine, h *handler.Handler, m *middleware.Middleware) error
 		}
 
 		if mikoProxy != nil {
-			// Job-status reads are public. The static /jobs can coexist with the existing
-			// /:repo param route (ayato already uses both /repos and /:repo).
+			// Static /jobs coexists with the /:repo param route (ayato already uses
+			// both /repos and /:repo).
 			api.GET("/jobs", mikoProxy.Handler("/api/unstable/jobs"))
 			api.GET("/jobs/:id", mikoProxy.HandlerFunc(func(c *gin.Context) string {
 				return "/api/unstable/jobs/" + c.Param("id")
@@ -89,7 +85,6 @@ func SetRoute(e *gin.Engine, h *handler.Handler, m *middleware.Middleware) error
 		if mikoProxy != nil {
 			authed := api.Group("")
 			authed.Use(m.RateLimit(rate.Every(time.Second/10), 30), m.RequireAdmin(false))
-			// Build submissions are only accepted behind client authentication.
 			authed.POST("/build", mikoProxy.Handler("/api/unstable/build"))
 			authed.DELETE("/jobs/:id", mikoProxy.HandlerFunc(func(c *gin.Context) string {
 				return "/api/unstable/jobs/" + c.Param("id")

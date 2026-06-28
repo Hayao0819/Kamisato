@@ -5,9 +5,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// aurAddCmd clones one or more AUR packages into a source repository for the
-// first time. When the package is already present it falls back to a pull, so
-// the command is safe to re-run.
+// aurAddCmd clones AUR packages into a source repository, falling back to a pull
+// when one is already present so it is safe to re-run.
 func aurAddCmd() *cobra.Command {
 	var force bool
 	const aurBase = "https://aur.archlinux.org"

@@ -16,9 +16,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// Cmd returns the local build command. By default it builds in a clean
-// chroot on this machine; --remote instead submits the build to miko (via
-// ayato), delegating to the same code path as `ayaka miko build`.
+// Cmd builds in a clean local chroot by default; --remote submits to miko (via
+// ayato) through the same path as `ayaka miko build`.
 func Cmd() *cobra.Command {
 	var gpgkey string
 	var diffMode bool

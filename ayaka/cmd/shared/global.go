@@ -26,8 +26,7 @@ func InitSrcRepos() error {
 	return nil
 }
 
-// SrcConfigFromConf adapts the loaded conf.SrcRepoConfig to the conf-free
-// repo.SrcConfig the domain layer consumes.
+// SrcConfigFromConf adapts conf.SrcRepoConfig to the conf-free repo.SrcConfig the domain layer uses.
 func SrcConfigFromConf(c *conf.SrcRepoConfig) *repo.SrcConfig {
 	if c == nil {
 		return nil

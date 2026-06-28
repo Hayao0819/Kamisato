@@ -51,8 +51,7 @@ func (s *Service) process(ctx context.Context, job *domain.BuildJob) {
 		defer func() { _ = os.RemoveAll(outDir) }()
 	}
 
-	// When a job reaches a terminal state, always close the log buffer to let
-	// SSE readers finish. Also write the final log out to Logs.
+	// On terminal state, close the log buffer so SSE readers finish.
 	defer func() {
 		if job.Log != nil {
 			job.Log.Close()
@@ -139,7 +138,6 @@ func (s *Service) buildWithRetry(ctx context.Context, job *domain.BuildJob) (*bu
 	}
 }
 
-// isCancelled distinguishes a context cancellation from a genuine build failure.
 func isCancelled(ctx context.Context, err error) bool {
 	return errors.Is(err, context.Canceled) || ctx.Err() == context.Canceled
 }

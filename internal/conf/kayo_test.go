@@ -63,11 +63,9 @@ func TestAyatoTrustStoreGuard(t *testing.T) {
 	if err := (&KayoConfig{Port: 10713, Ayato: []AyatoSource{src}}).Validate(); err == nil {
 		t.Error("ayato + no durable trust_store should be refused")
 	}
-	// An explicit trust_store satisfies the requirement.
 	if err := (&KayoConfig{Port: 10713, TrustStore: "/srv/kayo/trust.json", Ayato: []AyatoSource{src}}).Validate(); err != nil {
 		t.Errorf("explicit trust_store should be accepted: %v", err)
 	}
-	// No ayato sources: the guard does not apply.
 	if err := (&KayoConfig{Port: 10713}).Validate(); err != nil {
 		t.Errorf("no ayato sources should not trip the guard: %v", err)
 	}

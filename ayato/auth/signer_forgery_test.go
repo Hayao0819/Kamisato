@@ -10,10 +10,8 @@ import (
 
 const rtSecret = "0123456789abcdef0123456789abcdef" // 32 bytes
 
-// TestRedteam_ForgeWithoutSecret attempts to mint a token an attacker would want
-// (a session for an arbitrary GitHubID) WITHOUT knowing the secret, by hand-
-// building the payload and trying an empty signature, a zero-key HMAC, and a
-// guessed/garbage signature. All must fail to verify.
+// TestRedteam_ForgeWithoutSecret: an attacker must not be able to mint a valid
+// token without the secret.
 func TestRedteam_ForgeWithoutSecret(t *testing.T) {
 	s, err := NewSigner([]string{rtSecret})
 	if err != nil {
@@ -38,12 +36,10 @@ func TestRedteam_ForgeWithoutSecret(t *testing.T) {
 	}
 }
 
-// TestRedteam_NoExpIsRejected mints a token with NO Exp field (zero-value time).
-// time.Now().After(zeroTime) is true, so a missing Exp must be treated as already
-// expired (fail-closed), not as "never expires".
+// TestRedteam_NoExpIsRejected: a token with no Exp (zero time) must be treated as
+// already expired (fail-closed), not as never-expiring.
 func TestRedteam_NoExpIsRejected(t *testing.T) {
 	s, _ := NewSigner([]string{rtSecret})
-	// Sign a claims value whose Exp is the zero time.
 	tok, err := s.Sign(Claims{Typ: TypSession, GitHubID: 1, Login: "x"})
 	if err != nil {
 		t.Fatalf("Sign: %v", err)
@@ -53,10 +49,8 @@ func TestRedteam_NoExpIsRejected(t *testing.T) {
 	}
 }
 
-// TestRedteam_CrossTypeReplayMatrix asserts every type pinned by VerifyTyp rejects
-// a token minted as a DIFFERENT type, even though the envelope signature is valid.
-// This blocks e.g. replaying a short-lived OAuth state or one-time code as a
-// long-lived session/CLI token.
+// TestRedteam_CrossTypeReplayMatrix: VerifyTyp must reject a token minted as a
+// different type even with a valid signature, blocking cross-type replay.
 func TestRedteam_CrossTypeReplayMatrix(t *testing.T) {
 	s, _ := NewSigner([]string{rtSecret})
 	types := []string{TypSession, TypCLI, TypCode, TypState}
@@ -74,19 +68,19 @@ func TestRedteam_CrossTypeReplayMatrix(t *testing.T) {
 	}
 }
 
-// TestRedteam_SignatureMalleability tries trailing junk, alternate base64 padding,
-// and case changes on the signature segment to defeat the constant-time compare.
+// TestRedteam_SignatureMalleability: padding, case, or trailing-byte tweaks on the
+// signature segment must not defeat verification.
 func TestRedteam_SignatureMalleability(t *testing.T) {
 	s, _ := NewSigner([]string{rtSecret})
 	tok, _ := s.Sign(Claims{Typ: TypSession, GitHubID: 5, Exp: time.Now().Add(time.Hour)})
 	payload, sig, _ := strings.Cut(tok, ".")
 
 	for _, mut := range []string{
-		payload + "." + sig + "=",            // std padding appended (RawURLEncoding has none)
-		payload + "." + sig + "A",            // extra char -> different bytes/length
-		payload + "." + strings.ToUpper(sig), // case flip
-		payload + "." + sig + ".",            // extra separator
-		payload + "==." + sig,                // padding in payload segment
+		payload + "." + sig + "=",
+		payload + "." + sig + "A",
+		payload + "." + strings.ToUpper(sig),
+		payload + "." + sig + ".",
+		payload + "==." + sig,
 	} {
 		if mut == tok {
 			continue
@@ -95,7 +89,6 @@ func TestRedteam_SignatureMalleability(t *testing.T) {
 			t.Fatalf("malleable token accepted: %q", mut)
 		}
 	}
-	// Sanity: the untouched token still verifies.
 	if _, err := s.Verify(tok); err != nil {
 		t.Fatalf("baseline token must verify: %v", err)
 	}

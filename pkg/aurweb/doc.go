@@ -2,9 +2,7 @@ package aurweb
 
 import "net/http"
 
-// rpcDoc is the page a bare GET /rpc serves, mirroring aurweb's documentation()
-// response. It is intentionally small: enough for a human who hits the endpoint
-// in a browser to learn the query shape, not a full reference.
+// rpcDoc is the page a bare GET /rpc serves, mirroring aurweb's documentation().
 const rpcDoc = `<!DOCTYPE html>
 <html lang="en">
 <head><meta charset="utf-8"><title>RPC Interface</title></head>

@@ -9,16 +9,14 @@ import (
 
 const ctxCIPublisher = "auth_ci"
 
-// WithCIAuth attaches the CI publish authorizer (API key / GitHub OIDC).
 func (m *Middleware) WithCIAuth(ci *ciauth.Authorizer) *Middleware {
 	m.ci = ci
 	return m
 }
 
-// RequireUpload guards the package upload route. It authorizes either a CI
-// publisher (API key or GitHub OIDC, scoped to the :repo path param) or, when no
-// CI credential is presented, an admin user via RequireAdmin. A CI credential
-// that fails is a hard 403, never a fallthrough to the admin path.
+// RequireUpload authorizes a CI publisher (scoped to the :repo param) or falls
+// back to RequireAdmin. A presented-but-failed CI credential is a hard 403,
+// never a fallthrough to the admin path.
 func (m *Middleware) RequireUpload() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if m.ci != nil && m.ci.Enabled() {

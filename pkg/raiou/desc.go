@@ -196,7 +196,6 @@ func ParseDesc(r io.Reader) (*DESC, error) {
 			desc.ExtraFields[currentField] = append(desc.ExtraFields[currentField], buffer...)
 		}
 		buffer = nil
-		// panic("finished")
 		return nil
 	}
 
@@ -222,7 +221,6 @@ func ParseDesc(r io.Reader) (*DESC, error) {
 	return desc, nil
 }
 
-// ToPKGINFO maps known fields and also extracts `pkgtype` from XData if available.
 func (d *DESC) ToPKGINFO() (*PKGINFO, error) {
 	p := &PKGINFO{
 		PkgName:     d.Name,
