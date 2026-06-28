@@ -20,6 +20,8 @@ func Match(p Pkg, by By, arg string) bool {
 			strings.Contains(strings.ToLower(p.Description), arg)
 	case ByMaintainer:
 		return arg == "" || strings.EqualFold(p.Maintainer, arg)
+	case ByCoMaintainers:
+		return slices.ContainsFunc(p.CoMaintainers, func(c string) bool { return strings.EqualFold(c, arg) })
 	case BySubmitter:
 		return strings.EqualFold(p.Submitter, arg)
 	case ByDepends:

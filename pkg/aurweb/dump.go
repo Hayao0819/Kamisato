@@ -7,6 +7,7 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -151,8 +152,16 @@ func (s *Server) buildMetaDump(ctx context.Context, ext bool) ([]byte, error) {
 			s.log.Warn("aurweb: upstream dump unavailable", "error", derr)
 		} else {
 			defer func() { _ = rc.Close() }()
-			if err := streamUpstream(gz, io.LimitReader(rc, maxDumpBytes), localNames, &first); err != nil {
-				s.log.Warn("aurweb: upstream dump stream truncated", "error", err)
+			// Bound the read with one byte of slack so a complete dump (lr.N stays
+			// > 0) is distinguishable from one truncated by the cap (lr.N hits 0). A
+			// truncated or malformed upstream must NOT be cached as if complete, or
+			// clients would see an incomplete package set for the whole TTL.
+			lr := &io.LimitedReader{R: rc, N: maxDumpBytes + 1}
+			if err := streamUpstream(gz, lr, localNames, &first); err != nil {
+				return nil, fmt.Errorf("aurweb: upstream dump stream failed, refusing to cache: %w", err)
+			}
+			if lr.N <= 0 {
+				return nil, fmt.Errorf("aurweb: upstream dump exceeds the %d-byte cap, refusing to cache a truncated set", maxDumpBytes)
 			}
 		}
 	}
