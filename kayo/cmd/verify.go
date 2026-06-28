@@ -6,10 +6,10 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/Hayao0819/Kamisato/internal/pacmanhook"
 	"github.com/Hayao0819/Kamisato/internal/utils"
 	"github.com/Hayao0819/Kamisato/kayo/trust"
 	"github.com/Hayao0819/Kamisato/pkg/aurweb"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/hook"
 	"github.com/spf13/cobra"
 )
 
@@ -29,7 +29,7 @@ func verifyCmd() *cobra.Command {
 			}
 			names := args
 			if len(names) == 0 {
-				names = pacmanhook.StdinTargets() // pacman NeedsTargets passes targets on stdin
+				names = hook.StdinTargets() // pacman NeedsTargets passes targets on stdin
 			}
 			if len(names) == 0 {
 				return nil

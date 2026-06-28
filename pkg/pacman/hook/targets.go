@@ -1,4 +1,4 @@
-package pacmanhook
+package hook
 
 import (
 	"bufio"

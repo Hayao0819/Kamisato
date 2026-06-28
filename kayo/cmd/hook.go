@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/Hayao0819/Kamisato/internal/pacmanhook"
 	"github.com/Hayao0819/Kamisato/internal/utils"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/hook"
 	"github.com/spf13/cobra"
 )
 
@@ -35,10 +35,10 @@ func hookInstallCmd() *cobra.Command {
 			if err != nil {
 				return utils.WrapErr(err, "cannot resolve the kayo binary path")
 			}
-			if err := pacmanhook.ValidateExecArg("kayo binary path", self); err != nil {
+			if err := hook.ValidateExecArg("kayo binary path", self); err != nil {
 				return err
 			}
-			if err := pacmanhook.ValidateExecArg("--config-path", configPath); err != nil {
+			if err := hook.ValidateExecArg("--config-path", configPath); err != nil {
 				return err
 			}
 			exec := self + " verify"
@@ -47,9 +47,9 @@ func hookInstallCmd() *cobra.Command {
 			}
 
 			if dir == "" {
-				dir = pacmanhook.HookDir(pacmanConf)
+				dir = hook.Dir(pacmanConf)
 			}
-			path, err := pacmanhook.Install(dir, hookFileName, hookTemplate, exec)
+			path, err := hook.Install(dir, hookFileName, hookTemplate, exec)
 			if err != nil {
 				return err
 			}
@@ -71,9 +71,9 @@ func hookUninstallCmd() *cobra.Command {
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if dir == "" {
-				dir = pacmanhook.HookDir(pacmanConf)
+				dir = hook.Dir(pacmanConf)
 			}
-			path, err := pacmanhook.Uninstall(dir, hookFileName)
+			path, err := hook.Uninstall(dir, hookFileName)
 			if err != nil {
 				return err
 			}

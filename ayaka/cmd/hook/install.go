@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/Hayao0819/Kamisato/internal/pacmanhook"
 	"github.com/Hayao0819/Kamisato/internal/utils"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/hook"
 	"github.com/spf13/cobra"
 )
 
@@ -31,7 +31,7 @@ func hookInstallCmd() *cobra.Command {
 				toBake = append(toBake, struct{ name, val string }{"--build-dir", d})
 			}
 			for _, a := range toBake {
-				if err := pacmanhook.ValidateExecArg(a.name, a.val); err != nil {
+				if err := hook.ValidateExecArg(a.name, a.val); err != nil {
 					return err
 				}
 			}
@@ -49,9 +49,9 @@ func hookInstallCmd() *cobra.Command {
 				execLine += " --build-dir " + d
 			}
 			if dir == "" {
-				dir = pacmanhook.HookDir(pacmanConf)
+				dir = hook.Dir(pacmanConf)
 			}
-			path, err := pacmanhook.Install(dir, uploadHookFileName, uploadHookTemplate, execLine)
+			path, err := hook.Install(dir, uploadHookFileName, uploadHookTemplate, execLine)
 			if err != nil {
 				return err
 			}

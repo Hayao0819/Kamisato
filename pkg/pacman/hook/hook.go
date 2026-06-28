@@ -1,9 +1,9 @@
-// Package pacmanhook installs and removes libalpm (pacman) hook files. A tool
+// Package hook installs and removes libalpm (pacman) hook files. A tool
 // embeds its own .hook template carrying the @EXEC@ placeholder and calls
 // Install with the concrete command pacman should run; Uninstall removes it.
 // Centralizing the placement keeps the path, permissions, and root-needed error
 // wording identical across kayo (verify-on-install) and ayaka (upload-on-install).
-package pacmanhook
+package hook
 
 import (
 	"os"

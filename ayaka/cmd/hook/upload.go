@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
-	"github.com/Hayao0819/Kamisato/internal/pacmanhook"
 	"github.com/Hayao0819/Kamisato/internal/utils"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/hook"
 	"github.com/spf13/cobra"
 )
 
@@ -36,7 +36,7 @@ func hookUploadCmd() *cobra.Command {
 			}
 			names := args
 			if len(names) == 0 {
-				names = pacmanhook.StdinTargets()
+				names = hook.StdinTargets()
 			}
 			if len(names) == 0 {
 				return nil
@@ -61,7 +61,7 @@ func hookUploadCmd() *cobra.Command {
 			// foreign packages live in the former, repo downloads in the latter.
 			dirs := cacheOverride
 			if len(dirs) == 0 {
-				dirs = append(append(append([]string{}, buildDirs...), makepkgPkgDest()...), pacmanhook.CacheDirs(pacmanConf)...)
+				dirs = append(append(append([]string{}, buildDirs...), makepkgPkgDest()...), hook.CacheDirs(pacmanConf)...)
 			}
 
 			var files []string
