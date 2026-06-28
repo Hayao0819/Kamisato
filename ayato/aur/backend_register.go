@@ -66,7 +66,10 @@ func (b *Backend) ingest(ctx context.Context, dir, source, maintainer string) (p
 		names = append(names, p.Name)
 	}
 
-	rec, _ := json.Marshal(baseRecord{URL: source, Names: names})
+	rec, mErr := json.Marshal(baseRecord{URL: source, Names: names})
+	if mErr != nil {
+		return "", nil, utils.WrapErr(mErr, "failed to encode pkgbase record")
+	}
 	if err := b.kv.Set(nsBase, pkgbase, rec, 0); err != nil {
 		return "", nil, utils.WrapErr(err, "failed to store pkgbase")
 	}

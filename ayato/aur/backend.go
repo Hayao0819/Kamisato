@@ -78,9 +78,9 @@ func (b *Backend) Search(_ context.Context, by aurweb.By, arg string) ([]aurweb.
 	return out, nil
 }
 
-func (b *Backend) Suggest(_ context.Context, arg string, pkgbase bool) ([]string, error) {
+func (b *Backend) Suggest(ctx context.Context, arg string, pkgbase bool) ([]string, error) {
 	if pkgbase {
-		bases, err := b.List(context.Background())
+		bases, err := b.List(ctx)
 		if err != nil {
 			return nil, err
 		}

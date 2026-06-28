@@ -115,8 +115,6 @@ type BinRepoConfig struct {
 }
 
 func LoadAyatoConfig(flags *pflag.FlagSet, configFile string) (*AyatoConfig, error) {
-	// return loadConfig[AyatoConfig]("ayato_config.json")
-
 	if err := LoadEnv(); err != nil {
 		slog.Error("Failed to load env", "error", err)
 	}

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/Hayao0819/Kamisato/ayato/domain"
+	"github.com/Hayao0819/Kamisato/internal/gitcmd"
 	"github.com/Hayao0819/Kamisato/internal/kayoproto"
 	"github.com/gin-gonic/gin"
 )
@@ -36,6 +37,14 @@ func (h *Handler) RegisterHandler(c *gin.Context) {
 	var req registerRequest
 	if err := c.ShouldBindJSON(&req); err != nil || req.GitURL == "" {
 		c.JSON(http.StatusBadRequest, domain.APIError{Message: "git_url is required"})
+		return
+	}
+
+	// A rejected remote (bad scheme, SSRF target, plaintext http) is a client
+	// error, not an upstream failure: answer 400 instead of a blanket 502. Register
+	// re-validates before cloning, so this only changes the status code, not trust.
+	if err := gitcmd.ValidateRemote(req.GitURL); err != nil {
+		c.JSON(http.StatusBadRequest, domain.APIError{Message: "invalid git_url", Reason: err.Error()})
 		return
 	}
 
