@@ -1,0 +1,25 @@
+package repocmd
+
+import (
+	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
+	"github.com/spf13/cobra"
+)
+
+func repoAddCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "add <repo> <package_files...>",
+		Short: "Add built packages to a repository on ayato",
+		Args:  cobra.MinimumNArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			client, err := shared.RepoClient(cmd)
+			if err != nil {
+				return err
+			}
+			repoName := args[0]
+			files := args[1:]
+			return client.UploadPackageFiles(repoName, files...)
+		},
+	}
+	shared.AddRepoServerFlags(cmd)
+	return cmd
+}
