@@ -55,8 +55,6 @@ func newRateLimiter(n int, window time.Duration, keyFn func(*http.Request) strin
 	return &rateLimiter{n: n, window: window, keyFn: keyFn, hits: make(map[string]*rateBucket)}
 }
 
-func (l *rateLimiter) key(r *http.Request) string { return l.keyFn(r) }
-
 // allow records a request for key and reports whether it is within the limit.
 func (l *rateLimiter) allow(key string) bool {
 	now := time.Now()
@@ -66,7 +64,13 @@ func (l *rateLimiter) allow(key string) bool {
 	b := l.hits[key]
 	if b == nil || now.Sub(b.start) >= l.window {
 		if len(l.hits) >= maxRateBuckets {
+			// Expired buckets first; if a distinct-key flood leaves every bucket
+			// in-window the sweep frees nothing, so evict the oldest to keep the
+			// cap hard (a fixed window can't bound memory by expiry alone).
 			l.sweepLocked(now)
+			if len(l.hits) >= maxRateBuckets {
+				l.evictOldestLocked()
+			}
 		}
 		l.hits[key] = &rateBucket{count: 1, start: now}
 		return true
@@ -86,6 +90,19 @@ func (l *rateLimiter) sweepLocked(now time.Time) {
 	}
 }
 
+func (l *rateLimiter) evictOldestLocked() {
+	var oldestKey string
+	var oldest time.Time
+	for k, b := range l.hits {
+		if oldestKey == "" || b.start.Before(oldest) {
+			oldestKey, oldest = k, b.start
+		}
+	}
+	if oldestKey != "" {
+		delete(l.hits, oldestKey)
+	}
+}
+
 func remoteIP(r *http.Request) string {
 	if host, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
 		return host
@@ -94,13 +111,11 @@ func remoteIP(r *http.Request) string {
 }
 
 // writeRateLimited answers an over-limit request the way aurweb does: HTTP 429
-// with the error envelope (plain JSON, no JSONP wrapping).
+// with the error envelope (plain JSON, no JSONP wrapping). version echoes the
+// client's v verbatim, or null when it was omitted, matching aurweb.
 func (s *Server) writeRateLimited(w http.ResponseWriter, version int) {
-	if version == 0 {
-		version = Version
-	}
 	body, _ := json.Marshal(map[string]any{
-		"version":     version,
+		"version":     versionOrNull(version),
 		"type":        "error",
 		"resultcount": 0,
 		"results":     []any{},

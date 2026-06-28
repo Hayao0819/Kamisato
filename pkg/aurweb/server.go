@@ -85,12 +85,14 @@ func (s *Server) RPC(w http.ResponseWriter, r *http.Request) {
 
 	q := parseRPC(r)
 
-	if q.callback != "" && !callbackRe.MatchString(q.callback) {
-		s.writeError(w, r, "", q.version, "Invalid callback name.")
+	// aurweb checks the rate limit before anything else, so an over-limit request
+	// always gets 429 even with a bad callback.
+	if s.limiter != nil && !s.limiter.allow(s.limiter.keyFn(r)) {
+		s.writeRateLimited(w, q.version)
 		return
 	}
-	if s.limiter != nil && !s.limiter.allow(s.limiter.key(r)) {
-		s.writeRateLimited(w, q.version)
+	if q.callback != "" && !callbackRe.MatchString(q.callback) {
+		s.writeError(w, r, "", q.version, "Invalid callback name.")
 		return
 	}
 	if q.version == 0 {
@@ -247,16 +249,22 @@ func (s *Server) writeResults(w http.ResponseWriter, r *http.Request, callback, 
 }
 
 func (s *Server) writeError(w http.ResponseWriter, r *http.Request, callback string, version int, msg string) {
-	if version == 0 {
-		version = Version
-	}
 	s.writeJSON(w, r, callback, map[string]any{
-		"version":     version,
+		"version":     versionOrNull(version),
 		"type":        "error",
 		"resultcount": 0,
 		"results":     []any{},
 		"error":       msg,
 	})
+}
+
+// versionOrNull renders the RPC version field: the client's value, or JSON null
+// when it was omitted (version 0), the way aurweb echoes it.
+func versionOrNull(version int) any {
+	if version == 0 {
+		return nil
+	}
+	return version
 }
 
 func (s *Server) writeJSON(w http.ResponseWriter, r *http.Request, callback string, payload any) {
