@@ -34,7 +34,7 @@ func (h *Handler) RegisterHandler(c *gin.Context) {
 	pkgbase, names, err := h.b.Register(c.Request.Context(), req.GitURL, req.Ref, req.Maintainer)
 	if err != nil {
 		slog.Error("AUR register failed", "git_url", req.GitURL, "error", err)
-		c.JSON(http.StatusBadGateway, domain.APIError{Message: "failed to register source", Reason: err})
+		c.JSON(http.StatusBadGateway, domain.APIError{Message: "failed to register source", Reason: err.Error()})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"pkgbase": pkgbase, "packages": names})
@@ -57,7 +57,7 @@ func (h *Handler) CatalogHandler(c *gin.Context) {
 func (h *Handler) ListHandler(c *gin.Context) {
 	bases, err := h.b.List(c.Request.Context())
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, domain.APIError{Message: "failed to list sources", Reason: err})
+		c.JSON(http.StatusInternalServerError, domain.APIError{Message: "failed to list sources", Reason: err.Error()})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"pkgbases": bases})
@@ -71,7 +71,7 @@ func (h *Handler) RemoveHandler(c *gin.Context) {
 		return
 	}
 	if err := h.b.Remove(c.Request.Context(), pkgbase); err != nil {
-		c.JSON(http.StatusInternalServerError, domain.APIError{Message: "failed to remove source", Reason: err})
+		c.JSON(http.StatusInternalServerError, domain.APIError{Message: "failed to remove source", Reason: err.Error()})
 		return
 	}
 	c.Status(http.StatusNoContent)

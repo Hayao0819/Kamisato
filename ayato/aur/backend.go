@@ -15,7 +15,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/Hayao0819/Kamisato/ayato/kv"
+	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
 	"github.com/Hayao0819/Kamisato/internal/gitcmd"
 	"github.com/Hayao0819/Kamisato/internal/saraproto"
 	"github.com/Hayao0819/Kamisato/internal/utils"

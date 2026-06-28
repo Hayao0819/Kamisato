@@ -1,7 +1,6 @@
 package repository
 
 import (
-	"io"
 	"log/slog"
 
 	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
@@ -66,12 +65,11 @@ func initKVStore(cfg *conf.AyatoConfig) (kv.Store, error) {
 }
 
 // New creates the NameStore, BinaryRepository, and AuthRepository used by the
-// service, all riding a single shared kv.Store built here. The kv.Store is
-// returned only as an io.Closer (it satisfies io.Closer via Close): exposing it
-// that way lets the caller shut the store down on exit while hiding Get/Set, so
-// nothing outside this package can reach kv directly. The package-metadata
-// NameStore and the AuthRepository share that one kv.
-func New(cfg *conf.AyatoConfig) (NameStore, BinaryRepository, AuthRepository, io.Closer, error) {
+// service, all riding a single shared kv.Store built here. That store is also
+// returned so additional consumers (the optional AUR backend) can partition
+// their own data under separate namespaces rather than opening a second store
+// against the same locked BadgerDB directory; the caller closes it on exit.
+func New(cfg *conf.AyatoConfig) (NameStore, BinaryRepository, AuthRepository, kv.Store, error) {
 	kvStore, err := initKVStore(cfg)
 	if err != nil {
 		slog.Error("Failed to create key-value store", "error", err)

@@ -51,11 +51,11 @@ func RootCmd() *cobra.Command {
 
 			slog.Debug("Configuration loaded", "port", cfg.Port, "debug", cfg.Debug, "repos", cfg.Repos, "maxsize", cfg.MaxSize, "dbtype", cfg.Store.DBType, "storagetype", cfg.Store.StorageType)
 
-			pkgNameRepo, pkgBinaryRepo, authRepo, kvCloser, err := repository.New(cfg)
+			pkgNameRepo, pkgBinaryRepo, authRepo, kvStore, err := repository.New(cfg)
 			if err != nil {
 				return utils.WrapErr(err, "failed to initialize repository")
 			}
-			defer func() { _ = kvCloser.Close() }()
+			defer func() { _ = kvStore.Close() }()
 
 			s := service.New(pkgNameRepo, pkgBinaryRepo, authRepo, cfg)
 			h := handler.New(s, cfg)
