@@ -1,11 +1,11 @@
 package shared
 
 import (
-	"os/exec"
 	"strings"
 
 	blinky_util "github.com/BrenekH/blinky/cmd/blinky/util"
 	"github.com/Hayao0819/Kamisato/internal/ayatoclient"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/alpm"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
 )
 
@@ -35,7 +35,7 @@ func BuildPkgRows(repos []*repo.SourceRepo, format, server string) []PkgRow {
 
 	var installed map[string]string
 	if wantInstalled {
-		installed = installedVersions()
+		installed, _ = alpm.InstalledVersions()
 	}
 	var jobs []ayatoclient.Job
 	if wantBuild {
@@ -85,23 +85,6 @@ func formatNeeds(format, field string) bool {
 		return true
 	}
 	return strings.Contains(format, field)
-}
-
-// installedVersions maps installed package name to version via `pacman -Q`. It
-// is best-effort: an error (no pacman, etc.) yields an empty map.
-func installedVersions() map[string]string {
-	out, err := exec.Command("pacman", "-Q").Output()
-	if err != nil {
-		return map[string]string{}
-	}
-	m := map[string]string{}
-	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
-		f := strings.Fields(line)
-		if len(f) >= 2 {
-			m[f[0]] = f[1]
-		}
-	}
-	return m
 }
 
 func firstInstalled(installed map[string]string, names []string) string {

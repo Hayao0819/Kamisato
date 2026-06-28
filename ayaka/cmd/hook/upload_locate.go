@@ -1,13 +1,10 @@
 package hookcmd
 
 import (
-	"errors"
 	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
-
-	"github.com/Hayao0819/Kamisato/internal/utils"
 )
 
 // makepkgPkgDestScript sources makepkg's config files in makepkg's own order
@@ -43,28 +40,6 @@ func makepkgPkgDest() []string {
 	return nil
 }
 
-// foreignPackages returns the set of installed packages no sync repo provides
-// (AUR or locally built). pacman -Qmq exits 1 with empty stdout AND empty stderr
-// when none are installed (a normal state); a genuine failure writes to stderr,
-// so only the no-match signature is treated as an empty set.
-func foreignPackages() (map[string]bool, error) {
-	out, err := exec.Command("pacman", "-Qmq").Output()
-	if err != nil {
-		var ee *exec.ExitError
-		if errors.As(err, &ee) && ee.ExitCode() == 1 && len(out) == 0 && len(ee.Stderr) == 0 {
-			return map[string]bool{}, nil
-		}
-		return nil, utils.WrapErr(err, "pacman -Qmq")
-	}
-	set := map[string]bool{}
-	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
-		if line = strings.TrimSpace(line); line != "" {
-			set[line] = true
-		}
-	}
-	return set, nil
-}
-
 func filterForeign(names []string, foreign map[string]bool) []string {
 	var out []string
 	for _, n := range names {
@@ -73,20 +48,6 @@ func filterForeign(names []string, foreign map[string]bool) []string {
 		}
 	}
 	return out
-}
-
-// installedVersion returns the version pacman records for an installed package,
-// which (with the name) pins the exact built file in the cache.
-func installedVersion(name string) (string, error) {
-	out, err := exec.Command("pacman", "-Q", name).Output()
-	if err != nil {
-		return "", utils.WrapErr(err, "pacman -Q "+name)
-	}
-	fields := strings.Fields(string(out))
-	if len(fields) < 2 {
-		return "", utils.NewErrf("unexpected 'pacman -Q' output for %s", name)
-	}
-	return fields[1], nil
 }
 
 // pkgFileTail matches what must follow the name-version- prefix of a built

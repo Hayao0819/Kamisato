@@ -3,6 +3,7 @@ package hookcmd
 import (
 	"fmt"
 
+	"github.com/Hayao0819/Kamisato/pkg/pacman/alpm"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/hook"
 	"github.com/spf13/cobra"
 )
@@ -15,7 +16,7 @@ func hookUninstallCmd() *cobra.Command {
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if dir == "" {
-				dir = hook.Dir(pacmanConf)
+				dir = alpm.HookDir(pacmanConf)
 			}
 			path, err := hook.Uninstall(dir, hookFileName)
 			if err != nil {

@@ -1,4 +1,4 @@
-package hook
+package alpm
 
 import (
 	"os/exec"
@@ -8,12 +8,12 @@ import (
 // Fallback paths for when pacman-conf cannot be consulted. It ships with pacman
 // and should always be present, but the resolvers degrade rather than fail.
 const (
-	FallbackDir      = "/etc/pacman.d/hooks"
+	FallbackHookDir  = "/etc/pacman.d/hooks"
 	FallbackCacheDir = "/var/cache/pacman/pkg"
 )
 
 // ConfValues returns the values pacman-conf reports for a config option (e.g.
-// "Dir", "CacheDir"), one per line, with Include directives and built-in
+// "HookDir", "CacheDir"), one per line, with Include directives and built-in
 // defaults already applied. pacmanConf overrides the config path when non-empty.
 func ConfValues(pacmanConf, option string) ([]string, error) {
 	args := make([]string, 0, 3)
@@ -34,14 +34,14 @@ func ConfValues(pacmanConf, option string) ([]string, error) {
 	return vals, nil
 }
 
-// Dir returns the directory to install an admin hook into: the first Dir
+// HookDir returns the directory to install an admin hook into: the first HookDir
 // configured in pacman.conf (default /etc/pacman.d/hooks). Custom hooks belong
 // here, not in libalpm's package-owned /usr/share/libalpm/hooks.
-func Dir(pacmanConf string) string {
-	if vals, err := ConfValues(pacmanConf, "Dir"); err == nil && len(vals) > 0 {
+func HookDir(pacmanConf string) string {
+	if vals, err := ConfValues(pacmanConf, "HookDir"); err == nil && len(vals) > 0 {
 		return vals[0]
 	}
-	return FallbackDir
+	return FallbackHookDir
 }
 
 // CacheDirs returns the package cache directories from pacman.conf (default

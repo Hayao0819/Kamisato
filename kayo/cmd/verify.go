@@ -3,13 +3,13 @@ package cmd
 import (
 	"fmt"
 	"log/slog"
-	"os/exec"
 	"strings"
 
 	"github.com/Hayao0819/Kamisato/internal/utils"
 	"github.com/Hayao0819/Kamisato/kayo/cmd/shared"
 	"github.com/Hayao0819/Kamisato/kayo/trust"
 	"github.com/Hayao0819/Kamisato/pkg/aurweb"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/alpm"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/hook"
 	"github.com/spf13/cobra"
 )
@@ -68,7 +68,7 @@ func verifyCmd() *cobra.Command {
 			// package — a -Syu otherwise floods the AUR with a request per target.
 			if len(unknown) > 0 && up != nil {
 				foreign := unknown
-				if sync, serr := syncPackages(); serr == nil {
+				if sync, serr := alpm.SyncPackages(); serr == nil {
 					foreign = foreign[:0]
 					for _, n := range unknown {
 						if !sync[n] {
@@ -118,18 +118,4 @@ func verifyCmd() *cobra.Command {
 	}
 	cmd.Flags().BoolVar(&strict, "strict", false, "fail the transaction even in warn mode")
 	return cmd
-}
-
-// syncPackages returns the set of package names any sync (official) repo
-// provides, via `pacman -Slq`, used to tell official packages from foreign ones.
-func syncPackages() (map[string]bool, error) {
-	out, err := exec.Command("pacman", "-Slq").Output()
-	if err != nil {
-		return nil, err
-	}
-	set := map[string]bool{}
-	for _, n := range strings.Fields(string(out)) {
-		set[n] = true
-	}
-	return set, nil
 }

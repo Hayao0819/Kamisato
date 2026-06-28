@@ -9,6 +9,7 @@ import (
 
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
 	"github.com/Hayao0819/Kamisato/internal/utils"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/alpm"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/hook"
 	"github.com/spf13/cobra"
 )
@@ -46,7 +47,7 @@ func hookUploadCmd() *cobra.Command {
 			// hook's Target=* otherwise fires for every official-repo package in a
 			// -Syu, which already lives on mirrors and shouldn't flood the repo.
 			if !all {
-				foreign, err := foreignPackages()
+				foreign, err := alpm.ForeignPackages()
 				if err != nil {
 					return utils.WrapErr(err, "could not determine foreign packages; pass --all to upload every target")
 				}
@@ -61,12 +62,12 @@ func hookUploadCmd() *cobra.Command {
 			// foreign packages live in the former, repo downloads in the latter.
 			dirs := cacheOverride
 			if len(dirs) == 0 {
-				dirs = append(append(append([]string{}, buildDirs...), makepkgPkgDest()...), hook.CacheDirs(pacmanConf)...)
+				dirs = append(append(append([]string{}, buildDirs...), makepkgPkgDest()...), alpm.CacheDirs(pacmanConf)...)
 			}
 
 			var files []string
 			for _, name := range names {
-				ver, err := installedVersion(name)
+				ver, err := alpm.InstalledVersion(name)
 				if err != nil {
 					slog.Warn("skipping package not in the local db", "name", name, "error", err)
 					continue

@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/Hayao0819/Kamisato/internal/utils"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/alpm"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/hook"
 	"github.com/spf13/cobra"
 )
@@ -49,7 +50,7 @@ func hookInstallCmd() *cobra.Command {
 				execLine += " --build-dir " + d
 			}
 			if dir == "" {
-				dir = hook.Dir(pacmanConf)
+				dir = alpm.HookDir(pacmanConf)
 			}
 			path, err := hook.Install(dir, uploadHookFileName, uploadHookTemplate, execLine)
 			if err != nil {
