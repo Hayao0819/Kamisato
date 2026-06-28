@@ -35,11 +35,15 @@ func NewVerifier(pubB64 string, maxAge time.Duration) (*Verifier, error) {
 	if len(pub) != ed25519.PublicKeySize { // 32; ed25519.Verify panics on a wrong size
 		return nil, utils.NewErrf("ayato: public key must be %d bytes, got %d", ed25519.PublicKeySize, len(pub))
 	}
+	// The freshness logic treats maxAge<=0 as "no ceiling", which would let a
+	// verified catalog never age out (the freeze attack); enforce the contract here.
+	if maxAge <= 0 {
+		return nil, utils.NewErr("ayato: maxAge must be positive")
+	}
 	return &Verifier{pub: ed25519.PublicKey(pub), keyID: KeyID(pub), maxAge: maxAge, leeway: time.Minute}, nil
 }
 
-func (v *Verifier) KeyID() string  { return v.keyID }
-func (v *Verifier) PubB64() string { return base64.StdEncoding.EncodeToString(v.pub) }
+func (v *Verifier) KeyID() string { return v.keyID }
 
 // VerifyPayload checks the detached signature over the EXACT payload bytes. Call
 // it BEFORE unmarshaling the payload.
@@ -48,7 +52,7 @@ func (v *Verifier) VerifyPayload(payload []byte, sigB64 string) error {
 	if err != nil {
 		return utils.WrapErr(err, "ayato: decode catalog signature")
 	}
-	if len(sig) != ed25519.SignatureSize { // 64
+	if len(sig) != ed25519.SignatureSize {
 		return utils.NewErrf("ayato: signature must be %d bytes, got %d", ed25519.SignatureSize, len(sig))
 	}
 	if !ed25519.Verify(v.pub, payload, sig) {

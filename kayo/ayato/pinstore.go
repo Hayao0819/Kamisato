@@ -59,6 +59,11 @@ func (s *PinStore) Get(name string) (pin, bool) {
 func (s *PinStore) Put(name string, p pin) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	// Never let a re-pin regress the anti-rollback watermark: carry forward the
+	// higher of the existing and incoming LastIssued.
+	if old := s.data[name]; old.LastIssued.After(p.LastIssued) {
+		p.LastIssued = old.LastIssued
+	}
 	s.data[name] = p
 	return s.saveLocked()
 }
@@ -75,16 +80,6 @@ func (s *PinStore) SetLastIssued(name string, t time.Time) error {
 	p.LastSeen = time.Now()
 	s.data[name] = p
 	return s.saveLocked()
-}
-
-func (s *PinStore) List() map[string]pin {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	out := make(map[string]pin, len(s.data))
-	for k, v := range s.data {
-		out[k] = v
-	}
-	return out
 }
 
 // PinInfo is a read-only view of one pinned source for display.
@@ -125,8 +120,22 @@ func (s *PinStore) saveLocked() error {
 		return utils.WrapErr(err, "failed to encode pin store")
 	}
 	tmp := s.path + ".tmp"
-	if err := os.WriteFile(tmp, raw, 0o600); err != nil {
+	// fsync before rename so the watermark is durable, not just atomic: callers
+	// treat SetLastIssued success as "reached disk" before swapping the index.
+	f, err := os.OpenFile(tmp, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600)
+	if err != nil {
 		return utils.WrapErr(err, "failed to write pin store")
+	}
+	if _, err := f.Write(raw); err != nil {
+		_ = f.Close()
+		return utils.WrapErr(err, "failed to write pin store")
+	}
+	if err := f.Sync(); err != nil {
+		_ = f.Close()
+		return utils.WrapErr(err, "failed to sync pin store")
+	}
+	if err := f.Close(); err != nil {
+		return utils.WrapErr(err, "failed to close pin store")
 	}
 	return os.Rename(tmp, s.path)
 }
