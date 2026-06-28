@@ -1,11 +1,10 @@
 package cmd
 
 import (
-	"bufio"
 	"fmt"
-	"os"
 	"strings"
 
+	"github.com/Hayao0819/Kamisato/internal/pacmanhook"
 	"github.com/Hayao0819/Kamisato/internal/utils"
 	"github.com/Hayao0819/Kamisato/kayo/trust"
 	"github.com/spf13/cobra"
@@ -27,7 +26,7 @@ func verifyCmd() *cobra.Command {
 			}
 			names := args
 			if len(names) == 0 {
-				names = stdinNames() // pacman NeedsTargets passes targets on stdin
+				names = pacmanhook.StdinTargets() // pacman NeedsTargets passes targets on stdin
 			}
 			if len(names) == 0 {
 				return nil
@@ -78,20 +77,4 @@ func verifyCmd() *cobra.Command {
 	}
 	cmd.Flags().BoolVar(&strict, "strict", false, "fail the transaction even in warn mode")
 	return cmd
-}
-
-// stdinNames reads newline-separated package names from a piped stdin (how
-// pacman's NeedsTargets delivers them), returning nil for an interactive tty.
-func stdinNames() []string {
-	if info, err := os.Stdin.Stat(); err != nil || info.Mode()&os.ModeCharDevice != 0 {
-		return nil
-	}
-	var names []string
-	sc := bufio.NewScanner(os.Stdin)
-	for sc.Scan() {
-		if n := strings.TrimSpace(sc.Text()); n != "" {
-			names = append(names, n)
-		}
-	}
-	return names
 }
