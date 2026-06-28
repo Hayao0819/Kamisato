@@ -2,13 +2,13 @@ package listcmd
 
 import (
 	"encoding/json"
+	"io"
 	"strings"
 	"text/tabwriter"
 	"text/template"
 
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
 	"github.com/Hayao0819/Kamisato/internal/utils"
-	"github.com/spf13/cobra"
 )
 
 // pkgHeader is rendered through the format template to produce the table header
@@ -25,9 +25,7 @@ var pkgHeader = shared.PkgRow{
 // renderRows writes the rows according to the format string. "json" emits one
 // JSON object per line; a "table " prefix aligns the columns under a header;
 // any other template is executed per row with no header.
-func renderRows(cmd *cobra.Command, format string, rows []shared.PkgRow) error {
-	out := cmd.OutOrStdout()
-
+func renderRows(out io.Writer, format string, rows []shared.PkgRow) error {
 	if format == "json" {
 		enc := json.NewEncoder(out)
 		for _, row := range rows {

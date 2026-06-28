@@ -7,15 +7,12 @@ import (
 
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
 	"github.com/Hayao0819/Kamisato/internal/ayatoclient"
-	"github.com/spf13/cobra"
 )
 
 func renderToString(t *testing.T, format string, rows []shared.PkgRow) string {
 	t.Helper()
 	var buf bytes.Buffer
-	c := &cobra.Command{}
-	c.SetOut(&buf)
-	if err := renderRows(c, format, rows); err != nil {
+	if err := renderRows(&buf, format, rows); err != nil {
 		t.Fatalf("renderRows(%q) error: %v", format, err)
 	}
 	return buf.String()
@@ -78,9 +75,7 @@ func TestRenderRowsFormats(t *testing.T) {
 
 	t.Run("invalid template errors", func(t *testing.T) {
 		var buf bytes.Buffer
-		c := &cobra.Command{}
-		c.SetOut(&buf)
-		if err := renderRows(c, `{{.Nope`, rows); err == nil {
+		if err := renderRows(&buf, `{{.Nope`, rows); err == nil {
 			t.Error("expected error for malformed template, got nil")
 		}
 	})

@@ -44,7 +44,7 @@ func Cmd() *cobra.Command {
 				format = shared.DefaultListFormat
 			}
 			rows := shared.BuildPkgRows(repos, format, server)
-			return renderRows(cmd, format, rows)
+			return renderRows(cmd.OutOrStdout(), format, rows)
 		},
 	}
 
