@@ -3,13 +3,24 @@ package cmd
 import (
 	"log/slog"
 
+	admincmd "github.com/Hayao0819/Kamisato/ayaka/cmd/admin"
+	aurcmd "github.com/Hayao0819/Kamisato/ayaka/cmd/aur"
+	buildcmd "github.com/Hayao0819/Kamisato/ayaka/cmd/build"
+	hookcmd "github.com/Hayao0819/Kamisato/ayaka/cmd/hook"
+	initcmd "github.com/Hayao0819/Kamisato/ayaka/cmd/init"
+	listcmd "github.com/Hayao0819/Kamisato/ayaka/cmd/list"
+	mikocmd "github.com/Hayao0819/Kamisato/ayaka/cmd/miko"
+	repocmd "github.com/Hayao0819/Kamisato/ayaka/cmd/repo"
+	servercmd "github.com/Hayao0819/Kamisato/ayaka/cmd/server"
+	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
+	srcinfocmd "github.com/Hayao0819/Kamisato/ayaka/cmd/srcinfo"
+	statuscmd "github.com/Hayao0819/Kamisato/ayaka/cmd/status"
+	submodulescmd "github.com/Hayao0819/Kamisato/ayaka/cmd/submodules"
 	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/internal/utils"
 	"github.com/Hayao0819/nahi/cobrautils"
 	"github.com/spf13/cobra"
 )
-
-var subCmds = cobrautils.Registory{}
 
 func RootCmd() *cobra.Command {
 	cmd := cobra.Command{
@@ -21,25 +32,25 @@ func RootCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			config = c
+			shared.Config = c
 
-			if config.Debug {
+			if shared.Config.Debug {
 				utils.UseColorLog(slog.LevelDebug)
 			} else {
 				utils.UseColorLog(slog.LevelInfo)
 			}
 
-			if config.LegacyRepoDir != "" || config.LegacyDestDir != "" {
+			if shared.Config.LegacyRepoDir != "" || shared.Config.LegacyDestDir != "" {
 				slog.Warn("Using legacy configuration fields 'repodir' or 'destdir' is deprecated. Please migrate to the new 'repos' field.")
-				config.Repos = append(config.Repos, struct {
+				shared.Config.Repos = append(shared.Config.Repos, struct {
 					Dir     string `koanf:"dir" json:"dir"`
 					DestDir string `koanf:"destdir" json:"destdir"`
 				}{
-					Dir:     config.LegacyRepoDir,
-					DestDir: config.LegacyDestDir,
+					Dir:     shared.Config.LegacyRepoDir,
+					DestDir: shared.Config.LegacyDestDir,
 				})
 			}
-			if err := initSrcRepos(); err != nil {
+			if err := shared.InitSrcRepos(); err != nil {
 				return err
 			}
 
@@ -52,7 +63,23 @@ func RootCmd() *cobra.Command {
 		SilenceErrors: true,
 	}
 
+	subCmds := cobrautils.Registory{}
+	subCmds.Add(
+		repocmd.Cmd(),
+		aurcmd.Cmd(),
+		buildcmd.Cmd(),
+		mikocmd.Cmd(),
+		hookcmd.Cmd(),
+		admincmd.Cmd(),
+		statuscmd.Cmd(),
+		srcinfocmd.Cmd(),
+		listcmd.Cmd(),
+		initcmd.Cmd(),
+		submodulescmd.Cmd(),
+		servercmd.Cmd(),
+	)
 	subCmds.Bind(&cmd)
+
 	cmd.PersistentFlags().StringP("repodir", "", "", "Repository directory")
 	cmd.PersistentFlags().BoolP("debug", "d", false, "Enable debug mode")
 
