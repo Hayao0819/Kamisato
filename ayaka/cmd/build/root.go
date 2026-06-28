@@ -6,6 +6,7 @@ import (
 	"path"
 	"slices"
 
+	"github.com/Hayao0819/Kamisato/ayaka/build"
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
 	"github.com/Hayao0819/Kamisato/ayaka/gpg"
 	"github.com/Hayao0819/Kamisato/internal/utils"
@@ -133,7 +134,7 @@ func Cmd() *cobra.Command {
 				if err != nil {
 					return utils.WrapErr(err, "failed to get remote repository")
 				}
-				if err := srcrepo.DiffBuild(&buildTarget, remoteRepo, destDir, buildPkgs...); err != nil {
+				if err := build.Diff(srcrepo, &buildTarget, remoteRepo, destDir, buildPkgs...); err != nil {
 					return utils.WrapErr(err, "failed to perform diff build")
 				}
 				slog.Debug("Diff build completed", "outdir", outDir)
@@ -141,7 +142,7 @@ func Cmd() *cobra.Command {
 			}
 
 			slog.Info("Starting package build", "repo", srcdir, "outdir", outDir, "gpgkey", gpgkey)
-			if err := srcrepo.Build(&buildTarget, outDir, buildPkgs...); err != nil {
+			if err := build.Repo(srcrepo, &buildTarget, outDir, buildPkgs...); err != nil {
 				return utils.WrapErr(err, "failed to build package")
 			}
 			slog.Debug("Build completed", "outdir", outDir)

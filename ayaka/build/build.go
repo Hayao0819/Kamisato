@@ -1,6 +1,12 @@
-package repo
+// Package build は ayaka のパッケージビルド操作をまとめる。
+//
+// もとは pkg/pacman/{pkg,repo} のメソッドだったが、builder(Docker SDK 依存)を
+// ドメイン型に持ち込み、配布専用の ayato まで Docker を巻き込んでいた。利用者は
+// ayaka だけなのでこちらへ移した。置き場所は暫定。
+package build
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"os"
@@ -9,11 +15,59 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/utils"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/alpm"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/builder"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/gpg"
 	pkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
 	"github.com/samber/lo"
 )
 
-func (r *SourceRepo) Build(t *builder.Target, dest string, pkgs ...string) error {
+// Package copies the SourcePackage to a temp directory, builds it, and signs it if needed.
+func Package(p *pkg.SourcePackage, target *builder.Target, dest string) error {
+	tmpdir, err := os.MkdirTemp("", "ayaka-build-*")
+	if err != nil {
+		return err
+	}
+	slog.Info("tempdir", "dir", tmpdir)
+	if err := utils.CopyDir(p.Dir(), tmpdir); err != nil {
+		return err
+	}
+	// The output is moved to OutDir(=dest), so discard tmpdir holding the source copy.
+	defer func() { _ = os.RemoveAll(tmpdir) }()
+
+	kind := target.Executor
+	if kind == "" {
+		kind = builder.KindChroot
+	}
+	backend, err := builder.New(kind, builder.Options{})
+	if err != nil {
+		return utils.WrapErr(err, "failed to create build backend")
+	}
+
+	result, err := backend.Build(context.Background(), builder.Spec{
+		SrcDir:      tmpdir,
+		OutDir:      dest,
+		Arch:        target.Arch,
+		ArchBuild:   target.ArchBuild,
+		InstallPkgs: target.InstallPkgs,
+		LogWriter:   target.Output,
+	})
+	if err != nil {
+		return utils.WrapErr(err, "failed to build package")
+	}
+
+	if target.SignKey != "" {
+		for _, pkgPath := range result.Packages {
+			if err := gpg.SignFile(target.SignKey, "", pkgPath); err != nil {
+				return utils.WrapErr(err, "failed to sign file: "+pkgPath)
+			}
+		}
+	}
+
+	return nil
+}
+
+// Repo builds the named packages in r (all of them when none are named).
+func Repo(r *repo.SourceRepo, t *builder.Target, dest string, pkgs ...string) error {
 	fulldstdir := path.Join(dest, t.Arch)
 	var errs []error
 	if err := os.MkdirAll(fulldstdir, 0755); err != nil {
@@ -44,7 +98,7 @@ func (r *SourceRepo) Build(t *builder.Target, dest string, pkgs ...string) error
 
 	for _, p := range targetPkgs {
 		slog.Info("building package", "pkg", p.Names())
-		if err := p.Build(t, fulldstdir); err != nil {
+		if err := Package(p, t, fulldstdir); err != nil {
 			slog.Error("build package failed", "pkg", p.Names(), "err", err)
 			errs = append(errs, err)
 		}
@@ -59,8 +113,8 @@ func (r *SourceRepo) Build(t *builder.Target, dest string, pkgs ...string) error
 	return nil
 }
 
-func (s *SourceRepo) DiffBuild(t *builder.Target, rr *RemoteRepo, dest string, pkgs ...string) error {
-
+// Diff builds only the packages in s that are newer than (or missing from) the remote repo rr.
+func Diff(s *repo.SourceRepo, t *builder.Target, rr *repo.RemoteRepo, dest string, pkgs ...string) error {
 	var shoubuild []*pkg.SourcePackage
 	for _, sp := range s.Pkgs {
 		rp := rr.PkgByPkgBase(sp.Base())
@@ -103,7 +157,7 @@ func (s *SourceRepo) DiffBuild(t *builder.Target, rr *RemoteRepo, dest string, p
 	for _, p := range shoubuild {
 		pkgbase := p.Base()
 		slog.Debug("Starting package build", "pkgbase", pkgbase)
-		if err := p.Build(t, outDir); err != nil {
+		if err := Package(p, t, outDir); err != nil {
 			slog.Error("Package build failed", "pkgbase", pkgbase, "error", err)
 			return utils.WrapErr(err, "failed to build package")
 		}
