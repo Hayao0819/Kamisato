@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/Hayao0819/Kamisato/ayato/auth"
+	"github.com/Hayao0819/Kamisato/ayato/ciauth"
 	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/gin-gonic/gin"
 )
@@ -19,8 +20,9 @@ type adminChecker interface {
 
 type Middleware struct {
 	cfg     *conf.AyatoConfig
-	checker adminChecker // nil = auth unconfigured; RequireAdmin fails closed (503)
-	signer  *auth.Signer // verifies stateless session/CLI tokens
+	checker adminChecker       // nil = auth unconfigured; RequireAdmin fails closed (503)
+	signer  *auth.Signer       // verifies stateless session/CLI tokens
+	ci      *ciauth.Authorizer // CI publish credentials; nil = no CI auth
 }
 
 func New(cfg *conf.AyatoConfig) *Middleware {

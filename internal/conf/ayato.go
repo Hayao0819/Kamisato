@@ -96,6 +96,9 @@ type AuthConfig struct {
 	// X-Forwarded-For is ignored. Set this to the fronting proxy's CIDR so the
 	// per-IP rate-limit key reflects the real client rather than a spoofed header.
 	TrustedProxies []string `koanf:"trusted_proxies,omitempty"`
+	// CI holds non-interactive publish credentials (API key / GitHub OIDC) for CI
+	// pipelines on the upload route, separate from the user admin allowlist.
+	CI CIAuthConfig `koanf:"ci,omitempty"`
 }
 
 // CookieName returns the configured session cookie name or the default.
@@ -147,6 +150,9 @@ func LoadAyatoConfig(flags *pflag.FlagSet, configFile string) (*AyatoConfig, err
 // GitHub login is enabled, PublicOrigin is mandatory and must be an absolute
 // http(s) origin without a path.
 func (c *AyatoConfig) Validate() error {
+	if err := c.Auth.CI.validate(); err != nil {
+		return err
+	}
 	githubEnabled := c.Auth.GitHub.ClientID != "" || c.Auth.GitHub.ClientSecret != ""
 	if !githubEnabled {
 		return nil

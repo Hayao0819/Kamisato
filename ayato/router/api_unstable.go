@@ -68,12 +68,16 @@ func SetRoute(e *gin.Engine, h *handler.Handler, m *middleware.Middleware) error
 			api.GET("/stats", mikoProxy.Handler("/api/unstable/stats"))
 		}
 
-		// Blinky-compatible mutating routes accept HTTP Basic where the password
-		// field carries a CLI token, so the existing blinky client keeps working.
+		// Upload accepts an admin user (Basic password = CLI token) or a CI
+		// publisher (API key / GitHub OIDC). Removal stays admin-only.
+		upload := api.Group("")
+		{
+			upload.Use(m.RateLimit(rate.Every(time.Second/10), 30), m.RequireUpload())
+			upload.PUT("/:repo/package", h.BlinkyUploadHandler) // Blinky compatible
+		}
 		blinky := api.Group("")
 		{
 			blinky.Use(m.RateLimit(rate.Every(time.Second/10), 30), m.RequireAdmin(true))
-			blinky.PUT("/:repo/package", h.BlinkyUploadHandler)                // Blinky compatible
 			blinky.DELETE("/:repo/package/:name", h.BlinkyRemoveHandler)       // Blinky compatible (arch defaults to x86_64)
 			blinky.DELETE("/:repo/:arch/package/:name", h.BlinkyRemoveHandler) // explicit architecture
 		}

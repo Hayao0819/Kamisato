@@ -12,6 +12,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.87.1
 	github.com/cloudflare/cloudflare-go v0.115.0
 	github.com/cockroachdb/errors v1.12.0
+	github.com/coreos/go-oidc/v3 v3.19.0
 	github.com/dgraph-io/badger/v3 v3.2103.5
 	github.com/gabriel-vasile/mimetype v1.4.10
 	github.com/gin-contrib/cors v1.7.6
@@ -36,7 +37,7 @@ require (
 	github.com/tmc/langchaingo v0.1.14
 	github.com/ulikunitz/xz v0.5.13
 	go.uber.org/mock v0.5.2
-	golang.org/x/oauth2 v0.30.0
+	golang.org/x/oauth2 v0.36.0
 	gorm.io/driver/mysql v1.6.0
 	gorm.io/driver/postgres v1.6.0
 	gorm.io/driver/sqlite v1.6.0
@@ -48,6 +49,7 @@ require (
 	github.com/containerd/errdefs v1.0.0 // indirect
 	github.com/containerd/errdefs/pkg v0.3.0 // indirect
 	github.com/dlclark/regexp2 v1.10.0 // indirect
+	github.com/go-jose/go-jose/v4 v4.1.4 // indirect
 	github.com/moby/sys/atomicwriter v0.1.0 // indirect
 	github.com/morikuni/aec v1.1.0 // indirect
 	github.com/pkoukk/tiktoken-go v0.1.6 // indirect

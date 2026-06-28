@@ -5,7 +5,23 @@
   "auth": {
     "username": "ayato",
     "password": "password",
-    "trusted_proxies": ["172.16.0.0/12"]
+    "trusted_proxies": ["172.16.0.0/12"],
+    "ci": {
+      "api_keys": [
+        { "name": "myrepo-ci", "key": "example-ci-key", "publish_repos": ["myrepo"] }
+      ],
+      "github_oidc": {
+        "enabled": false,
+        "audience": "https://repo.example.com",
+        "publishers": [
+          {
+            "repository": "FascodeNet/alterlinux-repo",
+            "allow_refs": ["refs/heads/main"],
+            "publish_repos": ["myrepo"]
+          }
+        ]
+      }
+    }
   },
   "store": {
     "dbtype": "badgerdb",

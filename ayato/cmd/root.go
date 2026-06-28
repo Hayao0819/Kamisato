@@ -10,6 +10,7 @@ import (
 
 	"github.com/Hayao0819/Kamisato/ayato/aur"
 	"github.com/Hayao0819/Kamisato/ayato/auth"
+	"github.com/Hayao0819/Kamisato/ayato/ciauth"
 	"github.com/Hayao0819/Kamisato/ayato/handler"
 	"github.com/Hayao0819/Kamisato/ayato/middleware"
 	"github.com/Hayao0819/Kamisato/ayato/repository"
@@ -81,6 +82,14 @@ func RootCmd() *cobra.Command {
 				// (and auth.github) to enable them.
 				slog.Warn("authentication is not configured; mutating and admin routes will fail closed (503) until auth.session_secret and auth.github are set")
 			}
+
+			// CI publish credentials are independent of the user/admin auth above:
+			// a repo can publish via API key or GitHub OIDC without a session secret.
+			ci, cierr := ciauth.New(cmd.Context(), cfg.Auth.CI)
+			if cierr != nil {
+				return utils.WrapErr(cierr, "failed to init CI auth")
+			}
+			m.WithCIAuth(ci)
 
 			engine := gin.New()
 			engine.Use(gin.Recovery())
