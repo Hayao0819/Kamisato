@@ -1,11 +1,8 @@
 package builder
 
 import (
-	"bytes"
 	"context"
-	"crypto/sha256"
 	_ "embed"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -13,16 +10,13 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/Hayao0819/Kamisato/internal/utils"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/mount"
-	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/stdcopy"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // buildScript is the in-container entrypoint. __ARCH__ and __INSTALL__ are
@@ -30,39 +24,6 @@ import (
 //
 //go:embed buildscript.sh
 var buildScript string
-
-const (
-	defaultContainerImage = "archlinux:latest"
-	defaultBuildTimeout   = 30 * time.Minute
-)
-
-func archToPlatform(arch string) (*ocispec.Platform, error) {
-	switch arch {
-	case "x86_64":
-		return &ocispec.Platform{OS: "linux", Architecture: "amd64"}, nil
-	case "aarch64":
-		return &ocispec.Platform{OS: "linux", Architecture: "arm64"}, nil
-	case "armv7h":
-		return &ocispec.Platform{OS: "linux", Architecture: "arm", Variant: "v7"}, nil
-	default:
-		return nil, fmt.Errorf("unsupported architecture: %s", arch)
-	}
-}
-
-// platformString renders a Docker platform spec as "os/arch[/variant]".
-func platformString(p *ocispec.Platform) string {
-	s := p.OS + "/" + p.Architecture
-	if p.Variant != "" {
-		s += "/" + p.Variant
-	}
-	return s
-}
-
-// shellQuote wraps s in single quotes so it can be embedded safely in an
-// `sh -c` command, escaping any embedded single quotes.
-func shellQuote(s string) string {
-	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
-}
 
 // containerBackend builds packages in a fresh throwaway container, one per
 // build (makecontainerpkg-style clean room).
@@ -94,70 +55,6 @@ func newContainerBackend(opts Options) Backend {
 		pacmanCacheDir: opts.PacmanCacheDir,
 		ccacheDir:      opts.CcacheDir,
 	}
-}
-
-// newDockerClient resolves the daemon endpoint with the same priority the
-// docker CLI uses: explicit host, then DOCKER_HOST, then the active docker
-// context, then the default socket. client.FromEnv alone ignores contexts, so a
-// host using Docker Desktop / rootless / a remote context would otherwise hit
-// the wrong daemon.
-func newDockerClient(host string) (*client.Client, error) {
-	opts := []client.Opt{client.WithAPIVersionNegotiation(), client.FromEnv}
-	if host == "" && os.Getenv("DOCKER_HOST") == "" {
-		host = dockerHostFromContext()
-	}
-	if host != "" {
-		opts = append(opts, client.WithHost(host))
-	}
-	return client.NewClientWithOpts(opts...)
-}
-
-// dockerHostFromContext returns the docker endpoint of the active context by
-// reading ~/.docker (config.json + the context metadata store). It returns ""
-// for the default context or on any error, so callers fall back to the socket.
-func dockerHostFromContext() string {
-	dir := os.Getenv("DOCKER_CONFIG")
-	if dir == "" {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return ""
-		}
-		dir = filepath.Join(home, ".docker")
-	}
-
-	name := os.Getenv("DOCKER_CONTEXT")
-	if name == "" {
-		data, err := os.ReadFile(filepath.Join(dir, "config.json"))
-		if err != nil {
-			return ""
-		}
-		var cfg struct {
-			CurrentContext string `json:"currentContext"`
-		}
-		if json.Unmarshal(data, &cfg) != nil {
-			return ""
-		}
-		name = cfg.CurrentContext
-	}
-	if name == "" || name == "default" {
-		return ""
-	}
-
-	// The context store keys each context by the hex sha256 of its name.
-	id := fmt.Sprintf("%x", sha256.Sum256([]byte(name)))
-	data, err := os.ReadFile(filepath.Join(dir, "contexts", "meta", id, "meta.json"))
-	if err != nil {
-		return ""
-	}
-	var meta struct {
-		Endpoints map[string]struct {
-			Host string `json:"Host"`
-		} `json:"Endpoints"`
-	}
-	if json.Unmarshal(data, &meta) != nil {
-		return ""
-	}
-	return meta.Endpoints["docker"].Host
 }
 
 func (b *containerBackend) Name() string { return "container" }
@@ -370,44 +267,4 @@ func (b *containerBackend) cacheMounts() ([]mount.Mount, error) {
 		return nil, err
 	}
 	return mounts, nil
-}
-
-// drainPullStream consumes the image-pull progress stream and surfaces any
-// error delivered as a JSON message in the body (ImagePull only reports the
-// initial request error directly).
-func drainPullStream(r io.ReadCloser) error {
-	defer r.Close()
-	dec := json.NewDecoder(r)
-	for {
-		var msg struct {
-			Error string `json:"error"`
-		}
-		if err := dec.Decode(&msg); err != nil {
-			if errors.Is(err, io.EOF) {
-				return nil
-			}
-			return err
-		}
-		if msg.Error != "" {
-			return errors.New(msg.Error)
-		}
-	}
-}
-
-// syncBuffer is a concurrency-safe bytes.Buffer for the log capture goroutine.
-type syncBuffer struct {
-	mu  sync.Mutex
-	buf bytes.Buffer
-}
-
-func (s *syncBuffer) Write(p []byte) (int, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.buf.Write(p)
-}
-
-func (s *syncBuffer) String() string {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.buf.String()
 }
