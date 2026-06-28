@@ -45,12 +45,15 @@ func SetRoute(e *gin.Engine, h *handler.Handler, m *middleware.Middleware) error
 		}
 
 		// Public GitHub-OAuth endpoints (no auth middleware): the login flow,
-		// the GitHub callback, the CLI start/exchange, and the session probes.
+		// the GitHub callback, the CLI and web-bearer start/exchange, and the
+		// session probes.
 		{
 			api.GET("/auth/github/login", authLimit, h.GitHubLoginHandler)
 			api.GET("/auth/github/callback", h.GitHubCallbackHandler)
 			api.GET("/auth/cli/start", authLimit, h.CLIStartHandler)
 			api.POST("/auth/cli/exchange", authLimit, h.CLIExchangeHandler)
+			api.GET("/auth/web/start", authLimit, h.WebStartHandler)
+			api.POST("/auth/web/exchange", authLimit, h.WebExchangeHandler)
 			api.GET("/auth/me", authLimit, h.MeHandler)
 			api.POST("/auth/logout", h.LogoutHandler)
 		}

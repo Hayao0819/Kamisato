@@ -1,6 +1,9 @@
 package handler
 
 import (
+	"encoding/base64"
+	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/url"
 	"time"
@@ -24,6 +27,7 @@ const (
 const (
 	sessionTTL = 7 * 24 * time.Hour
 	tokenTTL   = 90 * 24 * time.Hour
+	bearerTTL  = 7 * 24 * time.Hour
 	codeTTL    = 60 * time.Second
 	stateTTL   = 10 * time.Minute
 )
@@ -41,16 +45,21 @@ func (h *Handler) oauthEnabled() bool {
 	return h.signer != nil && h.cfg != nil && h.cfg.Auth.GitHub.ClientID != "" && h.cfg.Auth.GitHub.ClientSecret != ""
 }
 
-// externalBase returns the external (scheme, "scheme://host") used for the OAuth
-// redirect_uri and the cookie Secure decision. It is derived from PublicOrigin
-// only: gin's SetTrustedProxies does NOT gate c.GetHeader, so X-Forwarded-* is
-// spoofable by any direct peer and must not feed these values. The request-host
-// fallback runs only when PublicOrigin is unset (OAuth disabled; conf.Validate
-// makes PublicOrigin mandatory whenever GitHub login is enabled).
+// externalBase returns ayato's OWN external (scheme, "scheme://host") used for
+// the OAuth redirect_uri and the cookie Secure decision. The callback always
+// lands on ayato, so this prefers SelfOrigin (ayato's own URL) and falls back to
+// PublicOrigin — the two are identical in the same-origin/BFF deployment, and
+// diverge only when the SPA is served cross-origin (bearer mode). X-Forwarded-*
+// is deliberately NOT consulted: gin's SetTrustedProxies does not gate
+// c.GetHeader, so it is spoofable by any direct peer. The request-host fallback
+// runs only when neither origin is configured (OAuth disabled).
 func (h *Handler) externalBase(c *gin.Context) (scheme, base string) {
-	if h.cfg != nil && h.cfg.Auth.PublicOrigin != "" {
-		if u, err := url.Parse(h.cfg.Auth.PublicOrigin); err == nil && u.Scheme != "" && u.Host != "" {
-			return u.Scheme, u.Scheme + "://" + u.Host
+	if h.cfg != nil {
+		if s, b, ok := originOf(h.cfg.Auth.SelfOrigin); ok {
+			return s, b
+		}
+		if s, b, ok := originOf(h.cfg.Auth.PublicOrigin); ok {
+			return s, b
 		}
 	}
 	s := "http"
@@ -58,6 +67,29 @@ func (h *Handler) externalBase(c *gin.Context) (scheme, base string) {
 		s = "https"
 	}
 	return s, s + "://" + c.Request.Host
+}
+
+// spaOrigin returns the browser-facing SPA origin (PublicOrigin), used as the
+// exact postMessage target for the web-bearer login. Empty when unset.
+func (h *Handler) spaOrigin() string {
+	if h.cfg != nil {
+		if _, b, ok := originOf(h.cfg.Auth.PublicOrigin); ok {
+			return b
+		}
+	}
+	return ""
+}
+
+// originOf parses raw into its (scheme, "scheme://host") origin.
+func originOf(raw string) (scheme, base string, ok bool) {
+	if raw == "" {
+		return "", "", false
+	}
+	u, err := url.Parse(raw)
+	if err != nil || u.Scheme == "" || u.Host == "" {
+		return "", "", false
+	}
+	return u.Scheme, u.Scheme + "://" + u.Host, true
 }
 
 // oauthConfig builds the confidential OAuth2 client with the redirect_uri
@@ -115,4 +147,43 @@ func (h *Handler) setSessionCookie(c *gin.Context, value string, secure bool, ma
 		// Domain intentionally empty -> host-only cookie.
 	}
 	http.SetCookie(c.Writer, ck)
+}
+
+// webAuthBridgeTmpl is the popup page the web-bearer callback returns. It posts
+// the one-time code (and the SPA's original state) to its opener at the exact
+// SPA origin, then closes. The payload is base64-encoded JSON so no value is
+// interpolated into HTML/JS, and the postMessage target is the configured SPA
+// origin (never "*"), so the code reaches only the legitimate opener.
+const webAuthBridgeTmpl = `<!doctype html><meta charset="utf-8"><title>Signing in…</title><body><script>
+(function () {
+  try {
+    var d = JSON.parse(atob(%q));
+    if (window.opener) {
+      window.opener.postMessage({ type: "ayato-auth", code: d.code, state: d.state }, %q);
+    }
+  } catch (e) {}
+  window.close();
+})();
+</script>Signing in…</body>`
+
+// renderWebAuthBridge writes the popup bridge page that hands the one-time code
+// back to the SPA. It requires PublicOrigin (the postMessage target); without it
+// there is no trusted opener to deliver the code to, so it fails closed.
+func (h *Handler) renderWebAuthBridge(c *gin.Context, code, state string) {
+	origin := h.spaOrigin()
+	if origin == "" {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "public_origin not configured"})
+		return
+	}
+	payload, err := json.Marshal(struct {
+		Code  string `json:"code"`
+		State string `json:"state"`
+	}{Code: code, State: state})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "encode"})
+		return
+	}
+	b64 := base64.StdEncoding.EncodeToString(payload)
+	c.Header("Content-Type", "text/html; charset=utf-8")
+	c.String(http.StatusOK, fmt.Sprintf(webAuthBridgeTmpl, b64, origin))
 }

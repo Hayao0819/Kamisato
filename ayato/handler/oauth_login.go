@@ -88,3 +88,44 @@ func (h *Handler) CLIStartHandler(c *gin.Context) {
 	}
 	c.Redirect(http.StatusFound, h.oauthConfig(c).AuthCodeURL(state))
 }
+
+// WebStartHandler starts a cross-origin web-bearer flow for a static SPA. The
+// SPA opens this in a popup with a PKCE S256 challenge and its own state nonce.
+// Like the CLI flow, PKCE (not a browser-binding cookie) ties the eventual code
+// to the SPA that began it, so no state cookie is set; the callback returns the
+// one-time code to the SPA via postMessage rather than a redirect.
+func (h *Handler) WebStartHandler(c *gin.Context) {
+	if !h.oauthEnabled() {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "github login not configured"})
+		return
+	}
+	challenge := c.Query("challenge")
+	if challenge == "" || len(challenge) > 256 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "missing or oversized challenge"})
+		return
+	}
+	cliState := c.Query("state")
+	if len(cliState) > 256 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "oversized state"})
+		return
+	}
+	if cliState == "" {
+		var serr error
+		if cliState, serr = auth.NewState(); serr != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "state"})
+			return
+		}
+	}
+	state, err := h.signer.Sign(auth.Claims{
+		Typ:       auth.TypState,
+		Web:       true,
+		Challenge: challenge,
+		CLIState:  cliState,
+		Exp:       time.Now().Add(stateTTL),
+	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "state"})
+		return
+	}
+	c.Redirect(http.StatusFound, h.oauthConfig(c).AuthCodeURL(state))
+}

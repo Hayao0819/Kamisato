@@ -21,6 +21,11 @@ const (
 	TypCLI     = "cli"
 	TypCode    = "code"
 	TypState   = "state"
+	// TypBearer is the web SPA's session token: minted by the popup/postMessage
+	// login and presented as Authorization: Bearer by a cross-origin static SPA.
+	// It is distinct from TypCLI so the two delivery paths can carry different
+	// lifetimes and be reasoned about separately.
+	TypBearer = "bearer"
 )
 
 // minSecretBytes is the minimum HMAC key length. 32 bytes (256 bits) matches the
@@ -40,6 +45,7 @@ type Claims struct {
 	Binding   string `json:",omitempty"`
 	CLIState  string `json:",omitempty"`
 	CLI       bool   `json:",omitempty"`
+	Web       bool   `json:",omitempty"`
 	Exp       time.Time
 }
 

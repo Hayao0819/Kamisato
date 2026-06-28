@@ -77,9 +77,17 @@ type AuthConfig struct {
 
 	// GitHub is the "Sign in with GitHub" OAuth2 client.
 	GitHub GitHubOAuthConfig `koanf:"github,omitempty"`
-	// PublicOrigin is the external lumine URL (e.g. https://repo.example.com)
-	// used to build the OAuth redirect_uri when X-Forwarded-* are absent.
+	// PublicOrigin is the browser-facing SPA origin (e.g. https://repo.example.com):
+	// the CORS allow-origin for cross-origin (bearer-mode) callers and the
+	// postMessage target the web-bearer login posts the one-time code to. In the
+	// same-origin (cookie/BFF) deployment it is also where the OAuth flow lands.
 	PublicOrigin string `koanf:"public_origin,omitempty"`
+	// SelfOrigin is ayato's OWN externally-reachable origin, used to build the
+	// OAuth redirect_uri (the callback always hits ayato, never the static SPA).
+	// Leave empty in the same-origin/BFF deployment, where it equals PublicOrigin;
+	// set it to ayato's own URL (e.g. https://ayato.example.run.app) only when the
+	// SPA is served cross-origin (bearer mode) so the callback resolves to ayato.
+	SelfOrigin string `koanf:"self_origin,omitempty"`
 	// BootstrapAdminGitHubID is seeded into the admin allowlist on first run
 	// when the allowlist is empty.
 	BootstrapAdminGitHubID int64 `koanf:"bootstrap_admin_github_id,omitempty"`
@@ -169,6 +177,17 @@ func (c *AyatoConfig) Validate() error {
 	}
 	if u.Path != "" && u.Path != "/" {
 		return fmt.Errorf("auth.public_origin must be an origin without a path: %q", c.Auth.PublicOrigin)
+	}
+	// SelfOrigin is optional (defaults to PublicOrigin) but, when set, must be an
+	// absolute origin without a path, same as PublicOrigin.
+	if c.Auth.SelfOrigin != "" {
+		su, serr := url.Parse(c.Auth.SelfOrigin)
+		if serr != nil || (su.Scheme != "http" && su.Scheme != "https") || su.Host == "" {
+			return fmt.Errorf("auth.self_origin must be an absolute http(s) URL with a host: %q", c.Auth.SelfOrigin)
+		}
+		if su.Path != "" && su.Path != "/" {
+			return fmt.Errorf("auth.self_origin must be an origin without a path: %q", c.Auth.SelfOrigin)
+		}
 	}
 	// The stateless signer is mandatory: without a secret there is no way to mint
 	// or verify sessions/tokens. At least one key must be >= 32 bytes.

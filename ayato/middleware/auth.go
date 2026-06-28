@@ -115,11 +115,14 @@ func (m *Middleware) resolve(c *gin.Context, allowBasic bool) (id int64, login, 
 
 	authz := c.GetHeader("Authorization")
 
-	// (b) Authorization: Bearer <signed cli token>
+	// (b) Authorization: Bearer <signed token>. Both the CLI token and the web
+	// SPA's bearer token ride this header; accept either type.
 	if strings.HasPrefix(authz, "Bearer ") {
 		tok := strings.TrimPrefix(authz, "Bearer ")
-		if claims, terr := m.signer.VerifyTyp(tok, auth.TypCLI); terr == nil {
-			return claims.GitHubID, claims.Login, ctxViaBearer, true
+		for _, typ := range []string{auth.TypCLI, auth.TypBearer} {
+			if claims, terr := m.signer.VerifyTyp(tok, typ); terr == nil {
+				return claims.GitHubID, claims.Login, ctxViaBearer, true
+			}
 		}
 	}
 

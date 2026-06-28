@@ -30,9 +30,10 @@ func (h *Handler) GitHubCallbackHandler(c *gin.Context) {
 		return
 	}
 
-	// Web flow: the state must be redeemed by the SAME browser that began it.
-	// The binding cookie is single-use, so clear it regardless of the outcome.
-	if !st.CLI {
+	// Cookie web flow: the state must be redeemed by the SAME browser that began
+	// it. The binding cookie is single-use, so clear it regardless of the outcome.
+	// The CLI and web-bearer flows bind via PKCE instead, so they skip this check.
+	if !st.CLI && !st.Web {
 		scheme, _ := h.externalBase(c)
 		nonce, cerr := c.Cookie(oauthStateCookieName)
 		h.clearOAuthStateCookie(c, scheme == "https")
@@ -64,6 +65,10 @@ func (h *Handler) GitHubCallbackHandler(c *gin.Context) {
 
 	if st.CLI {
 		h.finishCLILogin(c, st, user)
+		return
+	}
+	if st.Web {
+		h.finishWebBearerLogin(c, st, user)
 		return
 	}
 	h.finishWebLogin(c, user)
@@ -152,4 +157,23 @@ func (h *Handler) finishCLILogin(c *gin.Context, st *auth.Claims, user githubUse
 		RawQuery: url.Values{"code": {oneTime}, "state": {st.CLIState}}.Encode(),
 	}
 	c.Redirect(http.StatusFound, target.String())
+}
+
+// finishWebBearerLogin mints a one-time signed CODE (Web=true) and returns it to
+// the SPA through the postMessage bridge page — never a token. The SPA redeems
+// the code at /auth/web/exchange with its PKCE verifier. No session cookie is set.
+func (h *Handler) finishWebBearerLogin(c *gin.Context, st *auth.Claims, user githubUser) {
+	oneTime, err := h.signer.Sign(auth.Claims{
+		Typ:       auth.TypCode,
+		Web:       true,
+		GitHubID:  user.ID,
+		Login:     user.Login,
+		Challenge: st.Challenge,
+		Exp:       time.Now().Add(codeTTL),
+	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "code"})
+		return
+	}
+	h.renderWebAuthBridge(c, oneTime, st.CLIState)
 }
