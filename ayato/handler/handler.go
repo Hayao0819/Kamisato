@@ -6,7 +6,6 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/conf"
 )
 
-// Handler is a struct that handles API requests.
 // Eventually planned to depend only on Service.
 type Handler struct {
 	cfg    *conf.AyatoConfig // planned to reduce dependency in the future

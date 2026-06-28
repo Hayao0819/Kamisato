@@ -69,8 +69,7 @@ func LoginCmd() *cobra.Command {
 	return cmd
 }
 
-// saveLogin writes the CLI token (and its GitHub login marker) into the server
-// database. The single token serves both blinky Basic and Bearer paths.
+// The single token serves both blinky Basic and Bearer paths.
 func saveLogin(cmd *cobra.Command, server, login, token string, setDefault bool) error {
 	db, err := blinky_util.ReadServerDB()
 	if err != nil {

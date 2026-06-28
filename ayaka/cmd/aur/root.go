@@ -57,19 +57,10 @@ func runAurFetch(cmd *cobra.Command, repoName string, pkgs []string, aurBase str
 }
 
 // updateAurPkg clones or updates a single AUR git repository under repoDir.
-//
-// Behavior:
-//   - if targetDir has a .git (whether a normal git repo or a submodule), update with git pull
-//   - otherwise, first check whether repoDir is under git control,
-//   - if it is, add via git submodule add (the default behavior)
-//   - if it is not, fetch with git clone
-//   - force is limited to "re-fetching a directory that is not yet a git repo";
-//     when already under git control (including submodules), only pull is performed.
 func updateAurPkg(cobraCmd *cobra.Command, repoDir, aurBase, name string, force bool) error {
 	targetDir := filepath.Join(repoDir, name)
 	gitDir := filepath.Join(targetDir, ".git")
 
-	// If already under git control, just update with pull
 	if _, err := os.Stat(gitDir); err == nil {
 		slog.Info("updating existing AUR repo", "name", name, "dir", targetDir)
 		gitcmd := exec.Command("git", "-C", targetDir, "pull", "--ff-only")
@@ -91,7 +82,6 @@ func updateAurPkg(cobraCmd *cobra.Command, repoDir, aurBase, name string, force 
 
 	url := aurBase + "/" + name + ".git"
 
-	// If repoDir is under git control, add as a submodule by default
 	root, err := shared.GitRootDir(repoDir)
 	if err == nil {
 		if err := os.MkdirAll(filepath.Dir(targetDir), 0o755); err != nil {
@@ -113,7 +103,6 @@ func updateAurPkg(cobraCmd *cobra.Command, repoDir, aurBase, name string, force 
 		return nil
 	}
 
-	// Only use a normal git clone when repoDir is not under git control
 	slog.Info("cloning AUR repo (non-git parent)", "name", name, "dir", targetDir)
 	if err := os.MkdirAll(repoDir, 0o755); err != nil {
 		return utils.WrapErr(err, "failed to create repo directory")

@@ -63,21 +63,18 @@ func (b *Buffer) Close() {
 	b.cond.Broadcast()
 }
 
-// String returns the full contents accumulated so far.
 func (b *Buffer) String() string {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	return b.buf.String()
 }
 
-// Len returns the number of bytes accumulated so far.
 func (b *Buffer) Len() int {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	return b.buf.Len()
 }
 
-// Closed reports whether Close has been called.
 func (b *Buffer) Closed() bool {
 	b.mu.Lock()
 	defer b.mu.Unlock()

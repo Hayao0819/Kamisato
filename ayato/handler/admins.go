@@ -13,9 +13,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// ---- admin endpoints ----
-
-// AdminsListHandler lists allowlisted admins.
 func (h *Handler) AdminsListHandler(c *gin.Context) {
 	admins, err := h.s.ListAdmins()
 	if err != nil {
@@ -59,7 +56,6 @@ func (h *Handler) AdminsAddHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"id": id, "login": login})
 }
 
-// AdminsRemoveHandler removes an admin by numeric id.
 func (h *Handler) AdminsRemoveHandler(c *gin.Context) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil || id <= 0 {

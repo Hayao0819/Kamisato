@@ -13,9 +13,8 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/conf"
 )
 
-// initBinaryStore initializes the low-level binary store backend. It unpacks the
-// conf into the plain values the backends take, keeping the IO layer conf-free
-// (mirroring the kv backends).
+// initBinaryStore unpacks the conf into the plain values the backends take,
+// keeping the IO layer conf-free (mirroring the kv backends).
 func initBinaryStore(cfg *conf.AyatoConfig) (blob.Store, error) {
 	if cfg.Store.StorageType == "s3" {
 		slog.Warn("Using S3 is still experimental, please use with caution")
@@ -43,9 +42,8 @@ func initBinaryStore(cfg *conf.AyatoConfig) (blob.Store, error) {
 	return localfs.New(cfg.Store.LocalRepoDir, repoNames), nil
 }
 
-// initKVStore initializes the shared generic key-value store. The same store
-// backs package metadata and (later) other app data; backend is selected by
-// cfg.Store.DBType.
+// initKVStore builds the shared key-value store backing package metadata and
+// (later) other app data; backend is selected by cfg.Store.DBType.
 func initKVStore(cfg *conf.AyatoConfig) (kv.Store, error) {
 	switch cfg.Store.DBType {
 	case "sql", "external":

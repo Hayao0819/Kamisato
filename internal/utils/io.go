@@ -94,7 +94,6 @@ func CopyFile(srcFile, dstFile string) error {
 	return copyFile(srcFile, dstFile, srcInfo.Mode())
 }
 
-// copyFile copies a single file.
 func copyFile(srcFile, dstFile string, mode fs.FileMode) error {
 	src, err := os.Open(srcFile)
 	if err != nil {

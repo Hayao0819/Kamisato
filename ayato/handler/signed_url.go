@@ -7,7 +7,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// SignedURLHandler is an API handler that returns a signed URL.
 func (h *Handler) SignedURLHandler(ctx *gin.Context) {
 	repoName := ctx.Param("repo")
 	arch := ctx.Param("arch")

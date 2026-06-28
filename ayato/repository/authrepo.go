@@ -13,7 +13,6 @@ import (
 // are all stateless-signed.
 const allowNS = "allow"
 
-// AllowedAdmin pairs a GitHub id with its stored login label.
 type AllowedAdmin struct {
 	ID    int64  `json:"id"`
 	Login string `json:"login"`
@@ -27,14 +26,11 @@ type AllowedAdmin struct {
 //
 //go:generate mockgen -source=authrepo.go -destination=../test/mocks/authrepo.go -package=mocks
 type AuthRepository interface {
-	// AddAdmin inserts (or updates) an allowed GitHub id with an optional login label.
 	AddAdmin(id int64, login string) error
-	// RemoveAdmin deletes a GitHub id from the allowlist.
 	RemoveAdmin(id int64) error
-	// IsAdmin reports whether id is on the allowlist. Fail-closed: a non-positive
-	// id or any read miss returns false, so an empty allowlist denies everyone.
+	// Fail-closed: a non-positive id or any read miss returns false, so an empty
+	// allowlist denies everyone.
 	IsAdmin(id int64) bool
-	// ListAdmins returns every allowlisted GitHub id with its login label.
 	ListAdmins() ([]AllowedAdmin, error)
 }
 
@@ -44,7 +40,6 @@ type authRepository struct {
 	kv kv.Store
 }
 
-// NewAuthRepository returns an AuthRepository backed by the shared kv store.
 func NewAuthRepository(store kv.Store) AuthRepository {
 	return &authRepository{kv: store}
 }

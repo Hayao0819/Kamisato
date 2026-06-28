@@ -48,7 +48,6 @@ func Materialize(ctx context.Context, root, pkgbase, sourceDir, commit string) e
 	return gitcmd.Run(ctx, repo, "update-server-info")
 }
 
-// Remove drops a served repo.
 func Remove(root, pkgbase string) error {
 	return os.RemoveAll(filepath.Join(root, pkgbase+".git"))
 }

@@ -2,7 +2,6 @@ package domain
 
 import "errors"
 
-// APIError represents API error information.
 type APIError struct {
 	Message string `json:"message,omitempty"`
 	Reason  string `json:"reason,omitempty"`

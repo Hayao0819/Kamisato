@@ -17,27 +17,25 @@ import (
 // callers can branch uniformly with errors.Is.
 var ErrNotFound = errors.New("kv: not found")
 
-// Entry is a single key/value pair returned by List. Key is the bare key within
-// the namespace (the namespace prefix is stripped).
+// Key is the bare key within the namespace (the namespace prefix is stripped).
 type Entry struct {
 	Key   string
 	Value []byte
 }
 
-// Store is a namespaced key-value store. Implementations must be safe for
-// concurrent use. A namespace (ns) partitions the keyspace so unrelated domains
-// (package metadata, auth, ...) never collide.
+// Store implementations must be safe for concurrent use. A namespace (ns)
+// partitions the keyspace so unrelated domains (package metadata, auth, ...)
+// never collide.
 type Store interface {
-	// Get returns the value stored under (ns, key). It returns ErrNotFound when
-	// the key is absent or expired; it never returns ("", nil) for a miss.
+	// Get returns ErrNotFound when the key is absent or expired; it never
+	// returns ("", nil) for a miss.
 	Get(ns, key string) ([]byte, error)
-	// Set stores value under (ns, key). A ttl of 0 means no expiry; a positive
-	// ttl makes the entry expire after that duration.
+	// A ttl of 0 means no expiry; a positive ttl makes the entry expire after
+	// that duration.
 	Set(ns, key string, value []byte, ttl time.Duration) error
-	// Delete removes (ns, key). Deleting a missing key is not an error.
+	// Deleting a missing key is not an error.
 	Delete(ns, key string) error
 	// List returns every live entry within ns (a prefix scan over the namespace).
 	List(ns string) ([]Entry, error)
-	// Close releases any resources held by the store.
 	Close() error
 }

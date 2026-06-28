@@ -17,7 +17,6 @@ type adminChecker interface {
 	IsAdmin(id int64) bool
 }
 
-// Middleware provides middleware for authentication, authorization, etc.
 type Middleware struct {
 	cfg     *conf.AyatoConfig
 	checker adminChecker // nil = auth unconfigured; RequireAdmin fails closed (503)

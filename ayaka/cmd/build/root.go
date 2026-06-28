@@ -84,7 +84,6 @@ func Cmd() *cobra.Command {
 				buildPkgs = args[1:]
 			}
 
-			// Remote build: hand off to the miko build path.
 			if remote {
 				return shared.RunRemoteBuild(shared.RemoteBuildOpts{
 					Repo:   repo,

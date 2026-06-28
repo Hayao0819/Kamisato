@@ -8,7 +8,6 @@ import (
 	"github.com/gabriel-vasile/mimetype"
 )
 
-// OpenFileWithType opens a file and returns a FileStream with MIME type.
 func OpenFileWithType(filePath string) (*FileStream, error) {
 	mt, err := mimetype.DetectFile(filePath)
 	if err != nil {
@@ -21,7 +20,6 @@ func OpenFileWithType(filePath string) (*FileStream, error) {
 	return NewFileStream(file.Name(), mt.String(), file), nil
 }
 
-// NewFileStreamWithType creates a FileStream with automatic MIME type detection.
 func NewFileStreamWithType(filename string, file io.ReadSeekCloser) (*FileStream, error) {
 	if file == nil {
 		return nil, os.ErrInvalid

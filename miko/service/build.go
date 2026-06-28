@@ -11,7 +11,6 @@ import (
 	"github.com/Hayao0819/Kamisato/pkg/pacman/builder"
 )
 
-// runBuild prepares a build Spec, invokes the backend and captures logs.
 // On success it returns the output directory holding the built packages; the
 // caller owns its cleanup (after signing/uploading).
 func (s *Service) runBuild(ctx context.Context, job *domain.BuildJob) (*builder.Result, string, error) {

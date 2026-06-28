@@ -8,7 +8,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// BlinkyRemoveHandler is the handler for the package removal API.
 func (h *Handler) BlinkyRemoveHandler(ctx *gin.Context) {
 	repoName := ctx.Param("repo")
 	packageName := ctx.Param("name")

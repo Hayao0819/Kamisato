@@ -31,7 +31,7 @@ func (s *Service) InitAll() error {
 // initRepo creates the repository's per-architecture databases. Arch expansion is
 // a service concern (the repository layer no longer reads config): it unions the
 // architectures already created on disk with the configured ones, dropping "any"
-// (pacman has no os/any database). This replaces the former BinaryRepository.Init.
+// (pacman has no os/any database).
 func (s *Service) initRepo(repo string, useSignedDB bool, gnupgDir *string) error {
 	existing, err := s.pkgBinaryRepo.Arches(repo)
 	if err != nil {

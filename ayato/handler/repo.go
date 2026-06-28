@@ -10,7 +10,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// ReposHandler returns a list of all repository names.
 func (h *Handler) ReposHandler(ctx *gin.Context) {
 	repoNames, err := h.s.RepoNames()
 	if err != nil {
@@ -21,7 +20,6 @@ func (h *Handler) ReposHandler(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, repoNames)
 }
 
-// ArchesHandler returns a list of architectures for the specified repository.
 func (h *Handler) ArchesHandler(ctx *gin.Context) {
 	repoName := ctx.Param("repo")
 	if repoName == "" {

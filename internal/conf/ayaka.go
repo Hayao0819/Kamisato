@@ -38,7 +38,6 @@ type SrcRepoConfig struct {
 		Files []string `koanf:"files"`
 		Names []string `koanf:"names"`
 	} `koanf:"installpkgs"`
-	// AurPkgs    []string `koanf:"aurpkgs"`
 }
 
 func (c *SrcRepoConfig) Marshal() ([]byte, error) {

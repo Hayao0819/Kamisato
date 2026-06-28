@@ -67,7 +67,6 @@ func NewSigner(secrets []string) (*Signer, error) {
 	return &Signer{secrets: keys}, nil
 }
 
-// mac returns the HMAC-SHA256 of payloadB64 under key.
 func mac(key []byte, payloadB64 string) []byte {
 	h := hmac.New(sha256.New, key)
 	h.Write([]byte(payloadB64))

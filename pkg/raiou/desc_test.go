@@ -69,7 +69,6 @@ func TestLocalParseAllDescFiles(t *testing.T) {
 	}
 }
 
-// keysOf extracts keys from a map[string]string into a []string
 func keysOf[T any](m map[string]T) []string {
 	keys := make([]string, 0, len(m))
 	for k := range m {

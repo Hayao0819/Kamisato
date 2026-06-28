@@ -29,8 +29,6 @@ type packageMetadataRepo struct {
 	kv kv.Store
 }
 
-// NewPackageMetadataRepo wraps a shared kv.Store as a NameStore scoped to the
-// package-metadata namespace.
 func NewPackageMetadataRepo(s kv.Store) NameStore {
 	return &packageMetadataRepo{kv: s}
 }
@@ -57,13 +55,11 @@ func (r *packageMetadataRepo) PackageFile(arch, name string) (string, error) {
 	return string(v), nil
 }
 
-// StorePackageFile records that (arch, packageName) is stored as filePath. The
-// entry never expires (ttl 0): it is durable metadata, not a cache line.
+// The entry never expires (ttl 0): it is durable metadata, not a cache line.
 func (r *packageMetadataRepo) StorePackageFile(arch, packageName, filePath string) error {
 	return r.kv.Set(pkgMetadataNamespace, nameKey(arch, packageName), []byte(filePath), 0)
 }
 
-// DeletePackageFileEntry removes the (arch, packageName) metadata entry.
 func (r *packageMetadataRepo) DeletePackageFileEntry(arch, packageName string) error {
 	return r.kv.Delete(pkgMetadataNamespace, nameKey(arch, packageName))
 }

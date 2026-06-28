@@ -104,7 +104,6 @@ func installedVersions() map[string]string {
 	return m
 }
 
-// firstInstalled returns the version of the first of names that is installed.
 func firstInstalled(installed map[string]string, names []string) string {
 	for _, n := range names {
 		if v, ok := installed[n]; ok {

@@ -29,16 +29,12 @@ type Entry struct {
 	ExpiresAt *time.Time
 }
 
-// Store is a kv.Store backed by a GORM-managed SQL database.
 type Store struct {
 	db *gorm.DB
 }
 
-// compile-time interface check.
 var _ kv.Store = (*Store)(nil)
 
-// New opens a SQL database with the given driver and dsn, migrates the generic
-// Entry table, and returns a kv.Store.
 func New(driver, dsn string) (*Store, error) {
 	var dialector gorm.Dialector
 	switch driver {
@@ -76,8 +72,6 @@ func NewWithDB(db *gorm.DB) (*Store, error) {
 	return &Store{db: db}, nil
 }
 
-// Get returns the value under (ns, key), or kv.ErrNotFound when the row is absent
-// or has expired.
 func (s *Store) Get(ns, key string) ([]byte, error) {
 	if s.db == nil {
 		return nil, errors.New("sqlkv: database connection is nil")
@@ -95,8 +89,6 @@ func (s *Store) Get(ns, key string) ([]byte, error) {
 	return e.Value, nil
 }
 
-// Set upserts value under (ns, key). A positive ttl sets expires_at; ttl == 0
-// clears it (no expiry).
 func (s *Store) Set(ns, key string, value []byte, ttl time.Duration) error {
 	if s.db == nil {
 		return errors.New("sqlkv: database connection is nil")
@@ -115,7 +107,6 @@ func (s *Store) Set(ns, key string, value []byte, ttl time.Duration) error {
 		Create(&e).Error
 }
 
-// Delete removes (ns, key). Removing a missing row is not an error.
 func (s *Store) Delete(ns, key string) error {
 	if s.db == nil {
 		return errors.New("sqlkv: database connection is nil")
@@ -125,7 +116,6 @@ func (s *Store) Delete(ns, key string) error {
 		Delete(&Entry{}).Error
 }
 
-// List returns every non-expired entry within ns.
 func (s *Store) List(ns string) ([]kv.Entry, error) {
 	if s.db == nil {
 		return nil, errors.New("sqlkv: database connection is nil")
@@ -144,7 +134,6 @@ func (s *Store) List(ns string) ([]kv.Entry, error) {
 	return out, nil
 }
 
-// Close closes the underlying sql.DB.
 func (s *Store) Close() error {
 	if s.db == nil {
 		return nil

@@ -12,7 +12,6 @@ import (
 	pkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
 )
 
-// UploadFile uploads a package file and updates the DB and metadata.
 // TODO: support signed DB, check gnupgDir existence
 func (s *Service) UploadFile(repo string, files *domain.UploadFiles) error {
 	slog.Info("upload pkg file", "file", files.PkgFile.FileName())

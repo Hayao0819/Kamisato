@@ -22,7 +22,6 @@ type repoDBTool interface {
 	RepoRemove(dbPath, pkg string, useSignedDB bool, gnupgDir *string) error
 }
 
-// repoTool returns the configured repo-DB tool, defaulting to the blinky CLI.
 func (r *binaryRepository) repoTool() repoDBTool {
 	if r.tool != nil {
 		return r.tool
@@ -40,8 +39,8 @@ func dbArtifactBases(repo string) []string {
 	}
 }
 
-// writeSeekFileTo writes a SeekFile's bytes into dir under its base name and
-// returns the destination path. A nil stream is a no-op (returns "").
+// writeSeekFileTo writes a SeekFile's bytes into dir under its base name.
+// A nil stream is a no-op (returns "").
 func writeSeekFileTo(dir string, f stream.SeekFile) (string, error) {
 	if f == nil {
 		return "", nil
@@ -99,11 +98,9 @@ func (r *binaryRepository) storeArtifacts(repo, arch, dir string, skip map[strin
 	return nil
 }
 
-// RepoAdd registers a package in the (repo, arch) database. It seeds the live DB
-// archives into a temp dir, writes the package (and its signature) there, runs
-// repo-add over the temp DB, then stores every rewritten artifact back through
-// blob.StoreFile — leaving the package file itself to the caller's StoreFile.
-// The per-(repo, arch) dbMu serializes these read-modify-writes.
+// RepoAdd registers a package in the (repo, arch) database, leaving the package
+// file itself to the caller's StoreFile. The per-(repo, arch) dbMu serializes
+// these read-modify-writes.
 func (r *binaryRepository) RepoAdd(repo, arch string, pkg, sig stream.SeekFile, useSignedDB bool, gnupgDir *string) error {
 	defer r.dbMu.lock(repo + "/" + arch)()
 
@@ -142,8 +139,8 @@ func (r *binaryRepository) RepoAdd(repo, arch string, pkg, sig stream.SeekFile, 
 	return r.storeArtifacts(repo, arch, t, skip)
 }
 
-// RepoRemove removes a package from the (repo, arch) database, then stores every
-// rewritten artifact back. Serialized per (repo, arch) via dbMu.
+// RepoRemove removes a package from the (repo, arch) database. Serialized per
+// (repo, arch) via dbMu.
 func (r *binaryRepository) RepoRemove(repo, arch, pkg string, useSignedDB bool, gnupgDir *string) error {
 	defer r.dbMu.lock(repo + "/" + arch)()
 
@@ -169,8 +166,8 @@ func (r *binaryRepository) RepoRemove(repo, arch, pkg string, useSignedDB bool, 
 	return r.storeArtifacts(repo, arch, t, nil)
 }
 
-// InitArch creates an empty (repo, arch) database and stores its artifacts.
-// Serialized per (repo, arch) via dbMu.
+// InitArch creates an empty (repo, arch) database. Serialized per (repo, arch)
+// via dbMu.
 func (r *binaryRepository) InitArch(repo, arch string, useSignedDB bool, gnupgDir *string) error {
 	defer r.dbMu.lock(repo + "/" + arch)()
 	slog.Debug("init pkg repo", "repo", repo, "arch", arch)

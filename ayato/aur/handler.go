@@ -93,7 +93,6 @@ func (h *Handler) PubkeyHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"alg": "ed25519", "key_id": h.signer.KeyID(), "pubkey": h.signer.PublicKeyB64()})
 }
 
-// ListHandler returns the registered pkgbases.
 func (h *Handler) ListHandler(c *gin.Context) {
 	bases, err := h.b.List(c.Request.Context())
 	if err != nil {

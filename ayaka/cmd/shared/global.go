@@ -11,8 +11,6 @@ var Config *conf.AyakaConfig
 
 var SrcRepos []*repo.SourceRepo
 
-// type srcRepoList []*repo.SourceRepo
-
 func InitSrcRepos() error {
 	for _, r := range Config.Repos {
 		repoconfig, err := conf.LoadSrcRepoConfig(r.Dir)

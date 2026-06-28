@@ -37,7 +37,7 @@ func GetCleanPkgBinary(names ...string) ([]string, error) {
 	}
 
 	pkgs := make([]*pkg.BinaryPackage, 0)
-	_ = pkgs // temporarily added to use the type
+	_ = pkgs
 	tmp, err := os.MkdirTemp("", "kamisato-pkg-dl-")
 	if err != nil {
 		return nil, fmt.Errorf("failed to create temp directory: %w", err)

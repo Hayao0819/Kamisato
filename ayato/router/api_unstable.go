@@ -12,7 +12,6 @@ import (
 	"golang.org/x/time/rate"
 )
 
-// SetRoute sets all API routes for the Ayato server.
 func SetRoute(e *gin.Engine, h *handler.Handler, m *middleware.Middleware) error {
 	if err := view.Set(e); err != nil {
 		return utils.WrapErr(err, "テンプレート設定に失敗")

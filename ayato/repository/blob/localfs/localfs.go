@@ -23,7 +23,6 @@ type LocalStore struct {
 	repoNames []string
 }
 
-// New builds a LocalStore rooted at repoDir, serving only the named repos.
 func New(repoDir string, repoNames []string) *LocalStore {
 	return &LocalStore{repoDir: repoDir, repoNames: repoNames}
 }

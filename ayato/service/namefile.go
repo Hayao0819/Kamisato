@@ -45,8 +45,6 @@ func (s *Service) resolvePackage(repo, reqArch, pkgname string) (filename, store
 	return "", "", fmt.Errorf("package %q not found in %s", pkgname, repo)
 }
 
-// packageEntryFromDB resolves a package's stored file name and architecture from
-// the repository .db of the given arch.
 func (s *Service) packageEntryFromDB(repo, arch, pkgname string) (filename, pkgArch string, err error) {
 	rr, err := s.pkgBinaryRepo.RemoteRepo(repo, arch)
 	if err != nil {

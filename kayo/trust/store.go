@@ -95,14 +95,12 @@ func (s *Store) TrustMaintainer(source, account, note string) {
 	s.data.Maintainers[k] = TrustedMaintainer{Source: source, Account: account, AddedAt: time.Now(), Note: note}
 }
 
-// UntrustMaintainer revokes a maintainer.
 func (s *Store) UntrustMaintainer(source, account string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	delete(s.data.Maintainers, mkey(source, account))
 }
 
-// IsMaintainerTrusted reports whether account is vouched for on source.
 func (s *Store) IsMaintainerTrusted(source, account string) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -128,7 +126,6 @@ func (s *Store) Approval(pkgbase string) (Approval, bool) {
 	return a, ok
 }
 
-// RemoveApproval drops a package approval.
 func (s *Store) RemoveApproval(pkgbase string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()

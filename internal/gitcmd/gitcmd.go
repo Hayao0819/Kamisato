@@ -68,7 +68,6 @@ func CommitUnix(ctx context.Context, dir string) int64 {
 	return ts
 }
 
-// CloneOptions configures Clone.
 type CloneOptions struct {
 	URL   string
 	Dir   string

@@ -12,7 +12,6 @@ import (
 	"github.com/Hayao0819/Kamisato/pkg/raiou"
 )
 
-// Service provides the business logic.
 type Service struct {
 	pkgNameRepo   repository.NameStore
 	pkgBinaryRepo repository.BinaryRepository

@@ -4,7 +4,6 @@ import (
 	"io"
 )
 
-// FileStream is a file stream that implements ReadSeekCloser.
 type FileStream struct {
 	fileName    string
 	contentType string

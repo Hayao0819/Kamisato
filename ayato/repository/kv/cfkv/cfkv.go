@@ -29,7 +29,6 @@ import (
 // sep separates the namespace from the key (see badgerkv for the rationale).
 const sep = "\x00"
 
-// Store is a kv.Store backed by Cloudflare Workers KV.
 type Store struct {
 	client      *cloudflare.API
 	accountId   string
@@ -37,11 +36,8 @@ type Store struct {
 	ctx         context.Context
 }
 
-// compile-time interface check.
 var _ kv.Store = (*Store)(nil)
 
-// New creates a Cloudflare Workers KV-backed kv.Store. account is the account
-// id, token an API token, namespace the KV namespace id.
 func New(account, token, namespace string) (*Store, error) {
 	c, err := cloudflare.NewWithAPIToken(token, cloudflare.UsingLogger(logger.Default()))
 	if err != nil {
@@ -61,9 +57,9 @@ func (s *Store) accountIdentifier() *cloudflare.ResourceContainer {
 
 func composite(ns, key string) string { return ns + sep + key }
 
-// Get returns the value under (ns, key). A Cloudflare not-found is mapped to
-// kv.ErrNotFound (the previous package-metadata wrapper instead returned
-// ("", nil), which this fixes so misses surface uniformly).
+// A Cloudflare not-found is mapped to kv.ErrNotFound (the previous
+// package-metadata wrapper instead returned ("", nil), which this fixes so
+// misses surface uniformly).
 func (s *Store) Get(ns, key string) ([]byte, error) {
 	v, err := s.client.GetWorkersKV(s.ctx, s.accountIdentifier(), cloudflare.GetWorkersKVParams{
 		NamespaceID: s.namespaceId,
@@ -79,10 +75,10 @@ func (s *Store) Get(ns, key string) ([]byte, error) {
 	return v, nil
 }
 
-// Set stores value under (ns, key). A positive ttl uses Workers KV's native
-// expiration_ttl (via the bulk-write API, the only WriteWorkers* params that
-// carries a TTL); ttl == 0 writes without expiry. Cloudflare rejects a TTL below
-// 60 seconds, so this is best used with minute-scale or no expiry.
+// A positive ttl uses Workers KV's native expiration_ttl (via the bulk-write
+// API, the only WriteWorkers* params that carries a TTL); ttl == 0 writes
+// without expiry. Cloudflare rejects a TTL below 60 seconds, so this is best
+// used with minute-scale or no expiry.
 func (s *Store) Set(ns, key string, value []byte, ttl time.Duration) error {
 	if ttl <= 0 {
 		_, err := s.client.WriteWorkersKVEntry(s.ctx, s.accountIdentifier(), cloudflare.WriteWorkersKVEntryParams{
@@ -103,7 +99,6 @@ func (s *Store) Set(ns, key string, value []byte, ttl time.Duration) error {
 	return utils.WrapErr(err, "cfkv: set with ttl")
 }
 
-// Delete removes (ns, key).
 func (s *Store) Delete(ns, key string) error {
 	_, err := s.client.DeleteWorkersKVEntry(s.ctx, s.accountIdentifier(), cloudflare.DeleteWorkersKVEntryParams{
 		NamespaceID: s.namespaceId,
@@ -112,10 +107,9 @@ func (s *Store) Delete(ns, key string) error {
 	return utils.WrapErr(err, "cfkv: delete")
 }
 
-// List returns every entry within ns. It pages through the Workers KV list-keys
-// API filtered by the namespace prefix and fetches each value (the list API
-// returns key names only). Expired keys are excluded by Cloudflare from the
-// listing.
+// List pages through the Workers KV list-keys API filtered by the namespace
+// prefix and fetches each value (the list API returns key names only). Expired
+// keys are excluded by Cloudflare from the listing.
 func (s *Store) List(ns string) ([]kv.Entry, error) {
 	prefix := ns + sep
 	var out []kv.Entry

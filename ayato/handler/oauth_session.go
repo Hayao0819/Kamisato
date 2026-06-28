@@ -61,7 +61,6 @@ func (h *Handler) CLIExchangeHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"token": token, "login": rec.Login, "id": rec.GitHubID})
 }
 
-// MeHandler reports the current session identity for the SPA.
 func (h *Handler) MeHandler(c *gin.Context) {
 	if h.signer == nil {
 		c.JSON(http.StatusOK, gin.H{"authenticated": false})

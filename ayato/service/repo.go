@@ -14,7 +14,6 @@ func (s *Service) RepoFileList(repo, arch string) ([]string, error) {
 	return s.pkgBinaryRepo.Files(repo, arch)
 }
 
-// Repo returns repository info (all architectures and packages).
 func (s *Service) Repo(repo string) (*domain.PacmanRepo, error) {
 	arches, err := s.pkgBinaryRepo.Arches(repo)
 	if err != nil {
@@ -39,7 +38,6 @@ func (s *Service) Repo(repo string) (*domain.PacmanRepo, error) {
 
 }
 
-// Pkgs returns info for all packages in the repository.
 func (s *Service) Pkgs(repo, arch string) (*domain.PacmanPkgs, error) {
 	rr, err := s.pkgBinaryRepo.RemoteRepo(repo, arch)
 	if err != nil {
@@ -65,7 +63,6 @@ func (s *Service) Pkgs(repo, arch string) (*domain.PacmanPkgs, error) {
 	return &rt, nil
 }
 
-// PkgDetail returns detailed info for the specified package.
 func (s *Service) PkgDetail(repo, arch, pkgbase string) (*raiou.PKGINFO, error) {
 	rr, err := s.pkgBinaryRepo.RemoteRepo(repo, arch)
 	if err != nil {

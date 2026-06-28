@@ -23,16 +23,12 @@ func commonConfigDirs() []string {
 }
 
 func loadConfig[T any](dirs []string, files []string, flags *pflag.FlagSet, envPrefix string) (*T, error) {
-
-	// fmt.Println(os.Getenv("KAMISATO_AYATO_PORT"))
-
 	return confloader.Load[T](dirs, files, flags, envPrefix, "_", func(key string) string {
 		key = strings.ToLower(key)
 		key = strings.TrimPrefix(key, "ayato_")
 		key = strings.TrimPrefix(key, "ayaka_")
 		key = strings.TrimPrefix(key, "miko_")
 		key = strings.TrimPrefix(key, "kayo_")
-		// fmt.Println(key)
 		return key
 	})
 }

@@ -12,7 +12,6 @@ import (
 	"github.com/samber/lo"
 )
 
-// formFileWithValidate validates a multipart file and returns a FileHeader.
 func formFileWithValidate(ctx *gin.Context, name string, maxsize int) (*multipart.FileHeader, error) {
 	pkgHeader, err := ctx.FormFile(name)
 	if err != nil {
@@ -27,7 +26,6 @@ func formFileWithValidate(ctx *gin.Context, name string, maxsize int) (*multipar
 	return pkgHeader, nil
 }
 
-// BlinkyUploadHandler is the handler for the package upload API.
 func (h *Handler) BlinkyUploadHandler(ctx *gin.Context) {
 	repoName := ctx.Param("repo")
 	if repoName == "" {

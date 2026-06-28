@@ -45,7 +45,6 @@ type binaryRepository struct {
 	tool repoDBTool
 }
 
-// NewBinaryRepository wraps a low-level blob.Store into a BinaryRepository with derived operations.
 func NewBinaryRepository(store blob.Store) BinaryRepository {
 	return &binaryRepository{Store: store}
 }
@@ -81,7 +80,6 @@ func (r *binaryRepository) FetchDB(repoName, archName string) (stream.File, erro
 	return r.FetchFile(repoName, archName, repoName+".db")
 }
 
-// RemoteRepo parses the DB and returns a RemoteRepo.
 func (r *binaryRepository) RemoteRepo(name, arch string) (*repo.RemoteRepo, error) {
 	db, err := r.FetchDB(name, arch)
 	if err != nil {
@@ -99,7 +97,6 @@ func (r *binaryRepository) RemoteRepo(name, arch string) (*repo.RemoteRepo, erro
 	return rr, nil
 }
 
-// PkgNames returns the pkgbase of every package in the repository.
 // FIXME: opening the DB on every call is inefficient; caching or similar would help.
 func (r *binaryRepository) PkgNames(repoName, archName string) ([]string, error) {
 	db, err := r.FetchFile(repoName, archName, fmt.Sprintf("%s.db.tar.gz", repoName))
@@ -122,14 +119,13 @@ func (r *binaryRepository) PkgNames(repoName, archName string) ([]string, error)
 	return names, nil
 }
 
-// PkgFiles returns the file list of a package. Not implemented: the .files
-// database is not parsed yet, so this reports domain.ErrNotImplemented rather
-// than a misleading empty list (the handler answers 501).
+// Not implemented: the .files database is not parsed yet, so this reports
+// domain.ErrNotImplemented rather than a misleading empty list (the handler
+// answers 501).
 func (r *binaryRepository) PkgFiles(repoName, archName, pkgName string) ([]string, error) {
 	return nil, domain.ErrNotImplemented
 }
 
-// VerifyPkgRepo verifies that each architecture has all required files.
 func (r *binaryRepository) VerifyPkgRepo(name string) error {
 	arches, err := r.Arches(name)
 	if err != nil {

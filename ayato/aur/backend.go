@@ -39,8 +39,8 @@ type Backend struct {
 	defaultMaint string
 }
 
-// New builds a Backend. defaultMaintainer is the maintainer label applied to
-// registered packages that do not carry their own.
+// defaultMaintainer is the maintainer label applied to registered packages that
+// do not carry their own.
 func New(store kv.Store, defaultMaintainer string) *Backend {
 	return &Backend{kv: store, defaultMaint: defaultMaintainer}
 }

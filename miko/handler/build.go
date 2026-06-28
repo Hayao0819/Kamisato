@@ -13,7 +13,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// SubmitBuildHandler accepts a build request and enqueues it.
 // POST /api/unstable/build -> 202 {"job_id": id}
 func (h *Handler) SubmitBuildHandler(c *gin.Context) {
 	var req domain.BuildRequest
@@ -38,7 +37,6 @@ func (h *Handler) SubmitBuildHandler(c *gin.Context) {
 	c.JSON(http.StatusAccepted, gin.H{"job_id": id})
 }
 
-// JobStatusHandler returns the current state of a job.
 // GET /api/unstable/jobs/:id
 func (h *Handler) JobStatusHandler(c *gin.Context) {
 	id := c.Param("id")
@@ -50,13 +48,11 @@ func (h *Handler) JobStatusHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, job)
 }
 
-// JobListHandler returns all jobs, newest first.
 // GET /api/unstable/jobs
 func (h *Handler) JobListHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, h.s.List())
 }
 
-// JobCancelHandler cancels a queued or running job.
 // DELETE /api/unstable/jobs/:id
 func (h *Handler) JobCancelHandler(c *gin.Context) {
 	id := c.Param("id")
@@ -71,7 +67,6 @@ func (h *Handler) JobCancelHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"status": "cancelled"})
 }
 
-// JobStatsHandler returns a snapshot of the build service.
 // GET /api/unstable/stats
 func (h *Handler) JobStatsHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, h.s.Stats())

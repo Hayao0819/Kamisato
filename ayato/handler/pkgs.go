@@ -9,7 +9,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// AllPkgsHandler returns a list of all packages in the repository.
 func (h *Handler) AllPkgsHandler(ctx *gin.Context) {
 	repoName := ctx.Param("repo")
 	archName := ctx.Param("arch")
@@ -33,7 +32,6 @@ func (h *Handler) AllPkgsHandler(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, pkgs)
 }
 
-// PkgDetailHandler returns detailed information about a package.
 func (h *Handler) PkgDetailHandler(ctx *gin.Context) {
 	repoName := ctx.Param("repo")
 	archName := ctx.Param("arch")
@@ -59,7 +57,6 @@ func (h *Handler) PkgDetailHandler(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, pkgDetail)
 }
 
-// PkgFilesHandler returns a list of files for a package.
 func (h *Handler) PkgFilesHandler(ctx *gin.Context) {
 	repoName := ctx.Param("repo")
 	archName := ctx.Param("arch")
@@ -98,7 +95,6 @@ func (h *Handler) PkgFilesHandler(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, files)
 }
 
-// PkgDetailFile returns detailed information about a package as JSON.
 func (h *Handler) PkgDetailFile(ctx *gin.Context) {
 	repoName := ctx.Param("repo")
 	archName := ctx.Param("arch")

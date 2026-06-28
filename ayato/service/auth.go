@@ -5,24 +5,20 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/utils"
 )
 
-// IsAdmin reports whether the GitHub id is on the admin allowlist (fail-closed:
-// a non-positive id or a read miss returns false).
+// Fail-closed: a non-positive id or a read miss returns false.
 func (s *Service) IsAdmin(id int64) bool {
 	return s.authRepo.IsAdmin(id)
 }
 
-// AddAdmin allowlists a GitHub id with an optional login label. The caller is
-// expected to have resolved any GitHub login to a numeric id first.
+// The caller is expected to have resolved any GitHub login to a numeric id first.
 func (s *Service) AddAdmin(id int64, login string) error {
 	return s.authRepo.AddAdmin(id, login)
 }
 
-// RemoveAdmin removes a GitHub id from the allowlist.
 func (s *Service) RemoveAdmin(id int64) error {
 	return s.authRepo.RemoveAdmin(id)
 }
 
-// ListAdmins returns every allowlisted GitHub id with its login label.
 func (s *Service) ListAdmins() ([]repository.AllowedAdmin, error) {
 	return s.authRepo.ListAdmins()
 }

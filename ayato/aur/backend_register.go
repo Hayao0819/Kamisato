@@ -90,7 +90,6 @@ func (b *Backend) Remove(_ context.Context, pkgbase string) error {
 	return b.kv.Delete(nsBase, pkgbase)
 }
 
-// List returns the registered pkgbases.
 func (b *Backend) List(_ context.Context) ([]string, error) {
 	entries, err := b.kv.List(nsBase)
 	if err != nil {
