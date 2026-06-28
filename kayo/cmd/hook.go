@@ -35,12 +35,15 @@ func hookInstallCmd() *cobra.Command {
 			if err != nil {
 				return utils.WrapErr(err, "cannot resolve the kayo binary path")
 			}
+			if err := pacmanhook.ValidateExecArg("kayo binary path", self); err != nil {
+				return err
+			}
 			if err := pacmanhook.ValidateExecArg("--config-path", configPath); err != nil {
 				return err
 			}
 			exec := self + " verify"
 			if configPath != "" {
-				exec = self + " verify -c " + configPath
+				exec += " -c " + configPath
 			}
 
 			if dir == "" {

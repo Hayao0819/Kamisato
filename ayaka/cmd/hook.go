@@ -36,6 +36,7 @@ func hookCmd() *cobra.Command {
 
 func hookInstallCmd() *cobra.Command {
 	var dir, repo, server, pacmanConf string
+	var buildDirs []string
 	cmd := &cobra.Command{
 		Use:   "install",
 		Short: "Install the pacman hook (writes to a system dir; usually needs root)",
@@ -44,26 +45,33 @@ func hookInstallCmd() *cobra.Command {
 			if repo == "" {
 				return utils.NewErr("--repo is required")
 			}
-			// These are baked bare into the hook's Exec line; reject values that
-			// would word-split into injected flags (e.g. a repo of "x --all").
-			for _, a := range []struct{ name, val string }{{"--repo", repo}, {"--server", server}, {"--pacman-config", pacmanConf}} {
-				if err := pacmanhook.ValidateExecArg(a.name, a.val); err != nil {
-					return err
-				}
-			}
 			self, err := os.Executable()
 			if err != nil {
 				return utils.WrapErr(err, "cannot resolve the ayaka binary path")
 			}
+			// These are baked bare into the hook's Exec line; reject values that
+			// would word-split into injected flags (e.g. a repo of "x --all").
+			toBake := []struct{ name, val string }{{"ayaka binary path", self}, {"--repo", repo}, {"--server", server}, {"--pacman-config", pacmanConf}}
+			for _, d := range buildDirs {
+				toBake = append(toBake, struct{ name, val string }{"--build-dir", d})
+			}
+			for _, a := range toBake {
+				if err := pacmanhook.ValidateExecArg(a.name, a.val); err != nil {
+					return err
+				}
+			}
 			// The hook runs as root under pacman, so credentials resolve against
 			// root's server database at runtime, not the installing user's. Only
-			// the repo (and optional server/config) are baked in — never a secret.
+			// the repo (and optional server/config/build-dir) are baked in — never a secret.
 			execLine := self + " hook upload --repo " + repo
 			if server != "" {
 				execLine += " --server " + server
 			}
 			if pacmanConf != "" {
 				execLine += " --pacman-config " + pacmanConf
+			}
+			for _, d := range buildDirs {
+				execLine += " --build-dir " + d
 			}
 			if dir == "" {
 				dir = pacmanhook.HookDir(pacmanConf)
@@ -80,6 +88,7 @@ func hookInstallCmd() *cobra.Command {
 	cmd.Flags().StringVar(&repo, "repo", "", "target repository on ayato (required)")
 	cmd.Flags().StringVar(&server, "server", "", "ayato server to bake in (default: server db default at runtime)")
 	cmd.Flags().StringVar(&pacmanConf, "pacman-config", "", "pacman.conf path for resolving HookDir, and baked in for CacheDir resolution")
+	cmd.Flags().StringArrayVar(&buildDirs, "build-dir", nil, "dir(s) holding locally-built packages (e.g. makepkg PKGDEST), baked into the hook")
 	return cmd
 }
 
@@ -107,12 +116,17 @@ func hookUninstallCmd() *cobra.Command {
 }
 
 // hookUploadCmd is the hook's runtime entry point. pacman feeds it the installed
-// package names; it locates each one's built file in the package cache and
-// uploads it to the repo. A package whose file is gone (CleanMethod removed it)
-// is logged and skipped, never silently dropped.
+// package names; it locates each one's built file and uploads it to the repo.
+//
+// IMPORTANT: pacman does NOT copy `pacman -U`-installed files (how makepkg/paru/
+// yay install a locally-built package) into CacheDir, so the cache alone cannot
+// locate foreign packages — exactly the ones this hook exists to publish. Set
+// makepkg's PKGDEST (or pass --build-dir) to a persistent directory so built
+// packages land somewhere the hook can find them; that directory is searched
+// before the cache. A package whose file is found nowhere is logged and skipped.
 func hookUploadCmd() *cobra.Command {
 	var repo, pacmanConf string
-	var cacheOverride []string
+	var cacheOverride, buildDirs []string
 	var all bool
 	var timeout time.Duration
 	cmd := &cobra.Command{
@@ -145,9 +159,11 @@ func hookUploadCmd() *cobra.Command {
 				}
 			}
 
+			// Search build-output dirs (PKGDEST / --build-dir) before the cache:
+			// foreign packages live in the former, repo downloads in the latter.
 			dirs := cacheOverride
 			if len(dirs) == 0 {
-				dirs = pacmanhook.CacheDirs(pacmanConf)
+				dirs = append(append(append([]string{}, buildDirs...), makepkgPkgDest()...), pacmanhook.CacheDirs(pacmanConf)...)
 			}
 
 			var files []string
@@ -159,7 +175,7 @@ func hookUploadCmd() *cobra.Command {
 				}
 				path, ok := findCachedPackage(dirs, name, ver)
 				if !ok {
-					slog.Warn("no cached package file found; skipping upload", "name", name, "version", ver)
+					slog.Warn("no package file found; skipping upload (set makepkg PKGDEST or --build-dir for locally-built packages)", "name", name, "version", ver)
 					continue
 				}
 				files = append(files, path)
@@ -197,9 +213,43 @@ func hookUploadCmd() *cobra.Command {
 	cmd.Flags().StringVar(&repo, "repo", "", "target repository on ayato (required)")
 	cmd.Flags().StringVar(&pacmanConf, "pacman-config", "", "pacman.conf path for resolving CacheDir (default: pacman's own)")
 	cmd.Flags().StringArrayVar(&cacheOverride, "cache-dir", nil, "override the package cache dir(s) instead of reading pacman.conf")
+	cmd.Flags().StringArrayVar(&buildDirs, "build-dir", nil, "extra dir(s) holding locally-built packages (e.g. makepkg PKGDEST), searched before the cache")
 	cmd.Flags().BoolVar(&all, "all", false, "upload every target, not just foreign (AUR/local) packages")
 	cmd.Flags().DurationVar(&timeout, "timeout", 120*time.Second, "max time to wait for the upload before failing the hook")
 	return cmd
+}
+
+// makepkgPkgDestScript sources makepkg's config files in makepkg's own order
+// (load_makepkg_config) and prints the resolved PKGDEST, so variable expansion
+// and includes are interpreted by bash exactly as makepkg would, not guessed.
+const makepkgPkgDestScript = `confdir=/etc
+[[ -r $confdir/makepkg.conf ]] && source "$confdir/makepkg.conf"
+if [[ -d $confdir/makepkg.conf.d ]]; then
+  for f in "$confdir/makepkg.conf.d"/*.conf; do
+    [[ -r $f ]] && source "$f"
+  done
+fi
+if [[ -r ${XDG_CONFIG_HOME:-$HOME/.config}/pacman/makepkg.conf ]]; then
+  source "${XDG_CONFIG_HOME:-$HOME/.config}/pacman/makepkg.conf"
+elif [[ -r $HOME/.makepkg.conf ]]; then
+  source "$HOME/.makepkg.conf"
+fi
+printf '%s' "${PKGDEST:-}"`
+
+// makepkgPkgDest returns the PKGDEST makepkg would write a built package to, by
+// actually running bash to evaluate makepkg.conf (a pacman-hook system always has
+// makepkg and bash). That is where a `-U`-installed foreign package can be found;
+// the pacman cache cannot. Empty when PKGDEST is unset (built packages stay in
+// the build dir, unknowable to a hook that only gets package names).
+func makepkgPkgDest() []string {
+	out, err := exec.Command("bash", "-c", makepkgPkgDestScript).Output()
+	if err != nil {
+		return nil
+	}
+	if dest := strings.TrimSpace(string(out)); dest != "" {
+		return []string{dest}
+	}
+	return nil
 }
 
 // foreignPackages returns the set of installed packages no sync repo provides
@@ -224,7 +274,6 @@ func foreignPackages() (map[string]bool, error) {
 	return set, nil
 }
 
-// filterForeign keeps only the names present in the foreign set, preserving order.
 func filterForeign(names []string, foreign map[string]bool) []string {
 	var out []string
 	for _, n := range names {
