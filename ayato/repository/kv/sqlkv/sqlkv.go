@@ -1,3 +1,7 @@
+//go:build !js
+
+// The sqlite driver needs cgo, which js/wasm cannot use.
+
 // Package sqlkv implements kv.Store on top of a SQL database via GORM. It stores
 // every entry in one generic table keyed by (namespace, key); expiry is enforced
 // at read time by filtering on expires_at, so the abstraction works on backends

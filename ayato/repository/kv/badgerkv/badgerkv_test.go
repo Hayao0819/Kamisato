@@ -1,3 +1,5 @@
+//go:build !js
+
 package badgerkv_test
 
 import (

@@ -1,3 +1,7 @@
+//go:build !js
+
+// BadgerDB cannot build on js/wasm: it needs unix syscalls (mmap).
+
 // Package badgerkv implements kv.Store on top of an embedded BadgerDB. Keys are
 // namespaced by joining ns and key with a NUL byte (ns + "\x00" + key), so a
 // namespace's entries form a contiguous prefix range that List scans.
