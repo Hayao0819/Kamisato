@@ -19,6 +19,7 @@ type Server struct {
 	upstream Upstream
 	log      *slog.Logger
 	dumps    dumpCache
+	limiter  *rateLimiter // nil unless WithRateLimit is set
 }
 
 type Option func(*Server)
@@ -75,10 +76,21 @@ const maxResults = 5000
 // RPC handles the aurweb /rpc endpoint (legacy GET/POST and the OpenAPI-style
 // /rpc/v5/* routes).
 func (s *Server) RPC(w http.ResponseWriter, r *http.Request) {
+	// A bare GET /rpc (no query) serves the human-readable docs, like aurweb. The
+	// OpenAPI /rpc/v5/* routes carry their args in the path, so exclude them.
+	if r.Method == http.MethodGet && r.URL.RawQuery == "" && !strings.HasPrefix(r.URL.Path, "/rpc/v") {
+		s.serveRPCDoc(w, r)
+		return
+	}
+
 	q := parseRPC(r)
 
 	if q.callback != "" && !callbackRe.MatchString(q.callback) {
 		s.writeError(w, r, "", q.version, "Invalid callback name.")
+		return
+	}
+	if s.limiter != nil && !s.limiter.allow(s.limiter.key(r)) {
+		s.writeRateLimited(w, q.version)
 		return
 	}
 	if q.version == 0 {
