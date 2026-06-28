@@ -5,7 +5,7 @@ import (
 	"log/slog"
 	"os"
 
-	utils "github.com/Hayao0819/Kamisato/internal/utils"
+	"github.com/Hayao0819/Kamisato/internal/utils"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/builder"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/gpg"
 )
