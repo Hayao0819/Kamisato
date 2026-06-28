@@ -387,39 +387,30 @@ func resolveType(t string) string {
 	}
 }
 
-func mergeByName(local, upstream []Pkg) []Pkg {
-	seen := make(map[string]bool, len(local))
-	out := make([]Pkg, 0, len(local)+len(upstream))
-	for _, p := range local {
-		if seen[p.Name] {
-			continue
-		}
-		seen[p.Name] = true
-		out = append(out, p)
-	}
-	for _, p := range upstream {
-		if seen[p.Name] {
-			continue
-		}
-		seen[p.Name] = true
-		out = append(out, p)
-	}
-	return out
-}
-
-func mergeStrings(local, upstream []string) []string {
-	seen := make(map[string]bool, len(local))
-	out := make([]string, 0, len(local)+len(upstream))
-	for _, list := range [][]string{local, upstream} {
+// mergeUnique concatenates lists, keeping the first occurrence of each distinct
+// key. Earlier lists win, so callers pass the higher-precedence list first.
+func mergeUnique[T any, K comparable](key func(T) K, lists ...[]T) []T {
+	seen := map[K]bool{}
+	var out []T
+	for _, list := range lists {
 		for _, v := range list {
-			if seen[v] {
+			k := key(v)
+			if seen[k] {
 				continue
 			}
-			seen[v] = true
+			seen[k] = true
 			out = append(out, v)
 		}
 	}
 	return out
+}
+
+func mergeByName(local, upstream []Pkg) []Pkg {
+	return mergeUnique(func(p Pkg) string { return p.Name }, local, upstream)
+}
+
+func mergeStrings(local, upstream []string) []string {
+	return mergeUnique(func(s string) string { return s }, local, upstream)
 }
 
 func dedupeNonEmpty(in []string) []string {

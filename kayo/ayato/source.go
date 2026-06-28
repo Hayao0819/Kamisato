@@ -5,12 +5,13 @@
 package ayato
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"io"
 	"log/slog"
 	"net/http"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -152,7 +153,7 @@ func (s *Source) Sync(ctx context.Context) error {
 		index[p.Name] = p
 		names = append(names, p.Name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 
 	s.mu.Lock()
 	s.index, s.sources, s.names, s.lastVerified = index, cat.Sources, names, verified
@@ -293,7 +294,7 @@ func (s *Source) Search(_ context.Context, by aurweb.By, arg string) ([]aurweb.P
 			out = append(out, p)
 		}
 	}
-	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
+	slices.SortFunc(out, func(a, b aurweb.Pkg) int { return cmp.Compare(a.Name, b.Name) })
 	return out, nil
 }
 
@@ -311,7 +312,7 @@ func (s *Source) Suggest(_ context.Context, arg string, pkgbase bool) ([]string,
 				pool = append(pool, p.PackageBase)
 			}
 		}
-		sort.Strings(pool)
+		slices.Sort(pool)
 	}
 
 	var out []string

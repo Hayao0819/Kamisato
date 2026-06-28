@@ -5,9 +5,10 @@
 package federate
 
 import (
+	"cmp"
 	"context"
 	"log/slog"
-	"sort"
+	"slices"
 
 	"github.com/Hayao0819/Kamisato/kayo/trust"
 	"github.com/Hayao0819/Kamisato/pkg/aurweb"
@@ -70,11 +71,11 @@ func (c *Composite) AddDelegated(b aurweb.Backend, tier Tier, priority int, sour
 
 func (c *Composite) add(e entry) {
 	c.entries = append(c.entries, e)
-	sort.SliceStable(c.entries, func(i, j int) bool {
-		if c.entries[i].tier != c.entries[j].tier {
-			return c.entries[i].tier > c.entries[j].tier
+	slices.SortStableFunc(c.entries, func(a, b entry) int {
+		if a.tier != b.tier {
+			return cmp.Compare(b.tier, a.tier) // higher tier first
 		}
-		return c.entries[i].priority > c.entries[j].priority
+		return cmp.Compare(b.priority, a.priority) // higher priority first
 	})
 }
 

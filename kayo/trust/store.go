@@ -10,11 +10,12 @@
 package trust
 
 import (
+	"cmp"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"sync"
 	"time"
 
@@ -143,11 +144,8 @@ func (s *Store) Maintainers() []TrustedMaintainer {
 	for _, m := range s.data.Maintainers {
 		out = append(out, m)
 	}
-	sort.Slice(out, func(i, j int) bool {
-		if out[i].Source != out[j].Source {
-			return out[i].Source < out[j].Source
-		}
-		return out[i].Account < out[j].Account
+	slices.SortFunc(out, func(a, b TrustedMaintainer) int {
+		return cmp.Or(cmp.Compare(a.Source, b.Source), cmp.Compare(a.Account, b.Account))
 	})
 	return out
 }
@@ -160,7 +158,7 @@ func (s *Store) Approvals() []Approval {
 	for _, a := range s.data.Approvals {
 		out = append(out, a)
 	}
-	sort.Slice(out, func(i, j int) bool { return out[i].Pkgbase < out[j].Pkgbase })
+	slices.SortFunc(out, func(a, b Approval) int { return cmp.Compare(a.Pkgbase, b.Pkgbase) })
 	return out
 }
 

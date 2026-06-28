@@ -7,12 +7,13 @@
 package aur
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
@@ -132,7 +133,7 @@ func (b *Backend) List(_ context.Context) ([]string, error) {
 	for i, e := range entries {
 		out[i] = e.Key
 	}
-	sort.Strings(out)
+	slices.Sort(out)
 	return out, nil
 }
 
@@ -165,7 +166,7 @@ func (b *Backend) Search(_ context.Context, by aurweb.By, arg string) ([]aurweb.
 			out = append(out, p)
 		}
 	}
-	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
+	slices.SortFunc(out, func(a, b aurweb.Pkg) int { return cmp.Compare(a.Name, b.Name) })
 	return out, nil
 }
 
@@ -185,7 +186,7 @@ func (b *Backend) Suggest(_ context.Context, arg string, pkgbase bool) ([]string
 	for i, p := range all {
 		names[i] = p.Name
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 	return prefix(names, arg), nil
 }
 

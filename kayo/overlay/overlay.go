@@ -6,11 +6,12 @@
 package overlay
 
 import (
+	"cmp"
 	"context"
 	"log/slog"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 
@@ -96,7 +97,7 @@ func (r *Registry) Sync(ctx context.Context) error {
 	for n := range index {
 		names = append(names, n)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 
 	r.mu.Lock()
 	r.index, r.prio, r.bases, r.names = index, prio, bases, names
@@ -127,7 +128,7 @@ func (r *Registry) Search(_ context.Context, by aurweb.By, arg string) ([]aurweb
 			out = append(out, p)
 		}
 	}
-	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
+	slices.SortFunc(out, func(a, b aurweb.Pkg) int { return cmp.Compare(a.Name, b.Name) })
 	return out, nil
 }
 
@@ -144,7 +145,7 @@ func (r *Registry) Suggest(_ context.Context, arg string, pkgbase bool) ([]strin
 				pool = append(pool, p.PackageBase)
 			}
 		}
-		sort.Strings(pool)
+		slices.Sort(pool)
 	} else {
 		pool = r.names
 	}
