@@ -189,7 +189,12 @@ func (c *Composite) All(ctx context.Context) ([]aurweb.Pkg, error) {
 
 func (c *Composite) SourceURL(ctx context.Context, pkgbase string) (string, bool, error) {
 	for _, e := range c.entries {
-		if u, ok, err := e.backend.SourceURL(ctx, pkgbase); err == nil && ok {
+		u, ok, err := e.backend.SourceURL(ctx, pkgbase)
+		if err != nil {
+			slog.Error("source url failed", "source", e.source, "error", err)
+			continue
+		}
+		if ok {
 			return u, true, nil
 		}
 	}

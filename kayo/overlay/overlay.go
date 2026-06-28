@@ -189,6 +189,9 @@ func fetchOverlay(ctx context.Context, dir string, o conf.OverlayConfig) error {
 
 	switch {
 	case !exists:
+		// Strict SSRF/loopback rejection is intentionally omitted: overlay URLs are
+		// admin-config, and local/loopback overlays (e.g. a dumb-HTTP git server on
+		// 127.0.0.1) are a supported deployment. ext:: RCE is blocked by gitcmd.
 		return gitcmd.Clone(ctx, gitcmd.CloneOptions{URL: o.URL, Dir: dir, Ref: o.Ref})
 	case o.Ref != "":
 		if err := gitcmd.Run(ctx, dir, "fetch", "--quiet", "--tags", "--prune", "origin"); err != nil {

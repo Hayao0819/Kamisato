@@ -29,6 +29,9 @@ func Clone(ctx context.Context, url, ref string) (dir string, cleanup func(), er
 	}
 	cleanup = func() { _ = os.RemoveAll(dir) }
 
+	// Strict SSRF/loopback rejection is intentionally omitted: the URL is operator-
+	// chosen and local/loopback git (file://, http://127.0.0.1) is a supported audit
+	// target; the ext:: transport-helper RCE is blocked unconditionally by gitcmd.
 	// Full clone: Inspect harvests author emails across history.
 	if err := gitcmd.Clone(ctx, gitcmd.CloneOptions{URL: url, Dir: dir, Ref: ref}); err != nil {
 		cleanup()
