@@ -104,6 +104,34 @@ func TestGate(t *testing.T) {
 	}
 }
 
+func TestDelegatedBypass(t *testing.T) {
+	st, _ := trust.Open(filepath.Join(t.TempDir(), "t.json")) // empty: nothing reviewed
+	pkgs := map[string]aurweb.Pkg{"new": {Name: "new", PackageBase: "new", Maintainer: "someone"}}
+
+	// enforce mode drops an unreviewed package from an ordinary source...
+	plain := New()
+	plain.SetGate(st, "enforce")
+	plain.Add(&stub{pkgs: pkgs}, TierAyato, 0, "plain")
+	if info, _ := plain.Info(context.Background(), []string{"new"}); len(info) != 0 {
+		t.Fatalf("enforce should drop unreviewed from a gated source: %+v", info)
+	}
+
+	// ...but a delegated source whose attestation verifies bypasses the gate.
+	verified := true
+	deleg := New()
+	deleg.SetGate(st, "enforce")
+	deleg.AddDelegated(&stub{pkgs: pkgs}, TierAyato, 0, "deleg", func() bool { return verified })
+	if info, _ := deleg.Info(context.Background(), []string{"new"}); len(info) != 1 {
+		t.Fatalf("delegated+verified should bypass the gate: %+v", info)
+	}
+
+	// When live verification drops (a failed re-sync), it falls closed to gating.
+	verified = false
+	if info, _ := deleg.Info(context.Background(), []string{"new"}); len(info) != 0 {
+		t.Fatalf("delegated but unverified must fall closed to gating: %+v", info)
+	}
+}
+
 func TestResolve(t *testing.T) {
 	high := &stub{pkgs: map[string]aurweb.Pkg{"foo": {Name: "foo", PackageBase: "foo"}}}
 	low := &stub{pkgs: map[string]aurweb.Pkg{"foo": {Name: "foo"}, "bar": {Name: "bar", PackageBase: "bar"}}}

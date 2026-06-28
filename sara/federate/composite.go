@@ -33,6 +33,11 @@ type entry struct {
 	tier     Tier
 	priority int
 	source   string // trust namespace: "overlay" | ayato name
+	// delegated marks a source whose signed catalog is vouched: while verified
+	// reports true, its packages bypass the trust store entirely. verified is the
+	// live check, so a failed re-sync falls closed back to gating.
+	delegated bool
+	verified  func() bool
 }
 
 // Composite is an aurweb.Backend over an ordered set of sources, applying the
@@ -53,13 +58,33 @@ func (c *Composite) SetGate(store *trust.Store, mode string) {
 // Add registers a source in a trust tier under a namespace. A higher tier
 // always wins a collision; priority only breaks ties within a tier.
 func (c *Composite) Add(b aurweb.Backend, tier Tier, priority int, source string) {
-	c.entries = append(c.entries, entry{backend: b, tier: tier, priority: priority, source: source})
+	c.add(entry{backend: b, tier: tier, priority: priority, source: source})
+}
+
+// AddDelegated registers a source whose verified catalog bypasses the trust
+// gate. verified is the live verification check; the bypass only holds while it
+// returns true, so a failed re-sync fails closed back to ordinary gating.
+func (c *Composite) AddDelegated(b aurweb.Backend, tier Tier, priority int, source string, verified func() bool) {
+	c.add(entry{backend: b, tier: tier, priority: priority, source: source, delegated: true, verified: verified})
+}
+
+func (c *Composite) add(e entry) {
+	c.entries = append(c.entries, e)
 	sort.SliceStable(c.entries, func(i, j int) bool {
 		if c.entries[i].tier != c.entries[j].tier {
 			return c.entries[i].tier > c.entries[j].tier
 		}
 		return c.entries[i].priority > c.entries[j].priority
 	})
+}
+
+// keep applies the trust gate to a package from entry e, except a delegated
+// source whose attestation currently verifies passes unchanged.
+func (c *Composite) keep(e entry, p aurweb.Pkg) (aurweb.Pkg, bool) {
+	if e.delegated && e.verified != nil && e.verified() {
+		return p, true
+	}
+	return gate(c.store, c.mode, e.source, p)
 }
 
 // Sync refreshes every source that supports it, logging but not failing on a
@@ -89,7 +114,7 @@ func (c *Composite) Info(ctx context.Context, names []string) ([]aurweb.Pkg, err
 				continue
 			}
 			seen[p.Name] = true
-			if gp, keep := gate(c.store, c.mode, e.source, p); keep {
+			if gp, keep := c.keep(e, p); keep {
 				out = append(out, gp)
 			}
 		}
@@ -111,7 +136,7 @@ func (c *Composite) Search(ctx context.Context, by aurweb.By, arg string) ([]aur
 				continue
 			}
 			seen[p.Name] = true
-			if gp, keep := gate(c.store, c.mode, e.source, p); keep {
+			if gp, keep := c.keep(e, p); keep {
 				out = append(out, gp)
 			}
 		}
@@ -153,7 +178,7 @@ func (c *Composite) All(ctx context.Context) ([]aurweb.Pkg, error) {
 				continue
 			}
 			seen[p.Name] = true
-			if gp, keep := gate(c.store, c.mode, e.source, p); keep {
+			if gp, keep := c.keep(e, p); keep {
 				out = append(out, gp)
 			}
 		}

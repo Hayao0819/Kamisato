@@ -32,7 +32,7 @@ func RootCmd() *cobra.Command {
 	cmd.Flags().IntP("port", "p", 0, "Listen port (default 10713)")
 	cmd.SilenceErrors = true
 	cmd.SilenceUsage = true
-	cmd.AddCommand(auditCmd(), trustCmd(), updateCmd(), verifyCmd(), hookCmd())
+	cmd.AddCommand(auditCmd(), trustCmd(), updateCmd(), verifyCmd(), hookCmd(), ayatoCmd())
 	return &cmd
 }
 

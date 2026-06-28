@@ -1,11 +1,14 @@
 package conf
 
 import (
+	"crypto/ed25519"
+	"encoding/base64"
 	"fmt"
 	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/spf13/pflag"
 )
@@ -44,6 +47,77 @@ type AyatoSource struct {
 	Name     string `koanf:"name"`
 	URL      string `koanf:"url"` // ayato base URL, e.g. https://repo.example.com
 	Priority int    `koanf:"priority,omitempty"`
+	// PubKey is the base64 32-byte Ed25519 public key this source's catalog MUST
+	// verify under — a HARD pin: a mismatch is fatal, never auto-accepted. Empty
+	// requires Tofu or Insecure.
+	PubKey string `koanf:"pubkey,omitempty"`
+	// MaxAgeMinutes is sara's own staleness ceiling, independent of the catalog's
+	// signed ExpiresAt, so a misconfigured ayato can't hand out an unbounded TTL.
+	// 0 with a pinned/tofu key uses a safe default (24h).
+	MaxAgeMinutes int `koanf:"max_age_minutes,omitempty"`
+	// Trust selects what a verified signature buys: "review" (default) still
+	// routes every package through the trust store; "delegate" treats the
+	// authenticated catalog as vouched and bypasses review. Requires a pinned key.
+	Trust string `koanf:"trust,omitempty"`
+	// Tofu allows trust-on-first-use (pin /pubkey on first sync) when PubKey is
+	// empty. Off by default: an unpinned source is otherwise a config error.
+	Tofu bool `koanf:"tofu,omitempty"`
+	// Insecure disables verification entirely (unsigned/legacy ayato). The only
+	// way to accept an unsigned catalog; off by default.
+	Insecure bool `koanf:"insecure,omitempty"`
+}
+
+const defaultAyatoMaxAge = 24 * time.Hour
+
+// validate enforces secure-by-default federation: a source is verified unless it
+// explicitly opts out with insecure, and delegation only rides a hard-pinned key.
+func (a AyatoSource) validate() error {
+	switch a.Trust {
+	case "", "review", "delegate":
+	default:
+		return fmt.Errorf("ayato %q: trust must be \"review\" or \"delegate\", got %q", a.Name, a.Trust)
+	}
+	if a.Insecure {
+		if a.PubKey != "" || a.Tofu || a.Trust == "delegate" {
+			return fmt.Errorf("ayato %q: insecure cannot combine with pubkey/tofu/delegate", a.Name)
+		}
+		return nil
+	}
+	if a.PubKey == "" && !a.Tofu {
+		return fmt.Errorf("ayato %q: set pubkey to pin a key, or tofu to trust on first use (or insecure to opt out)", a.Name)
+	}
+	if a.PubKey != "" {
+		key, err := base64.StdEncoding.DecodeString(a.PubKey)
+		if err != nil {
+			return fmt.Errorf("ayato %q: pubkey is not valid base64: %w", a.Name, err)
+		}
+		if len(key) != ed25519.PublicKeySize {
+			return fmt.Errorf("ayato %q: pubkey must be %d bytes, got %d", a.Name, ed25519.PublicKeySize, len(key))
+		}
+	}
+	if a.Trust == "delegate" && a.PubKey == "" {
+		return fmt.Errorf("ayato %q: trust \"delegate\" requires a pinned pubkey (tofu is too weak to bypass review)", a.Name)
+	}
+	if a.MaxAgeMinutes < 0 {
+		return fmt.Errorf("ayato %q: max_age_minutes cannot be negative", a.Name)
+	}
+	return nil
+}
+
+// ResolvedMaxAge is sara's staleness ceiling for this source: the configured
+// value, or a 24h floor so a verified-but-stale catalog can't linger forever.
+func (a AyatoSource) ResolvedMaxAge() time.Duration {
+	if a.MaxAgeMinutes > 0 {
+		return time.Duration(a.MaxAgeMinutes) * time.Minute
+	}
+	return defaultAyatoMaxAge
+}
+
+// Delegated reports whether a verified catalog from this source bypasses the
+// trust store. Only a hard-pinned, non-insecure source with trust="delegate"
+// qualifies; validate guarantees those preconditions.
+func (a AyatoSource) Delegated() bool {
+	return !a.Insecure && a.PubKey != "" && a.Trust == "delegate"
 }
 
 // UpstreamConfig is the real-AUR fallback for packages no overlay manages.
@@ -101,6 +175,13 @@ func (c *SaraConfig) ResolvedCacheDir() string {
 // (variant B), under the cache dir.
 func (c *SaraConfig) ServedRoot() string {
 	return filepath.Join(c.ResolvedCacheDir(), "served")
+}
+
+// AyatoPinStorePath is where TOFU-pinned ayato keys and the anti-rollback
+// watermark live. It sits beside the trust store, not in the cache, so a cache
+// wipe can't drop the pins (a downgrade vector).
+func (c *SaraConfig) AyatoPinStorePath() string {
+	return filepath.Join(filepath.Dir(c.ResolvedTrustStore()), "known_ayato.json")
 }
 
 // ResolvedTrustStore returns the configured trust-store path or a default under
@@ -195,6 +276,20 @@ func (c *SaraConfig) Validate() error {
 			return fmt.Errorf("ayato name %q is reserved", a.Name)
 		}
 		ayatoNames[a.Name] = true
+		if err := a.validate(); err != nil {
+			return err
+		}
+	}
+
+	// ayato federation persists TOFU pins and the anti-rollback watermark beside
+	// the trust store. If trust_store is unset and we cannot find a user config
+	// dir, ResolvedTrustStore silently falls back to a world-writable, reboot-wiped
+	// temp path — an unacceptable home for trust anchors. Refuse to start and make
+	// the operator set trust_store explicitly.
+	if len(c.Ayato) > 0 && c.TrustStore == "" {
+		if _, err := os.UserConfigDir(); err != nil {
+			return fmt.Errorf("ayato federation needs a durable trust_store: set trust_store (no user config dir found, refusing the temp-dir fallback)")
+		}
 	}
 
 	if c.EnforceMode != "" && c.EnforceMode != "warn" && c.EnforceMode != "enforce" {
