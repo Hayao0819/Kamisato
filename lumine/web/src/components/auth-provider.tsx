@@ -9,8 +9,6 @@ interface AuthContextType {
     githubId: number | null;
     meLoading: boolean;
     setMe: (m: { authenticated: boolean; login?: string; id?: number }) => void;
-    signIn: () => void;
-    signOut: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -31,24 +29,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         [],
     );
 
-    // The 302-to-GitHub redirect and the Lax session cookie only work on a
-    // top-level navigation, never a fetch. The URL is relative so it resolves
-    // same-origin in both dev (next rewrite) and prod (lumine BFF).
-    const signIn = useCallback(() => {
-        window.location.assign("/api/unstable/auth/github/login");
-    }, []);
-
-    const signOut = useCallback(async () => {
-        try {
-            await fetch("/api/unstable/auth/logout", { method: "POST" });
-        } catch {
-            // ignore: logout is best-effort
-        }
-        setIsAuthenticated(false);
-        setGithubLogin(null);
-        setGithubId(null);
-    }, []);
-
     return (
         <AuthContext.Provider
             value={{
@@ -57,8 +37,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 githubId,
                 meLoading,
                 setMe,
-                signIn,
-                signOut,
             }}
         >
             {children}

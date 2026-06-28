@@ -16,8 +16,12 @@ import (
 )
 
 // lumineEnv is served at /env.json. AYATO_URL is the API base; "" = same origin.
+// AUTH_MODE selects how the SPA authenticates: "cookie" (same-origin session
+// cookie behind this BFF/proxy) or "bearer" (the SPA calls ayato cross-origin
+// with a token; no proxy).
 type lumineEnv struct {
 	AyatoURL *string `json:"AYATO_URL"`
+	AuthMode string  `json:"AUTH_MODE"`
 	Fallback bool    `json:"FALLBACK"`
 }
 
@@ -44,6 +48,7 @@ func newReverseProxy(target *url.URL) *httputil.ReverseProxy {
 func RootCmd() *cobra.Command {
 	var addr string
 	var ayatoURL string
+	var authMode string
 	var debug bool
 	cmd := &cobra.Command{
 		Use:   "lumine",
@@ -71,19 +76,36 @@ func RootCmd() *cobra.Command {
 			engine.Use(utils.GinLog())
 
 			var env lumineEnv
-			if ayatoURL != "" {
-				target, err := url.Parse(ayatoURL)
-				if err != nil {
-					return fmt.Errorf("invalid ayato url %q: %w", ayatoURL, err)
+			switch authMode {
+			case "bearer":
+				// Bearer mode: no proxy. The static SPA calls ayato cross-origin
+				// and authenticates with a token, so ayato stays a distinct origin
+				// the SPA addresses directly.
+				if ayatoURL == "" {
+					return fmt.Errorf("--auth-mode bearer requires --ayato-url (the cross-origin ayato URL the SPA calls directly)")
 				}
-				proxy := newReverseProxy(target)
-				forward := func(c *gin.Context) {
-					proxy.ServeHTTP(c.Writer, c.Request)
+				env = lumineEnv{AyatoURL: &ayatoURL, AuthMode: "bearer"}
+			case "cookie", "":
+				// Cookie mode: front ayato same-origin so the session cookie is
+				// first-party. With no --ayato-url the SPA has no API base.
+				if ayatoURL != "" {
+					target, err := url.Parse(ayatoURL)
+					if err != nil {
+						return fmt.Errorf("invalid ayato url %q: %w", ayatoURL, err)
+					}
+					proxy := newReverseProxy(target)
+					forward := func(c *gin.Context) {
+						proxy.ServeHTTP(c.Writer, c.Request)
+					}
+					engine.Any("/api/*proxyPath", forward)
+					engine.Any("/repo/*proxyPath", forward)
+					same := ""
+					env = lumineEnv{AyatoURL: &same, AuthMode: "cookie"}
+				} else {
+					env = lumineEnv{AuthMode: "cookie"}
 				}
-				engine.Any("/api/*proxyPath", forward)
-				engine.Any("/repo/*proxyPath", forward)
-				same := ""
-				env = lumineEnv{AyatoURL: &same}
+			default:
+				return fmt.Errorf("invalid --auth-mode %q (want \"cookie\" or \"bearer\")", authMode)
 			}
 
 			envJSON, err := json.Marshal(env)
@@ -111,6 +133,7 @@ func RootCmd() *cobra.Command {
 
 	cmd.Flags().StringVar(&addr, "addr", ":8080", "address to listen on")
 	cmd.Flags().StringVar(&ayatoURL, "ayato-url", "", "Ayato URL to proxy /api and /repo to (env: LUMINE_AYATO_URL)")
+	cmd.Flags().StringVar(&authMode, "auth-mode", "cookie", "auth delivery mode: cookie (same-origin BFF proxy) or bearer (SPA calls ayato cross-origin with a token)")
 	cmd.Flags().BoolVarP(&debug, "debug", "d", false, "Enable debug mode")
 
 	return cmd

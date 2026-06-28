@@ -1,12 +1,19 @@
+import {
+    type AuthClient,
+    type AuthMode,
+    createAuthClient,
+} from "./auth-client";
 import type { BuildRequest, BuildStats, Job } from "./types";
 
 type LumineEnv = {
     AYATO_URL: string | null;
+    AUTH_MODE?: AuthMode;
     FALLBACK: boolean;
 };
 
 const fallbackLumineEnv: LumineEnv = {
     AYATO_URL: null,
+    AUTH_MODE: "cookie",
     FALLBACK: true,
 };
 
@@ -39,14 +46,14 @@ function mutationError(
 
 export class APIClient {
     async fetchAllPkgs(repo: string, arch: string) {
-        const res = await fetch(this.endpoints.allPkgs(repo, arch));
+        const res = await this.authedFetch(this.endpoints.allPkgs(repo, arch));
         if (!res.ok)
             throw new Error(`Failed to fetch packages: ${res.statusText}`);
         return res.json();
     }
 
     async fetchPackageDetail(repo: string, arch: string, pkgbase: string) {
-        const res = await fetch(
+        const res = await this.authedFetch(
             this.endpoints.packageDetail(repo, arch, pkgbase),
         );
         if (!res.ok) throw new Error("パッケージ情報の取得に失敗しました");
@@ -54,7 +61,7 @@ export class APIClient {
     }
 
     async fetchRepos() {
-        const res = await fetch(this.endpoints.repos());
+        const res = await this.authedFetch(this.endpoints.repos());
         if (!res.ok)
             throw new Error(
                 `リポジトリ一覧の取得に失敗しました: ${res.status}`,
@@ -63,7 +70,7 @@ export class APIClient {
     }
 
     async fetchArches(repo: string) {
-        const res = await fetch(this.endpoints.arches(repo));
+        const res = await this.authedFetch(this.endpoints.arches(repo));
         if (!res.ok)
             throw new Error(
                 `アーキテクチャ一覧の取得に失敗しました: ${res.status}`,
@@ -72,37 +79,27 @@ export class APIClient {
     }
 
     async fetchHello() {
-        return fetch(this.endpoints.hello());
+        return this.authedFetch(this.endpoints.hello());
     }
 
     async fetchTeapot() {
-        return fetch(this.endpoints.teapot());
+        return this.authedFetch(this.endpoints.teapot());
     }
 
-    // Probes the cookie session. Same-origin fetch sends the HttpOnly cookie
-    // first-party, so no Authorization header is involved. Any failure is
-    // treated as "not signed in".
+    // Probes the active session: cookie mode sends the HttpOnly cookie
+    // first-party, bearer mode attaches the Authorization header (both through
+    // authedFetch). Any failure is treated as "not signed in".
     async fetchMe(): Promise<{
         authenticated: boolean;
         id?: number;
         login?: string;
     }> {
         try {
-            const res = await fetch(this.endpoints.authMe());
+            const res = await this.authedFetch(this.endpoints.authMe());
             if (!res.ok) return { authenticated: false };
             return res.json();
         } catch {
             return { authenticated: false };
-        }
-    }
-
-    // Best-effort logout: POST and ignore the result. The cookie is cleared
-    // server-side; we never block on it.
-    async logout(): Promise<void> {
-        try {
-            await fetch(this.endpoints.logout(), { method: "POST" });
-        } catch {
-            // ignore: logout is best-effort
         }
     }
 
@@ -117,7 +114,7 @@ export class APIClient {
             formData.append("signature", signatureFile);
         }
 
-        const res = await fetch(this.endpoints.uploadPackage(repo), {
+        const res = await this.authedFetch(this.endpoints.uploadPackage(repo), {
             method: "PUT",
             body: formData,
         });
@@ -137,7 +134,7 @@ export class APIClient {
     // Build jobs are owned by miko; ayato proxies these endpoints, so clients
     // never address miko directly.
     async submitBuild(req: BuildRequest): Promise<{ job_id: string }> {
-        const res = await fetch(this.endpoints.submitBuild(), {
+        const res = await this.authedFetch(this.endpoints.submitBuild(), {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(req),
@@ -156,7 +153,7 @@ export class APIClient {
     }
 
     async cancelJob(id: string): Promise<void> {
-        const res = await fetch(this.endpoints.cancelJob(id), {
+        const res = await this.authedFetch(this.endpoints.cancelJob(id), {
             method: "DELETE",
         });
 
@@ -171,7 +168,7 @@ export class APIClient {
     }
 
     async fetchStats(): Promise<BuildStats> {
-        const res = await fetch(this.endpoints.stats());
+        const res = await this.authedFetch(this.endpoints.stats());
         if (!res.ok)
             throw new Error(
                 `ビルドサーバーの状態取得に失敗しました: ${res.status}`,
@@ -180,14 +177,14 @@ export class APIClient {
     }
 
     async listJobs(): Promise<Job[]> {
-        const res = await fetch(this.endpoints.listJobs());
+        const res = await this.authedFetch(this.endpoints.listJobs());
         if (!res.ok)
             throw new Error(`ジョブ一覧の取得に失敗しました: ${res.status}`);
         return res.json();
     }
 
     async jobDetail(id: string): Promise<Job> {
-        const res = await fetch(this.endpoints.jobDetail(id));
+        const res = await this.authedFetch(this.endpoints.jobDetail(id));
         if (!res.ok)
             throw new Error(`ジョブ情報の取得に失敗しました: ${res.status}`);
         return res.json();
@@ -242,16 +239,37 @@ export class APIClient {
             });
 
             xhr.open("PUT", this.endpoints.uploadPackage(repo));
+            this.auth.applyXhr(xhr);
             xhr.send(formData);
         });
     }
 
     readonly lumineEnv: LumineEnv;
     readonly endpoints: APIEndpoints;
+    readonly auth: AuthClient;
 
     constructor(lumineEnv?: LumineEnv) {
         this.lumineEnv = lumineEnv || fallbackLumineEnv;
         this.endpoints = new APIEndpoints(this.serverUrl);
+        this.auth = createAuthClient(
+            this.lumineEnv.AUTH_MODE ?? "cookie",
+            this.serverUrl ?? "",
+        );
+    }
+
+    // authedFetch applies the active auth strategy: cookie mode sends the session
+    // cookie (credentials: include); bearer mode attaches the Authorization
+    // header and omits cookies. Every authenticated call routes through here.
+    private authedFetch(input: string, init?: RequestInit): Promise<Response> {
+        return fetch(input, this.auth.decorate(init));
+    }
+
+    signIn(): Promise<void> {
+        return this.auth.signIn();
+    }
+
+    signOut(): Promise<void> {
+        return this.auth.signOut();
     }
 
     static async init(): Promise<APIClient> {

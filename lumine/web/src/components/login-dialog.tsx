@@ -3,6 +3,7 @@
 import { Github, LogOut, User } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/components/auth-provider";
+import { useAPIClient } from "@/components/lumine-provider";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -15,16 +16,37 @@ import {
 import { useToast } from "@/hooks/use-toast";
 
 export function LoginDialog() {
-    const { isAuthenticated, githubLogin, signIn, signOut } = useAuth();
+    const { isAuthenticated, githubLogin, setMe } = useAuth();
+    const api = useAPIClient();
     const { toast } = useToast();
     const [open, setOpen] = useState(false);
 
     const handleSignOut = async () => {
-        await signOut();
+        await api.signOut();
+        setMe({ authenticated: false });
         toast({
             title: "ログアウト",
             description: "ログアウトしました",
         });
+        setOpen(false);
+    };
+
+    const handleSignIn = async () => {
+        try {
+            await api.signIn();
+        } catch (e) {
+            toast({
+                title: "ログイン失敗",
+                description:
+                    e instanceof Error ? e.message : "ログインに失敗しました",
+                variant: "destructive",
+            });
+            return;
+        }
+        // Cookie mode has navigated away by now; only bearer mode reaches here,
+        // where the token is set and the session can be refreshed in place.
+        const me = await api.fetchMe();
+        setMe(me);
         setOpen(false);
     };
 
@@ -87,7 +109,7 @@ export function LoginDialog() {
                     </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4">
-                    <Button onClick={signIn} className="w-full">
+                    <Button onClick={handleSignIn} className="w-full">
                         <Github className="w-4 h-4 mr-2" />
                         GitHub でログイン
                     </Button>
