@@ -98,7 +98,7 @@ func TestSourceTOFU(t *testing.T) {
 	defer ts.Close()
 
 	pins, _ := OpenPinStore(filepath.Join(t.TempDir(), "known_ayato.json"))
-	s, _ := New(Options{Name: "t", BaseURL: ts.URL, Tofu: true, MaxAge: time.Hour, Pins: pins})
+	s, _ := New(Options{Name: "t", BaseURL: ts.URL, TrustOnFirstUse: true, MaxAge: time.Hour, Pins: pins})
 	if err := s.Sync(context.Background()); err != nil {
 		t.Fatalf("TOFU first-contact sync: %v", err)
 	}

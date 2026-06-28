@@ -45,3 +45,8 @@ maintainer = "security-team"
 name = "team-repo"
 url = "https://repo.example.com"
 priority = 50
+# How to trust this ayato's signed catalog — pick exactly one:
+#   pubkey = "<base64 ed25519>"  pin a known key (recommended in production)
+#   trust_on_first_use = true    accept and pin the key on the first sync (used here)
+#   insecure = true              accept an unsigned / unverified catalog
+trust_on_first_use = true

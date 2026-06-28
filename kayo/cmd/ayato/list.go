@@ -49,8 +49,8 @@ func sourceMode(a conf.AyatoSource) string {
 		return "delegate"
 	case a.PubKey != "":
 		return "pinned"
-	case a.Tofu:
-		return "tofu"
+	case a.TrustOnFirstUse:
+		return "first-use"
 	default:
 		return "review"
 	}

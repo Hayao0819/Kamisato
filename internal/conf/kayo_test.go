@@ -30,17 +30,17 @@ func TestAyatoSourceValidate(t *testing.T) {
 		wantErr bool
 	}{
 		{"pinned", AyatoSource{Name: "a", URL: "https://x", PubKey: pub}, false},
-		{"tofu", AyatoSource{Name: "a", URL: "https://x", Tofu: true}, false},
+		{"trust-on-first-use", AyatoSource{Name: "a", URL: "https://x", TrustOnFirstUse: true}, false},
 		{"insecure", AyatoSource{Name: "a", URL: "https://x", Insecure: true}, false},
 		{"delegate-pinned", AyatoSource{Name: "a", URL: "https://x", PubKey: pub, Trust: "delegate"}, false},
 
 		{"unpinned-secure", AyatoSource{Name: "a", URL: "https://x"}, true},
-		{"delegate-without-pin", AyatoSource{Name: "a", URL: "https://x", Tofu: true, Trust: "delegate"}, true},
+		{"delegate-without-pin", AyatoSource{Name: "a", URL: "https://x", TrustOnFirstUse: true, Trust: "delegate"}, true},
 		{"insecure-with-pin", AyatoSource{Name: "a", URL: "https://x", Insecure: true, PubKey: pub}, true},
 		{"insecure-with-delegate", AyatoSource{Name: "a", URL: "https://x", Insecure: true, Trust: "delegate"}, true},
 		{"bad-trust", AyatoSource{Name: "a", URL: "https://x", PubKey: pub, Trust: "bogus"}, true},
 		{"short-key", AyatoSource{Name: "a", URL: "https://x", PubKey: base64.StdEncoding.EncodeToString([]byte("short"))}, true},
-		{"negative-maxage", AyatoSource{Name: "a", URL: "https://x", Tofu: true, MaxAgeMinutes: -1}, true},
+		{"negative-maxage", AyatoSource{Name: "a", URL: "https://x", TrustOnFirstUse: true, MaxAgeMinutes: -1}, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -87,8 +87,8 @@ func TestAyatoSourceDelegated(t *testing.T) {
 	if !(AyatoSource{PubKey: pub, Trust: "delegate"}).Delegated() {
 		t.Error("pinned delegate should report Delegated")
 	}
-	if (AyatoSource{Tofu: true, Trust: "delegate"}).Delegated() {
-		t.Error("tofu (unpinned) must never delegate")
+	if (AyatoSource{TrustOnFirstUse: true, Trust: "delegate"}).Delegated() {
+		t.Error("trust-on-first-use (unpinned) must never delegate")
 	}
 	if (AyatoSource{PubKey: pub}).Delegated() {
 		t.Error("review (default) must not delegate")

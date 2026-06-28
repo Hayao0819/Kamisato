@@ -123,8 +123,8 @@ func (s *Source) resolveVerifier(ctx context.Context) (*Verifier, error) {
 	if s.verifier != nil {
 		return s.verifier, nil
 	}
-	if !s.tofu || s.pins == nil {
-		return nil, utils.NewErrf("ayato %s: no pinned public key (set pubkey, or enable tofu/insecure)", s.name)
+	if !s.trustOnFirstUse || s.pins == nil {
+		return nil, utils.NewErrf("ayato %s: no pinned public key (set pubkey, or enable trust_on_first_use/insecure)", s.name)
 	}
 	if p, ok := s.pins.Get(s.name); ok && p.PubKey != "" {
 		return NewVerifier(p.PubKey, s.maxAge)

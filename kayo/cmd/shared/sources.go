@@ -31,13 +31,13 @@ func BuildComposite(ctx context.Context, cfg *conf.KayoConfig) (*federate.Compos
 		}
 		for _, a := range cfg.Ayato {
 			src, err := ayatosrc.New(ayatosrc.Options{
-				Name:     a.Name,
-				BaseURL:  a.URL,
-				PubKey:   a.PubKey,
-				MaxAge:   a.ResolvedMaxAge(),
-				Insecure: a.Insecure,
-				Tofu:     a.Tofu,
-				Pins:     pins,
+				Name:            a.Name,
+				BaseURL:         a.URL,
+				PubKey:          a.PubKey,
+				MaxAge:          a.ResolvedMaxAge(),
+				Insecure:        a.Insecure,
+				TrustOnFirstUse: a.TrustOnFirstUse,
+				Pins:            pins,
 			})
 			if err != nil {
 				return nil, utils.WrapErr(err, "ayato source "+a.Name)

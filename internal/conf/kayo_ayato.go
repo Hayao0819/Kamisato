@@ -16,19 +16,20 @@ type AyatoSource struct {
 	Priority int    `koanf:"priority,omitempty"`
 	// PubKey is the base64 32-byte Ed25519 public key this source's catalog MUST
 	// verify under — a HARD pin: a mismatch is fatal, never auto-accepted. Empty
-	// requires Tofu or Insecure.
+	// requires TrustOnFirstUse or Insecure.
 	PubKey string `koanf:"pubkey,omitempty"`
 	// MaxAgeMinutes is kayo's own staleness ceiling, independent of the catalog's
 	// signed ExpiresAt, so a misconfigured ayato can't hand out an unbounded TTL.
-	// 0 with a pinned/tofu key uses a safe default (24h).
+	// 0 with a pinned/first-use key uses a safe default (24h).
 	MaxAgeMinutes int `koanf:"max_age_minutes,omitempty"`
 	// Trust selects what a verified signature buys: "review" (default) still
 	// routes every package through the trust store; "delegate" treats the
 	// authenticated catalog as vouched and bypasses review. Requires a pinned key.
 	Trust string `koanf:"trust,omitempty"`
-	// Tofu allows trust-on-first-use (pin /pubkey on first sync) when PubKey is
-	// empty. Off by default: an unpinned source is otherwise a config error.
-	Tofu bool `koanf:"tofu,omitempty"`
+	// TrustOnFirstUse trusts the catalog on first contact (pins the /pubkey on the
+	// first sync) when PubKey is empty, then detects later key changes. Off by
+	// default: an unpinned source is otherwise a config error.
+	TrustOnFirstUse bool `koanf:"trust_on_first_use,omitempty"`
 	// Insecure disables verification entirely (unsigned/legacy ayato). The only
 	// way to accept an unsigned catalog; off by default.
 	Insecure bool `koanf:"insecure,omitempty"`
@@ -45,13 +46,13 @@ func (a AyatoSource) validate() error {
 		return fmt.Errorf("ayato %q: trust must be \"review\" or \"delegate\", got %q", a.Name, a.Trust)
 	}
 	if a.Insecure {
-		if a.PubKey != "" || a.Tofu || a.Trust == "delegate" {
-			return fmt.Errorf("ayato %q: insecure cannot combine with pubkey/tofu/delegate", a.Name)
+		if a.PubKey != "" || a.TrustOnFirstUse || a.Trust == "delegate" {
+			return fmt.Errorf("ayato %q: insecure cannot combine with pubkey/trust_on_first_use/delegate", a.Name)
 		}
 		return nil
 	}
-	if a.PubKey == "" && !a.Tofu {
-		return fmt.Errorf("ayato %q: set pubkey to pin a key, or tofu to trust on first use (or insecure to opt out)", a.Name)
+	if a.PubKey == "" && !a.TrustOnFirstUse {
+		return fmt.Errorf("ayato %q: set pubkey to pin a key, or trust_on_first_use to trust on first use (or insecure to opt out)", a.Name)
 	}
 	if a.PubKey != "" {
 		key, err := base64.StdEncoding.DecodeString(a.PubKey)
@@ -63,7 +64,7 @@ func (a AyatoSource) validate() error {
 		}
 	}
 	if a.Trust == "delegate" && a.PubKey == "" {
-		return fmt.Errorf("ayato %q: trust \"delegate\" requires a pinned pubkey (tofu is too weak to bypass review)", a.Name)
+		return fmt.Errorf("ayato %q: trust \"delegate\" requires a pinned pubkey (trust_on_first_use is too weak to bypass review)", a.Name)
 	}
 	if a.MaxAgeMinutes < 0 {
 		return fmt.Errorf("ayato %q: max_age_minutes cannot be negative", a.Name)

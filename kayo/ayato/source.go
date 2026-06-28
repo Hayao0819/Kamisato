@@ -21,25 +21,25 @@ const (
 
 // Options configures a Source.
 type Options struct {
-	Name, BaseURL string
-	PubKey        string        // explicit hard pin (base64); "" => TOFU or Insecure
-	MaxAge        time.Duration // freshness ceiling; must be > 0 unless Insecure
-	Insecure      bool          // accept an unsigned catalog (escape hatch)
-	Tofu          bool          // allow trust-on-first-use when PubKey is empty
-	Pins          *PinStore
+	Name, BaseURL   string
+	PubKey          string        // explicit hard pin (base64); "" => trust-on-first-use or Insecure
+	MaxAge          time.Duration // freshness ceiling; must be > 0 unless Insecure
+	Insecure        bool          // accept an unsigned catalog (escape hatch)
+	TrustOnFirstUse bool          // trust the catalog on first contact when PubKey is empty
+	Pins            *PinStore
 }
 
 // Source is one ayato instance, refreshed by Sync. A catalog only swaps in after
 // its signature and freshness verify (unless Insecure), so the index never holds
 // unverified data.
 type Source struct {
-	name     string
-	base     string
-	client   *http.Client
-	maxAge   time.Duration
-	insecure bool
-	tofu     bool
-	pins     *PinStore
+	name            string
+	base            string
+	client          *http.Client
+	maxAge          time.Duration
+	insecure        bool
+	trustOnFirstUse bool
+	pins            *PinStore
 
 	mu           sync.RWMutex
 	index        map[string]aurweb.Pkg
@@ -52,18 +52,18 @@ type Source struct {
 }
 
 // New builds a Source. An explicit PubKey is a hard pin; an empty PubKey requires
-// either Tofu or Insecure.
+// either TrustOnFirstUse or Insecure.
 func New(o Options) (*Source, error) {
 	s := &Source{
-		name:     o.Name,
-		base:     strings.TrimRight(o.BaseURL, "/"),
-		client:   &http.Client{Timeout: 15 * time.Second},
-		maxAge:   o.MaxAge,
-		insecure: o.Insecure,
-		tofu:     o.Tofu,
-		pins:     o.Pins,
-		index:    map[string]aurweb.Pkg{},
-		sources:  map[string]string{},
+		name:            o.Name,
+		base:            strings.TrimRight(o.BaseURL, "/"),
+		client:          &http.Client{Timeout: 15 * time.Second},
+		maxAge:          o.MaxAge,
+		insecure:        o.Insecure,
+		trustOnFirstUse: o.TrustOnFirstUse,
+		pins:            o.Pins,
+		index:           map[string]aurweb.Pkg{},
+		sources:         map[string]string{},
 	}
 	if o.PubKey != "" {
 		v, err := NewVerifier(o.PubKey, o.MaxAge)
