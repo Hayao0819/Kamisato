@@ -14,10 +14,10 @@ import {
 } from "@/components/ui/dialog";
 import type { Job } from "@/lib/types";
 import {
-    STATUS_LABEL,
-    STATUS_VARIANT,
     formatDuration,
     isActive,
+    STATUS_LABEL,
+    STATUS_VARIANT,
 } from "./build-status";
 
 function MetaRow({
@@ -39,8 +39,10 @@ function pkgLabel(job: Job): string {
     const pkgs = job.packages ?? [];
     if (pkgs.length === 0) return "ビルドジョブ";
     const name =
-        pkgs[0].split("/").pop()?.replace(/\.pkg\.tar\.[a-z0-9]+$/i, "") ??
-        pkgs[0];
+        pkgs[0]
+            .split("/")
+            .pop()
+            ?.replace(/\.pkg\.tar\.[a-z0-9]+$/i, "") ?? pkgs[0];
     return pkgs.length > 1 ? `${name} 他${pkgs.length - 1}件` : name;
 }
 
@@ -76,6 +78,7 @@ export function BuildJobDetail({
     }, [open, jobId, api]);
 
     // Pin the viewport to the tail as fresh lines stream in.
+    // biome-ignore lint/correctness/useExhaustiveDependencies: logLines is the trigger that re-runs the scroll, not read in the body.
     useEffect(() => {
         const el = logRef.current;
         if (el) el.scrollTop = el.scrollHeight;
@@ -138,9 +141,7 @@ export function BuildJobDetail({
                         </div>
                         <dl className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3">
                             <MetaRow label="リポジトリ">{job.repo}</MetaRow>
-                            <MetaRow label="アーキテクチャ">
-                                {job.arch}
-                            </MetaRow>
+                            <MetaRow label="アーキテクチャ">{job.arch}</MetaRow>
                             <MetaRow label="作成日時">
                                 {job.created_at
                                     ? new Date(job.created_at).toLocaleString(

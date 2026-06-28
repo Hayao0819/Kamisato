@@ -13,7 +13,9 @@ export function StatusRefreshButton({
 }) {
     return (
         <Button variant="outline" onClick={onRefresh} disabled={loading}>
-            <RefreshCw className={cn("mr-2 h-4 w-4", loading && "animate-spin")} />
+            <RefreshCw
+                className={cn("mr-2 h-4 w-4", loading && "animate-spin")}
+            />
             更新
         </Button>
     );

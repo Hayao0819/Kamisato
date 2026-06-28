@@ -170,6 +170,7 @@ export function ConsoleSidebar() {
     }, [api.endpoints.executable]);
 
     // Close the mobile drawer on navigation.
+    // biome-ignore lint/correctness/useExhaustiveDependencies: pathname is the navigation trigger, not read in the body.
     useEffect(() => {
         setOpen(false);
     }, [pathname, setOpen]);

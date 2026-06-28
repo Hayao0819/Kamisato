@@ -31,7 +31,10 @@ interface BugReportDialogProps {
     trigger?: React.ReactNode;
 }
 
-export function BugReportDialog({ packageInfo, trigger }: BugReportDialogProps) {
+export function BugReportDialog({
+    packageInfo,
+    trigger,
+}: BugReportDialogProps) {
     const [open, setOpen] = useState(false);
     const { toast } = useToast();
 

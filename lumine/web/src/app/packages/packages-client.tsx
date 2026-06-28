@@ -71,6 +71,7 @@ export default function PackagesClient() {
     // URL → state. The URL is the single source of truth; on any URL change we
     // hydrate the shared atoms (scope, filters, view) so the sidebar facets and
     // table render exactly what the address bar describes.
+    // biome-ignore lint/correctness/useExhaustiveDependencies: queryStr is the single source of truth; the atom setters are stable.
     useEffect(() => {
         if (query.repo && query.arch) {
             setScope(query.repo, query.arch);
@@ -84,7 +85,6 @@ export default function PackagesClient() {
         setSortDir(query.dir);
         setPage(query.page);
         setPageSize(query.per);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [queryStr]);
 
     // Fetch packages for the URL scope. Keyed on the resolved repo/arch so a

@@ -31,10 +31,7 @@ export function isActive(status: JobStatus): boolean {
     return status === "queued" || status === "running";
 }
 
-export function formatDuration(
-    startedAt?: string,
-    endedAt?: string,
-): string {
+export function formatDuration(startedAt?: string, endedAt?: string): string {
     if (!startedAt) return "—";
     const start = new Date(startedAt).getTime();
     const end = endedAt ? new Date(endedAt).getTime() : Date.now();

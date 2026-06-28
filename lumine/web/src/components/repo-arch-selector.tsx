@@ -1,5 +1,6 @@
 "use client";
 
+import { Label } from "@/components/ui/label";
 import {
     Select,
     SelectContent,
@@ -21,16 +22,22 @@ export function RepoArchSelector() {
 
     return (
         <div className="flex flex-wrap items-end gap-4">
-            <label className="flex flex-col gap-1">
-                <span className="text-xs font-medium text-muted-foreground">
+            <div className="flex flex-col gap-1">
+                <Label
+                    htmlFor="repo-select"
+                    className="text-xs font-medium text-muted-foreground"
+                >
                     リポジトリ
-                </span>
+                </Label>
                 <Select
                     value={selectedRepo || undefined}
                     onValueChange={setSelectedRepo}
                     disabled={repos.length === 0}
                 >
-                    <SelectTrigger className="w-[180px] h-8 rounded-sm">
+                    <SelectTrigger
+                        id="repo-select"
+                        className="w-[180px] h-8 rounded-sm"
+                    >
                         <SelectValue placeholder="リポジトリを選択" />
                     </SelectTrigger>
                     <SelectContent>
@@ -41,18 +48,24 @@ export function RepoArchSelector() {
                         ))}
                     </SelectContent>
                 </Select>
-            </label>
+            </div>
 
-            <label className="flex flex-col gap-1">
-                <span className="text-xs font-medium text-muted-foreground">
+            <div className="flex flex-col gap-1">
+                <Label
+                    htmlFor="arch-select"
+                    className="text-xs font-medium text-muted-foreground"
+                >
                     アーキテクチャ
-                </span>
+                </Label>
                 <Select
                     value={selectedArch || undefined}
                     onValueChange={setSelectedArch}
                     disabled={arches.length === 0}
                 >
-                    <SelectTrigger className="w-[180px] h-8 rounded-sm">
+                    <SelectTrigger
+                        id="arch-select"
+                        className="w-[180px] h-8 rounded-sm"
+                    >
                         <SelectValue placeholder="アーキテクチャを選択" />
                     </SelectTrigger>
                     <SelectContent>
@@ -63,7 +76,7 @@ export function RepoArchSelector() {
                         ))}
                     </SelectContent>
                 </Select>
-            </label>
+            </div>
         </div>
     );
 }

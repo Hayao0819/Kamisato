@@ -25,9 +25,7 @@ export function StatusTile({
         >
             <div className="flex items-center justify-between gap-2">
                 <span className="text-sm text-muted-foreground">{label}</span>
-                {icon && (
-                    <span className="text-muted-foreground">{icon}</span>
-                )}
+                {icon && <span className="text-muted-foreground">{icon}</span>}
             </div>
             <div className="mt-2 text-2xl font-semibold tabular-nums tracking-tight">
                 {value}

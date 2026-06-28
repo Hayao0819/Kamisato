@@ -18,8 +18,8 @@ import { PageContainer } from "@/components/page-container";
 import { PageHeader } from "@/components/page-header";
 import { StatusRefreshButton } from "@/components/status-refresh-button";
 import { StatusTile } from "@/components/status-tile";
-import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import type { BuildStats, JobStatus } from "@/lib/types";
 
 type Health = "online" | "offline" | "loading";
@@ -53,8 +53,9 @@ export default function ServerStatusPage() {
         setLoading(true);
         const healthP = apiRef.current
             .fetchHello()
-            .then((res): Health =>
-                res.ok || res.status === 418 ? "online" : "offline",
+            .then(
+                (res): Health =>
+                    res.ok || res.status === 418 ? "online" : "offline",
             )
             .catch((): Health => "offline");
         const statsP = apiRef.current
@@ -142,9 +143,7 @@ export default function ServerStatusPage() {
                         />
                         <StatusTile
                             label="稼働時間"
-                            value={
-                                stats ? formatUptime(stats.uptime_sec) : "—"
-                            }
+                            value={stats ? formatUptime(stats.uptime_sec) : "—"}
                             icon={<Clock className="h-4 w-4" />}
                         />
                     </div>
@@ -173,11 +172,7 @@ export default function ServerStatusPage() {
     );
 }
 
-function StatusBreakdown({
-    counts,
-}: {
-    counts?: Record<string, number>;
-}) {
+function StatusBreakdown({ counts }: { counts?: Record<string, number> }) {
     const total =
         STATUS_ORDER.reduce((acc, s) => acc + (counts?.[s] ?? 0), 0) || 0;
     return (

@@ -48,8 +48,10 @@ function pkgLabel(job: Job): string {
     const pkgs = job.packages ?? [];
     if (pkgs.length === 0) return "—";
     const name =
-        pkgs[0].split("/").pop()?.replace(/\.pkg\.tar\.[a-z0-9]+$/i, "") ??
-        pkgs[0];
+        pkgs[0]
+            .split("/")
+            .pop()
+            ?.replace(/\.pkg\.tar\.[a-z0-9]+$/i, "") ?? pkgs[0];
     return pkgs.length > 1 ? `${name} 他${pkgs.length - 1}件` : name;
 }
 

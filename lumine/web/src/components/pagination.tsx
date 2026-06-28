@@ -26,10 +26,7 @@ export function Pagination({ page, pageCount, onPageChange }: PaginationProps) {
         "inline-flex h-8 min-w-8 items-center justify-center rounded-sm border border-border px-2 text-[14px] tabular-nums focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-40 disabled:cursor-not-allowed";
 
     return (
-        <nav
-            className="flex items-center gap-1"
-            aria-label="ページネーション"
-        >
+        <nav className="flex items-center gap-1" aria-label="ページネーション">
             <button
                 type="button"
                 className={cn(btn, "hover:bg-muted")}

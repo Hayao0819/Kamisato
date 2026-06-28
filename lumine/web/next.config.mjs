@@ -20,8 +20,14 @@ const nextConfig = {
                   const ayato =
                       process.env.AYATO_URL || "http://localhost:8080";
                   return [
-                      { source: "/api/:path*", destination: `${ayato}/api/:path*` },
-                      { source: "/repo/:path*", destination: `${ayato}/repo/:path*` },
+                      {
+                          source: "/api/:path*",
+                          destination: `${ayato}/api/:path*`,
+                      },
+                      {
+                          source: "/repo/:path*",
+                          destination: `${ayato}/repo/:path*`,
+                      },
                   ];
               },
           }

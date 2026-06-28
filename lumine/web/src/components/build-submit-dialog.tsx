@@ -21,8 +21,8 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { cn } from "@/lib/utils";
 import type { BuildRequest } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 const ARCH_OPTIONS = ["x86_64", "aarch64", "armv7h"];
 
@@ -221,9 +221,7 @@ export function BuildSubmitDialog({
 
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <div className="space-y-2">
-                            <Label htmlFor="build-gpg-key">
-                                GPG 鍵 (任意)
-                            </Label>
+                            <Label htmlFor="build-gpg-key">GPG 鍵 (任意)</Label>
                             <Input
                                 id="build-gpg-key"
                                 value={gpgKey}

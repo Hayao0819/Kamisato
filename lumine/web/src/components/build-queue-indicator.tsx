@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { Activity, Clock, Loader2 } from "lucide-react";
+import Link from "next/link";
 import type { BuildStats } from "@/lib/types";
 
 export function BuildQueueIndicator({ stats }: { stats: BuildStats | null }) {

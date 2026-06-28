@@ -1,7 +1,7 @@
 "use client";
 
-import { cn } from "@/lib/utils";
 import type { JobStatus } from "@/lib/types";
+import { cn } from "@/lib/utils";
 import { STATUS_LABEL, STATUS_ORDER } from "./build-status";
 
 export type StatusFilter = JobStatus | "all";
