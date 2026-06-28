@@ -27,7 +27,11 @@ func (p *SourcePackage) Build(target *builder.Target, dest string) error {
 	// The output is moved to OutDir(=dest), so discard tmpdir holding the source copy.
 	defer func() { _ = os.RemoveAll(tmpdir) }()
 
-	backend, err := builder.New(builder.KindChroot, builder.Options{})
+	kind := target.Executor
+	if kind == "" {
+		kind = builder.KindChroot
+	}
+	backend, err := builder.New(kind, builder.Options{})
 	if err != nil {
 		return utils.WrapErr(err, "failed to create build backend")
 	}
@@ -38,6 +42,7 @@ func (p *SourcePackage) Build(target *builder.Target, dest string) error {
 		Arch:        target.Arch,
 		ArchBuild:   target.ArchBuild,
 		InstallPkgs: target.InstallPkgs,
+		LogWriter:   target.Output,
 	})
 	if err != nil {
 		return utils.WrapErr(err, "failed to build package")

@@ -14,6 +14,8 @@ type Target struct {
 	ArchBuild   string
 	SignKey     string
 	InstallPkgs []string
+	// Executor selects the build backend. Empty means chroot.
+	Executor Kind
 	// Output, when non-nil, receives the build command's stdout/stderr instead
 	// of os.Stdout. Used to capture build logs.
 	Output io.Writer
