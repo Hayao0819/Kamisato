@@ -51,6 +51,10 @@ services:
       context: ..
       dockerfile: Dockerfile
     command: ["ayato", "-c", "/config/ayato_config.json"]
+    # Sign the kayo-facing AUR catalog so kayo can federate it (kayo pins this key
+    # on its first sync). Demo seed only — make your own with `ayato aur keygen`.
+    environment:
+      AYATO_AUR_SIGNING_SEED: "iGFeYMtHugKh2CfrBy492T7VNocXWcxTpIUiy30NZn4="
     ports:
       - "127.0.0.1:8080:8080"
     networks: [kamisato]
@@ -60,6 +64,11 @@ services:
     depends_on:
       miko:
         condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/api/unstable/hello"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   lumine:
     image: kamisato-example
@@ -74,6 +83,25 @@ services:
       ayato:
         condition: service_started
 
+  # kayo: local aurweb-compatible overlay/router. It federates ayato's signed
+  # catalog (ranked above the real AUR) and answers AUR-helper requests. Point a
+  # helper at it, e.g. paru.conf: AurUrl = http://localhost:10713
+  kayo:
+    image: kamisato-example
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    command: ["kamisato", "kayo", "-c", "/config/kayo_config.toml"]
+    ports:
+      - "127.0.0.1:10713:10713"
+    networks: [kamisato]
+    volumes:
+      - ./config:/config:ro
+      - kayo-data:/data
+    depends_on:
+      ayato:
+        condition: service_healthy
+
 networks:
   kamisato:
 
@@ -82,3 +110,4 @@ volumes:
   dind-storage:
   miko-jobs:
   ayato-data:
+  kayo-data:
