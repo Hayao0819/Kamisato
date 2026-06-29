@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"archive/tar"
 	"bytes"
 	"io"
 	"os"
@@ -12,6 +13,8 @@ import (
 	"testing"
 
 	"github.com/Hayao0819/Kamisato/ayato/stream"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
+	"github.com/klauspost/compress/zstd"
 )
 
 // memStore is an in-memory blob.Store. It is backend-agnostic, so asserting the
@@ -81,33 +84,40 @@ type nopSeekCloser struct{ *bytes.Reader }
 
 func (nopSeekCloser) Close() error { return nil }
 
-func requireRepoAddTool(t *testing.T) {
-	t.Helper()
-	if _, err := exec.LookPath("repo-add"); err != nil {
-		t.Skip("repo-add not installed; skipping repo-db artifact test")
-	}
-}
-
-// makePkg builds a minimal valid .pkg.tar.zst that repo-add accepts: a tar with
-// a .PKGINFO at its root, zstd-compressed via bsdtar.
+// makePkg builds a minimal valid .pkg.tar.zst in pure Go: a zstd-compressed tar
+// with a .PKGINFO at its root. It needs no external tooling, so the repo-DB
+// tests run on any distribution — the point of the native writer.
 func makePkg(t *testing.T, dir, name, ver, arch string) string {
 	t.Helper()
-	if _, err := exec.LookPath("bsdtar"); err != nil {
-		t.Skip("bsdtar not installed; skipping repo-add artifact test")
-	}
 	pkginfo := "pkgname = " + name + "\n" +
 		"pkgver = " + ver + "\n" +
 		"pkgdesc = test\n" +
 		"arch = " + arch + "\n" +
 		"size = 0\n"
-	work := t.TempDir()
-	if err := os.WriteFile(path.Join(work, ".PKGINFO"), []byte(pkginfo), 0o644); err != nil {
+	out := path.Join(dir, name+"-"+ver+"-"+arch+".pkg.tar.zst")
+	f, err := os.Create(out)
+	if err != nil {
 		t.Fatal(err)
 	}
-	out := path.Join(dir, name+"-"+ver+"-"+arch+".pkg.tar.zst")
-	cmd := exec.Command("bsdtar", "-c", "--zstd", "-f", out, "-C", work, ".PKGINFO")
-	if b, err := cmd.CombinedOutput(); err != nil {
-		t.Fatalf("bsdtar: %v: %s", err, b)
+	defer f.Close()
+	zw, err := zstd.NewWriter(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tw := tar.NewWriter(zw)
+	if err := tw.WriteHeader(&tar.Header{
+		Name: ".PKGINFO", Mode: 0o644, Size: int64(len(pkginfo)), Typeflag: tar.TypeReg,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := tw.Write([]byte(pkginfo)); err != nil {
+		t.Fatal(err)
+	}
+	if err := tw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := zw.Close(); err != nil {
+		t.Fatal(err)
 	}
 	return out
 }
@@ -124,50 +134,67 @@ func openSeek(t *testing.T, p string) stream.SeekFile {
 
 // TestRepoDBArtifactSet locks the unified artifact set: InitArch and RepoAdd must
 // write the full quartet (.db, .db.tar.gz, .files, .files.tar.gz) through the
-// blob.Store, NOT just .db.tar.gz. This is the localfs/s3 unification.
+// blob.Store, NOT just .db.tar.gz. This is the localfs/s3 unification. It runs
+// the orchestration against BOTH backends — the default Go-native writer (no
+// repo-add needed) and the repo-add CLI (skipped when absent) — proving the
+// fetch -> tool -> store cycle is backend-agnostic.
 func TestRepoDBArtifactSet(t *testing.T) {
-	requireRepoAddTool(t)
-
-	want := []string{"r.db", "r.db.tar.gz", "r.files", "r.files.tar.gz"}
-
-	mem := newMemStore()
-	r := &binaryRepository{Store: mem}
-
-	if err := r.InitArch("r", "x86_64", false, nil); err != nil {
-		t.Fatalf("InitArch: %v", err)
-	}
-	got := mem.names("r", "x86_64")
-	assertSuperset(t, got, want, "InitArch")
-
-	// RepoAdd a package; the artifact set (excluding the package file, which the
-	// caller stores separately) must still be the full quartet.
-	dir := t.TempDir()
-	pkgPath := makePkg(t, dir, "foo", "1.0-1", "x86_64")
-	pkg := openSeek(t, pkgPath)
-	if err := r.RepoAdd("r", "x86_64", pkg, nil, false, nil); err != nil {
-		t.Fatalf("RepoAdd: %v", err)
-	}
-	got = mem.names("r", "x86_64")
-	assertSuperset(t, got, want, "RepoAdd")
-	if contains(got, path.Base(pkgPath)) {
-		t.Errorf("RepoAdd stored the package file %q through the DB path; the caller's StoreFile owns it", path.Base(pkgPath))
+	backends := []struct {
+		name         string
+		tool         repoDBTool
+		needsRepoAdd bool
+	}{
+		{"native", nil, false},
+		{"cli", repo.CLITool{}, true},
 	}
 
-	// The package is now registered: RemoteRepo must see it.
-	rr, err := r.RemoteRepo("r", "x86_64")
-	if err != nil {
-		t.Fatalf("RemoteRepo: %v", err)
-	}
-	if len(rr.Pkgs) != 1 {
-		t.Fatalf("expected 1 package after RepoAdd, got %d", len(rr.Pkgs))
-	}
+	for _, be := range backends {
+		t.Run(be.name, func(t *testing.T) {
+			if be.needsRepoAdd {
+				if _, err := exec.LookPath("repo-add"); err != nil {
+					t.Skip("repo-add not installed; skipping CLI backend")
+				}
+			}
 
-	// RepoRemove drops it again, keeping the same artifact set.
-	if err := r.RepoRemove("r", "x86_64", "foo", false, nil); err != nil {
-		t.Fatalf("RepoRemove: %v", err)
+			want := []string{"r.db", "r.db.tar.gz", "r.files", "r.files.tar.gz"}
+			mem := newMemStore()
+			r := &binaryRepository{Store: mem, tool: be.tool}
+
+			if err := r.InitArch("r", "x86_64", false, nil); err != nil {
+				t.Fatalf("InitArch: %v", err)
+			}
+			assertSuperset(t, mem.names("r", "x86_64"), want, "InitArch")
+
+			// RepoAdd a package; the artifact set (excluding the package file,
+			// which the caller stores separately) must still be the full quartet.
+			dir := t.TempDir()
+			pkgPath := makePkg(t, dir, "foo", "1.0-1", "x86_64")
+			pkgStream := openSeek(t, pkgPath)
+			if err := r.RepoAdd("r", "x86_64", pkgStream, nil, false, nil); err != nil {
+				t.Fatalf("RepoAdd: %v", err)
+			}
+			got := mem.names("r", "x86_64")
+			assertSuperset(t, got, want, "RepoAdd")
+			if contains(got, path.Base(pkgPath)) {
+				t.Errorf("RepoAdd stored the package file %q through the DB path; the caller's StoreFile owns it", path.Base(pkgPath))
+			}
+
+			// The package is now registered: RemoteRepo must see it.
+			rr, err := r.RemoteRepo("r", "x86_64")
+			if err != nil {
+				t.Fatalf("RemoteRepo: %v", err)
+			}
+			if len(rr.Pkgs) != 1 {
+				t.Fatalf("expected 1 package after RepoAdd, got %d", len(rr.Pkgs))
+			}
+
+			// RepoRemove drops it again, keeping the same artifact set.
+			if err := r.RepoRemove("r", "x86_64", "foo", false, nil); err != nil {
+				t.Fatalf("RepoRemove: %v", err)
+			}
+			assertSuperset(t, mem.names("r", "x86_64"), want, "RepoRemove")
+		})
 	}
-	got = mem.names("r", "x86_64")
-	assertSuperset(t, got, want, "RepoRemove")
 }
 
 func assertSuperset(t *testing.T, got, want []string, ctx string) {

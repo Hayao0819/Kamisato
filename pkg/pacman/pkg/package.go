@@ -7,7 +7,6 @@ import (
 	"archive/tar"
 	"fmt"
 	"io"
-	"log/slog"
 	"os"
 	"path"
 	"strings"
@@ -63,38 +62,52 @@ func OpenBinaryPackage(binPath string) (*BinaryPackage, error) {
 	return ReadBinaryPackage(binPath, file)
 }
 
-// ReadBinaryPackage reads .PKGINFO from r and returns a BinaryPackage.
-func ReadBinaryPackage(binPath string, r io.Reader) (*BinaryPackage, error) {
+// walkPackageTar decompresses r and calls fn for each tar entry. Returning
+// stop=true from fn ends the walk early. It centralizes the decompress + tar
+// scaffolding shared by ReadBinaryPackage and ReadBinaryPackageMeta.
+func walkPackageTar(r io.Reader, fn func(hdr *tar.Header, content io.Reader) (stop bool, err error)) error {
 	decoder, _, err := utils.DetectCompression(r)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create decoder: %w", err)
+		return fmt.Errorf("failed to create decoder: %w", err)
 	}
 	defer decoder.Close()
 
-	tarReader := tar.NewReader(decoder)
-
-	var pkginfoData string
+	tr := tar.NewReader(decoder)
 	for {
-		header, err := tarReader.Next()
-
+		hdr, err := tr.Next()
 		if err == io.EOF {
-			break
+			return nil
 		}
 		if err != nil {
-			return nil, fmt.Errorf("failed to read tar header: %w", err)
+			return fmt.Errorf("failed to read tar header: %w", err)
 		}
-		slog.Debug("tar header", "name", header.Name)
-
-		if header.Name == ".PKGINFO" {
-			buf := new(strings.Builder)
-			if _, err := io.Copy(buf, tarReader); err != nil {
-				return nil, fmt.Errorf("failed to read .PKGINFO: %w", err)
-			}
-			pkginfoData = buf.String()
-			break
+		stop, err := fn(hdr, tr)
+		if err != nil {
+			return err
+		}
+		if stop {
+			return nil
 		}
 	}
+}
 
+// ReadBinaryPackage reads .PKGINFO from r and returns a BinaryPackage.
+func ReadBinaryPackage(binPath string, r io.Reader) (*BinaryPackage, error) {
+	var pkginfoData string
+	err := walkPackageTar(r, func(hdr *tar.Header, content io.Reader) (bool, error) {
+		if hdr.Name != ".PKGINFO" {
+			return false, nil
+		}
+		buf := new(strings.Builder)
+		if _, err := io.Copy(buf, content); err != nil {
+			return false, fmt.Errorf("failed to read .PKGINFO: %w", err)
+		}
+		pkginfoData = buf.String()
+		return true, nil
+	})
+	if err != nil {
+		return nil, err
+	}
 	if pkginfoData == "" {
 		return nil, fmt.Errorf(".PKGINFO not found in archive")
 	}

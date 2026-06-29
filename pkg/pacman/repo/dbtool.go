@@ -1,0 +1,174 @@
+package repo
+
+import (
+	"errors"
+	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+	"strings"
+
+	pkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
+)
+
+// Tool mutates a pacman repository database on disk: it adds or removes a
+// package's entry in the <repo>.db / <repo>.files archives at the given path.
+// NativeTool writes the archives in pure Go; CLITool shells out to
+// repo-add/repo-remove. The two are interchangeable behind this interface.
+type Tool interface {
+	RepoAdd(dbPath, pkgFilePath string, useSignedDB bool, gnupgDir *string) error
+	RepoRemove(dbPath, pkgName string, useSignedDB bool, gnupgDir *string) error
+}
+
+var (
+	_ Tool = NativeTool{}
+	_ Tool = CLITool{}
+)
+
+// NativeTool reads, mutates, and writes the pacman repo-DB archives directly,
+// with no repo-add/repo-remove binary, so a server can produce pacman databases
+// on any distribution. It operates on the .db archive at dbPath and its siblings
+// in the same directory.
+type NativeTool struct{}
+
+// ErrSignedDBUnsupported is returned when a signed database is requested. Native
+// signing needs a private signing key, which is not yet wired up.
+var ErrSignedDBUnsupported = errors.New("native repo-db tool: signed databases are not supported")
+
+func (NativeTool) RepoAdd(dbPath, pkgFilePath string, useSignedDB bool, _ *string) error {
+	if useSignedDB {
+		return ErrSignedDBUnsupported
+	}
+	paths, err := toolPathsFor(dbPath)
+	if err != nil {
+		return err
+	}
+	b, err := loadToolBuilder(paths)
+	if err != nil {
+		return err
+	}
+	if pkgFilePath != "" {
+		meta, err := pkg.ReadBinaryPackageMeta(pkgFilePath)
+		if err != nil {
+			return fmt.Errorf("failed to read package: %w", err)
+		}
+		if err := b.Upsert(meta); err != nil {
+			return err
+		}
+	}
+	return writeToolBuilder(b, paths)
+}
+
+func (NativeTool) RepoRemove(dbPath, pkgName string, useSignedDB bool, _ *string) error {
+	if useSignedDB {
+		return ErrSignedDBUnsupported
+	}
+	paths, err := toolPathsFor(dbPath)
+	if err != nil {
+		return err
+	}
+	b, err := loadToolBuilder(paths)
+	if err != nil {
+		return err
+	}
+	if !b.Remove(pkgName) {
+		return fmt.Errorf("package matching %q not found", pkgName)
+	}
+	return writeToolBuilder(b, paths)
+}
+
+// toolPaths holds the four artifact paths a repo-DB mutation touches, all in the
+// same directory as the .db archive.
+type toolPaths struct {
+	db        string // <repo>.db.tar.gz
+	files     string // <repo>.files.tar.gz
+	dbLink    string // <repo>.db
+	filesLink string // <repo>.files
+}
+
+// toolPathsFor derives the artifact paths from the .db archive path, mirroring
+// repo-add's REPO_DB_PREFIX/REPO_DB_SUFFIX split: everything before the LAST
+// ".db." is the prefix, the rest is the compression suffix.
+func toolPathsFor(dbPath string) (toolPaths, error) {
+	dir := filepath.Dir(dbPath)
+	base := filepath.Base(dbPath)
+	i := strings.LastIndex(base, ".db.")
+	if i < 0 {
+		return toolPaths{}, fmt.Errorf("not a valid db archive name: %s", base)
+	}
+	prefix := base[:i]
+	suffix := base[i+len(".db."):]
+	return toolPaths{
+		db:        filepath.Join(dir, prefix+".db."+suffix),
+		files:     filepath.Join(dir, prefix+".files."+suffix),
+		dbLink:    filepath.Join(dir, prefix+".db"),
+		filesLink: filepath.Join(dir, prefix+".files"),
+	}, nil
+}
+
+func loadToolBuilder(paths toolPaths) (*DBBuilder, error) {
+	b := NewDBBuilder()
+	if err := loadToolArchive(paths.db, b.LoadDB); err != nil {
+		return nil, err
+	}
+	if err := loadToolArchive(paths.files, b.LoadFiles); err != nil {
+		return nil, err
+	}
+	return b, nil
+}
+
+func loadToolArchive(path string, load func(io.Reader) error) error {
+	f, err := os.Open(path)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil // a fresh repository has no archive yet
+	}
+	if err != nil {
+		return fmt.Errorf("failed to open %s: %w", path, err)
+	}
+	defer f.Close()
+	return load(f)
+}
+
+func writeToolBuilder(b *DBBuilder, paths toolPaths) error {
+	if err := writeToolArchive(paths.db, b.WriteDB); err != nil {
+		return err
+	}
+	if err := writeToolArchive(paths.files, b.WriteFiles); err != nil {
+		return err
+	}
+	// A blob store has no symlinks, so the <repo>.db / <repo>.files names that
+	// repo-add makes as symlinks are written as byte copies instead.
+	if err := copyToolFile(paths.db, paths.dbLink); err != nil {
+		return err
+	}
+	return copyToolFile(paths.files, paths.filesLink)
+}
+
+func writeToolArchive(path string, write func(io.Writer) error) error {
+	f, err := os.Create(path)
+	if err != nil {
+		return fmt.Errorf("failed to create %s: %w", path, err)
+	}
+	if err := write(f); err != nil {
+		f.Close()
+		return err
+	}
+	return f.Close()
+}
+
+func copyToolFile(src, dst string) error {
+	in, err := os.Open(src)
+	if err != nil {
+		return fmt.Errorf("failed to open %s: %w", src, err)
+	}
+	defer in.Close()
+	out, err := os.Create(dst)
+	if err != nil {
+		return fmt.Errorf("failed to create %s: %w", dst, err)
+	}
+	if _, err := io.Copy(out, in); err != nil {
+		out.Close()
+		return fmt.Errorf("failed to copy to %s: %w", dst, err)
+	}
+	return out.Close()
+}

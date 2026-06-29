@@ -7,16 +7,17 @@ import (
 	"os"
 	"path"
 
-	"github.com/Hayao0819/Kamisato/ayato/repository/pacman"
 	"github.com/Hayao0819/Kamisato/ayato/stream"
 	"github.com/Hayao0819/Kamisato/internal/utils"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
 )
 
 // repoDBTool runs the pacman repo-DB mutations against a local DB path. The
-// default implementation (pacman.CLI) shells out to repo-add/repo-remove via
-// blinky; keeping it behind a port lets binaryRepository be unit-tested with a
-// fake tool and lets a Go-native implementation replace the CLI later without
-// touching this layer.
+// implementations live in pkg/pacman/repo: the default (repo.NativeTool) writes
+// the database archives in Go, so ayato needs no repo-add/repo-remove binary and
+// runs on any distribution; repo.CLITool (shelling out to repo-add) remains
+// available behind the same port. Keeping it behind a port also lets
+// binaryRepository be unit-tested with a fake tool.
 type repoDBTool interface {
 	RepoAdd(dbPath, pkgFilePath string, useSignedDB bool, gnupgDir *string) error
 	RepoRemove(dbPath, pkg string, useSignedDB bool, gnupgDir *string) error
@@ -26,7 +27,7 @@ func (r *binaryRepository) repoTool() repoDBTool {
 	if r.tool != nil {
 		return r.tool
 	}
-	return pacman.CLI{}
+	return repo.NativeTool{}
 }
 
 // dbArtifactBases are the canonical repo-DB archive names repo-add/repo-remove
@@ -132,8 +133,8 @@ func (r *binaryRepository) RepoAdd(repo, arch string, pkg, sig stream.SeekFile, 
 
 	dbPath := path.Join(t, repo+".db.tar.gz")
 	if err := r.repoTool().RepoAdd(dbPath, pkgPath, useSignedDB, gnupgDir); err != nil {
-		slog.Error("repo-add", "err", err)
-		return utils.WrapErr(err, "repo-add failed")
+		slog.Error("repo db add", "err", err)
+		return utils.WrapErr(err, "repo db add failed")
 	}
 
 	return r.storeArtifacts(repo, arch, t, skip)
@@ -159,8 +160,8 @@ func (r *binaryRepository) RepoRemove(repo, arch, pkg string, useSignedDB bool, 
 	}
 
 	if err := r.repoTool().RepoRemove(dbPath, pkg, useSignedDB, gnupgDir); err != nil {
-		slog.Error("repo-remove", "err", err)
-		return utils.WrapErr(err, "repo-remove failed")
+		slog.Error("repo db remove", "err", err)
+		return utils.WrapErr(err, "repo db remove failed")
 	}
 
 	return r.storeArtifacts(repo, arch, t, nil)
@@ -180,8 +181,8 @@ func (r *binaryRepository) InitArch(repo, arch string, useSignedDB bool, gnupgDi
 
 	dbPath := path.Join(t, repo+".db.tar.gz")
 	if err := r.repoTool().RepoAdd(dbPath, "", useSignedDB, gnupgDir); err != nil {
-		slog.Error("repo-add init", "err", err)
-		return utils.WrapErr(err, "repo-add init failed")
+		slog.Error("repo db init", "err", err)
+		return utils.WrapErr(err, "repo db init failed")
 	}
 
 	return r.storeArtifacts(repo, arch, t, nil)

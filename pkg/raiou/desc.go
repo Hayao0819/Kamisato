@@ -2,10 +2,13 @@ package raiou
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"io"
 	"log/slog"
 	"os"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -280,4 +283,105 @@ func joinQuoted(values []string, sep string) string {
 		q[i] = fmt.Sprintf("%q", v)
 	}
 	return fmt.Sprint(strings.Join(q, sep))
+}
+
+// DescFromPkginfo builds a repository desc entry from a package's .PKGINFO plus
+// the three values repo-add computes outside it: the stored filename, the
+// package file's own (compressed) size, and its sha256. PGPSIG is left empty,
+// matching ayato, which does not embed package signatures into the database.
+func DescFromPkginfo(info *PKGINFO, filename string, csize int64, sha256sum string) *DESC {
+	d := NewDESC()
+	d.FileName = filename
+	d.Name = info.PkgName
+	d.Base = info.PkgBase
+	d.Version = info.PkgVer
+	d.Description = info.PkgDesc
+	d.Groups = append([]string{}, info.Group...)
+	d.CSize = csize
+	d.ISize = info.Size
+	d.SHA256SUM = sha256sum
+	d.URL = info.URL
+	d.License = append([]string{}, info.License...)
+	d.Arch = info.Arch
+	d.BuildDate = time.Unix(info.BuildDate, 0)
+	d.Packager = info.Packager
+	d.Replaces = append([]string{}, info.Replaces...)
+	d.Conflicts = append([]string{}, info.Conflict...)
+	d.Provides = append([]string{}, info.Provides...)
+	d.Depends = append([]string{}, info.Depend...)
+	d.OptDepends = append([]string{}, info.OptDepend...)
+	d.MakeDepends = append([]string{}, info.MakeDepend...)
+	d.CheckDepends = append([]string{}, info.CheckDepend...)
+	return d
+}
+
+// Bytes serializes the desc in repo-add's exact field order and format.
+func (d *DESC) Bytes() []byte {
+	var b bytes.Buffer
+	d.appendTo(&b)
+	return b.Bytes()
+}
+
+// WriteTo writes the serialized desc to w, satisfying io.WriterTo.
+func (d *DESC) WriteTo(w io.Writer) (int64, error) {
+	var b bytes.Buffer
+	d.appendTo(&b)
+	n, err := w.Write(b.Bytes())
+	return int64(n), err
+}
+
+// appendTo writes each %FIELD% block in the order repo-add's db_write_entry
+// uses. Empty fields are omitted (format_entry skips a field whose first value
+// is empty), and CSIZE/ISIZE/BUILDDATE are written only when set.
+func (d *DESC) appendTo(b *bytes.Buffer) {
+	writeDescField(b, "FILENAME", d.FileName)
+	writeDescField(b, "NAME", d.Name)
+	writeDescField(b, "BASE", d.Base)
+	writeDescField(b, "VERSION", d.Version)
+	writeDescField(b, "DESC", d.Description)
+	writeDescField(b, "GROUPS", d.Groups...)
+	// CSIZE and ISIZE are always emitted, even when 0: repo-add's format_entry
+	// gates on a non-empty string, and a payload-less metapackage legitimately
+	// has size=0 (so %ISIZE%\n0). Only an absent field is omitted.
+	writeDescField(b, "CSIZE", strconv.FormatInt(d.CSize, 10))
+	writeDescField(b, "ISIZE", strconv.FormatInt(d.ISize, 10))
+	writeDescField(b, "SHA256SUM", d.SHA256SUM)
+	writeDescField(b, "PGPSIG", d.PGPSIG)
+	writeDescField(b, "URL", d.URL)
+	writeDescField(b, "LICENSE", d.License...)
+	writeDescField(b, "ARCH", d.Arch)
+	writeDescField(b, "BUILDDATE", buildDateValue(d.BuildDate))
+	writeDescField(b, "PACKAGER", d.Packager)
+	writeDescField(b, "REPLACES", d.Replaces...)
+	writeDescField(b, "CONFLICTS", d.Conflicts...)
+	writeDescField(b, "PROVIDES", d.Provides...)
+	writeDescField(b, "DEPENDS", d.Depends...)
+	writeDescField(b, "OPTDEPENDS", d.OptDepends...)
+	writeDescField(b, "MAKEDEPENDS", d.MakeDepends...)
+	writeDescField(b, "CHECKDEPENDS", d.CheckDepends...)
+}
+
+// descWhitespace collapses runs of whitespace to a single space, matching
+// repo-add's `${val//+([[:space:]])/ }` normalization at read time.
+var descWhitespace = regexp.MustCompile(`[[:space:]]+`)
+
+func writeDescField(b *bytes.Buffer, field string, values ...string) {
+	if len(values) == 0 || values[0] == "" {
+		return
+	}
+	b.WriteByte('%')
+	b.WriteString(field)
+	b.WriteString("%\n")
+	for _, v := range values {
+		b.WriteString(descWhitespace.ReplaceAllString(v, " "))
+		b.WriteByte('\n')
+	}
+	b.WriteByte('\n')
+}
+
+func buildDateValue(t time.Time) string {
+	if u := t.Unix(); u > 0 {
+		return strconv.FormatInt(u, 10)
+	}
+	return ""
 }

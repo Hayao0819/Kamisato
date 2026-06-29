@@ -48,13 +48,33 @@ xdata = pkgtype=pkg
 	}
 }
 
-func TestParsePkginfoString_MissingPkgType(t *testing.T) {
+func TestParsePkginfoString_PkgTypeOptional(t *testing.T) {
 	const data = `pkgname = hello
 pkgver = 1.0.0-1
 arch = x86_64
 `
-	if _, err := raiou.ParsePkginfoString(data); err == nil {
-		t.Fatal("expected error for missing pkgtype, got nil")
+	p, err := raiou.ParsePkginfoString(data)
+	if err != nil {
+		t.Fatalf("pkgtype is optional; want success, got %v", err)
+	}
+	if p.PkgType != "" {
+		t.Errorf("PkgType = %q, want empty", p.PkgType)
+	}
+}
+
+func TestParsePkginfoString_EmptyValueTolerated(t *testing.T) {
+	// "pkgdesc =" with an empty value must parse (repo-add tolerates it), leaving
+	// the field empty rather than erroring.
+	data := "pkgname = hello\npkgver = 1.0.0-1\npkgdesc =\narch = x86_64\n"
+	p, err := raiou.ParsePkginfoString(data)
+	if err != nil {
+		t.Fatalf("empty value should be tolerated, got %v", err)
+	}
+	if p.PkgDesc != "" {
+		t.Errorf("PkgDesc = %q, want empty", p.PkgDesc)
+	}
+	if p.PkgName != "hello" {
+		t.Errorf("PkgName = %q, want hello", p.PkgName)
 	}
 }
 

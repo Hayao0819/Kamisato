@@ -35,8 +35,13 @@ func parseKeyValues(lines []string) ([]keyValue, error) {
 		}
 		key := strings.TrimSpace(parts[0])
 		value := strings.TrimSpace(parts[1])
-		if key == "" || value == "" {
+		if key == "" {
 			return nil, fmt.Errorf("invalid line: %s", trimmed)
+		}
+		// A present-but-empty value (e.g. "pkgdesc = ") is treated as an absent
+		// field rather than an error, matching repo-add's tolerance.
+		if value == "" {
+			continue
 		}
 		kv = append(kv, keyValue{key, value})
 	}

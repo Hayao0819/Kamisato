@@ -2,7 +2,6 @@ package repository
 
 import (
 	"fmt"
-	"os/exec"
 	"sync"
 	"testing"
 	"time"
@@ -97,8 +96,8 @@ func TestSerializingStoreDifferentKeys(t *testing.T) {
 
 // repoAddProbe is a blob.Store whose StoreFile records peak in-flight calls, used
 // to observe whether binaryRepository.RepoAdd serializes its DB read-modify-write
-// per (repo, arch). FetchFile returns os.ErrNotExist (no existing DB) so RepoAdd
-// takes the fresh-repo path without invoking repo-add against missing artifacts.
+// per (repo, arch). FetchFile returns a miss (no existing DB) so RepoAdd takes
+// the fresh-repo path, building an empty database with the native writer.
 type repoAddProbe struct {
 	concurrencyProbe
 }
@@ -109,8 +108,9 @@ func (p *repoAddProbe) FetchFile(string, string, string) (stream.File, error) {
 
 var errProbeMiss = fmt.Errorf("not found")
 
-// runConcurrentRepoAdd fires N RepoAdds with a nil package (so repo-add is a
-// no-op create on a fresh temp DB) and lets storeArtifacts hit the probe.
+// runConcurrentRepoAdd fires N RepoAdds with a nil package (so the native writer
+// just emits an empty DB into a fresh temp dir) and lets storeArtifacts hit the
+// probe.
 func runConcurrentRepoAdd(r *binaryRepository, repo string, arches []string) {
 	start := make(chan struct{})
 	var wg sync.WaitGroup
@@ -132,9 +132,6 @@ func runConcurrentRepoAdd(r *binaryRepository, repo string, arches []string) {
 // does not deadlock — the two keyed mutexes are distinct instances, so the
 // nested StoreFile lock is never re-entrant. Run under -race.
 func TestRepoAddSerializedNoDeadlock(t *testing.T) {
-	if _, err := exec.LookPath("repo-add"); err != nil {
-		t.Skip("repo-add not installed; skipping RepoAdd concurrency test")
-	}
 	probe := &repoAddProbe{}
 	r := &binaryRepository{Store: newSerializingStore(probe)}
 
