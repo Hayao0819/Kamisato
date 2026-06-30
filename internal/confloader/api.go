@@ -2,14 +2,6 @@ package confloader
 
 import "github.com/spf13/pflag"
 
-func SimpleLoad[T any](dir []string, files []string) (*T, error) {
-	l := New[T](".").Dirs(dir...).Files(files...)
-	if err := l.Load(); err != nil {
-		return nil, err
-	}
-	return l.Get()
-}
-
 func Load[T any](
 	dirs []string,
 	files []string,
