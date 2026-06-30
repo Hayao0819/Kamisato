@@ -8,10 +8,10 @@ import (
 
 	"github.com/Hayao0819/Kamisato/ayaka/build"
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
-	"github.com/Hayao0819/Kamisato/ayaka/gpg"
 	"github.com/Hayao0819/Kamisato/internal/utils"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/alpm"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/builder"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/gpg"
 	pacmanrepo "github.com/Hayao0819/Kamisato/pkg/pacman/repo"
 	"github.com/spf13/cobra"
 )
