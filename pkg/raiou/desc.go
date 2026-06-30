@@ -86,31 +86,19 @@ func ParseDesc(r io.Reader) (*DESC, error) {
 
 		switch currentField {
 		case "FILENAME":
-			if len(buffer) > 0 {
-				desc.FileName = buffer[0]
-			}
+			desc.FileName = first(buffer)
 		case "NAME":
-			if len(buffer) > 0 {
-				desc.Name = buffer[0]
-			}
+			desc.Name = first(buffer)
 		case "VERSION":
-			if len(buffer) > 0 {
-				desc.Version = buffer[0]
-			}
+			desc.Version = first(buffer)
 		case "BASE":
-			if len(buffer) > 0 {
-				desc.Base = buffer[0]
-			}
+			desc.Base = first(buffer)
 		case "DESC":
 			desc.Description = strings.Join(buffer, "\n")
 		case "URL":
-			if len(buffer) > 0 {
-				desc.URL = buffer[0]
-			}
+			desc.URL = first(buffer)
 		case "ARCH":
-			if len(buffer) > 0 {
-				desc.Arch = buffer[0]
-			}
+			desc.Arch = first(buffer)
 		case "BUILDDATE":
 			if t, err := parseUnixTimestamp(buffer); err != nil {
 				return fmt.Errorf("invalid BUILDDATE: %w", err)
@@ -124,9 +112,7 @@ func ParseDesc(r io.Reader) (*DESC, error) {
 				desc.InstallDate = t
 			}
 		case "PACKAGER":
-			if len(buffer) > 0 {
-				desc.Packager = buffer[0]
-			}
+			desc.Packager = first(buffer)
 		case "SIZE":
 			if s, err := parseInt(buffer); err != nil {
 				return fmt.Errorf("invalid SIZE: %w", err)
@@ -146,17 +132,11 @@ func ParseDesc(r io.Reader) (*DESC, error) {
 				desc.CSize = s
 			}
 		case "SHA256SUM":
-			if len(buffer) > 0 {
-				desc.SHA256SUM = buffer[0]
-			}
+			desc.SHA256SUM = first(buffer)
 		case "MD5SUM":
-			if len(buffer) > 0 {
-				desc.MD5SUM = buffer[0]
-			}
+			desc.MD5SUM = first(buffer)
 		case "PGPSIG":
-			if len(buffer) > 0 {
-				desc.PGPSIG = buffer[0]
-			}
+			desc.PGPSIG = first(buffer)
 		case "REASON":
 			if r, err := parseInt(buffer); err != nil {
 				return fmt.Errorf("invalid REASON: %w", err)
@@ -168,9 +148,7 @@ func ParseDesc(r io.Reader) (*DESC, error) {
 		case "LICENSE":
 			desc.License = append(desc.License, buffer...)
 		case "VALIDATION":
-			if len(buffer) > 0 {
-				desc.Validation = buffer[0]
-			}
+			desc.Validation = first(buffer)
 		case "REPLACES":
 			desc.Replaces = append(desc.Replaces, buffer...)
 		case "DEPENDS":
@@ -262,6 +240,13 @@ func (d *DESC) ToPKGINFO() (*PKGINFO, error) {
 	}
 
 	return p, nil
+}
+
+func first(values []string) string {
+	if len(values) > 0 {
+		return values[0]
+	}
+	return ""
 }
 
 func flattenValues(values []string) string {
