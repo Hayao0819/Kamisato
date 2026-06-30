@@ -23,15 +23,15 @@ type githubReporter struct {
 	token  string
 }
 
-func newGitHub(repo, token string) (Reporter, error) {
-	owner, name, ok := strings.Cut(repo, "/")
+func newGitHub(cfg GitHubConfig) (Reporter, error) {
+	owner, name, ok := strings.Cut(cfg.Repo, "/")
 	if !ok || owner == "" || name == "" {
-		return nil, fmt.Errorf("bugreport: github repo must be \"owner/name\", got %q", repo)
+		return nil, fmt.Errorf("bugreport: github repo must be \"owner/name\", got %q", cfg.Repo)
 	}
-	if token == "" {
+	if cfg.Token == "" {
 		return nil, fmt.Errorf("bugreport: github token is required")
 	}
-	return &githubReporter{client: &http.Client{Timeout: 15 * time.Second}, base: githubAPI, owner: owner, repo: name, token: token}, nil
+	return &githubReporter{client: &http.Client{Timeout: 15 * time.Second}, base: githubAPI, owner: owner, repo: name, token: cfg.Token}, nil
 }
 
 func (g *githubReporter) Report(ctx context.Context, r Report) (string, error) {

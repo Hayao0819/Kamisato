@@ -11,16 +11,16 @@ import (
 )
 
 func TestNewDisabledAndValidation(t *testing.T) {
-	if r, err := New("", "", ""); r != nil || err != nil {
-		t.Fatalf("empty type must disable: r=%v err=%v", r, err)
+	if r, err := New(Config{}); r != nil || err != nil {
+		t.Fatalf("no backends must disable: r=%v err=%v", r, err)
 	}
-	if _, err := New("github", "noslash", "tok"); err == nil {
+	if _, err := New(Config{Backends: []string{"github"}, GitHub: GitHubConfig{Repo: "noslash", Token: "tok"}}); err == nil {
 		t.Error("github repo without owner/name must error")
 	}
-	if _, err := New("github", "o/r", ""); err == nil {
+	if _, err := New(Config{Backends: []string{"github"}, GitHub: GitHubConfig{Repo: "o/r"}}); err == nil {
 		t.Error("github without a token must error")
 	}
-	if _, err := New("nonsense", "", ""); err == nil {
+	if _, err := New(Config{Backends: []string{"nonsense"}}); err == nil {
 		t.Error("unknown backend must error")
 	}
 }
