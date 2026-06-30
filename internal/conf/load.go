@@ -2,6 +2,7 @@ package conf
 
 import (
 	"os"
+	"path/filepath"
 
 	"github.com/Hayao0819/Kamisato/internal/confloader"
 	"github.com/spf13/pflag"
@@ -16,7 +17,8 @@ func commonConfigDirs() []string {
 		dirs = append(dirs, pwd)
 	}
 	if cfgdir != "" {
-		dirs = append(dirs, cfgdir)
+		// Prefer a dedicated subdir, but keep the bare config dir for back-compat.
+		dirs = append(dirs, filepath.Join(cfgdir, "kamisato"), cfgdir)
 	}
 	return dirs
 }
