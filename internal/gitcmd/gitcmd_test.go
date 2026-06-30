@@ -8,7 +8,7 @@ func TestValidateRemote(t *testing.T) {
 		"https://8.8.8.8/repo.git",
 		"git://8.8.8.8/repo.git",
 		"ssh://git@8.8.8.8/repo.git",
-		"git@github.com:user/repo.git", // scp-like ssh
+		"git@8.8.8.8:user/repo.git", // scp-like ssh
 	}
 	for _, u := range allow {
 		if err := ValidateRemote(u); err != nil {
@@ -28,6 +28,8 @@ func TestValidateRemote(t *testing.T) {
 		"https://169.254.169.254/latest/meta-data", // cloud metadata
 		"https://10.1.2.3/x",
 		"git://192.168.0.1/x",
+		"ssh://git@127.0.0.1/x", // ssh scheme to an internal host
+		"git@10.0.0.5:x",        // scp-like to an internal host
 	}
 	for _, u := range reject {
 		if err := ValidateRemote(u); err == nil {

@@ -109,16 +109,17 @@ func Clone(ctx context.Context, o CloneOptions) error {
 
 // ValidateRemote rejects remotes that an untrusted caller could abuse: only
 // https, git, and ssh are allowed; plaintext http, file paths, and ext:: are
-// refused, and an https/git host resolving to a private, loopback, or
-// link-local address is rejected to block SSRF.
+// refused, and a host resolving to a private, loopback, or link-local address
+// is rejected to block SSRF. The host check covers https, git, ssh, and the
+// scp-like "user@host:path" form alike.
 func ValidateRemote(raw string) error {
 	// "<helper>::<addr>" is git's transport-helper syntax; ext:: runs an
 	// arbitrary command. Reject it before any scp-like heuristic can match it.
 	if strings.Contains(raw, "::") {
 		return utils.NewErr("transport-helper (::) remotes are not allowed")
 	}
-	if scpLikeSSH(raw) {
-		return nil
+	if host, ok := scpLikeSSH(raw); ok {
+		return rejectInternalHost(host)
 	}
 	u, err := url.Parse(raw)
 	if err != nil {
@@ -126,9 +127,7 @@ func ValidateRemote(raw string) error {
 	}
 
 	switch u.Scheme {
-	case "ssh":
-		return nil
-	case "https", "git":
+	case "ssh", "https", "git":
 		return rejectInternalHost(u.Hostname())
 	case "http":
 		return utils.NewErr("plaintext http remotes are not allowed")
@@ -140,14 +139,21 @@ func ValidateRemote(raw string) error {
 }
 
 // scpLikeSSH matches git's scp-style "user@host:path" form (no scheme, has a
-// colon before any slash).
-func scpLikeSSH(raw string) bool {
+// colon before any slash) and returns the host so the caller can SSRF-check it.
+func scpLikeSSH(raw string) (host string, ok bool) {
 	if strings.Contains(raw, "://") {
-		return false
+		return "", false
 	}
 	colon := strings.IndexByte(raw, ':')
 	slash := strings.IndexByte(raw, '/')
-	return colon > 0 && (slash == -1 || colon < slash)
+	if colon <= 0 || (slash != -1 && colon >= slash) {
+		return "", false
+	}
+	host = raw[:colon]
+	if at := strings.LastIndexByte(host, '@'); at != -1 {
+		host = host[at+1:]
+	}
+	return host, true
 }
 
 func rejectInternalHost(host string) error {
