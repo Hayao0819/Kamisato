@@ -7,6 +7,7 @@ package build
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -66,6 +67,48 @@ func Package(p *pkg.SourcePackage, target *builder.Target, dest string) error {
 	return nil
 }
 
+// selectPackages returns the packages in pkgs whose pkgbase or any sub-package
+// name is in names; all of them when names is empty.
+func selectPackages(pkgs []*pkg.SourcePackage, names []string) []*pkg.SourcePackage {
+	if len(names) == 0 {
+		return pkgs
+	}
+	var selected []*pkg.SourcePackage
+	for _, name := range names {
+		for _, p := range pkgs {
+			if name == p.Base() || lo.Contains(p.Names(), name) {
+				selected = append(selected, p)
+				break
+			}
+		}
+	}
+	return selected
+}
+
+// diffPackages returns the source packages that are newer than (or missing
+// from) the remote repo rr.
+func diffPackages(src []*pkg.SourcePackage, rr *repo.RemoteRepo) ([]*pkg.SourcePackage, error) {
+	var shoubuild []*pkg.SourcePackage
+	for _, sp := range src {
+		rp := rr.PkgByPkgBase(sp.Base())
+		if rp == nil {
+			slog.Warn("Package does not exist in remote repository", "pkgbase", sp.Base())
+			shoubuild = append(shoubuild, sp)
+			continue
+		}
+		cmp, err := alpm.VerCmp(sp.Version(), rp.Version())
+		if err != nil {
+			slog.Error("Failed to compare versions", "pkgbase", sp.Base(), "error", err)
+			return nil, utils.WrapErr(err, "failed to compare package versions")
+		}
+		if cmp > 0 {
+			slog.Debug("Local package is newer", "pkgbase", sp.Base(), "local", sp.Version(), "remote", rp.Version())
+			shoubuild = append(shoubuild, sp)
+		}
+	}
+	return shoubuild, nil
+}
+
 // Repo builds the named packages in r (all of them when none are named).
 func Repo(r *repo.SourceRepo, t *builder.Target, dest string, pkgs ...string) error {
 	fulldstdir := path.Join(dest, t.Arch)
@@ -74,24 +117,7 @@ func Repo(r *repo.SourceRepo, t *builder.Target, dest string, pkgs ...string) er
 		return err
 	}
 
-	var targetPkgs []*pkg.SourcePackage
-	if len(pkgs) > 0 {
-		for _, name := range pkgs {
-			slog.Info("searching for package", "pkg", name)
-			for _, p := range r.Pkgs {
-				slog.Info("found package", "pkg", p.Base(), "pkgver", p.Version())
-
-				names := p.Names()
-				if name == p.Base() || lo.Contains(names, name) {
-					targetPkgs = append(targetPkgs, p)
-					break
-				}
-			}
-		}
-	} else {
-		targetPkgs = r.Pkgs
-	}
-
+	targetPkgs := selectPackages(r.Pkgs, pkgs)
 	if len(targetPkgs) == 0 {
 		return fmt.Errorf("no packages found")
 	}
@@ -103,50 +129,16 @@ func Repo(r *repo.SourceRepo, t *builder.Target, dest string, pkgs ...string) er
 			errs = append(errs, err)
 		}
 	}
-	if len(errs) > 0 {
-		var errstr string
-		for _, err := range errs {
-			errstr += err.Error() + "\n"
-		}
-		return fmt.Errorf("errors occurred during build:\n%s", errstr)
-	}
-	return nil
+	return errors.Join(errs...)
 }
 
 // Diff builds only the packages in s that are newer than (or missing from) the remote repo rr.
 func Diff(s *repo.SourceRepo, t *builder.Target, rr *repo.RemoteRepo, dest string, pkgs ...string) error {
-	var shoubuild []*pkg.SourcePackage
-	for _, sp := range s.Pkgs {
-		rp := rr.PkgByPkgBase(sp.Base())
-		if rp == nil {
-			slog.Warn("Package does not exist in remote repository", "pkgbase", sp.Base())
-			shoubuild = append(shoubuild, sp)
-			continue
-		}
-		cmp, err := alpm.VerCmp(sp.Version(), rp.Version())
-		if err != nil {
-			slog.Error("Failed to compare versions", "pkgbase", sp.Base(), "error", err)
-			return utils.WrapErr(err, "failed to compare package versions")
-		}
-		if cmp > 0 {
-			slog.Debug("Local package is newer", "pkgbase", sp.Base(), "local", sp.Version(), "remote", rp.Version())
-			shoubuild = append(shoubuild, sp)
-		}
+	shoubuild, err := diffPackages(s.Pkgs, rr)
+	if err != nil {
+		return err
 	}
-
-	if len(pkgs) > 0 {
-		var filtered []*pkg.SourcePackage
-		for _, p := range shoubuild {
-			names := p.Names()
-			for _, name := range pkgs {
-				if name == p.Base() || lo.Contains(names, name) {
-					filtered = append(filtered, p)
-					break
-				}
-			}
-		}
-		shoubuild = filtered
-	}
+	shoubuild = selectPackages(shoubuild, pkgs)
 
 	if len(shoubuild) == 0 {
 		slog.Info("No packages to build")
