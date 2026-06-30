@@ -13,6 +13,21 @@ import (
 	"github.com/samber/lo"
 )
 
+// defaultMaxUploadBytes caps an upload body when cfg.MaxSize is unset, so a
+// single authenticated request cannot spool an unbounded body into memory or the
+// tmpfs-backed /tmp on Cloud Run.
+const defaultMaxUploadBytes = 512 << 20
+
+// maxUploadBytes is the byte ceiling enforced before the multipart body is
+// spooled. cfg.MaxSize bounds a single package; the margin covers multipart
+// framing and the small detached-signature part.
+func maxUploadBytes(maxSize int) int64 {
+	if maxSize > 0 {
+		return int64(maxSize) + (1 << 20)
+	}
+	return defaultMaxUploadBytes
+}
+
 func formFileWithValidate(ctx *gin.Context, name string, maxsize int) (*multipart.FileHeader, error) {
 	pkgHeader, err := ctx.FormFile(name)
 	if err != nil {
@@ -33,6 +48,9 @@ func (h *Handler) BlinkyUploadHandler(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, domain.APIError{Message: "repository name is required"})
 		return
 	}
+	// Bound the body before spooling so an oversized upload is rejected as bytes
+	// arrive, not after the whole body is already on disk/in memory.
+	ctx.Request.Body = http.MaxBytesReader(ctx.Writer, ctx.Request.Body, maxUploadBytes(h.cfg.MaxSize))
 	if err := ctx.Request.ParseMultipartForm(10 << 20); err != nil {
 		ctx.JSON(http.StatusBadRequest, domain.APIError{Message: fmt.Sprintf("parse form err: %s", err.Error())})
 		return
@@ -112,6 +130,7 @@ func (h *Handler) BatchUploadHandler(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, domain.APIError{Message: "repository name is required"})
 		return
 	}
+	ctx.Request.Body = http.MaxBytesReader(ctx.Writer, ctx.Request.Body, maxUploadBytes(h.cfg.MaxSize))
 	if err := ctx.Request.ParseMultipartForm(10 << 20); err != nil {
 		ctx.JSON(http.StatusBadRequest, domain.APIError{Message: fmt.Sprintf("parse form err: %s", err.Error())})
 		return

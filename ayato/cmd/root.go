@@ -152,7 +152,8 @@ func RootCmd() *cobra.Command {
 			// ReadHeaderTimeout bounds slow-header (slowloris) attacks; IdleTimeout
 			// reaps idle keep-alives. No ReadTimeout or WriteTimeout: large package
 			// uploads (read body) and /repo downloads + proxied miko SSE (write) need
-			// unbounded durations; body size is bounded by cfg.MaxSize instead.
+			// unbounded durations; the upload handlers cap the body size with
+			// http.MaxBytesReader instead.
 			srv := &http.Server{
 				Addr:              fmt.Sprintf(":%d", cfg.Port),
 				Handler:           engine,
