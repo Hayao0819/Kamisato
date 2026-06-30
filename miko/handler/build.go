@@ -122,8 +122,8 @@ func (h *Handler) JobLogsHandler(c *gin.Context) {
 	rc := http.NewResponseController(c.Writer)
 	const flushDeadline = 30 * time.Second
 
-	// Poll instead of blocking in a goroutine: a goroutine parked in WaitFrom
-	// (sync.Cond, no context support) would leak when the client disconnects.
+	// Poll instead of parking a goroutine on a condition variable (no context
+	// support), which would leak when the client disconnects.
 	ticker := time.NewTicker(200 * time.Millisecond)
 	defer ticker.Stop()
 
