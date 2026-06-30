@@ -129,25 +129,27 @@ func Cmd() *cobra.Command {
 				server = srcrepo.Config.Server
 			}
 			outDir := path.Join(destDir, srcrepo.Config.Name)
+			// Repo and Diff both append the arch subdir; this is where they write.
+			writeDir := path.Join(outDir, buildTarget.Arch)
 
 			if diffMode {
-				slog.Info("Starting diff build", "repo", srcdir, "outdir", outDir, "gpgkey", gpgkey, "server", server)
+				slog.Info("Starting diff build", "repo", srcdir, "outdir", writeDir, "gpgkey", gpgkey, "server", server)
 				remoteRepo, err := pacmanrepo.RepoFromURL(server, srcrepo.Config.Name)
 				if err != nil {
 					return utils.WrapErr(err, "failed to get remote repository")
 				}
-				if err := build.Diff(srcrepo, &buildTarget, remoteRepo, destDir, buildPkgs...); err != nil {
+				if err := build.Diff(srcrepo, &buildTarget, remoteRepo, outDir, buildPkgs...); err != nil {
 					return utils.WrapErr(err, "failed to perform diff build")
 				}
-				slog.Debug("Diff build completed", "outdir", outDir)
+				slog.Debug("Diff build completed", "outdir", writeDir)
 				return nil
 			}
 
-			slog.Info("Starting package build", "repo", srcdir, "outdir", outDir, "gpgkey", gpgkey)
+			slog.Info("Starting package build", "repo", srcdir, "outdir", writeDir, "gpgkey", gpgkey)
 			if err := build.Repo(srcrepo, &buildTarget, outDir, buildPkgs...); err != nil {
 				return utils.WrapErr(err, "failed to build package")
 			}
-			slog.Debug("Build completed", "outdir", outDir)
+			slog.Debug("Build completed", "outdir", writeDir)
 			return nil
 		},
 	}

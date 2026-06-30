@@ -153,7 +153,7 @@ func Diff(s *repo.SourceRepo, t *builder.Target, rr *repo.RemoteRepo, dest strin
 		return nil
 	}
 
-	outDir := path.Join(dest, s.Config.Name)
+	outDir := path.Join(dest, t.Arch)
 	for _, p := range shoubuild {
 		pkgbase := p.Base()
 		slog.Debug("Starting package build", "pkgbase", pkgbase)
