@@ -14,13 +14,10 @@ export type PackageInfo = PKGINFO;
 export type PacmanPkgsResponse = PacmanPkgs;
 export type { BuildStats, GitSource };
 
-// miko serializes install_pkgs and gpg_key unconditionally, but a client may
-// omit them on submit and let the server apply defaults; relax just those two.
-export type BuildRequest = Omit<
-    GeneratedBuildRequest,
-    "install_pkgs" | "gpg_key"
-> &
-    Partial<Pick<GeneratedBuildRequest, "install_pkgs" | "gpg_key">>;
+// miko serializes install_pkgs unconditionally, but a client may omit it on
+// submit and let the server apply defaults; relax just that field.
+export type BuildRequest = Omit<GeneratedBuildRequest, "install_pkgs"> &
+    Partial<Pick<GeneratedBuildRequest, "install_pkgs">>;
 
 // Closed set the UI switches on; narrows miko's open JobStatus string.
 export type JobStatus =

@@ -29,10 +29,6 @@ export interface BuildRequest {
    */
   install_pkgs: string[];
   /**
-   * GPGKey identifies the signing key to use after build.
-   */
-  gpg_key: string;
-  /**
    * SignMode selects where signing happens: "host" (default) signs on the
    * worker with its host key; "client" leaves the artifact unsigned for the
    * requester to download and sign locally.

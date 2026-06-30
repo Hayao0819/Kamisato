@@ -52,7 +52,6 @@ export function BuildSubmitDialog({
     const [gitUrl, setGitUrl] = useState("");
     const [gitRef, setGitRef] = useState("");
     const [installPkgs, setInstallPkgs] = useState("");
-    const [gpgKey, setGpgKey] = useState("");
     const [timeout, setTimeout] = useState("");
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -83,7 +82,6 @@ export function BuildSubmitDialog({
             .map((s) => s.trim())
             .filter(Boolean);
         if (pkgs.length > 0) req.install_pkgs = pkgs;
-        if (gpgKey.trim()) req.gpg_key = gpgKey.trim();
         const timeoutMin = Number.parseInt(timeout, 10);
         if (Number.isFinite(timeoutMin) && timeoutMin > 0)
             req.timeout = timeoutMin;
@@ -97,7 +95,6 @@ export function BuildSubmitDialog({
                 setGitUrl("");
                 setGitRef("");
                 setInstallPkgs("");
-                setGpgKey("");
                 setTimeout("");
             }
         } finally {
@@ -220,15 +217,6 @@ export function BuildSubmitDialog({
                     </div>
 
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                        <div className="space-y-2">
-                            <Label htmlFor="build-gpg-key">GPG 鍵 (任意)</Label>
-                            <Input
-                                id="build-gpg-key"
-                                value={gpgKey}
-                                onChange={(e) => setGpgKey(e.target.value)}
-                                placeholder="署名に使う鍵 ID"
-                            />
-                        </div>
                         <div className="space-y-2">
                             <Label htmlFor="build-timeout">
                                 タイムアウト(分) (任意)
