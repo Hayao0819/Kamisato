@@ -1,8 +1,10 @@
 // Package overlay implements the kayo Backend: a set of trusted git overlays,
 // each an AUR-identical repository (PKGBUILD + .SRCINFO at the root, split
 // packages allowed), parsed statically into aurweb metadata. The PKGBUILD is
-// never executed — only the committed .SRCINFO is read — and refs are pinned, so
-// an upstream change to an overlay cannot silently alter what kayo resolves.
+// never executed — only the committed .SRCINFO is read. Each overlay tracks its
+// configured ref (or the remote default branch when unset); it is trusted by
+// config, not cryptographically pinned, so pin to an immutable commit or tag if
+// upstream must not move under you.
 package overlay
 
 import (
@@ -194,10 +196,13 @@ func fetchOverlay(ctx context.Context, dir string, o conf.OverlayConfig) error {
 		// 127.0.0.1) are a supported deployment. ext:: RCE is blocked by gitcmd.
 		return gitcmd.Clone(ctx, gitcmd.CloneOptions{URL: o.URL, Dir: dir, Ref: o.Ref})
 	case o.Ref != "":
-		if err := gitcmd.Run(ctx, dir, "fetch", "--quiet", "--tags", "--prune", "origin"); err != nil {
+		if err := gitcmd.Run(ctx, dir, "fetch", "--quiet", "--tags", "--prune", "origin", o.Ref); err != nil {
 			return err
 		}
-		return gitcmd.Run(ctx, dir, "checkout", "--quiet", o.Ref)
+		// reset --hard FETCH_HEAD so a branch ref actually advances; a plain
+		// checkout of an already-checked-out branch would freeze it at clone time.
+		// FETCH_HEAD resolves the just-fetched ref be it a branch, tag, or commit.
+		return gitcmd.Run(ctx, dir, "reset", "--hard", "--quiet", "FETCH_HEAD")
 	default:
 		return gitcmd.Run(ctx, dir, "pull", "--quiet", "--ff-only")
 	}
