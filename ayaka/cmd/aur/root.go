@@ -5,12 +5,25 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
 	"github.com/Hayao0819/Kamisato/internal/utils"
 	"github.com/spf13/cobra"
 )
+
+// aurPkgNameRe is the AUR pkgbase charset. The leading [a-z0-9] forbids a leading
+// dot or dash, and the charset has no "/", so a name can never be a path
+// traversal ("../x") that escapes the source repo directory.
+var aurPkgNameRe = regexp.MustCompile(`^[a-z0-9][a-z0-9@._+-]*$`)
+
+func validateAurPkgName(name string) error {
+	if !aurPkgNameRe.MatchString(name) {
+		return utils.NewErrf("invalid AUR package name %q", name)
+	}
+	return nil
+}
 
 // Cmd groups the commands that pull PKGBUILDs from the AUR into a source repository.
 func Cmd() *cobra.Command {
@@ -54,6 +67,10 @@ func runAurFetch(cmd *cobra.Command, repoName string, pkgs []string, aurBase str
 }
 
 func updateAurPkg(cobraCmd *cobra.Command, repoDir, aurBase, name string, force bool) error {
+	if err := validateAurPkgName(name); err != nil {
+		return err
+	}
+
 	targetDir := filepath.Join(repoDir, name)
 	gitDir := filepath.Join(targetDir, ".git")
 
