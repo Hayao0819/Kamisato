@@ -6,12 +6,12 @@ import (
 	"github.com/Hayao0819/Kamisato/ayato/stream"
 )
 
-// presignRecorder is a blob.Store that records the name handed to
-// StoreFileWithSignedURL, so a test can assert the DB-alias resolution.
-type presignRecorder struct{ gotName string }
+// presignRecorder is a blob.Store that records the arch+name handed to
+// StoreFileWithSignedURL, so a test can assert the alias resolution.
+type presignRecorder struct{ gotArch, gotName string }
 
-func (p *presignRecorder) StoreFileWithSignedURL(_, _, name string) (string, error) {
-	p.gotName = name
+func (p *presignRecorder) StoreFileWithSignedURL(_, arch, name string) (string, error) {
+	p.gotArch, p.gotName = arch, name
 	return "https://example.com/" + name, nil
 }
 
@@ -34,17 +34,20 @@ func TestBinaryRepoSignedURLResolvesDBAlias(t *testing.T) {
 	rec := &presignRecorder{}
 	r := NewBinaryRepository(rec)
 
-	cases := []struct{ name, want string }{
-		{"core.db", "core.db.tar.gz"},
-		{"core.files", "core.files.tar.gz"},
-		{"pkg-1-1-x86_64.pkg.tar.zst", "pkg-1-1-x86_64.pkg.tar.zst"},
+	cases := []struct{ arch, name, wantArch, wantName string }{
+		{"x86_64", "core.db", "x86_64", "core.db.tar.gz"},
+		{"x86_64", "core.files", "x86_64", "core.files.tar.gz"},
+		{"x86_64", "pkg-1-1-x86_64.pkg.tar.zst", "x86_64", "pkg-1-1-x86_64.pkg.tar.zst"},
+		// -any packages and their .sig live under "any/"; presign must point there.
+		{"x86_64", "pkg-1-1-any.pkg.tar.zst", "any", "pkg-1-1-any.pkg.tar.zst"},
+		{"x86_64", "pkg-1-1-any.pkg.tar.zst.sig", "any", "pkg-1-1-any.pkg.tar.zst.sig"},
 	}
 	for _, tc := range cases {
-		if _, err := r.StoreFileWithSignedURL("core", "x86_64", tc.name); err != nil {
+		if _, err := r.StoreFileWithSignedURL("core", tc.arch, tc.name); err != nil {
 			t.Fatalf("StoreFileWithSignedURL(%q): %v", tc.name, err)
 		}
-		if rec.gotName != tc.want {
-			t.Errorf("presigned object for %q = %q, want %q", tc.name, rec.gotName, tc.want)
+		if rec.gotArch != tc.wantArch || rec.gotName != tc.wantName {
+			t.Errorf("presign(%s/%s) = %s/%s, want %s/%s", tc.arch, tc.name, rec.gotArch, rec.gotName, tc.wantArch, tc.wantName)
 		}
 	}
 }

@@ -110,12 +110,15 @@ type aliasFile struct {
 
 func (a aliasFile) FileName() string { return a.name }
 
-// StoreFileWithSignedURL presigns a direct-download URL for a stored object.
-// <repo>.db / <repo>.files are not stored; they are aliases of their .tar.gz
-// archives, so presigning the bare name would 404 — resolve to the archive first.
+// StoreFileWithSignedURL presigns a direct-download URL for a stored object. It
+// mirrors FetchFile's two alias mechanisms so the presigned key always points at
+// a real object: <repo>.db / <repo>.files resolve to their .tar.gz archive, and
+// an -any package (and its .sig) is stored once under "any/", so presign there.
 func (r *binaryRepository) StoreFileWithSignedURL(repo, arch, name string) (string, error) {
 	if target := dbAliasTarget(repo, name); target != "" {
 		name = target
+	} else if arch != "any" && strings.Contains(name, "-any.pkg.tar.") {
+		arch = "any"
 	}
 	return r.Store.StoreFileWithSignedURL(repo, arch, name)
 }
