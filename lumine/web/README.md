@@ -20,8 +20,7 @@ Lumine Web is a frontend application for the Arch Linux package repository backe
 - shadcn/ui
 - Lucide React (icons)
 - next-themes (theme switching)
-- embla-carousel-react (carousel)
-- sonner (toast notification)
+- jotai (state)
 - class-variance-authority (style utility)
 - @radix-ui/react-* (UI primitives)
 
