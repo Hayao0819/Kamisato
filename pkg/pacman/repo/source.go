@@ -25,8 +25,10 @@ type SrcConfig struct {
 }
 
 type SourceRepo struct {
-	Config *SrcConfig
-	Pkgs   []*pkg.SourcePackage
+	Config  *SrcConfig
+	Pkgs    []*pkg.SourcePackage
+	Dir     string
+	DestDir string
 }
 
 func GetSrcDirs(repodir string) ([]string, error) {

@@ -21,6 +21,8 @@ func InitSrcRepos() error {
 		if err != nil {
 			return utils.WrapErr(err, "failed to load source repository "+r.Dir)
 		}
+		sr.Dir = r.Dir
+		sr.DestDir = r.DestDir
 		SrcRepos = append(SrcRepos, sr)
 	}
 	return nil
@@ -55,23 +57,15 @@ func GetSrcRepo(name string) *repo.SourceRepo {
 }
 
 func GetDestDir(name string) string {
-	for i, r := range SrcRepos {
-		if r.Config.Name == name {
-			if i < len(Config.Repos) {
-				return Config.Repos[i].DestDir
-			}
-		}
+	if r := GetSrcRepo(name); r != nil {
+		return r.DestDir
 	}
 	return ""
 }
 
 func GetSrcDir(name string) string {
-	for i, r := range SrcRepos {
-		if r.Config.Name == name {
-			if i < len(Config.Repos) {
-				return Config.Repos[i].Dir
-			}
-		}
+	if r := GetSrcRepo(name); r != nil {
+		return r.Dir
 	}
 	return ""
 }
