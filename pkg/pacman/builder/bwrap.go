@@ -41,7 +41,7 @@ const bwrapBuildUID = "1000"
 //
 // NOTE: this path needs validation on a real Arch host (bwrap >= 0.11 for
 // --overlay, unprivileged overlayfs, a keyring-populated rootfs); it cannot run
-// in this CI sandbox. Cross-arch (CARCH override / qemu) is a TODO.
+// in this CI sandbox. Cross-arch (CARCH override / qemu) is not yet supported.
 type bwrapBackend struct {
 	rootfs  string
 	timeout time.Duration
@@ -65,7 +65,7 @@ func (b *bwrapBackend) Build(ctx context.Context, spec Spec) (*Result, error) {
 	}
 	if reason, in := inContainer(); in {
 		return nil, fmt.Errorf("bwrap backend is host-only and refuses to run inside a container (%s); "+
-			"run miko on the host (TODO: nested bwrap needs the outer container's seccomp/AppArmor relaxed)", reason)
+			"run miko on the host (nested bwrap needs the outer container's seccomp/AppArmor relaxed)", reason)
 	}
 	if _, err := exec.LookPath("bwrap"); err != nil {
 		return nil, fmt.Errorf("bwrap backend requires the 'bubblewrap' package (>= 0.11) on PATH: %w", err)
