@@ -40,6 +40,7 @@ func SetRoute(e *gin.Engine, h *handler.Handler, m *middleware.Middleware) error
 			api.GET("/:repo/:arch/package", h.AllPkgsHandler)
 			api.GET("/:repo/:arch/package/:name", h.PkgDetailHandler)
 			api.GET("/:repo/:arch/package/:name/files", h.PkgFilesHandler)
+			api.GET("/:repo/:arch/signed-url", h.SignedURLHandler)
 		}
 
 		// Public GitHub-OAuth endpoints (no auth middleware).
