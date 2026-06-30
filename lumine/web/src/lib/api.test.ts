@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { APIClient } from "@/lib/api";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { APIClient, type BugReportInput } from "@/lib/api";
 
 const BASE = "https://ayato.example";
 
@@ -40,6 +40,11 @@ describe("APIEndpoints", () => {
         expect(e.authMe()).toBe(`${api}/auth/me`);
     });
 
+    it("builds feature and bug-report endpoints", () => {
+        expect(e.features()).toBe(`${api}/features`);
+        expect(e.bugReports()).toBe(`${api}/bug-reports`);
+    });
+
     it("builds build/job endpoints", () => {
         expect(e.submitBuild()).toBe(`${api}/build`);
         expect(e.listJobs()).toBe(`${api}/jobs`);
@@ -61,5 +66,84 @@ describe("APIClient runtime config", () => {
         const api = APIClient.fallback();
         expect(api.serverUrl).toBeNull();
         expect(api.endpoints.executable).toBe(false);
+    });
+});
+
+type FetchFn = (
+    input: RequestInfo | URL,
+    init?: RequestInit,
+) => Promise<Response>;
+
+describe("APIClient feature and bug-report calls", () => {
+    afterEach(() => {
+        vi.unstubAllGlobals();
+    });
+
+    it("fetches the features object from the features endpoint", async () => {
+        const payload = {
+            bug_report: true,
+            miko: false,
+            github_login: true,
+            recaptcha_site_key: "site-key",
+        };
+        const fetchMock = vi.fn<FetchFn>(
+            async () => new Response(JSON.stringify(payload), { status: 200 }),
+        );
+        vi.stubGlobal("fetch", fetchMock);
+
+        const features = await client().features();
+
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+        expect(fetchMock.mock.calls[0][0]).toBe(
+            `${BASE}/api/unstable/features`,
+        );
+        expect(features).toEqual(payload);
+    });
+
+    it("posts a bug report and returns the created issue url", async () => {
+        const fetchMock = vi.fn<FetchFn>(
+            async () =>
+                new Response(
+                    JSON.stringify({ url: "https://issues.example/1" }),
+                    { status: 201 },
+                ),
+        );
+        vi.stubGlobal("fetch", fetchMock);
+
+        const input: BugReportInput = {
+            pkgname: "bash",
+            pkgver: "5.2.0-1",
+            name: "reporter",
+            email: "reporter@example.com",
+            severity: "high",
+            description: "it crashes",
+            recaptcha_token: "token-123",
+        };
+        const res = await client().submitBugReport(input);
+
+        const [url, init] = fetchMock.mock.calls[0];
+        expect(url).toBe(`${BASE}/api/unstable/bug-reports`);
+        expect(init?.method).toBe("POST");
+        expect(JSON.parse(init?.body as string)).toEqual(input);
+        expect(res).toEqual({ url: "https://issues.example/1" });
+    });
+
+    it("throws when the bug-report submit fails", async () => {
+        const fetchMock = vi.fn(
+            async () => new Response("nope", { status: 400 }),
+        );
+        vi.stubGlobal("fetch", fetchMock);
+
+        await expect(
+            client().submitBugReport({
+                pkgname: "bash",
+                pkgver: "5.2.0-1",
+                name: "",
+                email: "",
+                severity: "medium",
+                description: "x",
+                recaptcha_token: "",
+            }),
+        ).rejects.toThrow();
     });
 });
