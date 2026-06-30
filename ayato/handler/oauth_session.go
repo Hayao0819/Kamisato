@@ -9,8 +9,9 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// CLI PKCE exchange. The one-time code is single-use by construction: its 60s TTL
-// plus the PKCE verifier bound replay, with no stored "used" set.
+// CLI PKCE exchange. The code is a stateless signed token with no stored "used"
+// set, so it is replay-limited, not single-use: its 60s TTL and the bound PKCE
+// verifier are what constrain replay within that window.
 func (h *Handler) CLIExchangeHandler(c *gin.Context) {
 	if h.signer == nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "auth not configured"})
