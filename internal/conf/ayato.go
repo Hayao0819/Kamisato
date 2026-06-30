@@ -39,14 +39,27 @@ func (c *AyatoConfig) RedirectDownloadsEnabled() bool {
 	return c.RedirectDownloads == nil || *c.RedirectDownloads
 }
 
-// BugReportConfig selects the external tracker bug reports are forwarded to.
-// An empty Type disables the feature (the UI hides its report button).
+// BugReportConfig selects the external trackers bug reports are forwarded to.
+// Backends lists every enabled sink; an empty list disables the feature (the UI
+// hides its report button). A report fans out to all of them.
 type BugReportConfig struct {
-	Type   string `koanf:"type"` // "github" | "" (disabled)
-	GitHub struct {
+	Backends []string `koanf:"backends"` // any of "github", "smtp", "webhook"; empty disables reporting
+	GitHub   struct {
 		Repo  string `koanf:"repo"`  // "owner/name"
 		Token string `koanf:"token"` // token allowed to open issues
 	} `koanf:"github"`
+	SMTP struct {
+		Host         string `koanf:"host"`
+		Port         int    `koanf:"port"`
+		Username     string `koanf:"username"`
+		Password     string `koanf:"password"`
+		From         string `koanf:"from"`
+		To           string `koanf:"to"`
+		ToMaintainer bool   `koanf:"to_maintainer"` // also mail the package maintainer when known
+	} `koanf:"smtp"`
+	Webhook struct {
+		URL string `koanf:"url"`
+	} `koanf:"webhook"`
 }
 
 // RecaptchaConfig enables Google reCAPTCHA v2 on the bug-report form. SiteKey is
