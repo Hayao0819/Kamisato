@@ -14,15 +14,13 @@ func Load[T any](
 	dirs []string,
 	files []string,
 	flags *pflag.FlagSet,
-	envPrefix string, // prefix for env var lookup (e.g. APP_)
-	envDelimiter string, // env var delimiter (e.g. .)
-	envKeyMap func(string) string, // optional key transform function
+	envPrefix string, // prefix for env var lookup (e.g. AYATO)
 ) (*T, error) {
 	loader := New[T](".").
 		Dirs(dirs...).
 		Files(files...).
 		PFlags(flags).
-		Env(envPrefix, envDelimiter, envKeyMap)
+		Env(envPrefix)
 
 	err := loader.Load()
 	if err != nil {

@@ -8,12 +8,13 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 
 	"github.com/knadh/koanf/parsers/json"
 	"github.com/knadh/koanf/parsers/toml"
 	"github.com/knadh/koanf/parsers/yaml"
-	"github.com/knadh/koanf/providers/env"
+	env "github.com/knadh/koanf/providers/env/v2"
 	"github.com/knadh/koanf/providers/file"
 	"github.com/knadh/koanf/providers/posflag"
 	"github.com/knadh/koanf/v2"
@@ -22,13 +23,11 @@ import (
 
 // Loader is a builder that assembles search conditions incrementally and loads config.
 type Loader[T any] struct {
-	k            *koanf.Koanf
-	dirs         []string
-	filenames    []string
-	envPrefix    string
-	envDelimiter string
-	envKeyMap    func(string) string
-	pflags       *pflag.FlagSet
+	k         *koanf.Koanf
+	dirs      []string
+	filenames []string
+	envPrefix string
+	pflags    *pflag.FlagSet
 }
 
 // New returns a new Loader instance with a custom delimiter (default ".")
@@ -49,11 +48,8 @@ func (l *Loader[T]) Files(filenames ...string) *Loader[T] {
 	return l
 }
 
-func (l *Loader[T]) Env(prefix, delimiter string, keyMap func(string) string) *Loader[T] {
+func (l *Loader[T]) Env(prefix string) *Loader[T] {
 	l.envPrefix = prefix
-	l.envDelimiter = delimiter
-	l.envKeyMap = keyMap
-
 	return l
 }
 
@@ -80,7 +76,22 @@ func (l *Loader[T]) Load() error {
 	}
 
 	if l.envPrefix != "" {
-		if err := l.k.Load(env.Provider(l.envPrefix, l.envDelimiter, l.envKeyMap), nil); err != nil {
+		// Env names stay pretty (single underscores). Map each one to its exact
+		// dotted koanf path so multi-word tags and cross-section keys resolve.
+		revMap, err := envPathMap(reflect.TypeOf((*T)(nil)).Elem(), l.envPrefix)
+		if err != nil {
+			return err
+		}
+		provider := env.Provider(".", env.Opt{
+			Prefix: strings.ToUpper(l.envPrefix) + "_",
+			TransformFunc: func(k, v string) (string, any) {
+				if path, ok := revMap[k]; ok {
+					return path, v
+				}
+				return "", nil
+			},
+		})
+		if err := l.k.Load(provider, nil); err != nil {
 			return fmt.Errorf("failed to load env vars: %w", err)
 		}
 	}
@@ -129,6 +140,62 @@ func (l *Loader[T]) Get() (*T, error) {
 
 func (l *Loader[T]) Unmarshal(v *T) error {
 	return l.k.Unmarshal("", v)
+}
+
+// envPathMap maps each leaf's env name to its dotted koanf path, derived from the
+// koanf struct tags of T. The env name is the prefix plus the uppercased path with
+// dots replaced by underscores, e.g. auth.session_secret -> AYATO_AUTH_SESSION_SECRET.
+func envPathMap(t reflect.Type, prefix string) (map[string]string, error) {
+	var paths []string
+	collectKoanfPaths(t, "", &paths)
+
+	rev := make(map[string]string, len(paths))
+	for _, p := range paths {
+		name := strings.ToUpper(prefix + "_" + strings.ReplaceAll(p, ".", "_"))
+		if other, ok := rev[name]; ok {
+			return nil, fmt.Errorf("env name %q maps to both %q and %q", name, other, p)
+		}
+		rev[name] = p
+	}
+	return rev, nil
+}
+
+// collectKoanfPaths walks t's koanf tags, recursing into nested structs and
+// treating slices and maps as single leaves.
+func collectKoanfPaths(t reflect.Type, prefix string, out *[]string) {
+	if t.Kind() == reflect.Pointer {
+		t = t.Elem()
+	}
+	if t.Kind() != reflect.Struct {
+		return
+	}
+	for i := 0; i < t.NumField(); i++ {
+		f := t.Field(i)
+		if !f.IsExported() {
+			continue
+		}
+		name, _, _ := strings.Cut(f.Tag.Get("koanf"), ",")
+		if name == "-" {
+			continue
+		}
+		if name == "" {
+			name = f.Name
+		}
+		path := name
+		if prefix != "" {
+			path = prefix + "." + name
+		}
+
+		ft := f.Type
+		if ft.Kind() == reflect.Pointer {
+			ft = ft.Elem()
+		}
+		if ft.Kind() == reflect.Struct {
+			collectKoanfPaths(ft, path, out)
+			continue
+		}
+		*out = append(*out, path)
+	}
 }
 
 func parserForExtension(ext string) (koanf.Parser, error) {

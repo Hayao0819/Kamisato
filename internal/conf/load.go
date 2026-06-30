@@ -2,7 +2,6 @@ package conf
 
 import (
 	"os"
-	"strings"
 
 	"github.com/Hayao0819/Kamisato/internal/confloader"
 	"github.com/spf13/pflag"
@@ -23,12 +22,5 @@ func commonConfigDirs() []string {
 }
 
 func loadConfig[T any](dirs []string, files []string, flags *pflag.FlagSet, envPrefix string) (*T, error) {
-	return confloader.Load[T](dirs, files, flags, envPrefix, "_", func(key string) string {
-		key = strings.ToLower(key)
-		key = strings.TrimPrefix(key, "ayato_")
-		key = strings.TrimPrefix(key, "ayaka_")
-		key = strings.TrimPrefix(key, "miko_")
-		key = strings.TrimPrefix(key, "kayo_")
-		return key
-	})
+	return confloader.Load[T](dirs, files, flags, envPrefix)
 }
