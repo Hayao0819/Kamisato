@@ -7,7 +7,7 @@ import (
 	"net/http"
 )
 
-//go:embed out/**
+//go:embed all:out
 var nextFS embed.FS
 
 func NextFS() fs.FS {
