@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"net/http"
@@ -130,9 +131,19 @@ func (h *Handler) JobLogsHandler(c *gin.Context) {
 	offset := 0
 	emit := func() bool {
 		// BytesFrom reads closed atomically with the bytes, so the final write isn't missed.
-		chunk, total, closed := job.Log.BytesFrom(offset)
-		if len(chunk) > 0 {
-			lines := strings.Split(string(chunk), "\n")
+		chunk, _, closed := job.Log.BytesFrom(offset)
+		// Hold a trailing partial line until its newline arrives, so one log line
+		// is never split across two SSE frames. Once closed, flush the remainder.
+		data := chunk
+		if !closed {
+			if i := bytes.LastIndexByte(data, '\n'); i >= 0 {
+				data = data[:i+1]
+			} else {
+				data = nil
+			}
+		}
+		if len(data) > 0 {
+			lines := strings.Split(string(data), "\n")
 			// Drop the empty tail a chunk ending in "\n" produces.
 			if n := len(lines); n > 0 && lines[n-1] == "" {
 				lines = lines[:n-1]
@@ -142,7 +153,7 @@ func (h *Handler) JobLogsHandler(c *gin.Context) {
 			}
 			_ = rc.SetWriteDeadline(time.Now().Add(flushDeadline))
 			c.Writer.Flush()
-			offset = total
+			offset += len(data)
 		}
 		return closed
 	}

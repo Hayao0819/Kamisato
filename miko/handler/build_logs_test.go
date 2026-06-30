@@ -5,6 +5,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/miko/domain"
@@ -44,6 +45,44 @@ func TestJobLogsHandlerEmitsLinesOnce(t *testing.T) {
 	// No empty trailing data frame from the final newline.
 	if strings.Contains(body, "data: \n\n") {
 		t.Errorf("emitted an empty trailing data frame:\n%s", body)
+	}
+}
+
+func TestJobLogsHandlerHoldsPartialLine(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	mockSvc := mocks.NewMockServicer(ctrl)
+	h := New(mockSvc, &conf.MikoConfig{MaxLogReaders: 8})
+
+	// A chunk that does not end in a newline must be held, not framed on its own.
+	buf := joblog.New(0)
+	buf.Write([]byte("hello, "))
+	job := &domain.BuildJob{ID: "job1", Log: buf}
+	mockSvc.EXPECT().Status("job1").Return(job, nil)
+
+	r := gin.New()
+	r.GET("/jobs/:id/logs", h.JobLogsHandler)
+	w := httptest.NewRecorder()
+
+	done := make(chan struct{})
+	go func() {
+		r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/jobs/job1/logs", nil))
+		close(done)
+	}()
+
+	// Let the handler poll the partial line on its own before the newline arrives.
+	time.Sleep(300 * time.Millisecond)
+	buf.Write([]byte("world\n"))
+	buf.Close()
+	<-done
+
+	body := w.Body.String()
+	if c := strings.Count(body, "data: hello, world\n\n"); c != 1 {
+		t.Errorf("merged frame appeared %d times, want exactly 1\nbody:\n%s", c, body)
+	}
+	if strings.Contains(body, "data: hello, \n\n") {
+		t.Errorf("partial line was framed before its newline arrived:\n%s", body)
 	}
 }
 
