@@ -9,7 +9,8 @@
         "fmt": "biome format --write",
         "lint": "biome lint --write",
         "fix": "biome check --write --unsafe",
-        "check": "biome check"
+        "check": "biome check",
+        "gen:types": "go run github.com/gzuidhof/tygo@latest generate"
     },
     "dependencies": {
         "@radix-ui/react-dialog": "1.1.15",

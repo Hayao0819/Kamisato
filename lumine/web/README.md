@@ -79,8 +79,20 @@ The application will be available at `http://localhost:3000`.
 - `lib/`: Utility functions and type definitions
   - `api.ts`: Backend API
   - `types.ts`: Type definitions
+  - `generated/`: API types generated from the Go structs (see below)
   - `utils.ts`: Other utilities
 - `styles/`: Global styles
+
+## API Types
+
+`src/lib/generated/` mirrors the ayato and miko Go structs, generated with
+[tygo](https://github.com/gzuidhof/tygo) from `tygo.yaml` so the client cannot
+drift from the server. `src/lib/types.ts` re-exports those shapes with a few
+client-only refinements. Regenerate them whenever the Go types change:
+
+```bash
+pnpm gen:types
+```
 
 ## License
 
