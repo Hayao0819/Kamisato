@@ -21,8 +21,8 @@ var bugSeverities = map[string]bool{"critical": true, "high": true, "medium": tr
 type bugReportRequest struct {
 	Pkgname        string `json:"pkgname"`
 	Pkgver         string `json:"pkgver"`
-	Repo           string `json:"repo"`  // optional, used to resolve the maintainer
-	Arch           string `json:"arch"`  // optional, used to resolve the maintainer
+	Repo           string `json:"repo"` // optional, used to resolve the maintainer
+	Arch           string `json:"arch"` // optional, used to resolve the maintainer
 	Name           string `json:"name"`
 	Email          string `json:"email"`
 	Severity       string `json:"severity"`
@@ -66,7 +66,8 @@ func (h *Handler) SubmitBugReportHandler(c *gin.Context) {
 	}
 	if len(req.Description) > maxBugDescLen ||
 		len(req.Pkgname) > maxBugFieldLen || len(req.Pkgver) > maxBugFieldLen ||
-		len(req.Name) > maxBugFieldLen || len(req.Email) > maxBugFieldLen {
+		len(req.Name) > maxBugFieldLen || len(req.Email) > maxBugFieldLen ||
+		len(req.Repo) > maxBugFieldLen || len(req.Arch) > maxBugFieldLen {
 		c.JSON(http.StatusBadRequest, domain.APIError{Message: "a field exceeds its maximum length"})
 		return
 	}

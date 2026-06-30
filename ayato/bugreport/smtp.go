@@ -100,12 +100,19 @@ func (s *smtpReporter) Report(ctx context.Context, r Report) (string, error) {
 }
 
 func (s *smtpReporter) newClient() (*mail.Client, error) {
-	opts := []mail.Option{mail.WithTLSPortPolicy(mail.TLSOpportunistic)}
+	// Require TLS whenever credentials are sent so SMTP AUTH can never leak over
+	// plaintext; without auth, allow opportunistic TLS so local relays still work.
+	hasAuth := s.cfg.Username != "" || s.cfg.Password != ""
+	policy := mail.TLSMandatory
+	if !hasAuth {
+		policy = mail.TLSOpportunistic
+	}
+	opts := []mail.Option{mail.WithTLSPortPolicy(policy)}
 	// An explicit port overrides the policy's auto-selected one.
 	if s.cfg.Port != 0 {
 		opts = append(opts, mail.WithPort(s.cfg.Port))
 	}
-	if s.cfg.Username != "" || s.cfg.Password != "" {
+	if hasAuth {
 		opts = append(opts,
 			mail.WithSMTPAuth(mail.SMTPAuthAutoDiscover),
 			mail.WithUsername(s.cfg.Username),
