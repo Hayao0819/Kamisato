@@ -73,6 +73,9 @@ func updateCmd() *cobra.Command {
 				return utils.NewErr("refusing to approve: high-severity findings (use --force)")
 			}
 
+			if err := r.RequirePinnedCommit(); err != nil {
+				return err
+			}
 			if err := gitserve.Materialize(cmd.Context(), cfg.ServedRoot(), r.Pkgbase, r.Dir, r.Commit); err != nil {
 				return utils.WrapErr(err, "failed to re-pin reviewed commit")
 			}

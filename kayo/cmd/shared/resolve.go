@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/Hayao0819/Kamisato/internal/conf"
+	"github.com/Hayao0819/Kamisato/internal/utils"
 	"github.com/Hayao0819/Kamisato/kayo/audit"
 	"github.com/Hayao0819/Kamisato/pkg/aurweb"
 	"github.com/Hayao0819/Kamisato/pkg/raiou"
@@ -50,6 +51,18 @@ func Resolve(ctx context.Context, cfg *conf.KayoConfig, target, ref string) (Res
 		r.Maintainer, r.Pkgbase = aurMeta(ctx, cfg, target, r.Pkgbase)
 	}
 	return r, cleanup, nil
+}
+
+// RequirePinnedCommit fails when the target has no commit to pin, which happens
+// for a local directory that is not a git repo (HeadCommit left Commit empty).
+// Pinning paths call this so the user gets a clear message here instead of the
+// opaque failure deferred to gitserve.Materialize. The audit path does not call
+// it: auditing a plain directory with no commit is legitimate.
+func (r Resolved) RequirePinnedCommit() error {
+	if r.Commit == "" {
+		return utils.NewErr("target is not a git repository; cannot pin a reviewed commit")
+	}
+	return nil
 }
 
 func readPkgbase(dir, fallback string) string {

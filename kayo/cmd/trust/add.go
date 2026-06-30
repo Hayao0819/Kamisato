@@ -53,6 +53,9 @@ func trustAddCmd() *cobra.Command {
 
 			// Pin the reviewed commit by serving it ourselves (variant B), so a
 			// later clone gets exactly what was audited.
+			if err := r.RequirePinnedCommit(); err != nil {
+				return err
+			}
 			if err := gitserve.Materialize(cmd.Context(), cfg.ServedRoot(), r.Pkgbase, r.Dir, r.Commit); err != nil {
 				return utils.WrapErr(err, "failed to pin reviewed commit")
 			}
