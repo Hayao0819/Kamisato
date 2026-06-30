@@ -89,7 +89,6 @@ func Cmd() *cobra.Command {
 				return shared.RunRemoteBuild(shared.RemoteBuildOpts{
 					Repo:   repo,
 					Server: server,
-					GPGKey: gpgkey,
 					Pkgs:   buildPkgs,
 				})
 			}
@@ -154,8 +153,8 @@ func Cmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVarP(&gpgkey, "key", "g", "", "GPG key for package signing")
-	// --gpgkey is the original spelling, kept as a deprecated alias since the
-	// flag was unified with `miko build --key`. Both bind to the same value.
+	// --gpgkey is the original spelling, kept as a deprecated alias for --key.
+	// Both bind to the same value.
 	cmd.Flags().StringVar(&gpgkey, "gpgkey", "", "Deprecated: use --key")
 	_ = cmd.Flags().MarkDeprecated("gpgkey", "use --key instead")
 	cmd.Flags().BoolVar(&diffMode, "diff", false, "Enable diff build mode (build only new packages)")

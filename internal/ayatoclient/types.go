@@ -12,7 +12,6 @@ type BuildRequest struct {
 	// Files are extra filename->contents written alongside the Pkgbuild source.
 	Files       map[string]string `json:"files,omitempty"`
 	InstallPkgs []string          `json:"install_pkgs"`
-	GPGKey      string            `json:"gpg_key"`
 	// SignMode "client" leaves the build unsigned for local download+signing;
 	// empty/"host" signs on the worker.
 	SignMode string `json:"sign_mode,omitempty"`

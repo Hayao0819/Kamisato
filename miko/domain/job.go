@@ -27,8 +27,6 @@ type BuildRequest struct {
 	Files map[string]string `json:"files,omitempty"`
 	// InstallPkgs are local package files installed before building.
 	InstallPkgs []string `json:"install_pkgs"`
-	// GPGKey identifies the signing key to use after build.
-	GPGKey string `json:"gpg_key"`
 	// SignMode selects where signing happens: "host" (default) signs on the
 	// worker with its host key; "client" leaves the artifact unsigned for the
 	// requester to download and sign locally.

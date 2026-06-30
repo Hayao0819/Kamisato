@@ -21,7 +21,6 @@ import (
 type RemoteBuildOpts struct {
 	Repo      string
 	Server    string
-	GPGKey    string
 	GitURL    string
 	GitRef    string
 	GitSubdir string
@@ -63,7 +62,6 @@ func buildRequest(o RemoteBuildOpts) (*ayatoclient.BuildRequest, error) {
 		Repo:        o.Repo,
 		Arch:        arch,
 		InstallPkgs: o.Pkgs,
-		GPGKey:      o.GPGKey,
 		Timeout:     o.Timeout,
 	}
 	if o.GitURL != "" {

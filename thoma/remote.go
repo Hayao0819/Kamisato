@@ -25,7 +25,6 @@ type config struct {
 	token     string
 	repo      string
 	arch      string
-	gpgKey    string
 	timeout   int
 }
 
@@ -48,7 +47,6 @@ func loadConfig() (*config, error) {
 		token:     token,
 		repo:      repo,
 		arch:      arch,
-		gpgKey:    os.Getenv("THOMA_GPGKEY"),
 		timeout:   timeout,
 	}, nil
 }
@@ -95,7 +93,6 @@ func remoteBuild(args []string) error {
 		Arch:     cfg.arch,
 		Pkgbuild: pkgbuild,
 		Files:    files,
-		GPGKey:   cfg.gpgKey,
 		Timeout:  cfg.timeout,
 	}
 

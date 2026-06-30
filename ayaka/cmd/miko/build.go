@@ -12,7 +12,6 @@ import (
 // PKGBUILD of the named source package. `ayaka build --remote` delegates here.
 func mikoBuildCmd() *cobra.Command {
 	var (
-		gpgkey    string
 		gitURL    string
 		gitRef    string
 		gitSubdir string
@@ -49,7 +48,6 @@ func mikoBuildCmd() *cobra.Command {
 			opts := shared.RemoteBuildOpts{
 				Repo:      args[0],
 				Server:    server,
-				GPGKey:    gpgkey,
 				GitURL:    gitURL,
 				GitRef:    gitRef,
 				GitSubdir: gitSubdir,
@@ -66,7 +64,6 @@ func mikoBuildCmd() *cobra.Command {
 			return shared.RunRemoteBuild(opts)
 		},
 	}
-	cmd.Flags().StringVarP(&gpgkey, "key", "g", "", "GPG key id for miko to sign with")
 	cmd.Flags().BoolVar(&signLocal, "sign-local", false, "Download the build and sign it locally instead of on miko")
 	cmd.Flags().StringVar(&localKey, "local-key", "", "Path to the local OpenPGP private key (with --sign-local)")
 	cmd.Flags().StringVar(&localPass, "local-pass", "", "Passphrase for the local key (with --sign-local)")
