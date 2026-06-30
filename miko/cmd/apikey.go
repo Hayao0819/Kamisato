@@ -92,5 +92,9 @@ func appendAPIKey(path, key string) error {
 			return err
 		}
 	}
-	return os.WriteFile(path, append(out, '\n'), 0o600)
+	if err := os.WriteFile(path, append(out, '\n'), 0o600); err != nil {
+		return err
+	}
+	// WriteFile honors the mode only when creating; force 0600 on an existing file too.
+	return os.Chmod(path, 0o600)
 }
