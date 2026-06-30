@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/Hayao0819/Kamisato/internal/utils"
 )
@@ -82,6 +83,33 @@ func JobStatus(base, id string) (*Job, error) {
 		return nil, utils.WrapErr(err, "failed to decode job")
 	}
 	return &job, nil
+}
+
+// WaitJob blocks until the job reaches a terminal state, streaming its build
+// logs to logs (best-effort) once the job starts running, and returns the final
+// job. A nil logs writer disables log streaming.
+func WaitJob(base, id string, logs io.Writer) (*Job, error) {
+	streamed := false
+	for {
+		job, err := JobStatus(base, id)
+		if err != nil {
+			return nil, err
+		}
+		switch job.Status {
+		case "success", "failed", "cancelled":
+			if logs != nil && !streamed {
+				_ = StreamLogs(base, id, logs) // a fast job: dump whatever buffered
+			}
+			return job, nil
+		case "running":
+			if logs != nil && !streamed {
+				streamed = true
+				_ = StreamLogs(base, id, logs) // blocks until the stream closes
+				continue                       // re-fetch the now-terminal status
+			}
+		}
+		time.Sleep(2 * time.Second)
+	}
 }
 
 // CancelJob requests cancellation of a job through ayato's authenticated proxy.
