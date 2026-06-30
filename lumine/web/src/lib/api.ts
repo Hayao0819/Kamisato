@@ -5,6 +5,34 @@ import {
 } from "./auth-client";
 import type { BuildRequest, BuildStats, Job } from "./types";
 
+// Optional features ayato advertises so the UI hides what is not configured.
+// recaptcha_site_key is non-empty only when the bug form must render a widget.
+export type Features = {
+    bug_report: boolean;
+    miko: boolean;
+    github_login: boolean;
+    recaptcha_site_key: string;
+};
+
+export const defaultFeatures: Features = {
+    bug_report: false,
+    miko: false,
+    github_login: false,
+    recaptcha_site_key: "",
+};
+
+export type Severity = "critical" | "high" | "medium" | "low";
+
+export type BugReportInput = {
+    pkgname: string;
+    pkgver: string;
+    name: string;
+    email: string;
+    severity: Severity;
+    description: string;
+    recaptcha_token: string;
+};
+
 type LumineEnv = {
     AYATO_URL: string | null;
     AUTH_MODE?: AuthMode;
@@ -97,6 +125,32 @@ export class APIClient {
         } catch {
             return { authenticated: false };
         }
+    }
+
+    async features(): Promise<Features> {
+        const res = await this.authedFetch(this.endpoints.features());
+        if (!res.ok)
+            throw new Error(`機能情報の取得に失敗しました: ${res.status}`);
+        return res.json();
+    }
+
+    async submitBugReport(input: BugReportInput): Promise<{ url: string }> {
+        const res = await this.authedFetch(this.endpoints.bugReports(), {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(input),
+        });
+
+        if (!res.ok) {
+            const errorText = await res.text();
+            throw mutationError(
+                res.status,
+                `バグ報告の送信に失敗しました`,
+                errorText,
+            );
+        }
+
+        return res.json();
     }
 
     async uploadPackage(
@@ -308,6 +362,12 @@ class APIEndpoints {
     }
     get hello() {
         return () => `${this.apiUnstableUrl}/hello`;
+    }
+    get features() {
+        return () => `${this.apiUnstableUrl}/features`;
+    }
+    get bugReports() {
+        return () => `${this.apiUnstableUrl}/bug-reports`;
     }
     get authMe() {
         return () => `${this.apiUnstableUrl}/auth/me`;
