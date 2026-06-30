@@ -142,7 +142,9 @@ func bwrapInstall(installPkgs []string) (script string, binds [][2]string) {
 	for i, p := range installPkgs {
 		dest := fmt.Sprintf("/build/install/%d-%s", i, filepath.Base(p))
 		binds = append(binds, [2]string{p, dest})
-		fmt.Fprintf(&cmds, "pacman -U --noconfirm %s\n", dest)
+		// Shell-quote the install path so a hostile filename can't inject into
+		// the bash -c deps script, mirroring the container backend.
+		fmt.Fprintf(&cmds, "pacman -U --noconfirm %s\n", shellQuote(dest))
 	}
 	return strings.ReplaceAll(bwrapDepsScript, "__INSTALL__", strings.TrimRight(cmds.String(), "\n")), binds
 }

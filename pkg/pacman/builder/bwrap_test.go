@@ -34,7 +34,7 @@ func TestBwrapInstallBinds(t *testing.T) {
 	if len(binds) != 1 || binds[0][0] != "/cache/dep-1.0-1-x86_64.pkg.tar.zst" {
 		t.Fatalf("unexpected binds: %v", binds)
 	}
-	if !strings.Contains(script, "pacman -U --noconfirm "+binds[0][1]) {
+	if !strings.Contains(script, "pacman -U --noconfirm "+shellQuote(binds[0][1])) {
 		t.Errorf("install command not substituted: %q", script)
 	}
 	if strings.Contains(script, "__INSTALL__") {
