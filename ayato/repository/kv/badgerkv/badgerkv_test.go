@@ -12,6 +12,42 @@ import (
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv/badgerkv"
 )
 
+// TestCloseStopsGCLoop checks that Close stops the background value-log GC
+// goroutine cleanly: it must return promptly (not block on the GC ticker) and
+// be safe to call more than once. Close waits on the goroutine, so a prompt
+// return proves the goroutine has exited.
+func TestCloseStopsGCLoop(t *testing.T) {
+	s, err := badgerkv.New(t.TempDir())
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	for i, v := range []string{"a", "b", "c"} {
+		if err := s.Set("ns", "k", []byte(v), 0); err != nil {
+			t.Fatalf("Set %d: %v", i, err)
+		}
+	}
+	if err := s.Delete("ns", "k"); err != nil {
+		t.Fatalf("Delete: %v", err)
+	}
+
+	done := make(chan error, 1)
+	go func() { done <- s.Close() }()
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("Close: %v", err)
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("Close did not return promptly; GC goroutine likely leaked")
+	}
+
+	// Idempotent: a second Close must not panic (double-close of stop channel).
+	if err := s.Close(); err != nil {
+		t.Fatalf("second Close: %v", err)
+	}
+}
+
 func newStore(t *testing.T) *badgerkv.Store {
 	t.Helper()
 	s, err := badgerkv.New(t.TempDir())

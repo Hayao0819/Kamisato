@@ -9,6 +9,8 @@ package badgerkv
 
 import (
 	"errors"
+	"log/slog"
+	"sync"
 	"time"
 
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
@@ -22,8 +24,20 @@ import (
 // unambiguous boundary for the prefix scan List relies on.
 const sep = "\x00"
 
+// BadgerDB only frees space from deleted/overwritten keys when RunValueLogGC is
+// called, so a background ticker reclaims stale value-log segments to keep the
+// on-disk store from growing without bound on a long-running deployment.
+const (
+	gcInterval     = 5 * time.Minute
+	gcDiscardRatio = 0.5
+)
+
 type Store struct {
 	db *badger.DB
+
+	stop     chan struct{}
+	stopOnce sync.Once
+	wg       sync.WaitGroup
 }
 
 var _ kv.Store = (*Store)(nil)
@@ -36,7 +50,49 @@ func New(dir string) (*Store, error) {
 	if err != nil {
 		return nil, utils.WrapErr(err, "badgerkv: open badger")
 	}
-	return &Store{db: db}, nil
+	s := &Store{db: db, stop: make(chan struct{})}
+	s.wg.Add(1)
+	go s.gcLoop()
+	return s, nil
+}
+
+// gcLoop reclaims value-log space on a ticker until Close signals stop.
+func (s *Store) gcLoop() {
+	defer s.wg.Done()
+	ticker := time.NewTicker(gcInterval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-s.stop:
+			return
+		case <-ticker.C:
+			s.collectGarbage()
+		}
+	}
+}
+
+// collectGarbage rewrites reclaimable value-log files one at a time until there
+// is nothing left to rewrite or Close is requested.
+func (s *Store) collectGarbage() {
+	for {
+		select {
+		case <-s.stop:
+			return
+		default:
+		}
+		err := s.db.RunValueLogGC(gcDiscardRatio)
+		switch {
+		case err == nil:
+			// Rewrote a file; another may be reclaimable too.
+			continue
+		case errors.Is(err, badger.ErrNoRewrite):
+			return
+		default:
+			// ErrRejected (concurrent GC) or a shutdown error: retry next tick.
+			slog.Debug("badgerkv: value-log GC", "error", err)
+			return
+		}
+	}
 }
 
 func composite(ns, key string) []byte {
@@ -108,4 +164,8 @@ func (s *Store) List(ns string) ([]kv.Entry, error) {
 	return out, nil
 }
 
-func (s *Store) Close() error { return s.db.Close() }
+func (s *Store) Close() error {
+	s.stopOnce.Do(func() { close(s.stop) })
+	s.wg.Wait()
+	return s.db.Close()
+}
