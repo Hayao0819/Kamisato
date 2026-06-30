@@ -27,7 +27,7 @@ type AyatoConfig struct {
 	// go client<->object-store directly and skip ayato's egress (Cloud Run bills it).
 	// Set it to false to force every download to stream through ayato; a backend that
 	// cannot presign (localfs) always streams regardless.
-	RedirectDownloads *bool `koanf:"redirect_downloads,omitempty"`
+	RedirectDownloads *bool `koanf:"redirect_downloads"`
 }
 
 // RedirectDownloadsEnabled reports whether downloads should be redirected to a
