@@ -82,10 +82,6 @@ export class APIClient {
         return this.authedFetch(this.endpoints.hello());
     }
 
-    async fetchTeapot() {
-        return this.authedFetch(this.endpoints.teapot());
-    }
-
     // Probes the active session: cookie mode sends the HttpOnly cookie
     // first-party, bearer mode attaches the Authorization header (both through
     // authedFetch). Any failure is treated as "not signed in".
@@ -313,25 +309,12 @@ class APIEndpoints {
     get hello() {
         return () => `${this.apiUnstableUrl}/hello`;
     }
-    get teapot() {
-        return () => `${this.apiUnstableUrl}/teapot`;
-    }
     get authMe() {
         return () => `${this.apiUnstableUrl}/auth/me`;
-    }
-    get logout() {
-        return () => `${this.apiUnstableUrl}/auth/logout`;
-    }
-    get githubLogin() {
-        return () => `${this.apiUnstableUrl}/auth/github/login`;
     }
     get allPkgs() {
         return (repo: string, arch: string) =>
             `${this.apiUnstableUrl}/${repo}/${arch}/package`;
-    }
-    get repoFileList() {
-        return (repo: string, arch: string) =>
-            `${this.base}/repo/${repo}/${arch}`;
     }
     get repoFile() {
         return (repo: string, arch: string, file: string) =>
