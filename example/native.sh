@@ -39,7 +39,7 @@ cat >"$work/ayato.json" <<EOF
 {
   "port": 8080,
   "auth": { "ci": { "api_keys": [ { "name": "demo", "key": "$key", "publish_repos": ["myrepo"] } ] } },
-  "store": { "dbtype": "badgerdb", "badgerdb": "$data/db", "storagetype": "localfs", "localrepodir": "$data/repo" },
+  "store": { "db_type": "badgerdb", "badgerdb": "$data/db", "storage_type": "localfs", "local_repo_dir": "$data/repo" },
   "repos": [ { "name": "myrepo", "arches": ["x86_64"] } ]
 }
 EOF

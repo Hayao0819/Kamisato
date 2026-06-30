@@ -1,7 +1,7 @@
 {
   "debug": true,
   "port": 8080,
-  "maxsize": 1000000000,
+  "max_size": 1000000000,
   "auth": {
     "username": "ayato",
     "password": "password",
@@ -24,10 +24,10 @@
     }
   },
   "store": {
-    "dbtype": "badgerdb",
+    "db_type": "badgerdb",
     "badgerdb": "/data/db",
-    "storagetype": "localfs",
-    "localrepodir": "/data/repo"
+    "storage_type": "localfs",
+    "local_repo_dir": "/data/repo"
   },
   "miko": {
     "url": "http://miko:8081",

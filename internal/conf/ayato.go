@@ -14,7 +14,7 @@ type AyatoConfig struct {
 	Debug       bool            `koanf:"debug"`
 	RequireSign bool            `koanf:"require_sign"`
 	Port        int             `koanf:"port"`
-	MaxSize     int             `koanf:"maxsize"`
+	MaxSize     int             `koanf:"max_size"`
 	Repos       []BinRepoConfig `koanf:"repos"`
 	Auth        AuthConfig      `koanf:"auth"`
 	Store       StoreConfig     `koanf:"store"`
