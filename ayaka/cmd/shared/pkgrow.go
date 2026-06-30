@@ -127,6 +127,9 @@ func LatestJobStatus(jobs []ayatoclient.Job, repoName string, names []string) st
 
 // ayatoBaseBestEffort resolves the ayato base URL: --server, else serverdb default, else "".
 func ayatoBaseBestEffort(server string) string {
+	if server != "" {
+		return server
+	}
 	base, err := blinkyutils.ResolveServerName(server)
 	if err != nil {
 		return ""
