@@ -1,13 +1,16 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 
 	"github.com/Hayao0819/Kamisato/internal/ayatoclient"
 	"github.com/Hayao0819/Kamisato/internal/blinkyutils"
@@ -103,7 +106,12 @@ func remoteBuild(args []string) error {
 	}
 	fmt.Fprintf(os.Stderr, "thoma: build job %s\n", jobID)
 
-	job, err := ayatoclient.WaitJob(cfg.serverURL, jobID, os.Stdout)
+	// Cancel the wait on Ctrl-C/SIGTERM so a job stuck in queued does not hang
+	// the makepkg invocation forever.
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	job, err := ayatoclient.WaitJob(ctx, cfg.serverURL, jobID, os.Stdout)
 	if err != nil {
 		return utils.WrapErr(err, "failed while waiting for build")
 	}

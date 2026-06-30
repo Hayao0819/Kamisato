@@ -3,6 +3,7 @@ package ayatoclient
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -87,10 +88,15 @@ func JobStatus(base, id string) (*Job, error) {
 
 // WaitJob blocks until the job reaches a terminal state, streaming its build
 // logs to logs (best-effort) once the job starts running, and returns the final
-// job. A nil logs writer disables log streaming.
-func WaitJob(base, id string, logs io.Writer) (*Job, error) {
+// job. A nil logs writer disables log streaming. It returns ctx.Err() when ctx
+// is cancelled, so a job stuck in queued (or an unknown status) cannot hang the
+// caller forever.
+func WaitJob(ctx context.Context, base, id string, logs io.Writer) (*Job, error) {
 	streamed := false
 	for {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 		job, err := JobStatus(base, id)
 		if err != nil {
 			return nil, err
@@ -108,7 +114,13 @@ func WaitJob(base, id string, logs io.Writer) (*Job, error) {
 				continue                       // re-fetch the now-terminal status
 			}
 		}
-		time.Sleep(2 * time.Second)
+		timer := time.NewTimer(2 * time.Second)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return nil, ctx.Err()
+		case <-timer.C:
+		}
 	}
 }
 
