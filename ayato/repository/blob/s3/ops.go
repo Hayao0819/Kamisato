@@ -18,7 +18,10 @@ import (
 // StoreFile stores the package object only; the repo DB is updated separately by
 // RepoAdd, so an arch=any file lands under "any/" without creating an "any" DB.
 func (s *S3) StoreFile(repo string, arch string, file stream.SeekFile) error {
-	k := key(repo, arch, file.FileName())
+	k, err := s.validatedKey(repo, arch, file.FileName())
+	if err != nil {
+		return err
+	}
 	if err := s.putObject(k, file); err != nil {
 		return fmt.Errorf("failed to store file %s: %w", k, err)
 	}
@@ -26,7 +29,10 @@ func (s *S3) StoreFile(repo string, arch string, file stream.SeekFile) error {
 }
 
 func (s *S3) StoreFileWithSignedURL(repo string, arch string, name string) (string, error) {
-	k := key(repo, arch, name)
+	k, err := s.validatedKey(repo, arch, name)
+	if err != nil {
+		return "", err
+	}
 
 	input := awss3.GetObjectInput{
 		Bucket: aws.String(s.bucket),
@@ -47,7 +53,11 @@ func (s *S3) StoreFileWithSignedURL(repo string, arch string, name string) (stri
 // repo-DB artifacts are real objects written by the repository layer, so a bare
 // <repo>.db is served directly.
 func (s *S3) FetchFile(repo string, arch string, name string) (stream.File, error) {
-	o, err := s.getObject(key(repo, arch, name))
+	k, err := s.validatedKey(repo, arch, name)
+	if err != nil {
+		return nil, err
+	}
+	o, err := s.getObject(k)
 	if err != nil {
 		return nil, err
 	}
@@ -59,7 +69,11 @@ func (s *S3) FetchFile(repo string, arch string, name string) (stream.File, erro
 
 // FetchFileWithETag fetches an object together with its version token (ETag).
 func (s *S3) FetchFileWithETag(repo, arch, name string) (stream.File, string, error) {
-	return s.getObjectWithETag(key(repo, arch, name))
+	k, err := s.validatedKey(repo, arch, name)
+	if err != nil {
+		return nil, "", err
+	}
+	return s.getObjectWithETag(k)
 }
 
 // StoreFileIfMatch stores an object with compare-and-swap on its version, mapping
@@ -68,7 +82,10 @@ func (s *S3) StoreFileIfMatch(repo, arch string, file stream.SeekFile, etag stri
 	if _, err := file.Seek(0, io.SeekStart); err != nil {
 		return err
 	}
-	k := key(repo, arch, file.FileName())
+	k, err := s.validatedKey(repo, arch, file.FileName())
+	if err != nil {
+		return err
+	}
 	if err := s.putObjectIfMatch(k, file, etag); err != nil {
 		if errors.Is(err, blob.ErrPreconditionFailed) {
 			return err
@@ -79,7 +96,10 @@ func (s *S3) StoreFileIfMatch(repo, arch string, file stream.SeekFile, etag stri
 }
 
 func (s *S3) DeleteFile(repo string, arch string, name string) error {
-	k := key(repo, arch, name)
+	k, err := s.validatedKey(repo, arch, name)
+	if err != nil {
+		return err
+	}
 	if err := s.deleteObject(k); err != nil {
 		return fmt.Errorf("failed to delete file %s: %w", k, err)
 	}

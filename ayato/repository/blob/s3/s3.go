@@ -4,6 +4,7 @@ package s3
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -37,12 +38,16 @@ type Config struct {
 	SecretAccessKey string
 	SessionToken    string
 	UsePathStyle    bool
+	// RepoNames is the configured repo allowlist; when set, keys for any other
+	// repo are rejected (matching localfs). Empty means no allowlist gating.
+	RepoNames []string
 }
 
 type S3 struct {
-	storage *awss3.Client
-	ctx     context.Context
-	bucket  string
+	storage   *awss3.Client
+	ctx       context.Context
+	bucket    string
+	repoNames []string
 }
 
 func New(cfg *Config) (*S3, error) {
@@ -52,9 +57,10 @@ func New(cfg *Config) (*S3, error) {
 		return nil, err
 	}
 	return &S3{
-		storage: storage,
-		ctx:     ctx,
-		bucket:  cfg.Bucket,
+		storage:   storage,
+		ctx:       ctx,
+		bucket:    cfg.Bucket,
+		repoNames: cfg.RepoNames,
 	}, nil
 }
 
@@ -95,6 +101,34 @@ func newS3Client(ctx context.Context, cfg *Config) (*awss3.Client, error) {
 
 func key(repo, arch, name string) string {
 	return repo + "/" + arch + "/" + name
+}
+
+// validatePathComponent rejects values that could escape the key prefix.
+func validatePathComponent(c string) error {
+	if c == "" || c == "." || strings.ContainsRune(c, '/') || strings.ContainsRune(c, os.PathSeparator) || strings.Contains(c, "..") {
+		return os.ErrNotExist
+	}
+	return nil
+}
+
+// validatedKey mirrors the localfs guards before building an object key: every
+// component must be a single safe path element, and repo must be in the configured
+// allowlist when one is set. Otherwise the raw repo/arch/name concatenation would
+// let "../" or absolute components write outside the intended prefix.
+func (s *S3) validatedKey(repo, arch, name string) (string, error) {
+	if err := validatePathComponent(repo); err != nil {
+		return "", err
+	}
+	if len(s.repoNames) > 0 && !lo.Contains(s.repoNames, repo) {
+		return "", fmt.Errorf("repo %s not found", repo)
+	}
+	if err := validatePathComponent(arch); err != nil {
+		return "", err
+	}
+	if err := validatePathComponent(name); err != nil {
+		return "", err
+	}
+	return key(repo, arch, name), nil
 }
 
 func (s *S3) list(dir string) (*awss3.ListObjectsV2Output, error) {

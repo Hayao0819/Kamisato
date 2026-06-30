@@ -1,0 +1,59 @@
+package s3
+
+import "testing"
+
+// Locks the guard against attacker-controlled repo / arch / filename escaping the
+// intended key prefix in the raw-concatenated S3 key.
+func TestValidatePathComponentRejectsTraversal(t *testing.T) {
+	bad := []string{"", ".", "..", "../x", "a/b", "x/../y", "/abs", "etc/passwd"}
+	for _, c := range bad {
+		if err := validatePathComponent(c); err == nil {
+			t.Fatalf("validatePathComponent(%q) = nil, want error", c)
+		}
+	}
+	good := []string{"x86_64", "any", "aarch64", "pkg-1.0-1-x86_64.pkg.tar.zst"}
+	for _, c := range good {
+		if err := validatePathComponent(c); err != nil {
+			t.Fatalf("validatePathComponent(%q) = %v, want nil", c, err)
+		}
+	}
+}
+
+func TestValidatedKey(t *testing.T) {
+	s := &S3{repoNames: []string{"core", "extra"}}
+
+	k, err := s.validatedKey("core", "x86_64", "pkg-1.0-1-x86_64.pkg.tar.zst")
+	if err != nil {
+		t.Fatalf("validatedKey valid input: %v", err)
+	}
+	if want := "core/x86_64/pkg-1.0-1-x86_64.pkg.tar.zst"; k != want {
+		t.Fatalf("validatedKey = %q, want %q", k, want)
+	}
+
+	if _, err := s.validatedKey("evil", "x86_64", "p.pkg.tar.zst"); err == nil {
+		t.Fatal("validatedKey allowed a repo outside the allowlist")
+	}
+
+	bad := []struct{ repo, arch, name string }{
+		{"core", "..", "p"},
+		{"core", "x86_64", "../p"},
+		{"core", "x86_64", "a/b"},
+		{"../core", "x86_64", "p"},
+		{"core", "", "p"},
+		{"core", "x86_64", ""},
+	}
+	for _, tc := range bad {
+		if _, err := s.validatedKey(tc.repo, tc.arch, tc.name); err == nil {
+			t.Fatalf("validatedKey(%q,%q,%q) = nil, want error", tc.repo, tc.arch, tc.name)
+		}
+	}
+
+	// With no allowlist, any clean repo passes but traversal is still rejected.
+	open := &S3{}
+	if _, err := open.validatedKey("anything", "x86_64", "p.pkg.tar.zst"); err != nil {
+		t.Fatalf("validatedKey without allowlist: %v", err)
+	}
+	if _, err := open.validatedKey("..", "x86_64", "p"); err == nil {
+		t.Fatal("validatedKey without allowlist allowed a traversal repo")
+	}
+}
