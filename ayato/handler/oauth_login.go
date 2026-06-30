@@ -52,22 +52,9 @@ func (h *Handler) CLIStartHandler(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid port"})
 		return
 	}
-	challenge := c.Query("challenge")
-	if challenge == "" || len(challenge) > 256 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "missing or oversized challenge"})
+	challenge, cliState, ok := parseChallengeAndState(c)
+	if !ok {
 		return
-	}
-	cliState := c.Query("state")
-	if len(cliState) > 256 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "oversized state"})
-		return
-	}
-	if cliState == "" {
-		var serr error
-		if cliState, serr = auth.NewState(); serr != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "state"})
-			return
-		}
 	}
 	state, err := h.signer.Sign(auth.Claims{
 		Typ:       auth.TypState,
@@ -84,6 +71,30 @@ func (h *Handler) CLIStartHandler(c *gin.Context) {
 	c.Redirect(http.StatusFound, h.oauthConfig(c).AuthCodeURL(state))
 }
 
+// parseChallengeAndState validates the PKCE challenge and resolves ayaka's
+// optional state (generating one when absent), shared by the CLI and web start
+// flows. On invalid input it writes the error response and returns ok=false.
+func parseChallengeAndState(c *gin.Context) (challenge, cliState string, ok bool) {
+	challenge = c.Query("challenge")
+	if challenge == "" || len(challenge) > 256 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "missing or oversized challenge"})
+		return "", "", false
+	}
+	cliState = c.Query("state")
+	if len(cliState) > 256 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "oversized state"})
+		return "", "", false
+	}
+	if cliState == "" {
+		var err error
+		if cliState, err = auth.NewState(); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "state"})
+			return "", "", false
+		}
+	}
+	return challenge, cliState, true
+}
+
 // Cross-origin web-bearer flow: PKCE (not a binding cookie) ties the code to the
 // SPA, so no state cookie is set; the code returns via postMessage.
 func (h *Handler) WebStartHandler(c *gin.Context) {
@@ -91,22 +102,9 @@ func (h *Handler) WebStartHandler(c *gin.Context) {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "github login not configured"})
 		return
 	}
-	challenge := c.Query("challenge")
-	if challenge == "" || len(challenge) > 256 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "missing or oversized challenge"})
+	challenge, cliState, ok := parseChallengeAndState(c)
+	if !ok {
 		return
-	}
-	cliState := c.Query("state")
-	if len(cliState) > 256 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "oversized state"})
-		return
-	}
-	if cliState == "" {
-		var serr error
-		if cliState, serr = auth.NewState(); serr != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "state"})
-			return
-		}
 	}
 	state, err := h.signer.Sign(auth.Claims{
 		Typ:       auth.TypState,
