@@ -4,6 +4,7 @@ import { Lock } from "lucide-react";
 import { type ReactNode, useEffect, useState } from "react";
 import { useAuth } from "@/components/auth-provider";
 import { LoginDialog } from "@/components/login-dialog";
+import { useFeatures } from "@/components/lumine-provider";
 
 // Gate on mount so the first client render matches SSR (avoids hydration mismatch).
 export function useCanMutate(): boolean {
@@ -15,6 +16,7 @@ export function useCanMutate(): boolean {
 }
 
 export function LoginPrompt() {
+    const features = useFeatures();
     return (
         <div className="rounded-md border bg-card p-6 text-card-foreground">
             <div className="flex items-start gap-3">
@@ -27,10 +29,12 @@ export function LoginPrompt() {
                             この操作にはログインが必要です
                         </p>
                         <p className="text-sm text-muted-foreground">
-                            続けるにはログインしてください。
+                            {features.github_login
+                                ? "続けるにはログインしてください。"
+                                : "このサーバーではログインが無効になっています。"}
                         </p>
                     </div>
-                    <LoginDialog />
+                    {features.github_login && <LoginDialog />}
                 </div>
             </div>
         </div>
