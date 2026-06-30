@@ -27,7 +27,7 @@ import (
 
 // buildHostSigner loads (or on first boot generates) the worker host signing key.
 // It returns a nil Signer when no key dir is resolvable, leaving signing disabled.
-func buildHostSigner(cfg *conf.MikoConfig) (sign.Signer, error) {
+func buildHostSigner(ctx context.Context, cfg *conf.MikoConfig) (sign.Signer, error) {
 	dir := cfg.Signing.KeyDir
 	if dir == "" && cfg.DataDir != "" {
 		dir = filepath.Join(cfg.DataDir, "keys")
@@ -60,20 +60,20 @@ func buildHostSigner(cfg *conf.MikoConfig) (sign.Signer, error) {
 	// Best-effort: register this worker's cert with ayato so its host-signed
 	// packages verify. ayato accepts it only if it chains to a trusted master.
 	if cfg.Ayato.URL != "" {
-		if rerr := registerWorkerCert(cfg, ks); rerr != nil {
+		if rerr := registerWorkerCert(ctx, cfg, ks); rerr != nil {
 			slog.Warn("could not register worker key with ayato; signing still works, register it later", "err", rerr)
 		}
 	}
 	return sign.NewHostKeySigner(ks), nil
 }
 
-func registerWorkerCert(cfg *conf.MikoConfig, ks *sign.Keystore) error {
+func registerWorkerCert(ctx context.Context, cfg *conf.MikoConfig, ks *sign.Keystore) error {
 	cert, err := ks.WorkerCertArmored()
 	if err != nil {
 		return err
 	}
 	url := strings.TrimRight(cfg.Ayato.URL, "/") + "/api/unstable/auth/signers"
-	req, err := http.NewRequest(http.MethodPost, url, strings.NewReader(cert))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, strings.NewReader(cert))
 	if err != nil {
 		return err
 	}
@@ -81,7 +81,9 @@ func registerWorkerCert(cfg *conf.MikoConfig, ks *sign.Keystore) error {
 		req.SetBasicAuth(cfg.Ayato.Username, cfg.Ayato.Password)
 	}
 	req.Header.Set("Content-Type", "application/pgp-keys")
-	resp, err := http.DefaultClient.Do(req)
+	// Bound the call so a hung ayato cannot block boot before the server listens.
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
 	if err != nil {
 		return err
 	}
@@ -145,7 +147,7 @@ func RootCmd() *cobra.Command {
 
 			slog.Debug("Configuration loaded", "port", cfg.Port, "debug", cfg.Debug, "executor", cfg.Executor)
 
-			signer, err := buildHostSigner(cfg)
+			signer, err := buildHostSigner(cmd.Context(), cfg)
 			if err != nil {
 				return utils.WrapErr(err, "failed to set up host signing key")
 			}
