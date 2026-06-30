@@ -31,11 +31,13 @@ import type { PackageInfo } from "@/lib/types";
 
 interface BugReportDialogProps {
     packageInfo: PackageInfo;
+    repo: string;
     trigger?: React.ReactNode;
 }
 
 export function BugReportDialog({
     packageInfo,
+    repo,
     trigger,
 }: BugReportDialogProps) {
     const api = useAPIClient();
@@ -84,6 +86,8 @@ export function BugReportDialog({
             const { url } = await api.submitBugReport({
                 pkgname: packageInfo.pkgname,
                 pkgver: packageInfo.pkgver,
+                repo,
+                arch: packageInfo.arch,
                 name: name.trim(),
                 email: email.trim(),
                 severity,

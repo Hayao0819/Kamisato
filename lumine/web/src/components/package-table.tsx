@@ -368,6 +368,7 @@ export function PackageTable({
                                                 {features.bug_report && (
                                                     <BugReportDialog
                                                         packageInfo={pkg}
+                                                        repo={repo ?? ""}
                                                         trigger={
                                                             <button
                                                                 type="button"

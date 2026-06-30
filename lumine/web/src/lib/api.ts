@@ -26,6 +26,8 @@ export type Severity = "critical" | "high" | "medium" | "low";
 export type BugReportInput = {
     pkgname: string;
     pkgver: string;
+    repo?: string;
+    arch?: string;
     name: string;
     email: string;
     severity: Severity;

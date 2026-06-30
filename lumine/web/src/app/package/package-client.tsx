@@ -160,6 +160,7 @@ export default function ClientPackageDetailPage() {
                             {features.bug_report && (
                                 <BugReportDialog
                                     packageInfo={pkg}
+                                    repo={repo}
                                     trigger={
                                         <Button
                                             variant="outline"
