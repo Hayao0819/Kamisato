@@ -107,10 +107,13 @@ func Cmd() *cobra.Command {
 				return utils.WrapErr(shared.ErrNoSourceDir, repo)
 			}
 
-			pkgs, err := alpm.GetCleanPkgBinary(srcrepo.Config.InstallPkgs.Names...)
+			pkgs, cleanup, err := alpm.GetCleanPkgBinary(srcrepo.Config.InstallPkgs.Names...)
 			if err != nil {
 				return utils.WrapErr(err, "failed to get clean package binaries")
 			}
+			// The downloaded files are injected during the build, so keep them
+			// until it finishes.
+			defer func() { _ = cleanup.Close() }()
 
 			slog.Info("Creating build target", "arch", srcrepo.Config.ArchBuild, "installpkgs", pkgs)
 

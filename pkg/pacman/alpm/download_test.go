@@ -18,8 +18,12 @@ func TestGetCleanPkgBinary(t *testing.T) {
 		}
 	}
 
-	_, err := GetCleanPkgBinary("git")
+	files, cleanup, err := GetCleanPkgBinary("git")
 	if err != nil {
 		t.Fatalf("GetCleanPkgBinary failed: %v", err)
+	}
+	defer func() { _ = cleanup.Close() }()
+	if len(files) == 0 {
+		t.Fatal("GetCleanPkgBinary returned no package files")
 	}
 }

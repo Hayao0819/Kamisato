@@ -4,51 +4,52 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"strings"
 
-	pkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
 	"github.com/Hayao0819/nahi/exutils"
-	"github.com/Hayao0819/nahi/flist"
 )
 
+// CleanPkgBinary owns the temp dir holding the packages downloaded by
+// GetCleanPkgBinary. Those files are injected during the build, so the caller
+// must keep it alive until the build finishes and Close() it afterwards.
 type CleanPkgBinary struct {
-	path string
-	dir  string
+	dir string
 }
 
 func (c *CleanPkgBinary) Close() error {
-	if c.path == "" {
+	if c == nil || c.dir == "" {
 		return nil
-	}
-	if err := os.Remove(c.path); err != nil {
-		return fmt.Errorf("failed to remove package binary: %w", err)
 	}
 	if err := os.RemoveAll(c.dir); err != nil {
 		return fmt.Errorf("failed to remove temp directory: %w", err)
 	}
-	c.path = ""
 	c.dir = ""
 	return nil
 }
 
-func GetCleanPkgBinary(names ...string) ([]string, error) {
-
+// GetCleanPkgBinary downloads names from the pacman repos into a temp dir and
+// returns the downloaded .pkg.tar.* file paths together with a handle to remove
+// the temp dir once the build has consumed them.
+func GetCleanPkgBinary(names ...string) ([]string, *CleanPkgBinary, error) {
 	if len(names) == 0 {
-		return nil, nil
+		return nil, nil, nil
 	}
 
-	pkgs := make([]*pkg.BinaryPackage, 0)
-	_ = pkgs
 	tmp, err := os.MkdirTemp("", "kamisato-pkg-dl-")
 	if err != nil {
-		return nil, fmt.Errorf("failed to create temp directory: %w", err)
+		return nil, nil, fmt.Errorf("failed to create temp directory: %w", err)
 	}
+	cleanup := &CleanPkgBinary{dir: tmp}
+
 	dbpath := path.Join(tmp, "db")
 	if err := os.MkdirAll(dbpath, 0755); err != nil {
-		return nil, fmt.Errorf("failed to create db directory: %w", err)
+		_ = cleanup.Close()
+		return nil, nil, fmt.Errorf("failed to create db directory: %w", err)
 	}
 	cachepath := path.Join(tmp, "cache")
 	if err := os.MkdirAll(cachepath, 0755); err != nil {
-		return nil, fmt.Errorf("failed to create cache directory: %w", err)
+		_ = cleanup.Close()
+		return nil, nil, fmt.Errorf("failed to create cache directory: %w", err)
 	}
 
 	// pacman 7's downloader sandbox (DownloadUser + Landlock) cannot initialize
@@ -58,12 +59,22 @@ func GetCleanPkgBinary(names ...string) ([]string, error) {
 	args = append(args, names...)
 	c := exutils.CommandWithStdio("fakeroot", args...)
 	if err := c.Run(); err != nil {
-		return nil, fmt.Errorf("failed to download package: %w", err)
+		_ = cleanup.Close()
+		return nil, nil, fmt.Errorf("failed to download package: %w", err)
 	}
 
-	_, err = flist.Get(path.Join(dbpath, "sync"), flist.WithFileOnly(), flist.WithExactDepth(1), flist.WithExtOnly(".db"))
+	entries, err := os.ReadDir(cachepath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get repo db files: %w", err)
+		_ = cleanup.Close()
+		return nil, nil, fmt.Errorf("failed to list downloaded packages: %w", err)
 	}
-	return nil, nil
+	var files []string
+	for _, e := range entries {
+		name := e.Name()
+		if e.IsDir() || !strings.Contains(name, ".pkg.tar.") || strings.HasSuffix(name, ".sig") {
+			continue
+		}
+		files = append(files, path.Join(cachepath, name))
+	}
+	return files, cleanup, nil
 }
