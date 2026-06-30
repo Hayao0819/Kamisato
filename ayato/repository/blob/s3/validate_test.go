@@ -57,3 +57,23 @@ func TestValidatedKey(t *testing.T) {
 		t.Fatal("validatedKey without allowlist allowed a traversal repo")
 	}
 }
+
+// The list entry points must reject the same bad repo/arch as the key path,
+// before any prefix is built (validation precedes the S3 call).
+func TestListMethodsValidate(t *testing.T) {
+	s := &S3{repoNames: []string{"core", "extra"}}
+
+	for _, repo := range []string{"..", "a/b", "/abs", "evil"} {
+		if _, err := s.Arches(repo); err == nil {
+			t.Fatalf("Arches(%q) = nil, want error", repo)
+		}
+		if _, err := s.Files(repo, "x86_64"); err == nil {
+			t.Fatalf("Files(%q, x86_64) = nil, want error", repo)
+		}
+	}
+	for _, arch := range []string{"..", "a/b", "/abs", ""} {
+		if _, err := s.Files("core", arch); err == nil {
+			t.Fatalf("Files(core, %q) = nil, want error", arch)
+		}
+	}
+}

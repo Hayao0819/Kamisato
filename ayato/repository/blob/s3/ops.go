@@ -110,8 +110,25 @@ func (s *S3) RepoNames() ([]string, error) {
 	return s.listDirs("")
 }
 
+// validateListRepo applies the same repo guards as the object-key path before a
+// list prefix is built: a single safe path element, gated by the allowlist when
+// one is configured. The S3 keyspace is flat, so this is for uniform validation
+// rather than traversal defense.
+func (s *S3) validateListRepo(repo string) error {
+	if err := validatePathComponent(repo); err != nil {
+		return err
+	}
+	if len(s.repoNames) > 0 && !lo.Contains(s.repoNames, repo) {
+		return fmt.Errorf("repo %s not found", repo)
+	}
+	return nil
+}
+
 func (s *S3) Arches(repo string) ([]string, error) {
 	slog.Debug("get arches", "repo", repo)
+	if err := s.validateListRepo(repo); err != nil {
+		return nil, err
+	}
 	dl, err := s.listDirs(repo + "/")
 	if err != nil {
 		return nil, err
@@ -122,6 +139,12 @@ func (s *S3) Arches(repo string) ([]string, error) {
 }
 
 func (s *S3) Files(repo string, arch string) ([]string, error) {
+	if err := s.validateListRepo(repo); err != nil {
+		return nil, err
+	}
+	if err := validatePathComponent(arch); err != nil {
+		return nil, err
+	}
 	l, err := s.listFiles(fmt.Sprintf("%s/%s/", repo, arch))
 	if err != nil {
 		return nil, err
