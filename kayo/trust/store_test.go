@@ -57,3 +57,22 @@ func TestEvaluate(t *testing.T) {
 		})
 	}
 }
+
+func TestEvaluateVouchedAdoption(t *testing.T) {
+	s, _ := Open(filepath.Join(t.TempDir(), "trust.json"))
+	s.Approve(Approval{Pkgbase: "yay", Source: "aur", Maintainer: "jguer", Commit: "c1"})
+	s.TrustMaintainer("aur", "successor", "")
+
+	// Handoff of an approved package to a vouched account is sanctioned.
+	if got := s.Evaluate("aur", "yay", "successor"); got.Decision != Trusted {
+		t.Errorf("vouched adoption = %v (%v), want Trusted", got.Decision, got.Reasons)
+	}
+	// Handoff to an account we do not vouch for still needs review.
+	if got := s.Evaluate("aur", "yay", "attacker"); got.Decision != NeedsReview {
+		t.Errorf("non-vouched takeover = %v, want NeedsReview", got.Decision)
+	}
+	// A brand-new package by a vouched account is not auto-trusted.
+	if got := s.Evaluate("aur", "newpkg", "successor"); got.Decision != NeedsReview {
+		t.Errorf("new pkg by vouched account = %v, want NeedsReview", got.Decision)
+	}
+}

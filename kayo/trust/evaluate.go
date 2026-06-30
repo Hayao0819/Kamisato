@@ -26,7 +26,9 @@ type Verdict struct {
 // Evaluate judges a resolved package using only resolution-time facts (source,
 // pkgbase, current maintainer account). It does not look at the commit — that is
 // the build-time pin's job. Overlays are trusted by configuration and should be
-// passed source "overlay".
+// passed source "overlay". A vouched maintainer (TrustMaintainer) auto-allows a
+// HANDOFF of an already-approved package to that account; it never auto-trusts a
+// brand-new, unreviewed package.
 func (s *Store) Evaluate(source, pkgbase, maintainer string) Verdict {
 	if source == "overlay" {
 		return Verdict{Decision: Trusted}
@@ -40,6 +42,10 @@ func (s *Store) Evaluate(source, pkgbase, maintainer string) Verdict {
 	// maintained package going orphaned (jguer -> ""). Sources without an account
 	// (local/url) record "" at both ends and stay trusted on the commit pin.
 	if ap.Maintainer != maintainer {
+		// Adoption by an account the user vouches for is a sanctioned handoff.
+		if maintainer != "" && s.IsMaintainerTrusted(source, maintainer) {
+			return Verdict{Decision: Trusted}
+		}
 		return Verdict{Decision: NeedsReview, Reasons: []string{
 			fmt.Sprintf("maintainer changed: %q -> %q", ap.Maintainer, maintainer),
 		}}

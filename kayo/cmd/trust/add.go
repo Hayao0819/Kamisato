@@ -19,7 +19,10 @@ func trustAddCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "add <package|git-url>",
 		Short: "Whitelist a package and trust its current maintainer account",
-		Args:  cobra.ExactArgs(1),
+		Long: "Whitelist a package and vouch for its current maintainer account.\n\n" +
+			"Vouching auto-allows a future HANDOFF of an already-approved package to that\n" +
+			"account; it does not auto-trust brand-new packages, which still need review.",
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := shared.LoadConfig(cmd)
 			if err != nil {
