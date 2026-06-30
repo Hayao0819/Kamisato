@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/BrenekH/blinky/clientlib"
 	"github.com/Hayao0819/Kamisato/internal/ayatoclient"
+	"github.com/Hayao0819/Kamisato/internal/blinkyutils"
 	"github.com/Hayao0819/Kamisato/internal/utils"
 	pkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
 	pacmanrepo "github.com/Hayao0819/Kamisato/pkg/pacman/repo"
@@ -123,7 +123,7 @@ func RunRemoteBuildLocalSign(o RemoteBuildOpts, keyPath, passphrase string) erro
 	}
 	defer func() { _ = os.RemoveAll(tmp) }()
 
-	client, err := clientlib.New(srv.URL, srv.Username, srv.Password)
+	client, err := srv.Client()
 	if err != nil {
 		return utils.WrapErr(err, "failed to create upload client")
 	}
@@ -149,7 +149,7 @@ func RunRemoteBuildLocalSign(o RemoteBuildOpts, keyPath, passphrase string) erro
 		if serr != nil {
 			return utils.WrapErr(serr, "failed to sign "+name)
 		}
-		if uerr := client.UploadPackageFiles(o.Repo, pkgPath, sigPath); uerr != nil {
+		if uerr := blinkyutils.Upload(client, o.Repo, pkgPath, sigPath); uerr != nil {
 			return utils.WrapErr(uerr, "failed to upload "+name)
 		}
 		slog.Info("signed and uploaded", "pkg", name)

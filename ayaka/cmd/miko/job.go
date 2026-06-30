@@ -1,9 +1,7 @@
 package mikocmd
 
 import (
-	blinky_util "github.com/BrenekH/blinky/cmd/blinky/util"
-	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
-	"github.com/Hayao0819/Kamisato/internal/utils"
+	"github.com/Hayao0819/Kamisato/internal/blinkyutils"
 	"github.com/spf13/cobra"
 )
 
@@ -14,16 +12,5 @@ func resolveJobBase(cmd *cobra.Command) (string, error) {
 	if err != nil {
 		return "", err
 	}
-
-	db, err := blinky_util.ReadServerDB()
-	if err != nil {
-		return "", utils.WrapErr(err, "failed to read server database")
-	}
-	if server == "" {
-		server = db.DefaultServer
-	}
-	if server == "" {
-		return "", shared.ErrNoServerSpecified
-	}
-	return server, nil
+	return blinkyutils.ResolveServerName(server)
 }

@@ -1,61 +1,130 @@
 package blinkyutils
 
 import (
-	"errors"
 	"os"
 
-	blinky_clintlib "github.com/BrenekH/blinky/clientlib"
-	blinky_clientutil "github.com/BrenekH/blinky/cmd/blinky/util"
+	blinky_clientlib "github.com/BrenekH/blinky/clientlib"
+	blinky_util "github.com/BrenekH/blinky/cmd/blinky/util"
+	"github.com/Hayao0819/Kamisato/internal/utils"
 	"github.com/Hayao0819/nahi/futils"
 )
 
-func GetClient(server string) (*blinky_clintlib.BlinkyClient, error) {
-	serverdb, err := blinky_clientutil.ReadServerDB()
+// Sentinel errors for server resolution. Package-level so callers can errors.Is
+// them through utils.WrapErr.
+var (
+	ErrNoServerSpecified = utils.NewErr("no server specified and no default server is set")
+	ErrServerNotFound    = utils.NewErr("server not found")
+)
+
+// Client is the blinky upload client. Aliased so callers depend on blinkyutils
+// instead of importing blinky's clientlib directly.
+type Client = blinky_clientlib.BlinkyClient
+
+// ServerInfo is a resolved ayato endpoint: the base URL plus the credentials
+// stored in the blinky server database.
+type ServerInfo struct {
+	URL      string
+	Username string
+	Password string
+}
+
+// ResolveServerName returns the server to use: name, else the serverdb default.
+// It does not require the server to be registered, so a bare URL works for the
+// public job endpoints that need no credentials.
+func ResolveServerName(name string) (string, error) {
+	db, err := blinky_util.ReadServerDB()
+	if err != nil {
+		return "", utils.WrapErr(err, "failed to read server database")
+	}
+	if name == "" {
+		name = db.DefaultServer
+	}
+	if name == "" {
+		return "", ErrNoServerSpecified
+	}
+	return name, nil
+}
+
+// ResolveServer looks up the base URL and credentials in the serverdb, using the
+// default server when name is empty. This is the same store blinky uploads use,
+// so a server from `ayaka server login` works here too.
+func ResolveServer(name string) (*ServerInfo, error) {
+	db, err := blinky_util.ReadServerDB()
+	if err != nil {
+		return nil, utils.WrapErr(err, "failed to read server database")
+	}
+	if name == "" {
+		name = db.DefaultServer
+	}
+	if name == "" {
+		return nil, ErrNoServerSpecified
+	}
+	entry, ok := db.Servers[name]
+	if !ok {
+		return nil, utils.WrapErr(ErrServerNotFound,
+			"server "+name+" is not registered; log in first with 'ayaka server login "+name+"'")
+	}
+	return &ServerInfo{URL: name, Username: entry.Username, Password: entry.Password}, nil
+}
+
+// Client builds a blinky client for the resolved endpoint.
+func (s *ServerInfo) Client() (*Client, error) {
+	return blinky_clientlib.New(s.URL, s.Username, s.Password)
+}
+
+// NewClient resolves name in the serverdb and returns a blinky client for it.
+func NewClient(name string) (*Client, error) {
+	info, err := ResolveServer(name)
 	if err != nil {
 		return nil, err
 	}
-
-	serverInfo, ok := serverdb.Servers[server]
-	if !ok {
-		return nil, errors.New("server not found in serverdb")
-	}
-	return blinky_clintlib.New(server, serverInfo.Username, serverInfo.Password)
+	return info.Client()
 }
 
-func UploadToBlinky(server string, repo string, file string) error {
-	client, err := GetClient(server)
+// Upload sends a package file with its optional detached signature to repo. An
+// empty sigPath uploads the package without a signature.
+func Upload(client *Client, repo, pkgPath, sigPath string) error {
+	pkgFile, err := os.Open(pkgPath)
 	if err != nil {
 		return err
 	}
+	defer func() { _ = pkgFile.Close() }()
 
-	var sigfile *os.File
-	sigfilePath := file + ".sig"
-	if futils.Exists(sigfilePath) {
-		sigfile, err = os.Open(sigfilePath)
+	var sigFile *os.File
+	if sigPath != "" {
+		sigFile, err = os.Open(sigPath)
 		if err != nil {
 			return err
 		}
-		defer func() {
-			if sigfile != nil {
-				sigfile.Close()
-			}
-		}()
+		defer func() { _ = sigFile.Close() }()
 	}
 
-	pkgfile, err := os.Open(file)
+	// A nil signature reader tells the blinky client there is no signature.
+	if sigFile == nil {
+		return client.UploadPackage(repo, pkgPath, pkgFile, nil)
+	}
+	return client.UploadPackage(repo, pkgPath, pkgFile, sigFile)
+}
+
+// UploadFiles uploads package files and any matching .sig sidecars to repo.
+func UploadFiles(client *Client, repo string, files ...string) error {
+	return client.UploadPackageFiles(repo, files...)
+}
+
+// GetClient resolves server in the serverdb and returns a blinky client.
+func GetClient(server string) (*Client, error) {
+	return NewClient(server)
+}
+
+// UploadToBlinky uploads file (and its .sig sidecar when present) to repo on server.
+func UploadToBlinky(server, repo, file string) error {
+	client, err := NewClient(server)
 	if err != nil {
 		return err
 	}
-	defer func() {
-		if pkgfile != nil {
-			pkgfile.Close()
-		}
-	}()
-
-	err = client.UploadPackage(repo, file, pkgfile, sigfile)
-	if err != nil {
-		return err
+	sigPath := ""
+	if p := file + ".sig"; futils.Exists(p) {
+		sigPath = p
 	}
-
-	return nil
+	return Upload(client, repo, file, sigPath)
 }

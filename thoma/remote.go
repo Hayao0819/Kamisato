@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -8,8 +9,8 @@ import (
 	"strconv"
 	"strings"
 
-	blinky_util "github.com/BrenekH/blinky/cmd/blinky/util"
 	"github.com/Hayao0819/Kamisato/internal/ayatoclient"
+	"github.com/Hayao0819/Kamisato/internal/blinkyutils"
 	"github.com/Hayao0819/Kamisato/internal/utils"
 )
 
@@ -55,21 +56,14 @@ func loadConfig() (*config, error) {
 // resolveServer reads the ayato URL and CLI token from the same server database
 // `ayaka server login` writes, selecting the default server when name is empty.
 func resolveServer(name string) (url, token string, err error) {
-	db, err := blinky_util.ReadServerDB()
+	info, err := blinkyutils.ResolveServer(name)
 	if err != nil {
-		return "", "", utils.WrapErr(err, "failed to read server database")
+		if errors.Is(err, blinkyutils.ErrNoServerSpecified) {
+			return "", "", utils.NewErr("no ayato server configured; set THOMA_SERVER or run 'ayaka server login'")
+		}
+		return "", "", err
 	}
-	if name == "" {
-		name = db.DefaultServer
-	}
-	if name == "" {
-		return "", "", utils.NewErr("no ayato server configured; set THOMA_SERVER or run 'ayaka server login'")
-	}
-	entry, ok := db.Servers[name]
-	if !ok {
-		return "", "", utils.NewErrf("server %q is not registered; run 'ayaka server login %s'", name, name)
-	}
-	return name, entry.Password, nil
+	return info.URL, info.Password, nil
 }
 
 func detectArch() string {

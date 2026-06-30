@@ -3,8 +3,8 @@ package shared
 import (
 	"strings"
 
-	blinky_util "github.com/BrenekH/blinky/cmd/blinky/util"
 	"github.com/Hayao0819/Kamisato/internal/ayatoclient"
+	"github.com/Hayao0819/Kamisato/internal/blinkyutils"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/alpm"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
 )
@@ -127,14 +127,11 @@ func LatestJobStatus(jobs []ayatoclient.Job, repoName string, names []string) st
 
 // ayatoBaseBestEffort resolves the ayato base URL: --server, else serverdb default, else "".
 func ayatoBaseBestEffort(server string) string {
-	if server != "" {
-		return server
-	}
-	db, err := blinky_util.ReadServerDB()
+	base, err := blinkyutils.ResolveServerName(server)
 	if err != nil {
 		return ""
 	}
-	return db.DefaultServer
+	return base
 }
 
 // orDash renders an empty value as "-" so columns stay aligned.

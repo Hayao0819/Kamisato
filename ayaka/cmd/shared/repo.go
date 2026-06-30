@@ -1,9 +1,7 @@
 package shared
 
 import (
-	"github.com/BrenekH/blinky/clientlib"
-	blinky_util "github.com/BrenekH/blinky/cmd/blinky/util"
-	"github.com/Hayao0819/Kamisato/internal/utils"
+	"github.com/Hayao0819/Kamisato/internal/blinkyutils"
 	"github.com/spf13/cobra"
 )
 
@@ -16,7 +14,7 @@ func AddRepoServerFlags(cmd *cobra.Command) {
 }
 
 // RepoClient resolves the endpoint and credentials from flags and the serverdb, returning a Blinky client.
-func RepoClient(cmd *cobra.Command) (*clientlib.BlinkyClient, error) {
+func RepoClient(cmd *cobra.Command) (*blinkyutils.Client, error) {
 	serverFlag, err := cmd.Flags().GetString("server")
 	if err != nil {
 		return nil, err
@@ -34,40 +32,23 @@ func RepoClient(cmd *cobra.Command) (*clientlib.BlinkyClient, error) {
 		return nil, err
 	}
 
-	db, err := blinky_util.ReadServerDB()
+	info, err := blinkyutils.ResolveServer(serverFlag)
 	if err != nil {
-		return nil, utils.WrapErr(err, "failed to read server database")
+		return nil, err
 	}
 
-	server := serverFlag
-	if server == "" {
-		server = db.DefaultServer
+	if usernameFlag != "" {
+		info.Username = usernameFlag
 	}
-	if server == "" {
-		return nil, ErrNoServerSpecified
-	}
-	entry, ok := db.Servers[server]
-	if !ok {
-		return nil, utils.WrapErr(ErrServerNotFound, server)
-	}
-
-	username := usernameFlag
-	if username == "" {
-		username = entry.Username
-	}
-
-	password := passwordFlag
-	if password == "" {
-		if askPass {
-			p, err := PromptPassword("Password:")
-			if err != nil {
-				return nil, err
-			}
-			password = p
-		} else {
-			password = entry.Password
+	if passwordFlag != "" {
+		info.Password = passwordFlag
+	} else if askPass {
+		p, err := PromptPassword("Password:")
+		if err != nil {
+			return nil, err
 		}
+		info.Password = p
 	}
 
-	return clientlib.New(server, username, password)
+	return info.Client()
 }
