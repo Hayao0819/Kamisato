@@ -25,7 +25,7 @@ func (s *stub) Info(_ context.Context, names []string) ([]aurweb.Pkg, error) {
 	return out, nil
 }
 func (s *stub) Search(_ context.Context, _ aurweb.By, _ string) ([]aurweb.Pkg, error) {
-	return s.All(nil)
+	return s.All(context.TODO())
 }
 func (s *stub) Suggest(_ context.Context, _ string, _ bool) ([]string, error) { return nil, nil }
 func (s *stub) All(_ context.Context) ([]aurweb.Pkg, error) {

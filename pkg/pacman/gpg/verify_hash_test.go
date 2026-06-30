@@ -8,6 +8,7 @@ import (
 	"os"
 	"testing"
 
+	//lint:ignore SA1019 RIPEMD160 is registered on purpose so this red-team test can forge the weak digest the verifier must reject.
 	_ "golang.org/x/crypto/ripemd160" // register RIPEMD160
 
 	"github.com/ProtonMail/go-crypto/openpgp"
