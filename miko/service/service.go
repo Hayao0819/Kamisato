@@ -44,6 +44,10 @@ type Service struct {
 
 	startedAt time.Time
 
+	// sweepOnce ensures a single artifact-sweep loop runs even when several
+	// worker goroutines share this Service (cfg.Concurrency > 1).
+	sweepOnce sync.Once
+
 	mu    sync.Mutex
 	store map[string]*domain.BuildJob
 	// running maps in-flight job IDs to their cancel func (guarded by mu).

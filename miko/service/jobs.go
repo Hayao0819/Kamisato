@@ -184,12 +184,16 @@ func (s *Service) Stats() domain.BuildStats {
 func (s *Service) Run(ctx context.Context) {
 	slog.Info("Build worker started", "executor", s.cfg.Executor)
 
+	// Only the first worker starts the sweep loop; the rest would be redundant
+	// tickers over the same shared store.
 	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		s.sweepLoop(ctx, sweepInterval, artifactRetention)
-	}()
+	s.sweepOnce.Do(func() {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			s.sweepLoop(ctx, sweepInterval, artifactRetention)
+		}()
+	})
 	defer wg.Wait()
 
 	for {

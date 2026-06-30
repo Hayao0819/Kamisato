@@ -109,7 +109,7 @@ func (s *Service) process(ctx context.Context, job *domain.BuildJob) {
 }
 
 // artifactRetention bounds how long a client-signed job's artifacts are kept for
-// download; they are swept opportunistically as later jobs finish.
+// download; they are swept on a timer (sweepInterval) and as jobs finish.
 const artifactRetention = time.Hour
 
 // sweepInterval is how often the worker sweeps expired artifacts independent of
@@ -123,15 +123,22 @@ func (s *Service) sweepArtifacts(ttl time.Duration) {
 	now := time.Now()
 	s.mu.Lock()
 	var dirs []string
+	var swept []domain.BuildJob
 	for _, j := range s.store {
 		if j.ArtifactDir != "" && j.EndedAt != nil && now.Sub(*j.EndedAt) > ttl {
 			dirs = append(dirs, j.ArtifactDir)
 			j.ArtifactDir = ""
+			swept = append(swept, *j)
 		}
 	}
 	s.mu.Unlock()
 	for _, d := range dirs {
 		_ = os.RemoveAll(d)
+	}
+	// Persist the cleared dir so a restart does not restore a job pointing at a
+	// directory that no longer exists.
+	for i := range swept {
+		s.persistSave(&swept[i])
 	}
 }
 
