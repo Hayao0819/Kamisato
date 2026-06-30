@@ -35,6 +35,7 @@ require (
 	github.com/spf13/pflag v1.0.7
 	github.com/tmc/langchaingo v0.1.14
 	github.com/ulikunitz/xz v0.5.13
+	github.com/wneessen/go-mail v0.7.3
 	go.uber.org/mock v0.5.2
 	golang.org/x/oauth2 v0.36.0
 	gorm.io/driver/mysql v1.6.0
