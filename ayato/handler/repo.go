@@ -40,7 +40,7 @@ func (h *Handler) RepoFileHandler(ctx *gin.Context) {
 	arch := ctx.Param("arch")
 	fileName := ctx.Param("file")
 
-	slog.Info("repoHandler", "repoName", repoName)
+	slog.Debug("repoHandler", "repoName", repoName)
 
 	// Offload egress to the object store when it can presign: redirect the client
 	// straight to a presigned GET so the bytes never transit ayato (Cloud Run bills
@@ -77,9 +77,11 @@ func (h *Handler) RepoFileListHandler(ctx *gin.Context) {
 	l, err := h.s.RepoFileList(repo, arch)
 	if err != nil {
 		slog.Error("err while getting repo dir", "repo", repo, "arch", arch, "err", err)
+		ctx.JSON(http.StatusInternalServerError, domain.APIError{Message: err.Error()})
+		return
 	}
 
-	slog.Warn("repoHandler", "repoName", repo, "arch", arch, "filelist", l)
+	slog.Debug("repoHandler", "repoName", repo, "arch", arch, "filelist", l)
 
 	ctx.HTML(http.StatusOK, "filelist.tmpl", gin.H{
 		"List": l,
