@@ -10,14 +10,24 @@ import (
 // dependency-free alternative used by default.
 type CLITool struct{}
 
-func (CLITool) RepoAdd(dbPath, pkgFilePath string, useSignedDB bool, gnupgDir *string) error {
+func (t CLITool) RepoAdd(dbPath, pkgFilePath string, useSignedDB bool, gnupgDir *string) error {
+	var paths []string
+	if pkgFilePath != "" {
+		paths = []string{pkgFilePath}
+	}
+	return t.RepoAddBatch(dbPath, paths, useSignedDB, gnupgDir)
+}
+
+func (CLITool) RepoAddBatch(dbPath string, pkgFilePaths []string, useSignedDB bool, gnupgDir *string) error {
 	args := []string{"-q", "-R", "--nocolor"}
 	if useSignedDB {
 		args = append(args, "--sign")
 	}
 	args = append(args, dbPath)
-	if pkgFilePath != "" {
-		args = append(args, pkgFilePath)
+	for _, p := range pkgFilePaths {
+		if p != "" {
+			args = append(args, p)
+		}
 	}
 	return runRepoDBTool("repo-add", args, gnupgDir)
 }

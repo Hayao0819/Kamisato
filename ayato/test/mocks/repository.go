@@ -12,77 +12,11 @@ package mocks
 import (
 	reflect "reflect"
 
+	repository "github.com/Hayao0819/Kamisato/ayato/repository"
 	stream "github.com/Hayao0819/Kamisato/ayato/stream"
 	repo "github.com/Hayao0819/Kamisato/pkg/pacman/repo"
 	gomock "go.uber.org/mock/gomock"
 )
-
-// MockNameStore is a mock of NameStore interface.
-type MockNameStore struct {
-	ctrl     *gomock.Controller
-	recorder *MockNameStoreMockRecorder
-	isgomock struct{}
-}
-
-// MockNameStoreMockRecorder is the mock recorder for MockNameStore.
-type MockNameStoreMockRecorder struct {
-	mock *MockNameStore
-}
-
-// NewMockNameStore creates a new mock instance.
-func NewMockNameStore(ctrl *gomock.Controller) *MockNameStore {
-	mock := &MockNameStore{ctrl: ctrl}
-	mock.recorder = &MockNameStoreMockRecorder{mock}
-	return mock
-}
-
-// EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockNameStore) EXPECT() *MockNameStoreMockRecorder {
-	return m.recorder
-}
-
-// DeletePackageFileEntry mocks base method.
-func (m *MockNameStore) DeletePackageFileEntry(arch, packageName string) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DeletePackageFileEntry", arch, packageName)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// DeletePackageFileEntry indicates an expected call of DeletePackageFileEntry.
-func (mr *MockNameStoreMockRecorder) DeletePackageFileEntry(arch, packageName any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeletePackageFileEntry", reflect.TypeOf((*MockNameStore)(nil).DeletePackageFileEntry), arch, packageName)
-}
-
-// PackageFile mocks base method.
-func (m *MockNameStore) PackageFile(arch, name string) (string, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "PackageFile", arch, name)
-	ret0, _ := ret[0].(string)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// PackageFile indicates an expected call of PackageFile.
-func (mr *MockNameStoreMockRecorder) PackageFile(arch, name any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PackageFile", reflect.TypeOf((*MockNameStore)(nil).PackageFile), arch, name)
-}
-
-// StorePackageFile mocks base method.
-func (m *MockNameStore) StorePackageFile(arch, packageName, filePath string) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "StorePackageFile", arch, packageName, filePath)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// StorePackageFile indicates an expected call of StorePackageFile.
-func (mr *MockNameStoreMockRecorder) StorePackageFile(arch, packageName, filePath any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StorePackageFile", reflect.TypeOf((*MockNameStore)(nil).StorePackageFile), arch, packageName, filePath)
-}
 
 // MockBinaryRepository is a mock of BinaryRepository interface.
 type MockBinaryRepository struct {
@@ -253,6 +187,20 @@ func (m *MockBinaryRepository) RepoAdd(name, arch string, pkg, sig stream.SeekFi
 func (mr *MockBinaryRepositoryMockRecorder) RepoAdd(name, arch, pkg, sig, useSignedDB, gnupgDir any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RepoAdd", reflect.TypeOf((*MockBinaryRepository)(nil).RepoAdd), name, arch, pkg, sig, useSignedDB, gnupgDir)
+}
+
+// RepoAddBatch mocks base method.
+func (m *MockBinaryRepository) RepoAddBatch(name, arch string, items []repository.RepoAddItem, useSignedDB bool, gnupgDir *string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RepoAddBatch", name, arch, items, useSignedDB, gnupgDir)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// RepoAddBatch indicates an expected call of RepoAddBatch.
+func (mr *MockBinaryRepositoryMockRecorder) RepoAddBatch(name, arch, items, useSignedDB, gnupgDir any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RepoAddBatch", reflect.TypeOf((*MockBinaryRepository)(nil).RepoAddBatch), name, arch, items, useSignedDB, gnupgDir)
 }
 
 // RepoNames mocks base method.

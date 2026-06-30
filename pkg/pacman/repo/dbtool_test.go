@@ -226,6 +226,54 @@ func TestNativeRepoAddAndRemove(t *testing.T) {
 	}
 }
 
+// TestRepoAddBatch adds several packages in a single RepoAddBatch call and
+// asserts every one lands in the database, for both backends.
+func TestRepoAddBatch(t *testing.T) {
+	backends := []struct {
+		name         string
+		tool         Tool
+		needsRepoAdd bool
+	}{
+		{"native", NativeTool{}, false},
+		{"cli", CLITool{}, true},
+	}
+	names := []string{"alpha", "bravo", "charlie"}
+	for _, be := range backends {
+		t.Run(be.name, func(t *testing.T) {
+			if be.needsRepoAdd {
+				requireRepoAdd(t)
+			}
+			dir := t.TempDir()
+			var pkgPaths []string
+			for _, n := range names {
+				p := filepath.Join(dir, n+"-1.0-1-x86_64.pkg.tar.zst")
+				buildPkg(t, p, pkginfoSample(n, n, "1.0-1"), sampleMembers())
+				pkgPaths = append(pkgPaths, p)
+			}
+			dbPath := filepath.Join(dir, "r.db.tar.gz")
+			if err := be.tool.RepoAddBatch(dbPath, pkgPaths, false, nil); err != nil {
+				t.Fatalf("RepoAddBatch: %v", err)
+			}
+			rr, err := RepoFromDBFile("r", dbPath)
+			if err != nil {
+				t.Fatalf("read back: %v", err)
+			}
+			if len(rr.Pkgs) != len(names) {
+				t.Fatalf("expected %d packages, got %d", len(names), len(rr.Pkgs))
+			}
+			got := map[string]bool{}
+			for _, p := range rr.Pkgs {
+				got[p.Name()] = true
+			}
+			for _, n := range names {
+				if !got[n] {
+					t.Errorf("package %q missing from batch db", n)
+				}
+			}
+		})
+	}
+}
+
 func TestNativeInitEmpty(t *testing.T) {
 	dir := t.TempDir()
 	dbPath := filepath.Join(dir, "r.db.tar.gz")

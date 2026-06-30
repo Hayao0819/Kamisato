@@ -20,6 +20,7 @@ import (
 // binaryRepository be unit-tested with a fake tool.
 type repoDBTool interface {
 	RepoAdd(dbPath, pkgFilePath string, useSignedDB bool, gnupgDir *string) error
+	RepoAddBatch(dbPath string, pkgFilePaths []string, useSignedDB bool, gnupgDir *string) error
 	RepoRemove(dbPath, pkg string, useSignedDB bool, gnupgDir *string) error
 }
 
@@ -99,10 +100,26 @@ func (r *binaryRepository) storeArtifacts(repo, arch, dir string, skip map[strin
 	return nil
 }
 
-// RepoAdd registers a package in the (repo, arch) database, leaving the package
-// file itself to the caller's StoreFile. The per-(repo, arch) dbMu serializes
-// these read-modify-writes.
+// RepoAddItem is one package — and its optional detached signature — to register
+// in a batch via RepoAddBatch.
+type RepoAddItem struct {
+	Pkg stream.SeekFile
+	Sig stream.SeekFile
+}
+
+// RepoAdd registers a single package in the (repo, arch) database, leaving the
+// package file itself to the caller's StoreFile. It is the one-item shorthand for
+// RepoAddBatch.
 func (r *binaryRepository) RepoAdd(repo, arch string, pkg, sig stream.SeekFile, useSignedDB bool, gnupgDir *string) error {
+	return r.RepoAddBatch(repo, arch, []RepoAddItem{{Pkg: pkg, Sig: sig}}, useSignedDB, gnupgDir)
+}
+
+// RepoAddBatch registers many packages in the (repo, arch) database in a single
+// read-modify-write: it fetches the live DB once, adds every package, and stores
+// the result once. So N packages publish atomically — the database never appears
+// with a partial set — and the blob round-trips are paid once rather than per
+// package. The per-(repo, arch) dbMu serializes these read-modify-writes.
+func (r *binaryRepository) RepoAddBatch(repo, arch string, items []RepoAddItem, useSignedDB bool, gnupgDir *string) error {
 	defer r.dbMu.lock(repo + "/" + arch)()
 
 	t, err := os.MkdirTemp("", "ayato-repodb-")
@@ -112,19 +129,23 @@ func (r *binaryRepository) RepoAdd(repo, arch string, pkg, sig stream.SeekFile, 
 	defer os.RemoveAll(t)
 
 	skip := map[string]struct{}{}
-	pkgPath, err := writeSeekFileTo(t, pkg)
-	if err != nil {
-		return err
-	}
-	if pkgPath != "" {
-		skip[path.Base(pkgPath)] = struct{}{}
-	}
-	sigPath, err := writeSeekFileTo(t, sig)
-	if err != nil {
-		return err
-	}
-	if sigPath != "" {
-		skip[path.Base(sigPath)] = struct{}{}
+	pkgPaths := make([]string, 0, len(items))
+	for _, it := range items {
+		pkgPath, err := writeSeekFileTo(t, it.Pkg)
+		if err != nil {
+			return err
+		}
+		if pkgPath != "" {
+			skip[path.Base(pkgPath)] = struct{}{}
+			pkgPaths = append(pkgPaths, pkgPath)
+		}
+		sigPath, err := writeSeekFileTo(t, it.Sig)
+		if err != nil {
+			return err
+		}
+		if sigPath != "" {
+			skip[path.Base(sigPath)] = struct{}{}
+		}
 	}
 
 	if err := r.fetchDBArtifacts(repo, arch, t, useSignedDB); err != nil {
@@ -132,8 +153,8 @@ func (r *binaryRepository) RepoAdd(repo, arch string, pkg, sig stream.SeekFile, 
 	}
 
 	dbPath := path.Join(t, repo+".db.tar.gz")
-	if err := r.repoTool().RepoAdd(dbPath, pkgPath, useSignedDB, gnupgDir); err != nil {
-		slog.Error("repo db add", "err", err)
+	if err := r.repoTool().RepoAddBatch(dbPath, pkgPaths, useSignedDB, gnupgDir); err != nil {
+		slog.Error("repo db add batch", "err", err, "count", len(pkgPaths))
 		return utils.WrapErr(err, "repo db add failed")
 	}
 

@@ -23,6 +23,7 @@ import (
 type BinaryRepository interface {
 	blob.Store
 	RepoAdd(name, arch string, pkg, sig stream.SeekFile, useSignedDB bool, gnupgDir *string) error
+	RepoAddBatch(name, arch string, items []RepoAddItem, useSignedDB bool, gnupgDir *string) error
 	RepoRemove(name, arch, pkg string, useSignedDB bool, gnupgDir *string) error
 	InitArch(name, arch string, useSignedDB bool, gnupgDir *string) error
 	FetchDB(repoName, archName string) (stream.File, error)

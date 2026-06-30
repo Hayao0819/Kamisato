@@ -6,6 +6,8 @@ import (
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
 )
 
+//go:generate mockgen -source=namestore.go -destination=../test/mocks/namestore.go -package=mocks
+
 // NameStore maps a package's (arch, name) to its stored file name; arch is "any"
 // for an arch=any package, else the concrete arch. Keying by (arch, name) keeps the
 // same package name distinct across arches (pacman identity is the (pkgname, arch) tuple).

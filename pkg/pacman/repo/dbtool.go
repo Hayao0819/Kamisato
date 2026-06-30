@@ -17,6 +17,10 @@ import (
 // repo-add/repo-remove. The two are interchangeable behind this interface.
 type Tool interface {
 	RepoAdd(dbPath, pkgFilePath string, useSignedDB bool, gnupgDir *string) error
+	// RepoAddBatch adds every package in one load-mutate-write cycle, so N packages
+	// enter the database atomically (it never appears with a partial set) and the
+	// archive is rewritten once. RepoAdd is the single-package shorthand.
+	RepoAddBatch(dbPath string, pkgFilePaths []string, useSignedDB bool, gnupgDir *string) error
 	RepoRemove(dbPath, pkgName string, useSignedDB bool, gnupgDir *string) error
 }
 
@@ -35,7 +39,15 @@ type NativeTool struct{}
 // signing needs a private signing key, which is not yet wired up.
 var ErrSignedDBUnsupported = errors.New("native repo-db tool: signed databases are not supported")
 
-func (NativeTool) RepoAdd(dbPath, pkgFilePath string, useSignedDB bool, _ *string) error {
+func (t NativeTool) RepoAdd(dbPath, pkgFilePath string, useSignedDB bool, gnupgDir *string) error {
+	var paths []string
+	if pkgFilePath != "" {
+		paths = []string{pkgFilePath}
+	}
+	return t.RepoAddBatch(dbPath, paths, useSignedDB, gnupgDir)
+}
+
+func (NativeTool) RepoAddBatch(dbPath string, pkgFilePaths []string, useSignedDB bool, _ *string) error {
 	if useSignedDB {
 		return ErrSignedDBUnsupported
 	}
@@ -47,7 +59,10 @@ func (NativeTool) RepoAdd(dbPath, pkgFilePath string, useSignedDB bool, _ *strin
 	if err != nil {
 		return err
 	}
-	if pkgFilePath != "" {
+	for _, pkgFilePath := range pkgFilePaths {
+		if pkgFilePath == "" {
+			continue
+		}
 		meta, err := pkg.ReadBinaryPackageMeta(pkgFilePath)
 		if err != nil {
 			return fmt.Errorf("failed to read package: %w", err)
