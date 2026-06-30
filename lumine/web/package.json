@@ -11,7 +11,8 @@
         "fix": "biome check --write --unsafe",
         "check": "biome check",
         "gen:types": "go run github.com/gzuidhof/tygo@latest generate",
-        "typecheck": "tsc --noEmit"
+        "typecheck": "tsc --noEmit",
+        "test": "vitest run"
     },
     "dependencies": {
         "@radix-ui/react-dialog": "1.1.15",
@@ -41,7 +42,8 @@
         "npm-check-updates": "^19.2.0",
         "postcss": "^8",
         "tailwindcss": "^4.1.18",
-        "typescript": "^5"
+        "typescript": "^5",
+        "vitest": "^4.1.0"
     },
     "packageManager": "pnpm@10.26.2",
     "volta": {
