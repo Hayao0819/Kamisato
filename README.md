@@ -37,6 +37,30 @@ submit builds, and watch job logs and build-server status.
 
 [REFER TO THE DOCUMENT](./lumine/web/README.md)
 
+## Kayo
+
+Kayo is a local aurweb-compatible overlay you point an AUR helper at. It intercepts
+package resolution, federating trusted git overlays, other ayato instances, and the
+upstream AUR, then gates installs through a supply-chain trust store and a pacman
+hook that warns about, or in enforce mode blocks, packages no one has reviewed.
+
+[REFER TO THE DOCUMENT](./kayo/README.md)
+
+## Thoma
+
+Thoma is a drop-in makepkg shim. It offloads the compile to miko (through ayato) and
+keeps the rest local, so an AUR helper keeps working on a low-powered machine without
+building anything there.
+
+[REFER TO THE DOCUMENT](./thoma/README.md)
+
+## Raiou
+
+Raiou is the metadata-parsing library the other components build on. It reads the
+ALPM formats: .SRCINFO, .PKGINFO, .BUILDINFO, and repository desc entries.
+
+[REFER TO THE DOCUMENT](./pkg/raiou/README.md)
+
 ## About Docker Images
 
 The [Dockerfile](./Dockerfile) provides an Alpine Linux-based image with Project
