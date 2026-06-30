@@ -40,12 +40,12 @@ func (l *LocalStore) StoreFile(repo string, arch string, file stream.SeekFile) e
 	}
 
 	repoPath := path.Join(repoDir, arch)
-	if err := os.MkdirAll(repoPath, os.ModePerm); err != nil {
+	if err := os.MkdirAll(repoPath, 0o755); err != nil {
 		return utils.WrapErr(err, fmt.Sprintf("mkdir %s err", repoPath))
 	}
 
 	dstFilePath := path.Join(repoPath, name)
-	dstFile, err := os.Create(dstFilePath)
+	dstFile, err := os.OpenFile(dstFilePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o644)
 	if err != nil {
 		return fmt.Errorf("create file err: %s", err.Error())
 	}
