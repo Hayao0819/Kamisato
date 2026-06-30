@@ -273,6 +273,49 @@ func buildNamedPkg(t *testing.T, name string) []byte {
 	return zBuf.Bytes()
 }
 
+// countingSignerRepo records how often the signer keyring is rebuilt.
+type countingSignerRepo struct{ listCalls int }
+
+func (r *countingSignerRepo) AddSigner(string, []byte) error { return nil }
+func (r *countingSignerRepo) DeleteSigner(string) error      { return nil }
+func (r *countingSignerRepo) ListSigners() ([][]byte, error) { r.listCalls++; return nil, nil }
+
+// TestUploadFiles_KeyringBuiltOncePerBatch proves the verification keyring is
+// built a single time for a multi-package signed batch rather than once per file:
+// the signer lookup (KV-backed in production) must not fan out per package.
+func TestUploadFiles_KeyringBuiltOncePerBatch(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	signer := newSigner(t)
+	keyring := writeKeyring(t, signer)
+	fooPayload := buildNamedPkg(t, "foo")
+	barPayload := buildNamedPkg(t, "bar")
+	fooSig := detachSignBytes(t, signer, fooPayload)
+	barSig := detachSignBytes(t, signer, barPayload)
+
+	bin := mocks.NewMockBinaryRepository(ctrl)
+	name := mocks.NewMockNameStore(ctrl)
+	bin.EXPECT().VerifyPkgRepo("myrepo").Return(nil)
+	bin.EXPECT().StoreFile("myrepo", "x86_64", gomock.Any()).Return(nil).Times(4)
+	bin.EXPECT().RepoAddBatch("myrepo", "x86_64", gomock.Any(), false, gomock.Nil()).Return(nil)
+	name.EXPECT().StorePackageFile("x86_64", "foo", "foo-1.0-1-x86_64.pkg.tar.zst").Return(nil)
+	name.EXPECT().StorePackageFile("x86_64", "bar", "bar-1.0-1-x86_64.pkg.tar.zst").Return(nil)
+
+	sr := &countingSignerRepo{}
+	svc := service.New(name, bin, nil, sr, baseConfig(false, keyring))
+	files := []*domain.UploadFiles{
+		{PkgFile: pkgStream("foo-1.0-1-x86_64.pkg.tar.zst", fooPayload), SigFile: pkgStream("foo-1.0-1-x86_64.pkg.tar.zst.sig", fooSig)},
+		{PkgFile: pkgStream("bar-1.0-1-x86_64.pkg.tar.zst", barPayload), SigFile: pkgStream("bar-1.0-1-x86_64.pkg.tar.zst.sig", barSig)},
+	}
+	if err := svc.UploadFiles("myrepo", files); err != nil {
+		t.Fatalf("UploadFiles: %v", err)
+	}
+	if sr.listCalls != 1 {
+		t.Fatalf("signer keyring rebuilt %d times, want exactly 1 per batch", sr.listCalls)
+	}
+}
+
 // TestUploadFiles_BatchOneRepoAddPerArch proves a multi-package publish enters the
 // (repo, arch) database with a SINGLE RepoAddBatch (default Times(1)) rather than
 // one RepoAdd per package — the atomic-batch payoff.

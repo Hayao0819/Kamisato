@@ -32,7 +32,7 @@ func TestAgainstRealAyatoHandler(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	h := ayatoaur.NewHandler(ayatoaur.New(store, "maint"), signer)
+	h := ayatoaur.NewHandler(ayatoaur.New(store, "maint"), signer, time.Hour)
 	r := gin.New()
 	r.GET(catalogPath, h.CatalogHandler)
 	r.GET(pubkeyPath, h.PubkeyHandler)

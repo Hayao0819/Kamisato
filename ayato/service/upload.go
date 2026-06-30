@@ -10,6 +10,7 @@ import (
 	"github.com/Hayao0819/Kamisato/ayato/domain"
 	"github.com/Hayao0819/Kamisato/ayato/repository"
 	"github.com/Hayao0819/Kamisato/ayato/stream"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/gpg"
 	pkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
 )
 
@@ -31,8 +32,9 @@ type preparedUpload struct {
 // reads the metadata, gates the signature (a present signature is always
 // verified; a missing one is allowed only when RequireSign is false), and
 // resolves the storage arch and the db arches. Storing nothing here lets a bad
-// package in a batch fail the whole publish before any state changes.
-func (s *Service) prepareUpload(repo string, files *domain.UploadFiles) (preparedUpload, error) {
+// package in a batch fail the whole publish before any state changes. kr is the
+// verification keyring built once per batch; nil means no trust root.
+func (s *Service) prepareUpload(repo string, files *domain.UploadFiles, kr *gpg.Keyring) (preparedUpload, error) {
 	pkgFileStream := files.PkgFile
 	p, err := pkg.ReadBinaryPackage(pkgFileStream.FileName(), pkgFileStream)
 	if err != nil {
@@ -46,10 +48,6 @@ func (s *Service) prepareUpload(repo string, files *domain.UploadFiles) (prepare
 		return preparedUpload{}, fmt.Errorf("package signature is required but none was provided")
 	}
 	if hasSig {
-		kr, kerr := s.verifyKeyring()
-		if kerr != nil {
-			return preparedUpload{}, fmt.Errorf("build signature keyring err: %s", kerr.Error())
-		}
 		if kr == nil {
 			// A signature is present but there is no trust root to verify it;
 			// reject rather than store an unvalidated signature.
@@ -121,12 +119,26 @@ func (s *Service) UploadFiles(repo string, files []*domain.UploadFiles) error {
 	useSignedDB := false // TODO: support signed DB
 	var gnupgDir *string // TODO: check gnupgDir existence
 
+	// Build the verification keyring once for the whole batch: it is identical for
+	// every package and rebuilding it per file re-runs the (KV-backed) signer
+	// lookup N times. Skip it entirely when nothing in the batch is signed.
+	var kr *gpg.Keyring
+	for _, f := range files {
+		if f.SigFile != nil {
+			var kerr error
+			if kr, kerr = s.verifyKeyring(); kerr != nil {
+				return fmt.Errorf("build signature keyring err: %s", kerr.Error())
+			}
+			break
+		}
+	}
+
 	// Validate and verify every package up front, so a bad package in the batch
 	// fails the whole publish before anything is stored.
 	preps := make([]preparedUpload, 0, len(files))
 	for _, f := range files {
 		slog.Info("upload pkg file", "file", f.PkgFile.FileName())
-		prep, err := s.prepareUpload(repo, f)
+		prep, err := s.prepareUpload(repo, f, kr)
 		if err != nil {
 			return err
 		}

@@ -2,6 +2,8 @@ package aur
 
 import (
 	"context"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -10,6 +12,7 @@ import (
 
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
 	"github.com/Hayao0819/Kamisato/pkg/aurweb"
+	"github.com/gin-gonic/gin"
 )
 
 type memKV struct {
@@ -47,6 +50,51 @@ func (m *memKV) List(ns string) ([]kv.Entry, error) {
 }
 
 func (m *memKV) Close() error { return nil }
+
+// countingKV counts List fan-outs so a test can prove the catalog cache spares
+// repeated builds.
+type countingKV struct {
+	*memKV
+	listCalls int
+}
+
+func (m *countingKV) List(ns string) ([]kv.Entry, error) {
+	m.listCalls++
+	return m.memKV.List(ns)
+}
+
+func TestCatalogHandlerCachesEnvelope(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	m := newMemKV()
+	if err := m.Set(nsPkg, "foo", []byte(`{"Name":"foo"}`), 0); err != nil {
+		t.Fatal(err)
+	}
+	if err := m.Set(nsBase, "foo", []byte(`{"url":"https://example.test/foo.git","names":["foo"]}`), 0); err != nil {
+		t.Fatal(err)
+	}
+	ck := &countingKV{memKV: m}
+	h := NewHandler(New(ck, "maint"), nil, time.Minute)
+
+	call := func() {
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodGet, "/catalog", nil)
+		h.CatalogHandler(c)
+		if w.Code != http.StatusOK {
+			t.Fatalf("catalog status = %d, want 200", w.Code)
+		}
+	}
+
+	call()
+	afterFirst := ck.listCalls
+	if afterFirst == 0 {
+		t.Fatal("first catalog build should hit the KV store")
+	}
+	call()
+	if ck.listCalls != afterFirst {
+		t.Fatalf("cached catalog still fanned out to KV: %d list calls after second hit, want %d", ck.listCalls, afterFirst)
+	}
+}
 
 func initGitRepo(t *testing.T, srcinfo string) string {
 	t.Helper()

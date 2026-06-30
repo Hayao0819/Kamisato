@@ -120,14 +120,16 @@ func RootCmd() *cobra.Command {
 					)
 					aurOpts = append(aurOpts, aurweb.WithUpstream(up))
 				}
+				// TTL bounds both the signed envelope's freshness and how long the
+				// public /catalog response is cached.
+				ttl := time.Duration(cfg.AUR.CatalogTTLMinutes) * time.Minute
+				if ttl <= 0 {
+					ttl = 60 * time.Minute
+				}
 				// The catalog signing seed comes only from the environment, never
 				// the config file (it is a private key).
 				var signer *aur.CatalogSigner
 				if seed := os.Getenv("AYATO_AUR_SIGNING_SEED"); seed != "" {
-					ttl := time.Duration(cfg.AUR.CatalogTTLMinutes) * time.Minute
-					if ttl <= 0 {
-						ttl = 60 * time.Minute
-					}
 					signer, err = aur.NewCatalogSigner(seed, ttl)
 					if err != nil {
 						return utils.WrapErr(err, "failed to build catalog signer")
@@ -137,7 +139,7 @@ func RootCmd() *cobra.Command {
 					slog.Warn("AYATO_AUR_SIGNING_SEED is unset; the kayo-facing catalog is served unsigned")
 				}
 				aurSrv := aurweb.New(aurBackend, aurOpts...)
-				router.SetAUR(engine, m, aurSrv, aur.NewHandler(aurBackend, signer))
+				router.SetAUR(engine, m, aurSrv, aur.NewHandler(aurBackend, signer, ttl))
 				slog.Info("aurweb-compatible API enabled", "upstream", cfg.AUR.Upstream.Enabled, "signed", signer != nil)
 			}
 
