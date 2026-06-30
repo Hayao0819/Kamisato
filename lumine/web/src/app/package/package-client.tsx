@@ -1,9 +1,10 @@
 "use client";
-import { Download, ExternalLink, Hammer } from "lucide-react";
+import { BugIcon, Download, ExternalLink, Hammer } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { useAPIClient } from "@/components/lumine-provider";
+import { BugReportDialog } from "@/components/bug-report-dialog";
+import { useAPIClient, useFeatures } from "@/components/lumine-provider";
 import { PageContainer } from "@/components/page-container";
 import { PageHeader } from "@/components/page-header";
 import { PkgDepSection } from "@/components/pkg-dep-section";
@@ -21,6 +22,7 @@ export default function ClientPackageDetailPage() {
     const [error, setError] = useState<string | null>(null);
 
     const api = useAPIClient();
+    const features = useFeatures();
 
     useEffect(() => {
         if (!api.endpoints.executable) return;
@@ -155,17 +157,33 @@ export default function ClientPackageDetailPage() {
                                 <Download className="h-4 w-4" />
                                 ダウンロード
                             </Button>
-                            <Link
-                                href={`/builds?repo=${encodeURIComponent(repo)}&arch=${encodeURIComponent(arch)}`}
-                            >
-                                <Button
-                                    variant="outline"
-                                    className="h-9 gap-1.5 rounded-sm text-[14px]"
+                            {features.bug_report && (
+                                <BugReportDialog
+                                    packageInfo={pkg}
+                                    trigger={
+                                        <Button
+                                            variant="outline"
+                                            className="h-9 gap-1.5 rounded-sm text-[14px]"
+                                        >
+                                            <BugIcon className="h-4 w-4" />
+                                            バグ報告
+                                        </Button>
+                                    }
+                                />
+                            )}
+                            {features.miko && (
+                                <Link
+                                    href={`/builds?repo=${encodeURIComponent(repo)}&arch=${encodeURIComponent(arch)}`}
                                 >
-                                    <Hammer className="h-4 w-4" />
-                                    miko でビルド
-                                </Button>
-                            </Link>
+                                    <Button
+                                        variant="outline"
+                                        className="h-9 gap-1.5 rounded-sm text-[14px]"
+                                    >
+                                        <Hammer className="h-4 w-4" />
+                                        miko でビルド
+                                    </Button>
+                                </Link>
+                            )}
                         </>
                     }
                 />

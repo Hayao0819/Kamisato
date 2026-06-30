@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { useCanMutate } from "@/components/auth-gate";
 import { LoginDialog } from "@/components/login-dialog";
 import { Button } from "@/components/ui/button";
-import { useAPIClient } from "./lumine-provider";
+import { useAPIClient, useFeatures } from "./lumine-provider";
 
 export function Header() {
     const [status, setStatus] = useState<
@@ -14,6 +14,7 @@ export function Header() {
     >("loading");
     const api = useAPIClient();
     const canMutate = useCanMutate();
+    const features = useFeatures();
     const { theme, setTheme } = useTheme();
     const [mounted, setMounted] = useState(false);
     const apiRef = useRef(api);
@@ -94,16 +95,18 @@ export function Header() {
                             </Link>
                         )}
 
-                        <Link href="/builds" className="hidden md:block">
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                className="gap-1.5 rounded-sm text-arch-bar-foreground/85 hover:bg-white/10 hover:text-primary"
-                            >
-                                <Hammer className="h-4 w-4" />
-                                ビルド
-                            </Button>
-                        </Link>
+                        {features.miko && (
+                            <Link href="/builds" className="hidden md:block">
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="gap-1.5 rounded-sm text-arch-bar-foreground/85 hover:bg-white/10 hover:text-primary"
+                                >
+                                    <Hammer className="h-4 w-4" />
+                                    ビルド
+                                </Button>
+                            </Link>
+                        )}
 
                         <Link href="/about" className="hidden md:block">
                             <Button
@@ -115,30 +118,32 @@ export function Header() {
                             </Button>
                         </Link>
 
-                        <Link href="/server-status">
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                className="gap-1.5 rounded-sm text-arch-bar-foreground/85 hover:bg-white/10 hover:text-primary"
-                            >
-                                <ServerIcon className="h-4 w-4" />
-                                <span
-                                    title={statusLabel}
-                                    className={
-                                        status === "success"
-                                            ? "h-2 w-2 rounded-full bg-emerald-500 animate-pulse"
-                                            : status === "error"
-                                              ? "h-2 w-2 rounded-full bg-red-500"
-                                              : status === "unset"
-                                                ? "h-2 w-2 rounded-full bg-yellow-500"
-                                                : "h-2 w-2 rounded-full bg-gray-400 animate-pulse"
-                                    }
-                                />
-                                <span className="hidden sm:inline">
-                                    {statusLabel}
-                                </span>
-                            </Button>
-                        </Link>
+                        {features.miko && (
+                            <Link href="/server-status">
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="gap-1.5 rounded-sm text-arch-bar-foreground/85 hover:bg-white/10 hover:text-primary"
+                                >
+                                    <ServerIcon className="h-4 w-4" />
+                                    <span
+                                        title={statusLabel}
+                                        className={
+                                            status === "success"
+                                                ? "h-2 w-2 rounded-full bg-emerald-500 animate-pulse"
+                                                : status === "error"
+                                                  ? "h-2 w-2 rounded-full bg-red-500"
+                                                  : status === "unset"
+                                                    ? "h-2 w-2 rounded-full bg-yellow-500"
+                                                    : "h-2 w-2 rounded-full bg-gray-400 animate-pulse"
+                                        }
+                                    />
+                                    <span className="hidden sm:inline">
+                                        {statusLabel}
+                                    </span>
+                                </Button>
+                            </Link>
+                        )}
 
                         {mounted && (
                             <Button

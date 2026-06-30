@@ -3,7 +3,7 @@
 import { Github, LogOut, User } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/components/auth-provider";
-import { useAPIClient } from "@/components/lumine-provider";
+import { useAPIClient, useFeatures } from "@/components/lumine-provider";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -18,6 +18,7 @@ import { useToast } from "@/hooks/use-toast";
 export function LoginDialog() {
     const { isAuthenticated, githubLogin, setMe } = useAuth();
     const api = useAPIClient();
+    const features = useFeatures();
     const { toast } = useToast();
     const [open, setOpen] = useState(false);
 
@@ -92,6 +93,9 @@ export function LoginDialog() {
             </Dialog>
         );
     }
+
+    // GitHub OAuth is the only sign-in path; hide the prompt when it is off.
+    if (!features.github_login) return null;
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>

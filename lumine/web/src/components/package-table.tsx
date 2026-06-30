@@ -1,8 +1,16 @@
 "use client";
 
-import { ArrowDown, ArrowUp, ArrowUpDown, Download, Package2 } from "lucide-react";
+import {
+    ArrowDown,
+    ArrowUp,
+    ArrowUpDown,
+    BugIcon,
+    Download,
+    Package2,
+} from "lucide-react";
 import Link from "next/link";
 import { useMemo } from "react";
+import { BugReportDialog } from "@/components/bug-report-dialog";
 import { Pagination } from "@/components/pagination";
 import {
     Select,
@@ -14,7 +22,7 @@ import {
 import { PAGE_SIZES, type SortDir, type SortKey } from "@/hooks/use-console";
 import type { PackageInfo } from "@/lib/types";
 import { cn, formatBuildDate, formatBytes } from "@/lib/utils";
-import { useAPIClient } from "./lumine-provider";
+import { useAPIClient, useFeatures } from "./lumine-provider";
 
 interface PackageTableProps {
     packages: PackageInfo[];
@@ -79,6 +87,7 @@ export function PackageTable({
     onSetPageSize,
 }: PackageTableProps) {
     const api = useAPIClient();
+    const features = useFeatures();
 
     const detailHref = (pkg: PackageInfo) =>
         repo && arch
@@ -356,6 +365,20 @@ export function PackageTable({
                                                 >
                                                     <Download className="h-4 w-4" />
                                                 </button>
+                                                {features.bug_report && (
+                                                    <BugReportDialog
+                                                        packageInfo={pkg}
+                                                        trigger={
+                                                            <button
+                                                                type="button"
+                                                                title="バグ報告"
+                                                                className="rounded-sm p-1.5 hover:bg-muted hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                                            >
+                                                                <BugIcon className="h-4 w-4" />
+                                                            </button>
+                                                        }
+                                                    />
+                                                )}
                                             </div>
                                         </td>
                                     </tr>

@@ -24,7 +24,7 @@ import {
     useMobileNav,
 } from "@/hooks/use-console";
 import { buildPackagesQuery, parsePackagesQuery } from "@/lib/packages-url";
-import { useAPIClient } from "./lumine-provider";
+import { useAPIClient, useFeatures } from "./lumine-provider";
 
 const NAV = [
     { href: "/", label: "検索", icon: Search },
@@ -111,6 +111,7 @@ export function ConsoleSidebar() {
     const api = useAPIClient();
     const apiRef = useRef(api);
     const canMutate = useCanMutate();
+    const features = useFeatures();
     const { theme, setTheme } = useTheme();
     const [mounted, setMounted] = useState(false);
     const [status, setStatus] = useState<ServerState>("loading");
@@ -216,9 +217,12 @@ export function ConsoleSidebar() {
 
                 <div className="flex-1 overflow-y-auto py-3">
                     <nav className="space-y-0.5 px-2">
-                        {NAV.filter(
-                            ({ href }) => href !== "/upload" || canMutate,
-                        ).map(({ href, label, icon: Icon }) => {
+                        {NAV.filter(({ href }) => {
+                            if (href === "/upload") return canMutate;
+                            if (href === "/builds" || href === "/server-status")
+                                return features.miko;
+                            return true;
+                        }).map(({ href, label, icon: Icon }) => {
                             const active =
                                 href === "/"
                                     ? pathname === "/"

@@ -16,7 +16,7 @@ import {
     type StatusFilter,
 } from "@/components/build-status-filter";
 import { BuildSubmitDialog } from "@/components/build-submit-dialog";
-import { useAPIClient } from "@/components/lumine-provider";
+import { useAPIClient, useFeatures } from "@/components/lumine-provider";
 import { PageContainer } from "@/components/page-container";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -57,6 +57,7 @@ function pkgLabel(job: Job): string {
 
 export function BuildsPageClient() {
     const api = useAPIClient();
+    const features = useFeatures();
     const { toast } = useToast();
 
     const [jobs, setJobs] = useState<Job[]>([]);
@@ -83,11 +84,11 @@ export function BuildsPageClient() {
     }, [api]);
 
     useEffect(() => {
-        if (!executable) return;
+        if (!executable || !features.miko) return;
         refresh();
         const timer = setInterval(refresh, POLL_INTERVAL_MS);
         return () => clearInterval(timer);
-    }, [executable, refresh]);
+    }, [executable, features.miko, refresh]);
 
     const sorted = useMemo(() => {
         return [...jobs].sort((a, b) => {
@@ -174,6 +175,19 @@ export function BuildsPageClient() {
         const t = window.setTimeout(() => setHighlightId(null), 6000);
         return () => window.clearTimeout(t);
     }, [highlightId]);
+
+    if (!features.miko) {
+        return (
+            <PageContainer
+                measure="full"
+                header={<PageHeader title="ビルド" />}
+            >
+                <p className="text-sm text-muted-foreground">
+                    ビルド機能は現在利用できません。
+                </p>
+            </PageContainer>
+        );
+    }
 
     return (
         <PageContainer

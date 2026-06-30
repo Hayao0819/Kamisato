@@ -13,7 +13,7 @@ import {
 import { useCallback, useEffect, useRef, useState } from "react";
 import { STATUS_LABEL, STATUS_ORDER } from "@/components/build-status";
 import { ScopeBar } from "@/components/console-scope-bar";
-import { useAPIClient } from "@/components/lumine-provider";
+import { useAPIClient, useFeatures } from "@/components/lumine-provider";
 import { PageContainer } from "@/components/page-container";
 import { PageHeader } from "@/components/page-header";
 import { StatusRefreshButton } from "@/components/status-refresh-button";
@@ -39,6 +39,7 @@ function formatUptime(sec: number): string {
 
 export default function ServerStatusPage() {
     const api = useAPIClient();
+    const features = useFeatures();
     const apiRef = useRef(api);
     useEffect(() => {
         apiRef.current = api;
@@ -78,15 +79,31 @@ export default function ServerStatusPage() {
     }, []);
 
     useEffect(() => {
-        if (!api.endpoints.executable) return;
+        if (!api.endpoints.executable || !features.miko) return;
         refresh();
         const timer = setInterval(refresh, 10000);
         return () => clearInterval(timer);
-    }, [api.endpoints.executable, refresh]);
+    }, [api.endpoints.executable, features.miko, refresh]);
 
     const successRate = stats
         ? `${(stats.success_rate * 100).toFixed(1)}%`
         : "—";
+
+    if (!features.miko) {
+        return (
+            <>
+                <ScopeBar />
+                <PageContainer
+                    measure="full"
+                    header={<PageHeader title="サーバー状態" />}
+                >
+                    <p className="text-sm text-muted-foreground">
+                        ビルドサーバー機能は現在利用できません。
+                    </p>
+                </PageContainer>
+            </>
+        );
+    }
 
     return (
         <>
