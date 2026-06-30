@@ -1,11 +1,14 @@
 package s3
 
 import (
+	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"path"
 	"time"
 
+	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
 	"github.com/Hayao0819/Kamisato/ayato/stream"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awss3 "github.com/aws/aws-sdk-go-v2/service/s3"
@@ -52,6 +55,27 @@ func (s *S3) FetchFile(repo string, arch string, name string) (stream.File, erro
 		return nil, fmt.Errorf("file %s/%s/%s not found", repo, arch, name)
 	}
 	return o, nil
+}
+
+// FetchFileWithETag fetches an object together with its version token (ETag).
+func (s *S3) FetchFileWithETag(repo, arch, name string) (stream.File, string, error) {
+	return s.getObjectWithETag(key(repo, arch, name))
+}
+
+// StoreFileIfMatch stores an object with compare-and-swap on its version, mapping
+// a conflict to blob.ErrPreconditionFailed.
+func (s *S3) StoreFileIfMatch(repo, arch string, file stream.SeekFile, etag string) error {
+	if _, err := file.Seek(0, io.SeekStart); err != nil {
+		return err
+	}
+	k := key(repo, arch, file.FileName())
+	if err := s.putObjectIfMatch(k, file, etag); err != nil {
+		if errors.Is(err, blob.ErrPreconditionFailed) {
+			return err
+		}
+		return fmt.Errorf("failed to store file %s: %w", k, err)
+	}
+	return nil
 }
 
 func (s *S3) DeleteFile(repo string, arch string, name string) error {

@@ -9,6 +9,7 @@ import (
 	"path"
 	"strings"
 
+	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
 	"github.com/Hayao0819/Kamisato/ayato/stream"
 	"github.com/Hayao0819/Kamisato/internal/utils"
 	"github.com/Hayao0819/nahi/flist"
@@ -59,6 +60,20 @@ func (l *LocalStore) StoreFileWithSignedURL(repo string, arch string, name strin
 	return "", nil
 }
 
+// FetchFileWithETag returns the file with an empty version token: localfs has no
+// object versioning.
+func (l *LocalStore) FetchFileWithETag(repo, arch, file string) (stream.File, string, error) {
+	f, err := l.FetchFile(repo, arch, file)
+	return f, "", err
+}
+
+// StoreFileIfMatch ignores etag and stores: localfs is single-node with no object
+// versioning, and the repository's per-(repo, arch) lock already serializes its
+// writes within the one process that owns the directory.
+func (l *LocalStore) StoreFileIfMatch(repo, arch string, file stream.SeekFile, _ string) error {
+	return l.StoreFile(repo, arch, file)
+}
+
 func (l *LocalStore) FetchFile(repo string, arch string, file string) (stream.File, error) {
 	repoDir, err := l.getRepoDir(repo)
 	if err != nil {
@@ -74,7 +89,7 @@ func (l *LocalStore) FetchFile(repo string, arch string, file string) (stream.Fi
 
 	pkgPath := path.Join(repoDir, arch, file)
 	if !futils.Exists(pkgPath) {
-		return nil, os.ErrNotExist
+		return nil, blob.ErrNotFound
 	}
 	slog.Info("fetch pkg file", "file", pkgPath)
 

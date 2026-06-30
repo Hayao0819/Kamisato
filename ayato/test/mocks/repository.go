@@ -101,6 +101,22 @@ func (mr *MockBinaryRepositoryMockRecorder) FetchFile(arg0, arch, file any) *gom
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FetchFile", reflect.TypeOf((*MockBinaryRepository)(nil).FetchFile), arg0, arch, file)
 }
 
+// FetchFileWithETag mocks base method.
+func (m *MockBinaryRepository) FetchFileWithETag(arg0, arch, file string) (stream.File, string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FetchFileWithETag", arg0, arch, file)
+	ret0, _ := ret[0].(stream.File)
+	ret1, _ := ret[1].(string)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// FetchFileWithETag indicates an expected call of FetchFileWithETag.
+func (mr *MockBinaryRepositoryMockRecorder) FetchFileWithETag(arg0, arch, file any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FetchFileWithETag", reflect.TypeOf((*MockBinaryRepository)(nil).FetchFileWithETag), arg0, arch, file)
+}
+
 // Files mocks base method.
 func (m *MockBinaryRepository) Files(arg0, arch string) ([]string, error) {
 	m.ctrl.T.Helper()
@@ -244,6 +260,20 @@ func (m *MockBinaryRepository) StoreFile(arg0, arch string, file stream.SeekFile
 func (mr *MockBinaryRepositoryMockRecorder) StoreFile(arg0, arch, file any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StoreFile", reflect.TypeOf((*MockBinaryRepository)(nil).StoreFile), arg0, arch, file)
+}
+
+// StoreFileIfMatch mocks base method.
+func (m *MockBinaryRepository) StoreFileIfMatch(arg0, arch string, file stream.SeekFile, etag string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "StoreFileIfMatch", arg0, arch, file, etag)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// StoreFileIfMatch indicates an expected call of StoreFileIfMatch.
+func (mr *MockBinaryRepositoryMockRecorder) StoreFileIfMatch(arg0, arch, file, etag any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StoreFileIfMatch", reflect.TypeOf((*MockBinaryRepository)(nil).StoreFileIfMatch), arg0, arch, file, etag)
 }
 
 // StoreFileWithSignedURL mocks base method.

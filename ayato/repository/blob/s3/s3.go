@@ -3,6 +3,7 @@ package s3
 
 import (
 	"context"
+	"errors"
 	"io"
 	"log/slog"
 	"net/http"
@@ -18,6 +19,9 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	awss3 "github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/s3/types"
+	"github.com/aws/smithy-go"
+	smithyhttp "github.com/aws/smithy-go/transport/http"
 	"github.com/samber/lo"
 )
 
@@ -79,6 +83,11 @@ func newS3Client(ctx context.Context, cfg *Config) (*awss3.Client, error) {
 		EndpointResolver: awss3.EndpointResolverFromURL(cfg.Endpoint),
 		HTTPClient:       http.DefaultClient,
 		Retryer:          awsCfg.Retryer(),
+		// R2 rejects the SDK's default flexible-checksum aws-chunked trailer;
+		// compute a checksum only when an operation requires one. This also keeps
+		// conditional (If-Match) PutObject working against R2.
+		RequestChecksumCalculation: aws.RequestChecksumCalculationWhenRequired,
+		ResponseChecksumValidation: aws.ResponseChecksumValidationWhenRequired,
 	}
 
 	return awss3.New(options), nil
@@ -178,6 +187,9 @@ func (s *S3) getObject(key string) (stream.File, error) {
 		Key:    aws.String(key),
 	})
 	if err != nil {
+		if isNotFound(err) {
+			return nil, blob.ErrNotFound
+		}
 		return nil, err
 	}
 
@@ -186,6 +198,86 @@ func (s *S3) getObject(key string) (stream.File, error) {
 		filename:    path.Base(key),
 		contentType: aws.ToString(output.ContentType),
 	}, nil
+}
+
+// isNotFound reports whether err is an object-absent error (NoSuchKey / 404), so
+// callers can distinguish a true miss from a transient backend failure.
+func isNotFound(err error) bool {
+	var nsk *types.NoSuchKey
+	if errors.As(err, &nsk) {
+		return true
+	}
+	var nf *types.NotFound
+	if errors.As(err, &nf) {
+		return true
+	}
+	var re *smithyhttp.ResponseError
+	return errors.As(err, &re) && re.HTTPStatusCode() == http.StatusNotFound
+}
+
+// getObjectWithETag fetches an object together with its ETag — the opaque version
+// token for a compare-and-swap write.
+func (s *S3) getObjectWithETag(key string) (stream.File, string, error) {
+	output, err := s.storage.GetObject(s.ctx, &awss3.GetObjectInput{
+		Bucket: aws.String(s.bucket),
+		Key:    aws.String(key),
+	})
+	if err != nil {
+		if isNotFound(err) {
+			return nil, "", blob.ErrNotFound
+		}
+		return nil, "", err
+	}
+	return &s3ObjectStream{
+		Body:        output.Body,
+		filename:    path.Base(key),
+		contentType: aws.ToString(output.ContentType),
+	}, aws.ToString(output.ETag), nil
+}
+
+// putObjectIfMatch writes with compare-and-swap: If-Match when etag is non-empty,
+// else If-None-Match: * (create-only). The ETag is sent back verbatim (quotes
+// included) as S3/R2 returned it. A precondition conflict (412 / 409) is mapped to
+// blob.ErrPreconditionFailed so the caller can re-read and retry.
+func (s *S3) putObjectIfMatch(key string, body io.ReadSeeker, etag string) error {
+	in := &awss3.PutObjectInput{
+		Bucket: aws.String(s.bucket),
+		Key:    aws.String(key),
+		Body:   body,
+	}
+	if etag != "" {
+		in.IfMatch = aws.String(etag)
+	} else {
+		in.IfNoneMatch = aws.String("*")
+	}
+	if _, err := s.storage.PutObject(s.ctx, in); err != nil {
+		if isCASConflict(err) {
+			return blob.ErrPreconditionFailed
+		}
+		return err
+	}
+	return nil
+}
+
+// isCASConflict reports a conditional-write conflict: 412 Precondition Failed (the
+// ETag moved, or the object now exists) or 409 ConditionalRequestConflict (a
+// racing in-flight writer). Both mean "re-read and retry".
+func isCASConflict(err error) bool {
+	var re *smithyhttp.ResponseError
+	if errors.As(err, &re) {
+		switch re.HTTPStatusCode() {
+		case http.StatusPreconditionFailed, http.StatusConflict:
+			return true
+		}
+	}
+	var apiErr smithy.APIError
+	if errors.As(err, &apiErr) {
+		switch apiErr.ErrorCode() {
+		case "PreconditionFailed", "ConditionalRequestConflict":
+			return true
+		}
+	}
+	return false
 }
 
 type s3ObjectStream struct {

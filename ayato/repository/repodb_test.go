@@ -3,6 +3,8 @@ package repository
 import (
 	"archive/tar"
 	"bytes"
+	"errors"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -12,6 +14,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
 	"github.com/Hayao0819/Kamisato/ayato/stream"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
 	"github.com/klauspost/compress/zstd"
@@ -22,25 +25,93 @@ import (
 // proves localfs and s3 (the two real blob.Store implementations) are handed the
 // identical set: repodb only ever talks to the blob.Store contract.
 type memStore struct {
-	mu    sync.Mutex
-	files map[string][]byte // "repo/arch/name" -> bytes
+	mu       sync.Mutex
+	files    map[string][]byte // "repo/arch/name" -> bytes
+	versions map[string]string // "repo/arch/name" -> etag
+	nextVer  int
+	// onFetch, when set, fires once inside FetchFileWithETag (after the etag is
+	// captured) to model a concurrent writer committing between this writer's read
+	// and its compare-and-swap. One-shot.
+	onFetch func(name string)
+	// fetchErr, when set, is returned by FetchFileWithETag to model a transient
+	// backend error (which must NOT be mistaken for absence).
+	fetchErr error
 }
 
-func newMemStore() *memStore { return &memStore{files: map[string][]byte{}} }
+func newMemStore() *memStore {
+	return &memStore{files: map[string][]byte{}, versions: map[string]string{}}
+}
 
 func (m *memStore) keyOf(repo, arch, name string) string { return repo + "/" + arch + "/" + name }
 
-func (m *memStore) StoreFile(repo, arch string, file stream.SeekFile) error {
+// put records bytes and bumps the version; the caller holds mu.
+func (m *memStore) put(repo, arch, name string, b []byte) {
+	k := m.keyOf(repo, arch, name)
+	m.files[k] = b
+	m.nextVer++
+	m.versions[k] = fmt.Sprintf("v%d", m.nextVer)
+}
+
+func readAllSeek(file stream.SeekFile) ([]byte, error) {
 	if _, err := file.Seek(0, io.SeekStart); err != nil {
-		return err
+		return nil, err
 	}
-	b, err := io.ReadAll(file)
+	return io.ReadAll(file)
+}
+
+func (m *memStore) StoreFile(repo, arch string, file stream.SeekFile) error {
+	b, err := readAllSeek(file)
 	if err != nil {
 		return err
 	}
 	m.mu.Lock()
-	m.files[m.keyOf(repo, arch, path.Base(file.FileName()))] = b
+	m.put(repo, arch, path.Base(file.FileName()), b)
 	m.mu.Unlock()
+	return nil
+}
+
+// FetchFileWithETag returns the file and its version, firing the one-shot onFetch
+// hook (after capturing the version) to model a concurrent writer.
+func (m *memStore) FetchFileWithETag(repo, arch, name string) (stream.File, string, error) {
+	m.mu.Lock()
+	k := m.keyOf(repo, arch, name)
+	b, ok := m.files[k]
+	etag := m.versions[k]
+	hook := m.onFetch
+	m.onFetch = nil
+	ferr := m.fetchErr
+	m.mu.Unlock()
+	if hook != nil {
+		hook(name)
+	}
+	if ferr != nil {
+		return nil, "", ferr
+	}
+	if !ok {
+		return nil, "", blob.ErrNotFound
+	}
+	return stream.NewFileStream(name, "application/octet-stream", nopSeekCloser{bytes.NewReader(b)}), etag, nil
+}
+
+// StoreFileIfMatch is the memStore compare-and-swap: it stores only when the live
+// version equals etag (or, for etag=="", when the key is absent).
+func (m *memStore) StoreFileIfMatch(repo, arch string, file stream.SeekFile, etag string) error {
+	b, err := readAllSeek(file)
+	if err != nil {
+		return err
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	k := m.keyOf(repo, arch, path.Base(file.FileName()))
+	cur, exists := m.versions[k]
+	if etag == "" {
+		if exists {
+			return blob.ErrPreconditionFailed
+		}
+	} else if cur != etag {
+		return blob.ErrPreconditionFailed
+	}
+	m.put(repo, arch, path.Base(file.FileName()), b)
 	return nil
 }
 
@@ -57,7 +128,7 @@ func (m *memStore) FetchFile(repo, arch, name string) (stream.File, error) {
 	b, ok := m.files[m.keyOf(repo, arch, name)]
 	m.mu.Unlock()
 	if !ok {
-		return nil, os.ErrNotExist
+		return nil, blob.ErrNotFound
 	}
 	return stream.NewFileStream(name, "application/octet-stream", nopSeekCloser{bytes.NewReader(b)}), nil
 }
@@ -269,4 +340,119 @@ func TestRepoDBToolPort(t *testing.T) {
 		t.Fatalf("RepoRemove: %v", err)
 	}
 	assertSuperset(t, mem.names("r", "x86_64"), want, "RepoRemove")
+}
+
+// TestRepoDBCASNoLostUpdate proves the compare-and-swap retry preserves both
+// concurrent additions: while one writer is mid-RepoAdd, another instance commits
+// a different package; the first writer observes the conflict, re-reads, and
+// re-applies, so the final database holds every package (no lost update).
+func TestRepoDBCASNoLostUpdate(t *testing.T) {
+	mem := newMemStore()
+	// Two repositories share the store but hold independent dbMu locks, modelling
+	// two server instances on a shared backend.
+	r1 := &binaryRepository{Store: mem}
+	r2 := &binaryRepository{Store: mem}
+
+	if err := r1.InitArch("r", "x86_64", false, nil); err != nil {
+		t.Fatalf("InitArch: %v", err)
+	}
+	dir := t.TempDir()
+	addPkg := func(r *binaryRepository, name string) {
+		t.Helper()
+		p := makePkg(t, dir, name, "1.0-1", "x86_64")
+		if err := r.RepoAdd("r", "x86_64", openSeek(t, p), nil, false, nil); err != nil {
+			t.Fatalf("RepoAdd %s: %v", name, err)
+		}
+	}
+	addPkg(r1, "alpha")
+
+	// When r1 next reads the db, r2 sneaks "bravo" in first, so r1's CAS conflicts.
+	mem.onFetch = func(name string) {
+		if name == "r.db.tar.gz" {
+			addPkg(r2, "bravo")
+		}
+	}
+	addPkg(r1, "charlie")
+
+	rr, err := r1.RemoteRepo("r", "x86_64")
+	if err != nil {
+		t.Fatalf("RemoteRepo: %v", err)
+	}
+	got := map[string]bool{}
+	for _, p := range rr.Pkgs {
+		got[p.Name()] = true
+	}
+	for _, name := range []string{"alpha", "bravo", "charlie"} {
+		if !got[name] {
+			t.Errorf("package %q lost to a concurrent write; db = %v", name, sortedKeys(got))
+		}
+	}
+}
+
+func sortedKeys(m map[string]bool) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
+}
+
+// TestInitArchPreservesPopulatedDB proves InitArch never wipes a populated index.
+// InitAll re-inits every (repo, arch) on every boot, so a re-init must be a no-op
+// on an existing database, not an empty overwrite.
+func TestInitArchPreservesPopulatedDB(t *testing.T) {
+	mem := newMemStore()
+	r := &binaryRepository{Store: mem}
+	if err := r.InitArch("r", "x86_64", false, nil); err != nil {
+		t.Fatalf("InitArch (create): %v", err)
+	}
+	dir := t.TempDir()
+	if err := r.RepoAdd("r", "x86_64", openSeek(t, makePkg(t, dir, "foo", "1.0-1", "x86_64")), nil, false, nil); err != nil {
+		t.Fatalf("RepoAdd: %v", err)
+	}
+	// Re-init, as InitAll does on the next boot.
+	if err := r.InitArch("r", "x86_64", false, nil); err != nil {
+		t.Fatalf("InitArch (re-init): %v", err)
+	}
+	rr, err := r.RemoteRepo("r", "x86_64")
+	if err != nil {
+		t.Fatalf("RemoteRepo: %v", err)
+	}
+	if len(rr.Pkgs) != 1 || rr.Pkgs[0].Name() != "foo" {
+		t.Fatalf("re-init wiped the populated db: got %v, want [foo]", rr.Pkgs)
+	}
+}
+
+// TestRepoAddSurfacesTransientFetchError proves a transient backend error on the
+// DB fetch is surfaced, not mistaken for "absent" — which would seed an empty base
+// and overwrite the live db with a truncated rebuild.
+func TestRepoAddSurfacesTransientFetchError(t *testing.T) {
+	mem := newMemStore()
+	r := &binaryRepository{Store: mem}
+	if err := r.InitArch("r", "x86_64", false, nil); err != nil {
+		t.Fatal(err)
+	}
+	dir := t.TempDir()
+	if err := r.RepoAdd("r", "x86_64", openSeek(t, makePkg(t, dir, "foo", "1.0-1", "x86_64")), nil, false, nil); err != nil {
+		t.Fatal(err)
+	}
+
+	boom := errors.New("transient backend error")
+	mem.fetchErr = boom
+	err := r.RepoAdd("r", "x86_64", openSeek(t, makePkg(t, dir, "bar", "1.0-1", "x86_64")), nil, false, nil)
+	mem.fetchErr = nil
+	if !errors.Is(err, boom) {
+		t.Fatalf("transient fetch error should surface, got %v", err)
+	}
+
+	// The live db must be untouched: foo still present, bar never added.
+	rr, _ := r.RemoteRepo("r", "x86_64")
+	names := map[string]bool{}
+	for _, p := range rr.Pkgs {
+		names[p.Name()] = true
+	}
+	if !names["foo"] || names["bar"] {
+		t.Fatalf("transient fetch error corrupted the db: %v (want only foo)", sortedKeys(names))
+	}
 }

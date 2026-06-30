@@ -84,6 +84,22 @@ func (mr *MockBlobStoreMockRecorder) FetchFile(repo, arch, file any) *gomock.Cal
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FetchFile", reflect.TypeOf((*MockBlobStore)(nil).FetchFile), repo, arch, file)
 }
 
+// FetchFileWithETag mocks base method.
+func (m *MockBlobStore) FetchFileWithETag(repo, arch, file string) (stream.File, string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FetchFileWithETag", repo, arch, file)
+	ret0, _ := ret[0].(stream.File)
+	ret1, _ := ret[1].(string)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// FetchFileWithETag indicates an expected call of FetchFileWithETag.
+func (mr *MockBlobStoreMockRecorder) FetchFileWithETag(repo, arch, file any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FetchFileWithETag", reflect.TypeOf((*MockBlobStore)(nil).FetchFileWithETag), repo, arch, file)
+}
+
 // Files mocks base method.
 func (m *MockBlobStore) Files(repo, arch string) ([]string, error) {
 	m.ctrl.T.Helper()
@@ -126,6 +142,20 @@ func (m *MockBlobStore) StoreFile(repo, arch string, file stream.SeekFile) error
 func (mr *MockBlobStoreMockRecorder) StoreFile(repo, arch, file any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StoreFile", reflect.TypeOf((*MockBlobStore)(nil).StoreFile), repo, arch, file)
+}
+
+// StoreFileIfMatch mocks base method.
+func (m *MockBlobStore) StoreFileIfMatch(repo, arch string, file stream.SeekFile, etag string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "StoreFileIfMatch", repo, arch, file, etag)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// StoreFileIfMatch indicates an expected call of StoreFileIfMatch.
+func (mr *MockBlobStoreMockRecorder) StoreFileIfMatch(repo, arch, file, etag any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StoreFileIfMatch", reflect.TypeOf((*MockBlobStore)(nil).StoreFileIfMatch), repo, arch, file, etag)
 }
 
 // StoreFileWithSignedURL mocks base method.

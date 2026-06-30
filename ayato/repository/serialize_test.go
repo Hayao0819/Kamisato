@@ -49,6 +49,17 @@ func (p *concurrencyProbe) RepoNames() ([]string, error)                        
 func (p *concurrencyProbe) Files(string, string) ([]string, error)                { return nil, nil }
 func (p *concurrencyProbe) Arches(string) ([]string, error)                       { return nil, nil }
 
+func (p *concurrencyProbe) FetchFileWithETag(string, string, string) (stream.File, string, error) {
+	return nil, "", nil
+}
+
+func (p *concurrencyProbe) StoreFileIfMatch(string, string, stream.SeekFile, string) error {
+	p.enter()
+	time.Sleep(2 * time.Millisecond)
+	p.leave()
+	return nil
+}
+
 func runConcurrentStore(s blob.Store, repo string, arches []string) {
 	start := make(chan struct{})
 	var wg sync.WaitGroup
@@ -106,7 +117,11 @@ func (p *repoAddProbe) FetchFile(string, string, string) (stream.File, error) {
 	return nil, errProbeMiss
 }
 
-var errProbeMiss = fmt.Errorf("not found")
+func (p *repoAddProbe) FetchFileWithETag(string, string, string) (stream.File, string, error) {
+	return nil, "", errProbeMiss
+}
+
+var errProbeMiss = blob.ErrNotFound
 
 // runConcurrentRepoAdd fires N RepoAdds with a nil package (so the native writer
 // just emits an empty DB into a fresh temp dir) and lets storeArtifacts hit the
