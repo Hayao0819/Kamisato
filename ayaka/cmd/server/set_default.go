@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	blinky_utils "github.com/BrenekH/blinky/cmd/blinky/util"
+	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
 	"github.com/Hayao0819/Kamisato/internal/utils"
 	"github.com/spf13/cobra"
 )
@@ -34,7 +35,7 @@ func SetDefaultCmd() *cobra.Command {
 				return utils.WrapErr(err, "failed to read server database")
 			}
 			if _, ok := db.Servers[args[0]]; !ok {
-				return utils.WrapErr(ErrServerNotFound, args[0])
+				return utils.WrapErr(shared.ErrServerNotFound, args[0])
 			}
 			db.DefaultServer = args[0]
 			return utils.WrapErr(blinky_utils.SaveServerDB(db), "failed to save server database")
