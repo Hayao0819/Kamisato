@@ -200,8 +200,11 @@ func (c *Composite) SourceURL(ctx context.Context, pkgbase string) (string, bool
 
 // Resolve returns the winning record for a pkgname and the trust namespace of
 // the source that provided it (highest tier, then priority). Unlike Info it is
-// ungated, so a caller can apply its own trust evaluation.
-func (c *Composite) Resolve(ctx context.Context, name string) (aurweb.Pkg, string, bool) {
+// ungated, so a caller can apply its own trust evaluation. delegatedVerified
+// reports the keep() bypass: the winning source is delegated and its attestation
+// currently verifies, so the caller should treat the package as trusted without
+// consulting the trust store.
+func (c *Composite) Resolve(ctx context.Context, name string) (pkg aurweb.Pkg, source string, delegatedVerified bool, ok bool) {
 	for _, e := range c.entries {
 		pkgs, err := e.backend.Info(ctx, []string{name})
 		if err != nil {
@@ -209,9 +212,9 @@ func (c *Composite) Resolve(ctx context.Context, name string) (aurweb.Pkg, strin
 		}
 		for _, p := range pkgs {
 			if p.Name == name {
-				return p, e.source, true
+				return p, e.source, e.delegated && e.verified != nil && e.verified(), true
 			}
 		}
 	}
-	return aurweb.Pkg{}, "", false
+	return aurweb.Pkg{}, "", false, false
 }

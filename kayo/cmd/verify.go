@@ -47,14 +47,15 @@ func verifyCmd() *cobra.Command {
 			enforce := strict || cfg.ResolvedEnforceMode() == "enforce"
 
 			type resolved struct {
-				pkg    aurweb.Pkg
-				source string
+				pkg               aurweb.Pkg
+				source            string
+				delegatedVerified bool
 			}
 			found := make(map[string]resolved, len(names))
 			var unknown []string
 			for _, name := range names {
-				if pkg, source, ok := comp.Resolve(ctx, name); ok {
-					found[name] = resolved{pkg, source}
+				if pkg, source, delegatedVerified, ok := comp.Resolve(ctx, name); ok {
+					found[name] = resolved{pkg, source, delegatedVerified}
 				} else {
 					unknown = append(unknown, name)
 				}
@@ -87,7 +88,7 @@ func verifyCmd() *cobra.Command {
 						slog.Warn("upstream lookup failed; AUR packages unverified this run", "error", ierr)
 					}
 					for _, p := range ps {
-						found[p.Name] = resolved{p, "aur"}
+						found[p.Name] = resolved{pkg: p, source: "aur"}
 					}
 				}
 			}
@@ -98,6 +99,12 @@ func verifyCmd() *cobra.Command {
 				r, ok := found[name]
 				if !ok {
 					continue // official-repo package, or unknown to the AUR
+				}
+				// A delegated source whose attestation currently verifies bypasses the
+				// trust store, matching the daemon's keep() path.
+				if r.delegatedVerified {
+					fmt.Fprintf(out, "  ok      %s (%s)\n", name, r.source)
+					continue
 				}
 				v := store.Evaluate(r.source, r.pkg.PackageBase, r.pkg.Maintainer)
 				if v.Decision == trust.Trusted {

@@ -140,13 +140,26 @@ func TestResolve(t *testing.T) {
 	c.Add(high, TierAyato, 10, "high")
 	ctx := context.Background()
 
-	if _, src, ok := c.Resolve(ctx, "foo"); !ok || src != "high" {
-		t.Errorf("foo resolved from %q ok=%v, want high tier", src, ok)
+	if _, src, dv, ok := c.Resolve(ctx, "foo"); !ok || src != "high" || dv {
+		t.Errorf("foo resolved from %q ok=%v delegatedVerified=%v, want high tier", src, ok, dv)
 	}
-	if _, src, ok := c.Resolve(ctx, "bar"); !ok || src != "low" {
+	if _, src, _, ok := c.Resolve(ctx, "bar"); !ok || src != "low" {
 		t.Errorf("bar resolved from %q, want low", src)
 	}
-	if _, _, ok := c.Resolve(ctx, "zzz"); ok {
+	if _, _, _, ok := c.Resolve(ctx, "zzz"); ok {
 		t.Error("zzz should not resolve")
+	}
+
+	// A delegated source whose attestation verifies reports delegatedVerified so
+	// the verify hook can skip the trust store, matching keep().
+	verified := true
+	d := New()
+	d.AddDelegated(high, TierAyato, 0, "deleg", func() bool { return verified })
+	if _, src, dv, ok := d.Resolve(ctx, "foo"); !ok || src != "deleg" || !dv {
+		t.Errorf("delegated foo: src=%q delegatedVerified=%v, want deleg/true", src, dv)
+	}
+	verified = false
+	if _, _, dv, _ := d.Resolve(ctx, "foo"); dv {
+		t.Error("delegated but unverified must report delegatedVerified=false")
 	}
 }
