@@ -1,13 +1,17 @@
 package handler
 
 import (
+	"bytes"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
 	"github.com/Hayao0819/Kamisato/ayato/domain"
+	"github.com/Hayao0819/Kamisato/ayato/stream"
 	"github.com/Hayao0819/Kamisato/ayato/test/mocks"
+	"github.com/Hayao0819/Kamisato/internal/conf"
+	"github.com/Hayao0819/Kamisato/internal/utils"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/mock/gomock"
 )
@@ -163,6 +167,82 @@ func TestPkgFilesHandlerNotImplemented(t *testing.T) {
 
 	if w.Code != http.StatusNotImplemented {
 		t.Fatalf("status = %d, want 501: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestRepoFileHandlerRedirectsToPresignedURL(t *testing.T) {
+	ctrl, mockSvc, h := setup(t) // nil cfg defaults to redirect-on
+	defer ctrl.Finish()
+
+	const want = "https://s3.example.com/foo.pkg.tar.zst?sig=abc"
+	mockSvc.EXPECT().SignedURL("myrepo", "x86_64", "foo.pkg.tar.zst").Return(want, nil)
+
+	r := gin.New()
+	r.GET("/repo/:repo/:arch/:file", h.RepoFileHandler)
+
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/repo/myrepo/x86_64/foo.pkg.tar.zst", nil))
+
+	if w.Code != http.StatusFound {
+		t.Fatalf("status = %d, want 302: %s", w.Code, w.Body.String())
+	}
+	if loc := w.Header().Get("Location"); loc != want {
+		t.Errorf("Location = %q, want %q", loc, want)
+	}
+}
+
+func TestRepoFileHandlerStreamsWhenPresignUnavailable(t *testing.T) {
+	ctrl, mockSvc, h := setup(t)
+	defer ctrl.Finish()
+
+	const body = "package-bytes"
+	fs := stream.NewFileStream("foo.pkg.tar.zst", "application/octet-stream",
+		utils.BufferToReadSeekCloser(bytes.NewBufferString(body)))
+
+	// localfs cannot presign: SignedURL returns "", so the handler streams.
+	mockSvc.EXPECT().SignedURL("myrepo", "x86_64", "foo.pkg.tar.zst").Return("", nil)
+	mockSvc.EXPECT().GetFile("myrepo", "x86_64", "foo.pkg.tar.zst").Return(fs, nil)
+
+	r := gin.New()
+	r.GET("/repo/:repo/:arch/:file", h.RepoFileHandler)
+
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/repo/myrepo/x86_64/foo.pkg.tar.zst", nil))
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200: %s", w.Code, w.Body.String())
+	}
+	if w.Body.String() != body {
+		t.Errorf("body = %q, want %q", w.Body.String(), body)
+	}
+}
+
+func TestRepoFileHandlerStreamsWhenRedirectDisabled(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	mockSvc := mocks.NewMockServicer(ctrl)
+
+	const body = "package-bytes"
+	fs := stream.NewFileStream("foo.pkg.tar.zst", "application/octet-stream",
+		utils.BufferToReadSeekCloser(bytes.NewBufferString(body)))
+
+	// redirect_downloads=false forces streaming, so SignedURL is never consulted.
+	disabled := false
+	h := New(mockSvc, &conf.AyatoConfig{RedirectDownloads: &disabled})
+	mockSvc.EXPECT().GetFile("myrepo", "x86_64", "foo.pkg.tar.zst").Return(fs, nil)
+
+	r := gin.New()
+	r.GET("/repo/:repo/:arch/:file", h.RepoFileHandler)
+
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/repo/myrepo/x86_64/foo.pkg.tar.zst", nil))
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200: %s", w.Code, w.Body.String())
+	}
+	if w.Body.String() != body {
+		t.Errorf("body = %q, want %q", w.Body.String(), body)
 	}
 }
 

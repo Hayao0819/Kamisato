@@ -42,6 +42,17 @@ func (h *Handler) RepoFileHandler(ctx *gin.Context) {
 
 	slog.Info("repoHandler", "repoName", repoName)
 
+	// Offload egress to the object store when it can presign: redirect the client
+	// straight to a presigned GET so the bytes never transit ayato (Cloud Run bills
+	// egress, and packages are the bulk of it). pacman follows redirects. A backend
+	// that cannot presign (localfs) returns "", so we fall through to streaming.
+	if h.cfg == nil || h.cfg.RedirectDownloadsEnabled() {
+		if url, err := h.s.SignedURL(repoName, arch, fileName); err == nil && url != "" {
+			ctx.Redirect(http.StatusFound, url)
+			return
+		}
+	}
+
 	s, err := h.s.GetFile(repoName, arch, fileName)
 	if err != nil {
 		ctx.JSON(http.StatusNotFound, domain.APIError{

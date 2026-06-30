@@ -22,6 +22,19 @@ type AyatoConfig struct {
 	Miko        MikoUpstream    `koanf:"miko"`
 	Verify      VerifyConfig    `koanf:"verify"`
 	AUR         AURConfig       `koanf:"aur"`
+	// RedirectDownloads, unset by default, answers a file download with a 302 to a
+	// presigned object URL whenever the blob backend can presign (S3), so the bytes
+	// go client<->object-store directly and skip ayato's egress (Cloud Run bills it).
+	// Set it to false to force every download to stream through ayato; a backend that
+	// cannot presign (localfs) always streams regardless.
+	RedirectDownloads *bool `koanf:"redirect_downloads,omitempty"`
+}
+
+// RedirectDownloadsEnabled reports whether downloads should be redirected to a
+// presigned URL. It defaults to true so egress offload is automatic; the redirect
+// still only happens when the backend can actually presign.
+func (c *AyatoConfig) RedirectDownloadsEnabled() bool {
+	return c.RedirectDownloads == nil || *c.RedirectDownloads
 }
 
 // AURConfig makes ayato an aurweb-compatible host: when Enabled it serves /rpc and
