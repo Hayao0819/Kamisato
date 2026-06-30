@@ -1,32 +1,29 @@
 package service
 
 import (
+	"context"
 	"os"
 
 	blinky_clientlib "github.com/BrenekH/blinky/clientlib"
 
-	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/internal/utils"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/gpg"
 )
 
-// signAndUpload signs each built package with the requested GPG key (when set)
-// and uploads it with its detached signature to ayato via the blinky client.
-// With Concurrency > 1 these share cfg.Build.GnupgHome, but gpg locks its own
-// keyring, so concurrent signing is safe.
-func signAndUpload(cfg *conf.MikoConfig, repo, gpgKey string, packages []string) error {
-	client, err := blinky_clientlib.New(cfg.Ayato.URL, cfg.Ayato.Username, cfg.Ayato.Password)
+// signAndUpload signs each built package with the worker host key (when a signer
+// is configured) and uploads it with its detached signature to ayato.
+func (s *Service) signAndUpload(ctx context.Context, repo string, packages []string) error {
+	client, err := blinky_clientlib.New(s.cfg.Ayato.URL, s.cfg.Ayato.Username, s.cfg.Ayato.Password)
 	if err != nil {
 		return utils.WrapErr(err, "failed to create blinky client")
 	}
 
 	for _, pkgPath := range packages {
 		sigPath := ""
-		if gpgKey != "" {
-			if err := gpg.SignFile(gpgKey, cfg.Build.GnupgHome, pkgPath); err != nil {
+		if s.signer != nil {
+			sigPath, err = s.signer.Sign(ctx, pkgPath)
+			if err != nil {
 				return utils.WrapErr(err, "failed to sign package: "+pkgPath)
 			}
-			sigPath = pkgPath + ".sig"
 		}
 
 		if err := uploadOne(client, repo, pkgPath, sigPath); err != nil {

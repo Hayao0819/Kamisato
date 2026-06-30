@@ -57,6 +57,50 @@ func (mr *MockServicerMockRecorder) AddAdmin(id, login any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddAdmin", reflect.TypeOf((*MockServicer)(nil).AddAdmin), id, login)
 }
 
+// RegisterSigner mocks base method.
+func (m *MockServicer) RegisterSigner(armoredPub []byte) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RegisterSigner", armoredPub)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// RegisterSigner indicates an expected call of RegisterSigner.
+func (mr *MockServicerMockRecorder) RegisterSigner(armoredPub any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegisterSigner", reflect.TypeOf((*MockServicer)(nil).RegisterSigner), armoredPub)
+}
+
+// ListSigners mocks base method.
+func (m *MockServicer) ListSigners() ([]string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListSigners")
+	ret0, _ := ret[0].([]string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListSigners indicates an expected call of ListSigners.
+func (mr *MockServicerMockRecorder) ListSigners() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListSigners", reflect.TypeOf((*MockServicer)(nil).ListSigners))
+}
+
+// UnregisterSigner mocks base method.
+func (m *MockServicer) UnregisterSigner(fingerprint string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UnregisterSigner", fingerprint)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UnregisterSigner indicates an expected call of UnregisterSigner.
+func (mr *MockServicerMockRecorder) UnregisterSigner(fingerprint any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UnregisterSigner", reflect.TypeOf((*MockServicer)(nil).UnregisterSigner), fingerprint)
+}
+
 // Arches mocks base method.
 func (m *MockServicer) Arches(repo string) ([]string, error) {
 	m.ctrl.T.Helper()

@@ -64,6 +64,12 @@ func SetRoute(e *gin.Engine, h *handler.Handler, m *middleware.Middleware) error
 			api.GET("/jobs/:id/logs", mikoProxy.HandlerFunc(func(c *gin.Context) string {
 				return "/api/unstable/jobs/" + c.Param("id") + "/logs"
 			}))
+			api.GET("/jobs/:id/artifacts", mikoProxy.HandlerFunc(func(c *gin.Context) string {
+				return "/api/unstable/jobs/" + c.Param("id") + "/artifacts"
+			}))
+			api.GET("/jobs/:id/artifacts/:name", mikoProxy.HandlerFunc(func(c *gin.Context) string {
+				return "/api/unstable/jobs/" + c.Param("id") + "/artifacts/" + c.Param("name")
+			}))
 			api.GET("/stats", mikoProxy.Handler("/api/unstable/stats"))
 		}
 
@@ -98,6 +104,17 @@ func SetRoute(e *gin.Engine, h *handler.Handler, m *middleware.Middleware) error
 			admins.GET("", h.AdminsListHandler)
 			admins.POST("", h.AdminsAddHandler)
 			admins.DELETE("/:id", h.AdminsRemoveHandler)
+		}
+
+		// Worker signing-key registration. RequireAdmin(true) allows a Basic CLI
+		// token so miko can self-register at boot; the master-certification chain
+		// is the real gate (only master-certified worker keys are stored).
+		signers := api.Group("/auth/signers")
+		{
+			signers.Use(m.RateLimit(rate.Every(time.Second/10), 30), m.RequireAdmin(true))
+			signers.GET("", h.ListSignersHandler)
+			signers.POST("", h.RegisterSignerHandler)
+			signers.DELETE("/:fingerprint", h.UnregisterSignerHandler)
 		}
 	}
 	{

@@ -4,10 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -17,9 +20,79 @@ import (
 	"github.com/Hayao0819/Kamisato/miko/handler"
 	"github.com/Hayao0819/Kamisato/miko/router"
 	"github.com/Hayao0819/Kamisato/miko/service"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/sign"
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/cobra"
 )
+
+// buildHostSigner loads (or on first boot generates) the worker host signing key.
+// It returns a nil Signer when no key dir is resolvable, leaving signing disabled.
+func buildHostSigner(cfg *conf.MikoConfig) (sign.Signer, error) {
+	dir := cfg.Signing.KeyDir
+	if dir == "" && cfg.DataDir != "" {
+		dir = filepath.Join(cfg.DataDir, "keys")
+	}
+	if dir == "" {
+		slog.Warn("host signing disabled: set signing.key_dir or data_dir to enable")
+		return nil, nil
+	}
+	name := cfg.Signing.Name
+	if name == "" {
+		name = "miko worker"
+	}
+	email := cfg.Signing.Email
+	if email == "" {
+		email = "miko@localhost"
+	}
+	// The passphrase comes only from the environment, never a config file.
+	passphrase := os.Getenv("MIKO_SIGNING_PASSPHRASE")
+	if passphrase == "" {
+		slog.Warn("host signing key is stored unencrypted at rest; set MIKO_SIGNING_PASSPHRASE to encrypt it")
+	}
+	ks, err := sign.OpenOrCreate(dir, name, email, passphrase)
+	if err != nil {
+		return nil, err
+	}
+	slog.Info("host signing enabled", "key_dir", dir,
+		"master_fpr", fmt.Sprintf("%X", ks.MasterEntity().PrimaryKey.Fingerprint),
+		"worker_fpr", fmt.Sprintf("%X", ks.WorkerEntity().PrimaryKey.Fingerprint))
+
+	// Best-effort: register this worker's cert with ayato so its host-signed
+	// packages verify. ayato accepts it only if it chains to a trusted master.
+	if cfg.Ayato.URL != "" {
+		if rerr := registerWorkerCert(cfg, ks); rerr != nil {
+			slog.Warn("could not register worker key with ayato; signing still works, register it later", "err", rerr)
+		}
+	}
+	return sign.NewHostKeySigner(ks), nil
+}
+
+func registerWorkerCert(cfg *conf.MikoConfig, ks *sign.Keystore) error {
+	cert, err := ks.WorkerCertArmored()
+	if err != nil {
+		return err
+	}
+	url := strings.TrimRight(cfg.Ayato.URL, "/") + "/api/unstable/auth/signers"
+	req, err := http.NewRequest(http.MethodPost, url, strings.NewReader(cert))
+	if err != nil {
+		return err
+	}
+	if cfg.Ayato.Username != "" || cfg.Ayato.Password != "" {
+		req.SetBasicAuth(cfg.Ayato.Username, cfg.Ayato.Password)
+	}
+	req.Header.Set("Content-Type", "application/pgp-keys")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
+		return fmt.Errorf("ayato register signer: status %d: %s", resp.StatusCode, string(body))
+	}
+	slog.Info("registered worker signing key with ayato", "url", url)
+	return nil
+}
 
 func RootCmd() *cobra.Command {
 	cmd := cobra.Command{
@@ -72,7 +145,12 @@ func RootCmd() *cobra.Command {
 
 			slog.Debug("Configuration loaded", "port", cfg.Port, "debug", cfg.Debug, "executor", cfg.Executor)
 
-			s := service.New(cfg)
+			signer, err := buildHostSigner(cfg)
+			if err != nil {
+				return utils.WrapErr(err, "failed to set up host signing key")
+			}
+
+			s := service.New(cfg, signer)
 			h := handler.New(s, cfg)
 			verifier := apikey.NewVerifier(cfg.APIKeys)
 

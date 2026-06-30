@@ -18,6 +18,9 @@ func mikoBuildCmd() *cobra.Command {
 		gitSubdir string
 		arch      string
 		timeout   int
+		signLocal bool
+		localKey  string
+		localPass string
 	)
 	cmd := &cobra.Command{
 		Use:   "build <repo> [packages...]",
@@ -43,7 +46,7 @@ func mikoBuildCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return shared.RunRemoteBuild(shared.RemoteBuildOpts{
+			opts := shared.RemoteBuildOpts{
 				Repo:      args[0],
 				Server:    server,
 				GPGKey:    gpgkey,
@@ -53,10 +56,20 @@ func mikoBuildCmd() *cobra.Command {
 				Arch:      arch,
 				Timeout:   timeout,
 				Pkgs:      args[1:],
-			})
+			}
+			if signLocal {
+				if localKey == "" {
+					return utils.NewErr("--sign-local requires --local-key")
+				}
+				return shared.RunRemoteBuildLocalSign(opts, localKey, localPass)
+			}
+			return shared.RunRemoteBuild(opts)
 		},
 	}
 	cmd.Flags().StringVarP(&gpgkey, "key", "g", "", "GPG key id for miko to sign with")
+	cmd.Flags().BoolVar(&signLocal, "sign-local", false, "Download the build and sign it locally instead of on miko")
+	cmd.Flags().StringVar(&localKey, "local-key", "", "Path to the local OpenPGP private key (with --sign-local)")
+	cmd.Flags().StringVar(&localPass, "local-pass", "", "Passphrase for the local key (with --sign-local)")
 	cmd.Flags().StringVar(&gitURL, "git", "", "Build from a git/AUR repository URL")
 	cmd.Flags().StringVar(&gitRef, "ref", "", "Git ref to build (with --git)")
 	cmd.Flags().StringVar(&gitSubdir, "subdir", "", "Subdirectory within the git repository (with --git)")

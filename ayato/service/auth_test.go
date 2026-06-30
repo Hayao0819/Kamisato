@@ -19,7 +19,7 @@ func newAuthService(t *testing.T) service.Servicer {
 	}
 	t.Cleanup(func() { _ = store.Close() })
 	authRepo := repository.NewAuthRepository(store)
-	return service.New(nil, nil, authRepo, &conf.AyatoConfig{})
+	return service.New(nil, nil, authRepo, nil, &conf.AyatoConfig{})
 }
 
 func TestServiceSeedBootstrapAdmin(t *testing.T) {

@@ -33,7 +33,7 @@ func testHandler(t *testing.T) (*Handler, service.Servicer, *auth.Signer) {
 
 	// The handler reaches the allowlist through the service, so back it with a
 	// real service over a badgerkv AuthRepository.
-	svc := service.New(nil, nil, repository.NewAuthRepository(store), cfg)
+	svc := service.New(nil, nil, repository.NewAuthRepository(store), nil, cfg)
 	signer, err := auth.NewSigner([]string{testSecret})
 	if err != nil {
 		t.Fatalf("NewSigner: %v", err)

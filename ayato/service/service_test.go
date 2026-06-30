@@ -27,7 +27,7 @@ func TestServiceRepoNames(t *testing.T) {
 	bin := mocks.NewMockBinaryRepository(ctrl)
 	bin.EXPECT().RepoNames().Return([]string{"core", "extra"}, nil)
 
-	svc := service.New(mocks.NewMockNameStore(ctrl), bin, nil, &conf.AyatoConfig{})
+	svc := service.New(mocks.NewMockNameStore(ctrl), bin, nil, nil, &conf.AyatoConfig{})
 	got, err := svc.RepoNames()
 	if err != nil {
 		t.Fatalf("RepoNames failed: %v", err)
@@ -44,7 +44,7 @@ func TestServiceArches(t *testing.T) {
 	bin := mocks.NewMockBinaryRepository(ctrl)
 	bin.EXPECT().Arches("myrepo").Return([]string{"x86_64", "aarch64"}, nil)
 
-	svc := service.New(mocks.NewMockNameStore(ctrl), bin, nil, &conf.AyatoConfig{})
+	svc := service.New(mocks.NewMockNameStore(ctrl), bin, nil, nil, &conf.AyatoConfig{})
 	got, err := svc.Arches("myrepo")
 	if err != nil {
 		t.Fatalf("Arches failed: %v", err)
@@ -65,7 +65,7 @@ func TestServiceGetFile(t *testing.T) {
 	bin := mocks.NewMockBinaryRepository(ctrl)
 	bin.EXPECT().FetchFile("myrepo", "x86_64", "foo.pkg.tar.zst").Return(fs, nil)
 
-	svc := service.New(mocks.NewMockNameStore(ctrl), bin, nil, &conf.AyatoConfig{})
+	svc := service.New(mocks.NewMockNameStore(ctrl), bin, nil, nil, &conf.AyatoConfig{})
 	got, err := svc.GetFile("myrepo", "x86_64", "foo.pkg.tar.zst")
 	if err != nil {
 		t.Fatalf("GetFile failed: %v", err)
@@ -86,7 +86,7 @@ func TestServiceSignedURL(t *testing.T) {
 	bin := mocks.NewMockBinaryRepository(ctrl)
 	bin.EXPECT().StoreFileWithSignedURL("r", "a", "n").Return("https://example.com/n", nil)
 
-	svc := service.New(mocks.NewMockNameStore(ctrl), bin, nil, &conf.AyatoConfig{})
+	svc := service.New(mocks.NewMockNameStore(ctrl), bin, nil, nil, &conf.AyatoConfig{})
 	got, err := svc.SignedURL("r", "a", "n")
 	if err != nil {
 		t.Fatalf("SignedURL failed: %v", err)
@@ -112,7 +112,7 @@ func TestServiceRemovePkg(t *testing.T) {
 	bin.EXPECT().Files("myrepo", "x86_64").Return([]string{"mypkg-1.0-1-x86_64.pkg.tar.zst", "myrepo.db"}, nil)
 	name.EXPECT().DeletePackageFileEntry("x86_64", "mypkg").Return(nil)
 
-	svc := service.New(name, bin, nil, &conf.AyatoConfig{})
+	svc := service.New(name, bin, nil, nil, &conf.AyatoConfig{})
 	if err := svc.RemovePkg("myrepo", "x86_64", "mypkg"); err != nil {
 		t.Fatalf("RemovePkg failed: %v", err)
 	}
@@ -139,7 +139,7 @@ func TestServiceRemovePkgAny(t *testing.T) {
 	bin.EXPECT().DeleteFile("myrepo", "any", "mypkg-1.0-1-any.pkg.tar.zst.sig").Return(nil)
 	name.EXPECT().DeletePackageFileEntry("any", "mypkg").Return(nil)
 
-	svc := service.New(name, bin, nil, cfg)
+	svc := service.New(name, bin, nil, nil, cfg)
 	if err := svc.RemovePkg("myrepo", "", "mypkg"); err != nil {
 		t.Fatalf("RemovePkg(any, all arches) failed: %v", err)
 	}
@@ -167,7 +167,7 @@ func TestServiceRemovePkgAnyOneArch(t *testing.T) {
 	}}
 	bin.EXPECT().RemoteRepo("myrepo", "aarch64").Return(stillThere, nil)
 
-	svc := service.New(name, bin, nil, cfg)
+	svc := service.New(name, bin, nil, nil, cfg)
 	if err := svc.RemovePkg("myrepo", "x86_64", "mypkg"); err != nil {
 		t.Fatalf("RemovePkg(any one arch) failed: %v", err)
 	}
@@ -180,7 +180,7 @@ func TestServicePkgFilesError(t *testing.T) {
 	bin := mocks.NewMockBinaryRepository(ctrl)
 	bin.EXPECT().PkgFiles("r", "a", "p").Return(nil, errors.New("boom"))
 
-	svc := service.New(mocks.NewMockNameStore(ctrl), bin, nil, &conf.AyatoConfig{})
+	svc := service.New(mocks.NewMockNameStore(ctrl), bin, nil, nil, &conf.AyatoConfig{})
 	if _, err := svc.PkgFiles("r", "a", "p"); err == nil {
 		t.Fatal("expected error from PkgFiles")
 	}
@@ -204,7 +204,7 @@ func TestServiceLocalfsIntegration(t *testing.T) {
 	cfg.Store.LocalRepoDir = repoRoot
 
 	binRepo := repository.NewBinaryRepository(localfs.New(repoRoot, []string{"myrepo"}))
-	svc := service.New(nil, binRepo, nil, cfg)
+	svc := service.New(nil, binRepo, nil, nil, cfg)
 
 	t.Run("RepoNames", func(t *testing.T) {
 		names, err := svc.RepoNames()

@@ -3,6 +3,7 @@ package service
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"os"
 	"sort"
 	"time"
 
@@ -68,6 +69,9 @@ func (s *Service) evictLocked() []string {
 	for _, j := range terminal {
 		if len(s.store) <= maxStoredJobs {
 			break
+		}
+		if j.ArtifactDir != "" {
+			_ = os.RemoveAll(j.ArtifactDir)
 		}
 		delete(s.store, j.ID)
 		evicted = append(evicted, j.ID)

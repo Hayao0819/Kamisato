@@ -37,10 +37,14 @@ func (s *Service) UploadFile(repo string, files *domain.UploadFiles) error {
 		return fmt.Errorf("package signature is required but none was provided")
 	}
 	if hasSig {
-		if s.verifier == nil {
+		kr, kerr := s.verifyKeyring()
+		if kerr != nil {
+			return fmt.Errorf("build signature keyring err: %s", kerr.Error())
+		}
+		if kr == nil {
 			// A signature is present but there is no trust root to verify it;
 			// reject rather than store an unvalidated signature.
-			return fmt.Errorf("package signature present but no verify.keyring is configured to validate it")
+			return fmt.Errorf("package signature present but no trust root (verify.keyring or a registered signer) is configured to validate it")
 		}
 		if _, err := pkgFileStream.Seek(0, io.SeekStart); err != nil {
 			return fmt.Errorf("seek pkg file for verify err: %s", err.Error())
@@ -48,7 +52,7 @@ func (s *Service) UploadFile(repo string, files *domain.UploadFiles) error {
 		if _, err := files.SigFile.Seek(0, io.SeekStart); err != nil {
 			return fmt.Errorf("seek sig file for verify err: %s", err.Error())
 		}
-		fpr, verr := s.verifier.VerifyDetached(pkgFileStream, files.SigFile)
+		fpr, verr := kr.VerifyDetached(pkgFileStream, files.SigFile)
 		if verr != nil {
 			return fmt.Errorf("package signature verification failed: %s", verr.Error())
 		}

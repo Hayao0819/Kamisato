@@ -45,9 +45,10 @@ func (s *Service) process(ctx context.Context, job *domain.BuildJob) {
 	slog.Info("Build job running", "id", job.ID)
 
 	res, outDir, err := s.buildWithRetry(jobCtx, job)
-	// Keep the artifact directory until signing and upload, then clean it up
-	// all at once when process exits.
-	if outDir != "" {
+	// Client sign mode retains the artifacts for download; every other path
+	// cleans the dir up when process exits.
+	keepArtifacts := err == nil && res != nil && job.Request.SignMode == domain.SignClient
+	if outDir != "" && !keepArtifacts {
 		defer func() { _ = os.RemoveAll(outDir) }()
 	}
 
@@ -59,8 +60,8 @@ func (s *Service) process(ctx context.Context, job *domain.BuildJob) {
 		}
 	}()
 
-	if err == nil && res != nil {
-		if uerr := signAndUpload(s.cfg, job.Repo, job.Request.GPGKey, res.Packages); uerr != nil {
+	if err == nil && res != nil && job.Request.SignMode != domain.SignClient {
+		if uerr := s.signAndUpload(jobCtx, job.Repo, res.Packages); uerr != nil {
 			err = utils.WrapErr(uerr, "sign and upload failed")
 		}
 	}
@@ -83,6 +84,9 @@ func (s *Service) process(ctx context.Context, job *domain.BuildJob) {
 			if res != nil {
 				j.Packages = res.Packages
 			}
+			if keepArtifacts {
+				j.ArtifactDir = outDir
+			}
 		}
 	})
 
@@ -94,6 +98,44 @@ func (s *Service) process(ctx context.Context, job *domain.BuildJob) {
 	default:
 		slog.Info("Build job succeeded", "id", job.ID, "packages", len(res.Packages))
 	}
+
+	s.sweepArtifacts(artifactRetention)
+}
+
+// artifactRetention bounds how long a client-signed job's artifacts are kept for
+// download; they are swept opportunistically as later jobs finish.
+const artifactRetention = time.Hour
+
+// sweepArtifacts removes retained artifact dirs of client jobs that ended longer
+// than ttl ago.
+func (s *Service) sweepArtifacts(ttl time.Duration) {
+	now := time.Now()
+	s.mu.Lock()
+	var dirs []string
+	for _, j := range s.store {
+		if j.ArtifactDir != "" && j.EndedAt != nil && now.Sub(*j.EndedAt) > ttl {
+			dirs = append(dirs, j.ArtifactDir)
+			j.ArtifactDir = ""
+		}
+	}
+	s.mu.Unlock()
+	for _, d := range dirs {
+		_ = os.RemoveAll(d)
+	}
+}
+
+// ArtifactDir returns the retained artifact directory for a client-signed job.
+func (s *Service) ArtifactDir(id string) (string, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	job, ok := s.store[id]
+	if !ok {
+		return "", utils.NewErrf("job not found: %s", id)
+	}
+	if job.ArtifactDir == "" {
+		return "", utils.NewErrf("job %s has no downloadable artifacts", id)
+	}
+	return job.ArtifactDir, nil
 }
 
 // buildWithRetry runs the build with retry/backoff, retrying only on a genuine

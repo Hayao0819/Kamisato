@@ -115,7 +115,7 @@ func TestUploadFile_RequireSignNoSig(t *testing.T) {
 	bin.EXPECT().VerifyPkgRepo("myrepo").Return(nil)
 	// No StoreFile / RepoAdd / StorePackageFile must be called.
 
-	svc := service.New(name, bin, nil, baseConfig(true, keyring))
+	svc := service.New(name, bin, nil, nil, baseConfig(true, keyring))
 	files := &domain.UploadFiles{PkgFile: pkgStream(uploadName, buildPkgArchive(t))}
 	if err := svc.UploadFile("myrepo", files); err == nil {
 		t.Fatal("expected error when RequireSign and no signature, got nil")
@@ -140,7 +140,7 @@ func TestUploadFile_BadSigRejected(t *testing.T) {
 			bin.EXPECT().VerifyPkgRepo("myrepo").Return(nil)
 			// No StoreFile / RepoAdd allowed.
 
-			svc := service.New(name, bin, nil, baseConfig(requireSign, keyring))
+			svc := service.New(name, bin, nil, nil, baseConfig(requireSign, keyring))
 			files := &domain.UploadFiles{
 				PkgFile: pkgStream(uploadName, payload),
 				SigFile: pkgStream(uploadName+".sig", badSig),
@@ -174,7 +174,7 @@ func TestUploadFile_GoodSigStoresTwice(t *testing.T) {
 	bin.EXPECT().RepoAdd("myrepo", "x86_64", gomock.Any(), gomock.Nil(), false, gomock.Nil()).Return(nil)
 	name.EXPECT().StorePackageFile("x86_64", "foo", uploadName).Return(nil)
 
-	svc := service.New(name, bin, nil, baseConfig(false, keyring))
+	svc := service.New(name, bin, nil, nil, baseConfig(false, keyring))
 	files := &domain.UploadFiles{
 		PkgFile: pkgStream(uploadName, payload),
 		SigFile: pkgStream(uploadName+".sig", sig),
@@ -211,7 +211,7 @@ func TestUploadFile_CleanupRemovesBoth(t *testing.T) {
 			return nil
 		}).Times(2)
 
-	svc := service.New(name, bin, nil, baseConfig(false, keyring))
+	svc := service.New(name, bin, nil, nil, baseConfig(false, keyring))
 	files := &domain.UploadFiles{
 		PkgFile: pkgStream(uploadName, payload),
 		SigFile: pkgStream(uploadName+".sig", sig),

@@ -13,7 +13,10 @@ type BuildRequest struct {
 	Files       map[string]string `json:"files,omitempty"`
 	InstallPkgs []string          `json:"install_pkgs"`
 	GPGKey      string            `json:"gpg_key"`
-	Timeout     int               `json:"timeout,omitempty"` // minutes; 0 = miko default
+	// SignMode "client" leaves the build unsigned for local download+signing;
+	// empty/"host" signs on the worker.
+	SignMode string `json:"sign_mode,omitempty"`
+	Timeout  int    `json:"timeout,omitempty"` // minutes; 0 = miko default
 }
 
 // GitSource describes a git/AUR repository to clone as the build source.

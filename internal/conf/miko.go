@@ -43,6 +43,13 @@ type MikoConfig struct {
 		Username string `koanf:"username"`
 		Password string `koanf:"password"`
 	} `koanf:"ayato"`
+	// Signing configures the worker host signing key. KeyDir defaults to
+	// <data_dir>/keys; empty (with no data_dir) disables host signing.
+	Signing struct {
+		KeyDir string `koanf:"key_dir"`
+		Name   string `koanf:"name"`
+		Email  string `koanf:"email"`
+	} `koanf:"signing"`
 }
 
 func LoadMikoConfig(flags *pflag.FlagSet, configFile string) (*MikoConfig, error) {

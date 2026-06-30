@@ -9,6 +9,7 @@ import (
 
 	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/miko/domain"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/sign"
 )
 
 // Sentinel errors let the handler map Submit failures to HTTP status codes.
@@ -29,12 +30,15 @@ type Servicer interface {
 	List() []*domain.BuildJob
 	Cancel(id string) error
 	Stats() domain.BuildStats
+	// ArtifactDir returns the retained artifact directory of a client-signed job.
+	ArtifactDir(id string) (string, error)
 	// Run is the worker loop. It blocks until ctx is cancelled.
 	Run(ctx context.Context)
 }
 
 type Service struct {
 	cfg     *conf.MikoConfig
+	signer  sign.Signer // host signing key; nil disables signing
 	queue   *queue
 	persist *jobPersist
 
@@ -46,9 +50,10 @@ type Service struct {
 	running map[string]context.CancelFunc
 }
 
-func New(cfg *conf.MikoConfig) Servicer {
+func New(cfg *conf.MikoConfig, signer sign.Signer) Servicer {
 	s := &Service{
 		cfg:       cfg,
+		signer:    signer,
 		queue:     newQueue(),
 		store:     make(map[string]*domain.BuildJob),
 		running:   make(map[string]context.CancelFunc),

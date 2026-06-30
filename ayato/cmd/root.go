@@ -58,7 +58,8 @@ func RootCmd() *cobra.Command {
 			}
 			defer func() { _ = kvStore.Close() }()
 
-			s := service.New(pkgNameRepo, pkgBinaryRepo, authRepo, cfg)
+			signerRepo := repository.NewSignerRepository(kvStore)
+			s := service.New(pkgNameRepo, pkgBinaryRepo, authRepo, signerRepo, cfg)
 			h := handler.New(s, cfg)
 			m := middleware.New(cfg)
 

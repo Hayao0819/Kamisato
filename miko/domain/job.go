@@ -29,9 +29,18 @@ type BuildRequest struct {
 	InstallPkgs []string `json:"install_pkgs"`
 	// GPGKey identifies the signing key to use after build.
 	GPGKey string `json:"gpg_key"`
+	// SignMode selects where signing happens: "host" (default) signs on the
+	// worker with its host key; "client" leaves the artifact unsigned for the
+	// requester to download and sign locally.
+	SignMode string `json:"sign_mode,omitempty"`
 	// Timeout in minutes; 0 uses the server default.
 	Timeout int `json:"timeout,omitempty"`
 }
+
+const (
+	SignHost   = "host"
+	SignClient = "client"
+)
 
 // GitSource describes a git/AUR repository to clone as the build source.
 type GitSource struct {
@@ -50,10 +59,13 @@ type BuildJob struct {
 	Packages []string  `json:"packages,omitempty"`
 	Retries  int       `json:"retries,omitempty"`
 
-	Request   *BuildRequest `json:"-"`
-	CreatedAt time.Time     `json:"created_at"`
-	StartedAt *time.Time    `json:"started_at,omitempty"`
-	EndedAt   *time.Time    `json:"ended_at,omitempty"`
+	Request *BuildRequest `json:"-"`
+	// ArtifactDir is the retained build-output dir for a client-signed job, served
+	// for download; empty otherwise. Server-internal, never serialized.
+	ArtifactDir string     `json:"-"`
+	CreatedAt   time.Time  `json:"created_at"`
+	StartedAt   *time.Time `json:"started_at,omitempty"`
+	EndedAt     *time.Time `json:"ended_at,omitempty"`
 
 	// Log is the live build-log buffer, set by the service on Submit.
 	Log *joblog.Buffer `json:"-"`

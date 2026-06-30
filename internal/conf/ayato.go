@@ -45,6 +45,9 @@ type AURConfig struct {
 type VerifyConfig struct {
 	Keyring     string   `koanf:"keyring,omitempty"`
 	TrustedKeys []string `koanf:"trusted_keys,omitempty"`
+	// MasterKeys are armored master public keys. A worker key certified by one of
+	// these is accepted once registered, so adding a worker needs no ayato change.
+	MasterKeys []string `koanf:"master_keys,omitempty"`
 }
 
 // GitHubOAuthConfig is the confidential OAuth2 client used for "Sign in with

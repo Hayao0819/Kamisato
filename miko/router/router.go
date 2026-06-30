@@ -21,6 +21,8 @@ func SetRoute(e *gin.Engine, h *handler.Handler, v *apikey.Verifier) error {
 		api.GET("/jobs", h.JobListHandler)
 		api.GET("/jobs/:id", h.JobStatusHandler)
 		api.GET("/jobs/:id/logs", h.JobLogsHandler)
+		api.GET("/jobs/:id/artifacts", h.ListArtifactsHandler)
+		api.GET("/jobs/:id/artifacts/:name", h.GetArtifactHandler)
 		api.DELETE("/jobs/:id", h.JobCancelHandler)
 		api.GET("/stats", h.JobStatsHandler)
 	}

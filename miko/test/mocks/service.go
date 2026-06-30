@@ -55,6 +55,21 @@ func (mr *MockServicerMockRecorder) Cancel(id any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Cancel", reflect.TypeOf((*MockServicer)(nil).Cancel), id)
 }
 
+// ArtifactDir mocks base method.
+func (m *MockServicer) ArtifactDir(id string) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ArtifactDir", id)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ArtifactDir indicates an expected call of ArtifactDir.
+func (mr *MockServicerMockRecorder) ArtifactDir(id any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ArtifactDir", reflect.TypeOf((*MockServicer)(nil).ArtifactDir), id)
+}
+
 // List mocks base method.
 func (m *MockServicer) List() []*domain.BuildJob {
 	m.ctrl.T.Helper()

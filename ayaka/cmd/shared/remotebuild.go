@@ -1,16 +1,21 @@
 package shared
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
+	"time"
 
+	"github.com/BrenekH/blinky/clientlib"
 	"github.com/Hayao0819/Kamisato/internal/ayatoclient"
 	"github.com/Hayao0819/Kamisato/internal/utils"
 	pkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
 	pacmanrepo "github.com/Hayao0819/Kamisato/pkg/pacman/repo"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/sign"
 )
 
 type RemoteBuildOpts struct {
@@ -32,36 +37,9 @@ func RunRemoteBuild(o RemoteBuildOpts) error {
 	if err != nil {
 		return err
 	}
-
-	arch := o.Arch
-	if arch == "" {
-		arch = "x86_64"
-	}
-
-	req := &ayatoclient.BuildRequest{
-		Repo:        o.Repo,
-		Arch:        arch,
-		InstallPkgs: o.Pkgs,
-		GPGKey:      o.GPGKey,
-		Timeout:     o.Timeout,
-	}
-
-	if o.GitURL != "" {
-		req.Git = &ayatoclient.GitSource{
-			URL:    o.GitURL,
-			Ref:    o.GitRef,
-			Subdir: o.GitSubdir,
-		}
-	} else {
-		pkgbuild, files, err := readLocalSource(o.Repo, o.Pkgs)
-		if err != nil {
-			return err
-		}
-		req.Pkgbuild = pkgbuild
-		req.Files = files
-		// install_pkgs targets local package files on the builder, not source
-		// package names, so don't pass the selected build packages through.
-		req.InstallPkgs = nil
+	req, err := buildRequest(o)
+	if err != nil {
+		return err
 	}
 
 	slog.Info("submitting remote build", "server", srv.URL, "repo", o.Repo)
@@ -72,6 +50,138 @@ func RunRemoteBuild(o RemoteBuildOpts) error {
 
 	fmt.Println(jobID)
 	return nil
+}
+
+// buildRequest assembles the build request from opts: a git source, else the
+// local PKGBUILD of the named source package.
+func buildRequest(o RemoteBuildOpts) (*ayatoclient.BuildRequest, error) {
+	arch := o.Arch
+	if arch == "" {
+		arch = "x86_64"
+	}
+	req := &ayatoclient.BuildRequest{
+		Repo:        o.Repo,
+		Arch:        arch,
+		InstallPkgs: o.Pkgs,
+		GPGKey:      o.GPGKey,
+		Timeout:     o.Timeout,
+	}
+	if o.GitURL != "" {
+		req.Git = &ayatoclient.GitSource{URL: o.GitURL, Ref: o.GitRef, Subdir: o.GitSubdir}
+		return req, nil
+	}
+	pkgbuild, files, err := readLocalSource(o.Repo, o.Pkgs)
+	if err != nil {
+		return nil, err
+	}
+	req.Pkgbuild = pkgbuild
+	req.Files = files
+	// install_pkgs targets local package files on the builder, not source
+	// package names, so don't pass the selected build packages through.
+	req.InstallPkgs = nil
+	return req, nil
+}
+
+// RunRemoteBuildLocalSign builds on miko without server-side signing, downloads
+// the artifacts, signs them locally with keyPath, and uploads them to ayato.
+func RunRemoteBuildLocalSign(o RemoteBuildOpts, keyPath, passphrase string) error {
+	srv, err := ResolveAyatoServer(o.Server)
+	if err != nil {
+		return err
+	}
+	signer, err := sign.NewLocalSigner(keyPath, passphrase)
+	if err != nil {
+		return utils.WrapErr(err, "failed to load local signing key")
+	}
+	req, err := buildRequest(o)
+	if err != nil {
+		return err
+	}
+	req.SignMode = "client"
+
+	jobID, err := ayatoclient.SubmitBuild(srv.URL, srv.Password, req)
+	if err != nil {
+		return utils.WrapErr(err, "failed to submit build")
+	}
+	slog.Info("submitted client-signed build", "job", jobID, "server", srv.URL)
+
+	if err := waitForJob(srv.URL, jobID); err != nil {
+		return err
+	}
+
+	names, err := ayatoclient.ListArtifacts(srv.URL, jobID)
+	if err != nil {
+		return err
+	}
+	if len(names) == 0 {
+		return utils.NewErr("build produced no artifacts")
+	}
+
+	tmp, err := os.MkdirTemp("", "ayaka-dl-*")
+	if err != nil {
+		return err
+	}
+	defer func() { _ = os.RemoveAll(tmp) }()
+
+	client, err := clientlib.New(srv.URL, srv.Username, srv.Password)
+	if err != nil {
+		return utils.WrapErr(err, "failed to create upload client")
+	}
+
+	for _, name := range names {
+		// Sign locally, so skip any signature the server may have produced.
+		if strings.HasSuffix(name, ".sig") {
+			continue
+		}
+		pkgPath := filepath.Join(tmp, name)
+		f, err := os.Create(pkgPath)
+		if err != nil {
+			return err
+		}
+		if derr := ayatoclient.DownloadArtifact(srv.URL, jobID, name, f); derr != nil {
+			_ = f.Close()
+			return derr
+		}
+		if cerr := f.Close(); cerr != nil {
+			return cerr
+		}
+		sigPath, serr := signer.Sign(context.Background(), pkgPath)
+		if serr != nil {
+			return utils.WrapErr(serr, "failed to sign "+name)
+		}
+		if uerr := client.UploadPackageFiles(o.Repo, pkgPath, sigPath); uerr != nil {
+			return utils.WrapErr(uerr, "failed to upload "+name)
+		}
+		slog.Info("signed and uploaded", "pkg", name)
+	}
+	return nil
+}
+
+// clientBuildTimeout bounds how long the local-sign flow waits for a remote
+// build, so a stuck queued/running job does not hang the CLI forever.
+const clientBuildTimeout = 2 * time.Hour
+
+// waitForJob polls until the job reaches a terminal state or the timeout elapses.
+func waitForJob(base, id string) error {
+	deadline := time.Now().Add(clientBuildTimeout)
+	for {
+		job, err := ayatoclient.JobStatus(base, id)
+		if err != nil {
+			return err
+		}
+		switch job.Status {
+		case "success":
+			return nil
+		case "failed":
+			return utils.NewErrf("build failed: %s", job.Err)
+		case "cancelled":
+			return utils.NewErr("build cancelled")
+		}
+		if time.Now().After(deadline) {
+			return utils.NewErrf("timed out waiting for job %s (last status %q)", id, job.Status)
+		}
+		time.Sleep(2 * time.Second)
+	}
 }
 
 // readLocalSource reads the PKGBUILD and files of a source package in the repo.

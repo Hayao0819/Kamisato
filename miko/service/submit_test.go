@@ -9,7 +9,7 @@ import (
 )
 
 func TestSubmitRejectsBadArch(t *testing.T) {
-	s := New(&conf.MikoConfig{})
+	s := New(&conf.MikoConfig{}, nil)
 
 	if _, err := s.Submit(&domain.BuildRequest{Arch: "evil; rm -rf"}); !errors.Is(err, ErrInvalidRequest) {
 		t.Errorf("bad arch: want ErrInvalidRequest, got %v", err)
