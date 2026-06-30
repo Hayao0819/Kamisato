@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/Hayao0819/Kamisato/internal/utils"
@@ -182,6 +183,15 @@ func (s *Service) Stats() domain.BuildStats {
 
 func (s *Service) Run(ctx context.Context) {
 	slog.Info("Build worker started", "executor", s.cfg.Executor)
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		s.sweepLoop(ctx, sweepInterval, artifactRetention)
+	}()
+	defer wg.Wait()
+
 	for {
 		job, ok := s.queue.pop(ctx)
 		if !ok {

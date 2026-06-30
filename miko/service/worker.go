@@ -112,6 +112,11 @@ func (s *Service) process(ctx context.Context, job *domain.BuildJob) {
 // download; they are swept opportunistically as later jobs finish.
 const artifactRetention = time.Hour
 
+// sweepInterval is how often the worker sweeps expired artifacts independent of
+// job completion, so an idle worker still releases disk within the retention
+// window instead of waiting for the next job.
+const sweepInterval = artifactRetention / 2
+
 // sweepArtifacts removes retained artifact dirs of client jobs that ended longer
 // than ttl ago.
 func (s *Service) sweepArtifacts(ttl time.Duration) {
@@ -127,6 +132,21 @@ func (s *Service) sweepArtifacts(ttl time.Duration) {
 	s.mu.Unlock()
 	for _, d := range dirs {
 		_ = os.RemoveAll(d)
+	}
+}
+
+// sweepLoop sweeps expired artifact dirs on a timer until ctx is cancelled, so
+// an idle worker reclaims disk without waiting for a later job to finish.
+func (s *Service) sweepLoop(ctx context.Context, interval, ttl time.Duration) {
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			s.sweepArtifacts(ttl)
+		}
 	}
 }
 
