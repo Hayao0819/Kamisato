@@ -18,7 +18,7 @@ func initBinaryStore(cfg *conf.AyatoConfig) (blob.Store, error) {
 	if cfg.Store.StorageType == "s3" {
 		slog.Warn("Using S3 is still experimental, please use with caution")
 		a := cfg.Store.AWSS3
-		if bin, err := s3.New(&s3.Config{
+		bin, err := s3.New(&s3.Config{
 			Bucket:          a.Bucket,
 			Region:          a.Region,
 			Endpoint:        a.Endpoint,
@@ -26,11 +26,14 @@ func initBinaryStore(cfg *conf.AyatoConfig) (blob.Store, error) {
 			SecretAccessKey: a.SecretAccessKey,
 			SessionToken:    a.SessionToken,
 			UsePathStyle:    a.UsePathStyle,
-		}); err != nil {
-			slog.Error("Failed to create S3 client, falling back to local file system", "error", err)
-		} else {
-			return bin, nil
+		})
+		if err != nil {
+			// Fail closed: silently downgrading to localfs would put durable state on
+			// ephemeral Cloud Run disk and lose data. localfs is only used when it is
+			// the configured backend, never as an implicit S3 fallback.
+			return nil, err
 		}
+		return bin, nil
 	}
 
 	slog.Info("Using local file system as the binary store")
