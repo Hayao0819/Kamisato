@@ -41,6 +41,7 @@ type Servicer interface {
 
 	GetFile(repoName, archName, name string) (stream.File, error)
 	UploadFile(repo string, files *domain.UploadFiles) error
+	UploadFiles(repo string, files []*domain.UploadFiles) error
 	RemovePkg(rname string, arch string, pkgname string) error
 	SignedURL(repo string, arch string, name string) (string, error)
 

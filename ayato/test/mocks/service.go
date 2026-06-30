@@ -334,3 +334,17 @@ func (mr *MockServicerMockRecorder) UploadFile(repo, files any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UploadFile", reflect.TypeOf((*MockServicer)(nil).UploadFile), repo, files)
 }
+
+// UploadFiles mocks base method.
+func (m *MockServicer) UploadFiles(repo string, files []*domain.UploadFiles) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UploadFiles", repo, files)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UploadFiles indicates an expected call of UploadFiles.
+func (mr *MockServicerMockRecorder) UploadFiles(repo, files any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UploadFiles", reflect.TypeOf((*MockServicer)(nil).UploadFiles), repo, files)
+}

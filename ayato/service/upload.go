@@ -8,53 +8,62 @@ import (
 	"strings"
 
 	"github.com/Hayao0819/Kamisato/ayato/domain"
+	"github.com/Hayao0819/Kamisato/ayato/repository"
 	"github.com/Hayao0819/Kamisato/ayato/stream"
 	pkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
 )
 
-// TODO: support signed DB, check gnupgDir existence
-func (s *Service) UploadFile(repo string, files *domain.UploadFiles) error {
-	slog.Info("upload pkg file", "file", files.PkgFile.FileName())
-	if s.pkgBinaryRepo.VerifyPkgRepo(repo) != nil {
-		slog.Warn("repository directory not found", "repo", repo)
-		if err := s.initRepo(repo, false, nil); err != nil {
-			return fmt.Errorf("init repo err: %s", err.Error())
-		}
-	}
+// preparedUpload is one validated package ready to be stored and registered.
+// storeArch is where the file physically lives (an arch=any package is stored
+// once under "any/" and shared via FetchFile's fallback); dbArches are the arches
+// whose database registers it.
+type preparedUpload struct {
+	pkgStream  stream.SeekFile
+	sigStream  stream.SeekFile // nil when no signature
+	pkgName    string
+	storeArch  string
+	dbArches   []string
+	storedName string
+	sigName    string
+}
+
+// prepareUpload validates and verifies one package without storing anything: it
+// reads the metadata, gates the signature (a present signature is always
+// verified; a missing one is allowed only when RequireSign is false), and
+// resolves the storage arch and the db arches. Storing nothing here lets a bad
+// package in a batch fail the whole publish before any state changes.
+func (s *Service) prepareUpload(repo string, files *domain.UploadFiles) (preparedUpload, error) {
 	pkgFileStream := files.PkgFile
 	p, err := pkg.ReadBinaryPackage(pkgFileStream.FileName(), pkgFileStream)
 	if err != nil {
-		return fmt.Errorf("get pkg from bin err: %s", err.Error())
+		return preparedUpload{}, fmt.Errorf("get pkg from bin err: %s", err.Error())
 	}
 	pi := p.PKGINFO()
 	slog.Info("get pkg from bin", "pkgname", pi.PkgName, "pkgver", pi.PkgVer)
 
-	// Even with RequireSign=false, a present signature is always verified: a bad,
-	// untrusted, expired, or revoked sig is rejected; only a missing sig is
-	// allowed. Signatures are binary detached (--no-armor).
 	hasSig := files.SigFile != nil
 	if s.cfg != nil && s.cfg.RequireSign && !hasSig {
-		return fmt.Errorf("package signature is required but none was provided")
+		return preparedUpload{}, fmt.Errorf("package signature is required but none was provided")
 	}
 	if hasSig {
 		kr, kerr := s.verifyKeyring()
 		if kerr != nil {
-			return fmt.Errorf("build signature keyring err: %s", kerr.Error())
+			return preparedUpload{}, fmt.Errorf("build signature keyring err: %s", kerr.Error())
 		}
 		if kr == nil {
 			// A signature is present but there is no trust root to verify it;
 			// reject rather than store an unvalidated signature.
-			return fmt.Errorf("package signature present but no trust root (verify.keyring or a registered signer) is configured to validate it")
+			return preparedUpload{}, fmt.Errorf("package signature present but no trust root (verify.keyring or a registered signer) is configured to validate it")
 		}
 		if _, err := pkgFileStream.Seek(0, io.SeekStart); err != nil {
-			return fmt.Errorf("seek pkg file for verify err: %s", err.Error())
+			return preparedUpload{}, fmt.Errorf("seek pkg file for verify err: %s", err.Error())
 		}
 		if _, err := files.SigFile.Seek(0, io.SeekStart); err != nil {
-			return fmt.Errorf("seek sig file for verify err: %s", err.Error())
+			return preparedUpload{}, fmt.Errorf("seek sig file for verify err: %s", err.Error())
 		}
 		fpr, verr := kr.VerifyDetached(pkgFileStream, files.SigFile)
 		if verr != nil {
-			return fmt.Errorf("package signature verification failed: %s", verr.Error())
+			return preparedUpload{}, fmt.Errorf("package signature verification failed: %s", verr.Error())
 		}
 		slog.Info("package signature verified", "pkgname", pi.PkgName, "fingerprint", fpr)
 	}
@@ -63,77 +72,145 @@ func (s *Service) UploadFile(repo string, files *domain.UploadFiles) error {
 	// a single safe path component so it cannot escape the repo dir as a storage
 	// subdirectory.
 	if pi.Arch == "" || strings.ContainsRune(pi.Arch, '/') || strings.Contains(pi.Arch, "..") {
-		return fmt.Errorf("invalid package arch %q", pi.Arch)
+		return preparedUpload{}, fmt.Errorf("invalid package arch %q", pi.Arch)
 	}
-
-	// storeArch is where the file physically lives: an arch=any package is stored
-	// once under "any/" and shared via FetchFile's fallback. dbArches are the
-	// arches whose database registers the package.
-	storeArch := pi.Arch
 	dbArches, err := s.targetArches(repo, pi.Arch)
 	if err != nil {
-		return err
+		return preparedUpload{}, err
 	}
 
 	storedName := path.Base(pkgFileStream.FileName())
-	storedSigName := storedName + ".sig"
+	prep := preparedUpload{
+		pkgStream:  pkgFileStream,
+		pkgName:    pi.PkgName,
+		storeArch:  pi.Arch,
+		dbArches:   dbArches,
+		storedName: storedName,
+		sigName:    storedName + ".sig",
+	}
+	if hasSig {
+		prep.sigStream = files.SigFile
+	}
+	return prep, nil
+}
+
+// UploadFile publishes a single package; it is the one-item form of UploadFiles.
+func (s *Service) UploadFile(repo string, files *domain.UploadFiles) error {
+	return s.UploadFiles(repo, []*domain.UploadFiles{files})
+}
+
+// UploadFiles publishes one or more packages atomically. It validates and
+// verifies every package first, stores each file, then registers them all in
+// each affected (repo, arch) database with a single RepoAddBatch per arch — so a
+// multi-package push (a split package, or a rebuild set) lands as one atomic
+// database update rather than N partial ones. On any error it rolls back every
+// stored file and database entry.
+//
+// TODO: support signed DB, check gnupgDir existence
+func (s *Service) UploadFiles(repo string, files []*domain.UploadFiles) error {
+	if len(files) == 0 {
+		return nil
+	}
+	if s.pkgBinaryRepo.VerifyPkgRepo(repo) != nil {
+		slog.Warn("repository directory not found", "repo", repo)
+		if err := s.initRepo(repo, false, nil); err != nil {
+			return fmt.Errorf("init repo err: %s", err.Error())
+		}
+	}
+
 	useSignedDB := false // TODO: support signed DB
 	var gnupgDir *string // TODO: check gnupgDir existence
-	var added []string
-	sigStored := false
-	cleanup := func() {
-		for _, arch := range added {
-			if rmErr := s.pkgBinaryRepo.RepoRemove(repo, arch, pi.PkgName, useSignedDB, gnupgDir); rmErr != nil {
-				slog.Warn("failed to roll back repo-add", "repo", repo, "arch", arch, "pkg", pi.PkgName, "err", rmErr)
+
+	// Validate and verify every package up front, so a bad package in the batch
+	// fails the whole publish before anything is stored.
+	preps := make([]preparedUpload, 0, len(files))
+	for _, f := range files {
+		slog.Info("upload pkg file", "file", f.PkgFile.FileName())
+		prep, err := s.prepareUpload(repo, f)
+		if err != nil {
+			return err
+		}
+		preps = append(preps, prep)
+	}
+
+	// Rollback state. archKey is (arch, name-or-pkgname) depending on the slice.
+	type archKey struct{ arch, key string }
+	var stored, added, named []archKey
+	rollback := func() {
+		for _, a := range added {
+			if err := s.pkgBinaryRepo.RepoRemove(repo, a.arch, a.key, useSignedDB, gnupgDir); err != nil {
+				slog.Warn("failed to roll back repo-add", "repo", repo, "arch", a.arch, "pkg", a.key, "err", err)
 			}
 		}
-		if delErr := s.pkgBinaryRepo.DeleteFile(repo, storeArch, storedName); delErr != nil {
-			slog.Warn("failed to clean up stored pkg file after upload error", "repo", repo, "arch", storeArch, "filename", storedName, "err", delErr)
+		for _, f := range stored {
+			if err := s.pkgBinaryRepo.DeleteFile(repo, f.arch, f.key); err != nil {
+				slog.Warn("failed to clean up stored file after upload error", "repo", repo, "arch", f.arch, "filename", f.key, "err", err)
+			}
 		}
-		if sigStored {
-			if delErr := s.pkgBinaryRepo.DeleteFile(repo, storeArch, storedSigName); delErr != nil {
-				slog.Warn("failed to clean up stored sig file after upload error", "repo", repo, "arch", storeArch, "filename", storedSigName, "err", delErr)
+		for _, n := range named {
+			if err := s.pkgNameRepo.DeletePackageFileEntry(n.arch, n.key); err != nil {
+				slog.Warn("failed to roll back package-name entry", "arch", n.arch, "pkg", n.key, "err", err)
 			}
 		}
 	}
 
-	if _, err := pkgFileStream.Seek(0, io.SeekStart); err != nil {
-		return fmt.Errorf("seek pkg file err: %s", err.Error())
-	}
-	if err := s.pkgBinaryRepo.StoreFile(repo, storeArch, pkgFileStream); err != nil {
-		return fmt.Errorf("store file err: %s", err.Error())
-	}
-
-	// StoreFile keys the on-disk name off FileName(), so re-wrap the sig under
-	// "<storedName>.sig". Verification above already rejected unverifiable sigs.
-	if hasSig {
-		if _, err := files.SigFile.Seek(0, io.SeekStart); err != nil {
-			cleanup()
-			return fmt.Errorf("seek sig file err: %s", err.Error())
-		}
-		sigToStore := stream.NewFileStream(storedSigName, files.SigFile.ContentType(), files.SigFile)
-		if err := s.pkgBinaryRepo.StoreFile(repo, storeArch, sigToStore); err != nil {
-			cleanup()
-			return fmt.Errorf("store sig file err: %s", err.Error())
-		}
-		sigStored = true
-	}
-
-	for _, arch := range dbArches {
-		if _, err := pkgFileStream.Seek(0, io.SeekStart); err != nil {
-			cleanup()
+	// Store every package file (and its signature) under its arch.
+	for _, p := range preps {
+		if _, err := p.pkgStream.Seek(0, io.SeekStart); err != nil {
+			rollback()
 			return fmt.Errorf("seek pkg file err: %s", err.Error())
 		}
-		if err := s.pkgBinaryRepo.RepoAdd(repo, arch, pkgFileStream, nil, useSignedDB, gnupgDir); err != nil {
-			cleanup()
-			return fmt.Errorf("repo-add err: %s", err.Error())
+		if err := s.pkgBinaryRepo.StoreFile(repo, p.storeArch, p.pkgStream); err != nil {
+			rollback()
+			return fmt.Errorf("store file err: %s", err.Error())
 		}
-		added = append(added, arch)
+		stored = append(stored, archKey{p.storeArch, p.storedName})
+		if p.sigStream != nil {
+			if _, err := p.sigStream.Seek(0, io.SeekStart); err != nil {
+				rollback()
+				return fmt.Errorf("seek sig file err: %s", err.Error())
+			}
+			// StoreFile keys the on-disk name off FileName(), so re-wrap the sig
+			// under "<storedName>.sig". Verification already rejected bad sigs.
+			sigToStore := stream.NewFileStream(p.sigName, p.sigStream.ContentType(), p.sigStream)
+			if err := s.pkgBinaryRepo.StoreFile(repo, p.storeArch, sigToStore); err != nil {
+				rollback()
+				return fmt.Errorf("store sig file err: %s", err.Error())
+			}
+			stored = append(stored, archKey{p.storeArch, p.sigName})
+		}
 	}
 
-	if err := s.pkgNameRepo.StorePackageFile(storeArch, pi.PkgName, storedName); err != nil {
-		cleanup()
-		return fmt.Errorf("store pkg file name err: %s", err.Error())
+	// Group packages by db arch; each arch's database is updated once, atomically.
+	byArch := map[string][]repository.RepoAddItem{}
+	pkgsByArch := map[string][]string{}
+	var archOrder []string
+	for _, p := range preps {
+		for _, a := range p.dbArches {
+			if _, ok := byArch[a]; !ok {
+				archOrder = append(archOrder, a)
+			}
+			byArch[a] = append(byArch[a], repository.RepoAddItem{Pkg: p.pkgStream})
+			pkgsByArch[a] = append(pkgsByArch[a], p.pkgName)
+		}
+	}
+	for _, a := range archOrder {
+		if err := s.pkgBinaryRepo.RepoAddBatch(repo, a, byArch[a], useSignedDB, gnupgDir); err != nil {
+			rollback()
+			return fmt.Errorf("repo-add err: %s", err.Error())
+		}
+		for _, pn := range pkgsByArch[a] {
+			added = append(added, archKey{a, pn})
+		}
+	}
+
+	// Record each package's file name.
+	for _, p := range preps {
+		if err := s.pkgNameRepo.StorePackageFile(p.storeArch, p.pkgName, p.storedName); err != nil {
+			rollback()
+			return fmt.Errorf("store pkg file name err: %s", err.Error())
+		}
+		named = append(named, archKey{p.storeArch, p.pkgName})
 	}
 	return nil
 }

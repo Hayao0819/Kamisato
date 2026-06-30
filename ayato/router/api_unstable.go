@@ -78,7 +78,8 @@ func SetRoute(e *gin.Engine, h *handler.Handler, m *middleware.Middleware) error
 		upload := api.Group("")
 		{
 			upload.Use(m.RateLimit(rate.Every(time.Second/10), 30), m.RequireUpload())
-			upload.PUT("/:repo/package", h.BlinkyUploadHandler) // Blinky compatible
+			upload.PUT("/:repo/package", h.BlinkyUploadHandler)  // Blinky compatible (single)
+			upload.POST("/:repo/packages", h.BatchUploadHandler) // atomic multi-package publish
 		}
 		blinky := api.Group("")
 		{

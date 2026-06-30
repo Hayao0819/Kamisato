@@ -171,7 +171,7 @@ func TestUploadFile_GoodSigStoresTwice(t *testing.T) {
 			stored = append(stored, f.FileName())
 			return nil
 		}).Times(2)
-	bin.EXPECT().RepoAdd("myrepo", "x86_64", gomock.Any(), gomock.Nil(), false, gomock.Nil()).Return(nil)
+	bin.EXPECT().RepoAddBatch("myrepo", "x86_64", gomock.Any(), false, gomock.Nil()).Return(nil)
 	name.EXPECT().StorePackageFile("x86_64", "foo", uploadName).Return(nil)
 
 	svc := service.New(name, bin, nil, nil, baseConfig(false, keyring))
@@ -201,8 +201,8 @@ func TestUploadFile_CleanupRemovesBoth(t *testing.T) {
 	bin.EXPECT().VerifyPkgRepo("myrepo").Return(nil)
 	// both pkg and sig get stored.
 	bin.EXPECT().StoreFile("myrepo", "x86_64", gomock.Any()).Return(nil).Times(2)
-	// RepoAdd fails, triggering cleanup of both stored files.
-	bin.EXPECT().RepoAdd("myrepo", "x86_64", gomock.Any(), gomock.Nil(), false, gomock.Nil()).Return(errors.New("boom"))
+	// RepoAddBatch fails, triggering cleanup of both stored files.
+	bin.EXPECT().RepoAddBatch("myrepo", "x86_64", gomock.Any(), false, gomock.Nil()).Return(errors.New("boom"))
 
 	var deleted []string
 	bin.EXPECT().DeleteFile("myrepo", "x86_64", gomock.Any()).DoAndReturn(
@@ -241,4 +241,59 @@ func boolStr(b bool) string {
 		return "true"
 	}
 	return "false"
+}
+
+// buildNamedPkg is buildPkgArchive with a chosen pkgname, for multi-package batch
+// tests.
+func buildNamedPkg(t *testing.T, name string) []byte {
+	t.Helper()
+	body := "pkgname = " + name + "\npkgver = 1.0-1\narch = x86_64\nxdata = pkgtype=pkg\n"
+	var tarBuf bytes.Buffer
+	tw := tar.NewWriter(&tarBuf)
+	if err := tw.WriteHeader(&tar.Header{Name: ".PKGINFO", Mode: 0o644, Size: int64(len(body))}); err != nil {
+		t.Fatalf("tar header: %v", err)
+	}
+	if _, err := tw.Write([]byte(body)); err != nil {
+		t.Fatalf("tar write: %v", err)
+	}
+	if err := tw.Close(); err != nil {
+		t.Fatalf("tar close: %v", err)
+	}
+	var zBuf bytes.Buffer
+	zw, err := zstd.NewWriter(&zBuf)
+	if err != nil {
+		t.Fatalf("zstd writer: %v", err)
+	}
+	if _, err := zw.Write(tarBuf.Bytes()); err != nil {
+		t.Fatalf("zstd write: %v", err)
+	}
+	if err := zw.Close(); err != nil {
+		t.Fatalf("zstd close: %v", err)
+	}
+	return zBuf.Bytes()
+}
+
+// TestUploadFiles_BatchOneRepoAddPerArch proves a multi-package publish enters the
+// (repo, arch) database with a SINGLE RepoAddBatch (default Times(1)) rather than
+// one RepoAdd per package — the atomic-batch payoff.
+func TestUploadFiles_BatchOneRepoAddPerArch(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	bin := mocks.NewMockBinaryRepository(ctrl)
+	name := mocks.NewMockNameStore(ctrl)
+	bin.EXPECT().VerifyPkgRepo("myrepo").Return(nil)
+	bin.EXPECT().StoreFile("myrepo", "x86_64", gomock.Any()).Return(nil).Times(2)
+	bin.EXPECT().RepoAddBatch("myrepo", "x86_64", gomock.Any(), false, gomock.Nil()).Return(nil)
+	name.EXPECT().StorePackageFile("x86_64", "foo", "foo-1.0-1-x86_64.pkg.tar.zst").Return(nil)
+	name.EXPECT().StorePackageFile("x86_64", "bar", "bar-1.0-1-x86_64.pkg.tar.zst").Return(nil)
+
+	svc := service.New(name, bin, nil, nil, baseConfig(false, ""))
+	files := []*domain.UploadFiles{
+		{PkgFile: pkgStream("foo-1.0-1-x86_64.pkg.tar.zst", buildNamedPkg(t, "foo"))},
+		{PkgFile: pkgStream("bar-1.0-1-x86_64.pkg.tar.zst", buildNamedPkg(t, "bar"))},
+	}
+	if err := svc.UploadFiles("myrepo", files); err != nil {
+		t.Fatalf("UploadFiles: %v", err)
+	}
 }

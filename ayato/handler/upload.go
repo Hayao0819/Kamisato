@@ -2,6 +2,7 @@ package handler
 
 import (
 	"fmt"
+	"io"
 	"log/slog"
 	"mime/multipart"
 	"net/http"
@@ -97,4 +98,75 @@ func (h *Handler) BlinkyUploadHandler(ctx *gin.Context) {
 		return
 	}
 	ctx.String(http.StatusOK, fmt.Sprintf("'%s' uploaded!", pkgHeader.Filename))
+}
+
+// BatchUploadHandler publishes several packages atomically. The multipart form
+// carries one or more "package" files and any matching "signature" files (a
+// signature for "<name>" is named "<name>.sig"); ayato registers them all with
+// one RepoAddBatch per arch. Use it instead of the single PUT to publish a split
+// package or a rebuild set as one atomic database update. RequireSign and
+// signature verification are enforced by the service per package.
+func (h *Handler) BatchUploadHandler(ctx *gin.Context) {
+	repoName := ctx.Param("repo")
+	if repoName == "" {
+		ctx.JSON(http.StatusBadRequest, domain.APIError{Message: "repository name is required"})
+		return
+	}
+	if err := ctx.Request.ParseMultipartForm(10 << 20); err != nil {
+		ctx.JSON(http.StatusBadRequest, domain.APIError{Message: fmt.Sprintf("parse form err: %s", err.Error())})
+		return
+	}
+	form := ctx.Request.MultipartForm
+	if form == nil || len(form.File["package"]) == 0 {
+		ctx.JSON(http.StatusBadRequest, domain.APIError{Message: "no package files found in the request"})
+		return
+	}
+
+	// Match each signature to the package it signs by the "<pkg>.sig" convention.
+	sigByName := make(map[string]*multipart.FileHeader, len(form.File["signature"]))
+	for _, sh := range form.File["signature"] {
+		sigByName[sh.Filename] = sh
+	}
+
+	var files []*domain.UploadFiles
+	var closers []io.Closer
+	defer func() {
+		for _, c := range closers {
+			c.Close()
+		}
+	}()
+
+	for _, ph := range form.File["package"] {
+		if ph.Size == 0 {
+			ctx.JSON(http.StatusBadRequest, domain.APIError{Message: fmt.Sprintf("package %q is empty", ph.Filename)})
+			return
+		}
+		if h.cfg.MaxSize > 0 && ph.Size > int64(h.cfg.MaxSize) {
+			ctx.JSON(http.StatusBadRequest, domain.APIError{Message: fmt.Sprintf("package %q is too large", ph.Filename)})
+			return
+		}
+		pkgStream, err := formFileStream(ph)
+		if err != nil {
+			ctx.JSON(http.StatusBadRequest, domain.APIError{Message: fmt.Sprintf("open package %q err: %s", ph.Filename, err.Error())})
+			return
+		}
+		closers = append(closers, pkgStream)
+		uf := &domain.UploadFiles{PkgFile: pkgStream}
+		if sh, ok := sigByName[ph.Filename+".sig"]; ok {
+			sigStream, err := formFileStream(sh)
+			if err != nil {
+				ctx.JSON(http.StatusBadRequest, domain.APIError{Message: fmt.Sprintf("open signature for %q err: %s", ph.Filename, err.Error())})
+				return
+			}
+			closers = append(closers, sigStream)
+			uf.SigFile = sigStream
+		}
+		files = append(files, uf)
+	}
+
+	if err := h.s.UploadFiles(repoName, files); err != nil {
+		ctx.JSON(http.StatusInternalServerError, domain.APIError{Message: fmt.Sprintf("upload err: %s", err.Error())})
+		return
+	}
+	ctx.String(http.StatusOK, fmt.Sprintf("%d package(s) uploaded!", len(files)))
 }
