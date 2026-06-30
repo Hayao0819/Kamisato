@@ -6,10 +6,11 @@ import {
     useEffect,
     useState,
 } from "react";
-import { APIClient } from "@/lib/api";
+import { APIClient, defaultFeatures, type Features } from "@/lib/api";
 import { useAuth } from "./auth-provider";
 
 const APIClientContext = createContext<APIClient | null>(null);
+const FeaturesContext = createContext<Features>(defaultFeatures);
 
 export function useAPIClient() {
     const ctx = useContext(APIClientContext);
@@ -18,10 +19,17 @@ export function useAPIClient() {
     return ctx;
 }
 
+// Optional features advertised by ayato, fetched once at startup. Everything
+// stays off until the fetch resolves so the UI never flashes unavailable views.
+export function useFeatures() {
+    return useContext(FeaturesContext);
+}
+
 export default function LumineProvider({
     children,
 }: Readonly<{ children: ReactNode }>) {
     const [client, setClient] = useState<APIClient>(APIClient.fallback);
+    const [features, setFeatures] = useState<Features>(defaultFeatures);
     const { setMe } = useAuth();
 
     useEffect(() => {
@@ -43,6 +51,7 @@ export default function LumineProvider({
 
         if (!client.endpoints.executable) {
             setMe({ authenticated: false });
+            setFeatures(defaultFeatures);
             return;
         }
 
@@ -55,11 +64,21 @@ export default function LumineProvider({
                 console.error("Failed to fetch session:", err);
                 setMe({ authenticated: false });
             });
+
+        client
+            .features()
+            .then(setFeatures)
+            .catch((err) => {
+                console.error("Failed to fetch features:", err);
+                setFeatures(defaultFeatures);
+            });
     }, [client, setMe]);
 
     return (
         <APIClientContext.Provider value={client}>
-            {children}
+            <FeaturesContext.Provider value={features}>
+                {children}
+            </FeaturesContext.Provider>
         </APIClientContext.Provider>
     );
 }
