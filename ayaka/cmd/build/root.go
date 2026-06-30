@@ -25,6 +25,7 @@ func Cmd() *cobra.Command {
 	var repo string
 	var remote bool
 	var executor string
+	var arch string
 	cmd := cobra.Command{
 		Use:   "build <repo> [packages...]",
 		Short: "Build packages locally (--diff for diff build, --remote to build on miko)",
@@ -117,7 +118,7 @@ func Cmd() *cobra.Command {
 			slog.Info("Creating build target", "arch", srcrepo.Config.ArchBuild, "installpkgs", pkgs)
 
 			buildTarget := builder.Target{
-				Arch:        "x86_64",
+				Arch:        arch,
 				ArchBuild:   srcrepo.Config.ArchBuild,
 				SignKey:     gpgkey,
 				InstallPkgs: append(srcrepo.Config.InstallPkgs.Files, pkgs...),
@@ -161,6 +162,7 @@ func Cmd() *cobra.Command {
 	cmd.Flags().StringVarP(&server, "server", "s", "", "ayato server (diff compare, or --remote target)")
 	cmd.Flags().BoolVar(&remote, "remote", false, "Build on miko (via ayato) instead of locally")
 	cmd.Flags().StringVar(&executor, "executor", "chroot", "Local build backend: chroot or container")
+	cmd.Flags().StringVar(&arch, "arch", "x86_64", "Target architecture for the build")
 	// Remote builds run on miko and have no diff mode; reject the combination
 	// instead of silently ignoring --diff.
 	cmd.MarkFlagsMutuallyExclusive("remote", "diff")
