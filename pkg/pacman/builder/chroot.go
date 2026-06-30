@@ -6,6 +6,7 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -50,17 +51,13 @@ func (b *chrootBackend) Build(ctx context.Context, spec Spec) (*Result, error) {
 		return nil, err
 	}
 
-	target := &Target{
-		Arch:        spec.Arch,
-		ArchBuild:   spec.ArchBuild,
-		InstallPkgs: spec.InstallPkgs,
-	}
+	var out io.Writer
 	if spec.LogWriter != nil {
-		target.Output = io.MultiWriter(os.Stdout, spec.LogWriter)
+		out = io.MultiWriter(os.Stdout, spec.LogWriter)
 	}
 
 	slog.Info("building package in clean chroot", "dir", spec.SrcDir, "archbuild", spec.ArchBuild, "arch", spec.Arch)
-	if err := target.BuildContext(ctx, spec.SrcDir); err != nil {
+	if err := runChrootBuild(ctx, spec.SrcDir, spec.ArchBuild, spec.InstallPkgs, out); err != nil {
 		return nil, utils.WrapErr(err, "failed to build package in chroot")
 	}
 
@@ -73,6 +70,38 @@ func (b *chrootBackend) Build(ctx context.Context, spec Spec) (*Result, error) {
 	}
 
 	return moveToOutDir(built, spec.SrcDir, spec.OutDir)
+}
+
+// runChrootBuild runs the devtools clean-chroot flow in dir:
+// <archBuild> -- makechrootpkg -c [-I pkg...] -- makepkg --syncdeps ...
+func runChrootBuild(ctx context.Context, dir, archBuild string, installPkgs []string, out io.Writer) error {
+	makePkgArgs := []string{"--syncdeps", "--noconfirm", "--log", "--holdver"}
+	makeChrootPkgArgs := []string{"-c"}
+	for _, pkg := range installPkgs {
+		makeChrootPkgArgs = append(makeChrootPkgArgs, "-I", pkg)
+	}
+	slog.Debug("install packages", "pkgs", installPkgs)
+
+	args := append([]string{archBuild}, "--")
+	args = append(args, makeChrootPkgArgs...)
+	args = append(args, "--")
+	args = append(args, makePkgArgs...)
+
+	build := cmdContext(ctx, dir, out, args...)
+	slog.Debug("build command", "cmd", build.String())
+	return build.Run()
+}
+
+func cmdContext(ctx context.Context, dir string, out io.Writer, args ...string) *exec.Cmd {
+	cmd := exec.CommandContext(ctx, args[0], args[1:]...)
+	cmd.Dir = dir
+	if out == nil {
+		out = os.Stdout
+	}
+	cmd.Stdout = out
+	cmd.Stderr = out
+	cmd.Env = os.Environ()
+	return cmd
 }
 
 // moveToOutDir moves built (absolute paths) into outDir and returns the final
