@@ -113,6 +113,8 @@ describe("APIClient feature and bug-report calls", () => {
         const input: BugReportInput = {
             pkgname: "bash",
             pkgver: "5.2.0-1",
+            repo: "core",
+            arch: "x86_64",
             name: "reporter",
             email: "reporter@example.com",
             severity: "high",
@@ -124,7 +126,10 @@ describe("APIClient feature and bug-report calls", () => {
         const [url, init] = fetchMock.mock.calls[0];
         expect(url).toBe(`${BASE}/api/unstable/bug-reports`);
         expect(init?.method).toBe("POST");
-        expect(JSON.parse(init?.body as string)).toEqual(input);
+        const body = JSON.parse(init?.body as string);
+        expect(body).toEqual(input);
+        expect(body.repo).toBe("core");
+        expect(body.arch).toBe("x86_64");
         expect(res).toEqual({ url: "https://issues.example/1" });
     });
 
