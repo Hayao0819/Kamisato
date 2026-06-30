@@ -51,7 +51,10 @@ func GetCleanPkgBinary(names ...string) ([]string, error) {
 		return nil, fmt.Errorf("failed to create cache directory: %w", err)
 	}
 
-	args := []string{"pacman", "--sync", "--refresh", "--noconfirm", "--downloadonly", "--cachedir", cachepath, "--dbpath", dbpath, "--log", "/dev/null"}
+	// pacman 7's downloader sandbox (DownloadUser + Landlock) cannot initialize
+	// under fakeroot (no real setuid) or in containers (Landlock unavailable), so
+	// disable it; integrity still comes from pacman's signature verification.
+	args := []string{"pacman", "--sync", "--refresh", "--noconfirm", "--downloadonly", "--disable-sandbox", "--cachedir", cachepath, "--dbpath", dbpath, "--log", "/dev/null"}
 	args = append(args, names...)
 	c := exutils.CommandWithStdio("fakeroot", args...)
 	if err := c.Run(); err != nil {
