@@ -61,6 +61,18 @@ func (h *Handler) AdminsRemoveHandler(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
 	}
+	// Refuse to empty the allowlist (including self-removal): auth fails closed on
+	// an empty list and the bootstrap admin is only re-seeded at startup, so this
+	// would lock everyone out until a restart.
+	admins, err := h.s.ListAdmins()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "list"})
+		return
+	}
+	if len(admins) == 1 && admins[0].ID == id {
+		c.JSON(http.StatusConflict, gin.H{"error": "cannot remove the last admin"})
+		return
+	}
 	if err := h.s.RemoveAdmin(id); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "remove"})
 		return
