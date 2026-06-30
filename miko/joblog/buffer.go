@@ -64,7 +64,7 @@ func (b *Buffer) Len() int {
 
 // BytesFrom returns a copy of the bytes from offset onward without blocking, plus
 // the total length and closed flag. offset is clamped to [0, total]; callers
-// advance offset by total so each byte is emitted exactly once.
+// advance offset past the bytes they consume so each byte is emitted exactly once.
 func (b *Buffer) BytesFrom(offset int) (data []byte, total int, closed bool) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
