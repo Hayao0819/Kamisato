@@ -6,7 +6,6 @@ import (
 	blinky_clientlib "github.com/BrenekH/blinky/clientlib"
 	blinky_util "github.com/BrenekH/blinky/cmd/blinky/util"
 	"github.com/Hayao0819/Kamisato/internal/utils"
-	"github.com/Hayao0819/nahi/futils"
 )
 
 // Sentinel errors for server resolution. Package-level so callers can errors.Is
@@ -72,15 +71,6 @@ func (s *ServerInfo) Client() (*Client, error) {
 	return blinky_clientlib.New(s.URL, s.Username, s.Password)
 }
 
-// NewClient resolves name in the serverdb and returns a blinky client for it.
-func NewClient(name string) (*Client, error) {
-	info, err := ResolveServer(name)
-	if err != nil {
-		return nil, err
-	}
-	return info.Client()
-}
-
 // Upload sends a package file with its optional detached signature to repo. An
 // empty sigPath uploads the package without a signature.
 func Upload(client *Client, repo, pkgPath, sigPath string) error {
@@ -104,27 +94,4 @@ func Upload(client *Client, repo, pkgPath, sigPath string) error {
 		return client.UploadPackage(repo, pkgPath, pkgFile, nil)
 	}
 	return client.UploadPackage(repo, pkgPath, pkgFile, sigFile)
-}
-
-// UploadFiles uploads package files and any matching .sig sidecars to repo.
-func UploadFiles(client *Client, repo string, files ...string) error {
-	return client.UploadPackageFiles(repo, files...)
-}
-
-// GetClient resolves server in the serverdb and returns a blinky client.
-func GetClient(server string) (*Client, error) {
-	return NewClient(server)
-}
-
-// UploadToBlinky uploads file (and its .sig sidecar when present) to repo on server.
-func UploadToBlinky(server, repo, file string) error {
-	client, err := NewClient(server)
-	if err != nil {
-		return err
-	}
-	sigPath := ""
-	if p := file + ".sig"; futils.Exists(p) {
-		sigPath = p
-	}
-	return Upload(client, repo, file, sigPath)
 }
