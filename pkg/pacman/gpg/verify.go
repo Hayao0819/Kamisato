@@ -35,37 +35,41 @@ func normalizeFingerprint(s string) string {
 	return b.String()
 }
 
-// LoadKeyring reads the public-key file at pubkeyPath (armored or binary) and
-// builds the optional fingerprint allowlist from trustedFprs. This is the trust
-// root for verification and is kept separate from the signing private key.
+// ReadEntities parses OpenPGP public keys from armored or binary bytes.
+func ReadEntities(data []byte) (openpgp.EntityList, error) {
+	if bytes.HasPrefix(data, []byte("-----BEGIN PGP")) {
+		return openpgp.ReadArmoredKeyRing(bytes.NewReader(data))
+	}
+	return openpgp.ReadKeyRing(bytes.NewReader(data))
+}
+
+// NewKeyring builds a verifier over entities, with an optional fingerprint
+// allowlist (empty means accept any entity present).
+func NewKeyring(entities openpgp.EntityList, trustedFprs []string) *Keyring {
+	trusted := make(map[string]bool, len(trustedFprs))
+	for _, fpr := range trustedFprs {
+		if n := normalizeFingerprint(fpr); n != "" {
+			trusted[n] = true
+		}
+	}
+	return &Keyring{entities: entities, trusted: trusted}
+}
+
+// LoadKeyring reads the public-key file at pubkeyPath (armored or binary). It is
+// the trust root for verification, kept separate from the signing private key.
 func LoadKeyring(pubkeyPath string, trustedFprs []string) (*Keyring, error) {
 	data, err := os.ReadFile(pubkeyPath)
 	if err != nil {
 		return nil, fmt.Errorf("read keyring %q: %w", pubkeyPath, err)
 	}
-
-	var entities openpgp.EntityList
-	if bytes.HasPrefix(data, []byte("-----BEGIN PGP")) {
-		entities, err = openpgp.ReadArmoredKeyRing(bytes.NewReader(data))
-	} else {
-		entities, err = openpgp.ReadKeyRing(bytes.NewReader(data))
-	}
+	entities, err := ReadEntities(data)
 	if err != nil {
 		return nil, fmt.Errorf("parse keyring %q: %w", pubkeyPath, err)
 	}
 	if len(entities) == 0 {
 		return nil, fmt.Errorf("keyring %q contains no public keys", pubkeyPath)
 	}
-
-	trusted := make(map[string]bool, len(trustedFprs))
-	for _, fpr := range trustedFprs {
-		n := normalizeFingerprint(fpr)
-		if n != "" {
-			trusted[n] = true
-		}
-	}
-
-	return &Keyring{entities: entities, trusted: trusted}, nil
+	return NewKeyring(entities, trustedFprs), nil
 }
 
 // allowedHashes pins the digest algorithms accepted on a detached signature.
