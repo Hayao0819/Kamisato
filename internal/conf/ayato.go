@@ -22,6 +22,8 @@ type AyatoConfig struct {
 	Miko        MikoUpstream    `koanf:"miko"`
 	Verify      VerifyConfig    `koanf:"verify"`
 	AUR         AURConfig       `koanf:"aur"`
+	BugReport   BugReportConfig `koanf:"bug_report"`
+	Recaptcha   RecaptchaConfig `koanf:"recaptcha"`
 	// RedirectDownloads, unset by default, answers a file download with a 302 to a
 	// presigned object URL whenever the blob backend can presign (S3), so the bytes
 	// go client<->object-store directly and skip ayato's egress (Cloud Run bills it).
@@ -35,6 +37,23 @@ type AyatoConfig struct {
 // still only happens when the backend can actually presign.
 func (c *AyatoConfig) RedirectDownloadsEnabled() bool {
 	return c.RedirectDownloads == nil || *c.RedirectDownloads
+}
+
+// BugReportConfig selects the external tracker bug reports are forwarded to.
+// An empty Type disables the feature (the UI hides its report button).
+type BugReportConfig struct {
+	Type   string `koanf:"type"` // "github" | "" (disabled)
+	GitHub struct {
+		Repo  string `koanf:"repo"`  // "owner/name"
+		Token string `koanf:"token"` // token allowed to open issues
+	} `koanf:"github"`
+}
+
+// RecaptchaConfig enables Google reCAPTCHA v2 on the bug-report form. SiteKey is
+// public (handed to the browser); an empty Secret disables verification.
+type RecaptchaConfig struct {
+	SiteKey string `koanf:"site_key"`
+	Secret  string `koanf:"secret"`
 }
 
 // AURConfig makes ayato an aurweb-compatible host: when Enabled it serves /rpc and
