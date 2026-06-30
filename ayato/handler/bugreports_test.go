@@ -10,8 +10,11 @@ import (
 	"testing"
 
 	"github.com/Hayao0819/Kamisato/ayato/bugreport"
+	"github.com/Hayao0819/Kamisato/ayato/test/mocks"
 	"github.com/Hayao0819/Kamisato/internal/conf"
+	"github.com/Hayao0819/Kamisato/pkg/raiou"
 	"github.com/gin-gonic/gin"
+	"go.uber.org/mock/gomock"
 )
 
 type fakeReporter struct {
@@ -101,6 +104,62 @@ func TestSubmitBugReport(t *testing.T) {
 	postBug(&Handler{reporter: def}, `{"pkgname":"foo","description":"x"}`)
 	if def.last.Severity != "medium" {
 		t.Errorf("default severity = %q, want medium", def.last.Severity)
+	}
+}
+
+func TestSubmitBugReportResolvesMaintainer(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	mockSvc := mocks.NewMockServicer(ctrl)
+	mockSvc.EXPECT().PkgDetail("core", "x86_64", "foo").
+		Return(&raiou.PKGINFO{Packager: "Maintainer Name <maint@example.com>"}, nil)
+
+	fr := &fakeReporter{}
+	h := &Handler{s: mockSvc, reporter: fr}
+	body := `{"pkgname":"foo","repo":"core","arch":"x86_64","description":"boom","email":"reporter@example.com"}`
+	if w := postBug(h, body); w.Code != http.StatusCreated {
+		t.Fatalf("status %d, want 201", w.Code)
+	}
+	if fr.last.MaintainerEmail != "maint@example.com" {
+		t.Errorf("maintainer = %q, want maint@example.com (parsed from Packager)", fr.last.MaintainerEmail)
+	}
+	// The client-supplied email must never become the maintainer recipient.
+	if fr.last.Email != "reporter@example.com" {
+		t.Errorf("reporter email = %q", fr.last.Email)
+	}
+	if fr.last.MaintainerEmail == fr.last.Email {
+		t.Errorf("client email leaked into maintainer routing")
+	}
+}
+
+func TestSubmitBugReportMaintainerLookupFailureIsNonFatal(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	mockSvc := mocks.NewMockServicer(ctrl)
+	mockSvc.EXPECT().PkgDetail("core", "x86_64", "foo").Return(nil, errors.New("not found"))
+
+	fr := &fakeReporter{}
+	h := &Handler{s: mockSvc, reporter: fr}
+	body := `{"pkgname":"foo","repo":"core","arch":"x86_64","description":"boom"}`
+	if w := postBug(h, body); w.Code != http.StatusCreated {
+		t.Fatalf("a failed maintainer lookup must not fail the report: status %d", w.Code)
+	}
+	if fr.last.MaintainerEmail != "" {
+		t.Errorf("maintainer = %q, want empty when lookup fails", fr.last.MaintainerEmail)
+	}
+}
+
+func TestParsePackagerEmail(t *testing.T) {
+	cases := map[string]string{
+		"Real Name <dev@example.com>": "dev@example.com",
+		"dev@example.com":             "dev@example.com",
+		"":                            "",
+		"Nobody":                      "",
+	}
+	for in, want := range cases {
+		if got := parsePackagerEmail(in); got != want {
+			t.Errorf("parsePackagerEmail(%q) = %q, want %q", in, got, want)
+		}
 	}
 }
 

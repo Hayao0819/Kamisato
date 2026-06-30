@@ -2,6 +2,8 @@ package handler
 
 import (
 	"net/http"
+	"net/mail"
+	"strings"
 
 	"github.com/Hayao0819/Kamisato/ayato/bugreport"
 	"github.com/Hayao0819/Kamisato/ayato/domain"
@@ -19,6 +21,8 @@ var bugSeverities = map[string]bool{"critical": true, "high": true, "medium": tr
 type bugReportRequest struct {
 	Pkgname        string `json:"pkgname"`
 	Pkgver         string `json:"pkgver"`
+	Repo           string `json:"repo"`  // optional, used to resolve the maintainer
+	Arch           string `json:"arch"`  // optional, used to resolve the maintainer
 	Name           string `json:"name"`
 	Email          string `json:"email"`
 	Severity       string `json:"severity"`
@@ -82,16 +86,52 @@ func (h *Handler) SubmitBugReportHandler(c *gin.Context) {
 	}
 
 	url, err := h.reporter.Report(c.Request.Context(), bugreport.Report{
-		Pkgname:     req.Pkgname,
-		Pkgver:      req.Pkgver,
-		Name:        req.Name,
-		Email:       req.Email,
-		Severity:    severity,
-		Description: req.Description,
+		Pkgname:         req.Pkgname,
+		Pkgver:          req.Pkgver,
+		Name:            req.Name,
+		Email:           req.Email,
+		Severity:        severity,
+		Description:     req.Description,
+		MaintainerEmail: h.maintainerEmail(req.Repo, req.Arch, req.Pkgname),
 	})
 	if err != nil {
 		c.JSON(http.StatusBadGateway, domain.APIError{Message: "failed to file the bug report", Reason: err.Error()})
 		return
 	}
 	c.JSON(http.StatusCreated, gin.H{"url": url})
+}
+
+// maintainerEmail looks up the package's stored PKGINFO and extracts the
+// maintainer address from its Packager field. The address is resolved here, never
+// taken from the request, so a reporter cannot spoof who gets mailed. A missing
+// package or unparseable Packager yields "" and maintainer routing is skipped.
+func (h *Handler) maintainerEmail(repo, arch, pkgname string) string {
+	if repo == "" || arch == "" || pkgname == "" || h.s == nil {
+		return ""
+	}
+	detail, err := h.s.PkgDetail(repo, arch, pkgname)
+	if err != nil || detail == nil {
+		return ""
+	}
+	return parsePackagerEmail(detail.Packager)
+}
+
+// parsePackagerEmail pulls the address out of a "Real Name <email>" packager
+// string, falling back to a bare <...> extraction for non-RFC values.
+func parsePackagerEmail(packager string) string {
+	packager = strings.TrimSpace(packager)
+	if packager == "" {
+		return ""
+	}
+	if addr, err := mail.ParseAddress(packager); err == nil {
+		return addr.Address
+	}
+	if i := strings.IndexByte(packager, '<'); i >= 0 {
+		if j := strings.IndexByte(packager[i+1:], '>'); j >= 0 {
+			if addr, err := mail.ParseAddress(packager[i+1 : i+1+j]); err == nil {
+				return addr.Address
+			}
+		}
+	}
+	return ""
 }

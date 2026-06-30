@@ -25,7 +25,7 @@ func New(service service.Servicer, cfg *conf.AyatoConfig) *Handler {
 	}
 	if cfg != nil {
 		// A bad bug-report config disables the feature rather than failing startup.
-		reporter, err := bugreport.New(cfg.BugReport.Type, cfg.BugReport.GitHub.Repo, cfg.BugReport.GitHub.Token)
+		reporter, err := bugreport.New(bugReportConfig(cfg.BugReport))
 		if err != nil {
 			slog.Error("bug reporting disabled: invalid config", "error", err)
 		}
@@ -33,6 +33,25 @@ func New(service service.Servicer, cfg *conf.AyatoConfig) *Handler {
 		h.recaptcha = recaptcha.New(cfg.Recaptcha.Secret)
 	}
 	return h
+}
+
+// bugReportConfig maps the on-disk config into the bugreport package's own Config
+// (kept separate so bugreport never imports internal/conf).
+func bugReportConfig(c conf.BugReportConfig) bugreport.Config {
+	return bugreport.Config{
+		Backends: c.Backends,
+		GitHub:   bugreport.GitHubConfig{Repo: c.GitHub.Repo, Token: c.GitHub.Token},
+		SMTP: bugreport.SMTPConfig{
+			Host:         c.SMTP.Host,
+			Port:         c.SMTP.Port,
+			Username:     c.SMTP.Username,
+			Password:     c.SMTP.Password,
+			From:         c.SMTP.From,
+			To:           c.SMTP.To,
+			ToMaintainer: c.SMTP.ToMaintainer,
+		},
+		Webhook: bugreport.WebhookConfig{URL: c.Webhook.URL},
+	}
 }
 
 // WithAuth attaches the stateless signer; set at startup, tests omit it (signer stays nil).
