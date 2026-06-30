@@ -41,6 +41,13 @@ func SetRoute(e *gin.Engine, h *handler.Handler, m *middleware.Middleware) error
 			api.GET("/:repo/:arch/package/:name", h.PkgDetailHandler)
 			api.GET("/:repo/:arch/package/:name/files", h.PkgFilesHandler)
 			api.GET("/:repo/:arch/signed-url", h.SignedURLHandler)
+
+			// Advertises which optional features are configured so the UI hides what
+			// is unavailable (bug reporting, miko build views, GitHub login).
+			api.GET("/features", h.FeaturesHandler)
+			// POST forwards a bug report; rate-limited because it opens an issue on
+			// the upstream tracker.
+			api.POST("/bug-reports", m.RateLimit(rate.Every(2*time.Second), 3), h.SubmitBugReportHandler)
 		}
 
 		// Public GitHub-OAuth endpoints (no auth middleware).
