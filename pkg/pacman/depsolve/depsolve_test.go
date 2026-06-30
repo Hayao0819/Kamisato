@@ -1,0 +1,135 @@
+package depsolve_test
+
+import (
+	"context"
+	"slices"
+	"testing"
+
+	"github.com/Hayao0819/Kamisato/pkg/pacman/dep"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/depsolve"
+)
+
+type fakeRepo struct{ have map[string]bool }
+
+func (f fakeRepo) Unsatisfied(deps []string) ([]string, error) {
+	var miss []string
+	for _, d := range deps {
+		if !f.have[dep.Parse(d).Name] {
+			miss = append(miss, d)
+		}
+	}
+	return miss, nil
+}
+
+type fakeAUR struct {
+	byName   map[string]depsolve.Pkg
+	provides map[string]depsolve.Pkg
+}
+
+func (f fakeAUR) Info(_ context.Context, names []string) ([]depsolve.Pkg, error) {
+	var out []depsolve.Pkg
+	for _, n := range names {
+		if p, ok := f.byName[n]; ok {
+			out = append(out, p)
+		}
+	}
+	return out, nil
+}
+
+func (f fakeAUR) ProvidedBy(_ context.Context, name string) (*depsolve.Pkg, error) {
+	if p, ok := f.provides[name]; ok {
+		return &p, nil
+	}
+	return nil, nil
+}
+
+func bases(order []depsolve.Pkg) []string {
+	out := make([]string, len(order))
+	for i, p := range order {
+		out[i] = p.PackageBase
+	}
+	return out
+}
+
+func idx(order []depsolve.Pkg, base string) int {
+	return slices.IndexFunc(order, func(p depsolve.Pkg) bool { return p.PackageBase == base })
+}
+
+func mk(name string, deps ...string) depsolve.Pkg {
+	return depsolve.Pkg{Name: name, PackageBase: name, Deps: deps}
+}
+
+func TestResolveLinear(t *testing.T) {
+	aur := fakeAUR{byName: map[string]depsolve.Pkg{
+		"A": mk("A", "B"),
+		"B": mk("B"),
+	}}
+	order, err := depsolve.Resolve(context.Background(), []string{"A"}, fakeRepo{}, aur)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := bases(order); !slices.Equal(got, []string{"B", "A"}) {
+		t.Fatalf("order = %v, want [B A]", got)
+	}
+}
+
+func TestResolveDiamondBuildsSharedDepOnce(t *testing.T) {
+	aur := fakeAUR{byName: map[string]depsolve.Pkg{
+		"A": mk("A", "B", "C"),
+		"B": mk("B", "D"),
+		"C": mk("C", "D"),
+		"D": mk("D"),
+	}}
+	order, err := depsolve.Resolve(context.Background(), []string{"A"}, fakeRepo{}, aur)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(order) != 4 {
+		t.Fatalf("want 4 unique bases, got %v", bases(order))
+	}
+	if idx(order, "D") > idx(order, "B") || idx(order, "D") > idx(order, "C") || idx(order, "A") != 3 {
+		t.Fatalf("bad build order: %v", bases(order))
+	}
+}
+
+func TestResolveSkipsRepoSatisfied(t *testing.T) {
+	aur := fakeAUR{byName: map[string]depsolve.Pkg{"A": mk("A", "B")}}
+	repo := fakeRepo{have: map[string]bool{"B": true}} // B comes from a repo
+	order, err := depsolve.Resolve(context.Background(), []string{"A"}, repo, aur)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := bases(order); !slices.Equal(got, []string{"A"}) {
+		t.Fatalf("order = %v, want [A]", got)
+	}
+}
+
+func TestResolveProvides(t *testing.T) {
+	aur := fakeAUR{
+		byName:   map[string]depsolve.Pkg{},
+		provides: map[string]depsolve.Pkg{"cc": mk("gcc-custom")},
+	}
+	order, err := depsolve.Resolve(context.Background(), []string{"cc"}, fakeRepo{}, aur)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := bases(order); !slices.Equal(got, []string{"gcc-custom"}) {
+		t.Fatalf("order = %v, want [gcc-custom]", got)
+	}
+}
+
+func TestResolveCycle(t *testing.T) {
+	aur := fakeAUR{byName: map[string]depsolve.Pkg{
+		"A": mk("A", "B"),
+		"B": mk("B", "A"),
+	}}
+	if _, err := depsolve.Resolve(context.Background(), []string{"A"}, fakeRepo{}, aur); err == nil {
+		t.Fatal("expected a cycle error")
+	}
+}
+
+func TestResolveUnresolvable(t *testing.T) {
+	if _, err := depsolve.Resolve(context.Background(), []string{"nope"}, fakeRepo{}, fakeAUR{}); err == nil {
+		t.Fatal("expected an unresolvable-dependency error")
+	}
+}
