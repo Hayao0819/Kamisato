@@ -80,9 +80,10 @@ func writeSeekFileTo(dir string, f stream.SeekFile) (string, error) {
 }
 
 // storeArtifacts writes every regular file in dir back through blob.StoreFile
-// under its bare name, skipping any path in skip. This mirrors the full set of
-// artifacts repo-add/repo-remove rewrite (the .db/.files symlinks and their
-// .tar.gz archives, plus any .sig) uniformly for every blob backend.
+// under its bare name, skipping any path in skip. It stores the .tar.gz archives
+// (and any .sig) but NOT the bare <repo>.db / <repo>.files copies: those are
+// byte-identical to their archives and served as aliases at fetch time, so a
+// single archive stays the only source of truth and no copy can trail it.
 func (r *binaryRepository) storeArtifacts(repo, arch, dir string, skip map[string]struct{}) error {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
@@ -94,6 +95,9 @@ func (r *binaryRepository) storeArtifacts(repo, arch, dir string, skip map[strin
 		}
 		name := entry.Name()
 		if _, ok := skip[name]; ok {
+			continue
+		}
+		if name == repo+".db" || name == repo+".files" {
 			continue
 		}
 		fp := path.Join(dir, name)
@@ -242,16 +246,14 @@ func (r *binaryRepository) InitArch(repo, arch string, useSignedDB bool, gnupgDi
 //
 // The compare-and-swap is anchored on <repo>.db.tar.gz, the archive a writer loads
 // to compute the next state, so the CANONICAL package set is never lost to a
-// concurrent writer.
+// concurrent writer. The bare <repo>.db / <repo>.files pacman fetches are served as
+// aliases of their archives (not stored), so they can never trail the canonical db.
 //
-// KNOWN LIMITATION: the derived artifacts (<repo>.db / .files byte copies and
-// .files.tar.gz — what pacman actually fetches) are written unconditionally after
-// the canonical commit. Under a rare two-instance interleaving a slow winner can
-// overwrite a newer writer's served copy; the canonical db.tar.gz stays correct,
-// but the served .db can then trail it until the next publish to that (repo, arch)
-// — it does NOT converge on its own. Serving .db/.files from the canonical archive,
-// or holding a single-writer lock across the whole multi-object write, is the full
-// fix and is left as a follow-up.
+// KNOWN LIMITATION: <repo>.files.tar.gz is still stored unconditionally after the
+// canonical commit, so under a rare interleaving where one winner's store lands
+// after a later winner's, the served file list can momentarily trail its db. The
+// canonical db.tar.gz stays correct and the next publish reconverges. A full fix
+// needs the file archive under the same atomic commit and is left as a follow-up.
 func (r *binaryRepository) mutateDB(repo, arch, dir string, skip map[string]struct{}, useSignedDB bool, mutate func(dbPath string) error) error {
 	dbName := repo + ".db.tar.gz"
 	// db.tar.gz commits via compare-and-swap, never the unconditional pass.

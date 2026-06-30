@@ -203,12 +203,12 @@ func openSeek(t *testing.T, p string) stream.SeekFile {
 	return f
 }
 
-// TestRepoDBArtifactSet locks the unified artifact set: InitArch and RepoAdd must
-// write the full quartet (.db, .db.tar.gz, .files, .files.tar.gz) through the
-// blob.Store, NOT just .db.tar.gz. This is the localfs/s3 unification. It runs
-// the orchestration against BOTH backends — the default Go-native writer (no
-// repo-add needed) and the repo-add CLI (skipped when absent) — proving the
-// fetch -> tool -> store cycle is backend-agnostic.
+// TestRepoDBArtifactSet locks the stored artifact set: InitArch and RepoAdd store
+// the .tar.gz archives through the blob.Store but NOT the bare .db/.files copies,
+// which are served as aliases of the archives. It runs the orchestration against
+// BOTH backends — the default Go-native writer (no repo-add needed) and the
+// repo-add CLI (skipped when absent) — proving the fetch -> tool -> store cycle
+// is backend-agnostic.
 func TestRepoDBArtifactSet(t *testing.T) {
 	backends := []struct {
 		name         string
@@ -227,7 +227,7 @@ func TestRepoDBArtifactSet(t *testing.T) {
 				}
 			}
 
-			want := []string{"r.db", "r.db.tar.gz", "r.files", "r.files.tar.gz"}
+			want := []string{"r.db.tar.gz", "r.files.tar.gz"}
 			mem := newMemStore()
 			r := &binaryRepository{Store: mem, tool: be.tool}
 
@@ -235,6 +235,7 @@ func TestRepoDBArtifactSet(t *testing.T) {
 				t.Fatalf("InitArch: %v", err)
 			}
 			assertSuperset(t, mem.names("r", "x86_64"), want, "InitArch")
+			assertAliases(t, r, mem, "InitArch")
 
 			// RepoAdd a package; the artifact set (excluding the package file,
 			// which the caller stores separately) must still be the full quartet.
@@ -246,6 +247,7 @@ func TestRepoDBArtifactSet(t *testing.T) {
 			}
 			got := mem.names("r", "x86_64")
 			assertSuperset(t, got, want, "RepoAdd")
+			assertAliases(t, r, mem, "RepoAdd")
 			if contains(got, path.Base(pkgPath)) {
 				t.Errorf("RepoAdd stored the package file %q through the DB path; the caller's StoreFile owns it", path.Base(pkgPath))
 			}
@@ -264,7 +266,41 @@ func TestRepoDBArtifactSet(t *testing.T) {
 				t.Fatalf("RepoRemove: %v", err)
 			}
 			assertSuperset(t, mem.names("r", "x86_64"), want, "RepoRemove")
+			assertAliases(t, r, mem, "RepoRemove")
 		})
+	}
+}
+
+// assertAliases checks that the bare <repo>.db / <repo>.files are NOT stored, and
+// that fetching them returns the byte-identical content of their .tar.gz archive.
+func assertAliases(t *testing.T, r *binaryRepository, mem *memStore, ctx string) {
+	t.Helper()
+	stored := mem.names("r", "x86_64")
+	for _, bare := range []string{"r.db", "r.files"} {
+		if contains(stored, bare) {
+			t.Errorf("%s: %q was stored; it must be served as an alias, not a copy", ctx, bare)
+		}
+	}
+	aliases := map[string]string{"r.db": "r.db.tar.gz", "r.files": "r.files.tar.gz"}
+	for bare, archive := range aliases {
+		af, err := r.FetchFile("r", "x86_64", bare)
+		if err != nil {
+			t.Fatalf("%s: FetchFile(%q): %v", ctx, bare, err)
+		}
+		got, err := io.ReadAll(af)
+		af.Close()
+		if err != nil {
+			t.Fatalf("%s: read alias %q: %v", ctx, bare, err)
+		}
+		want, err := mem.FetchFile("r", "x86_64", archive)
+		if err != nil {
+			t.Fatalf("%s: FetchFile(%q): %v", ctx, archive, err)
+		}
+		wantB, _ := io.ReadAll(want)
+		want.Close()
+		if !bytes.Equal(got, wantB) {
+			t.Errorf("%s: alias %q does not match archive %q", ctx, bare, archive)
+		}
 	}
 }
 
@@ -312,11 +348,11 @@ func writeFakeQuartet(dbPath string) error {
 }
 
 // TestRepoDBToolPort verifies, with an injected fake tool, that the
-// binaryRepository orchestration stores the full unified artifact set and never
-// stores the package file through the DB path. It needs no repo-add binary, so
-// it runs everywhere.
+// binaryRepository orchestration stores the .tar.gz archives (serving .db/.files
+// as aliases) and never stores the package file through the DB path. It needs no
+// repo-add binary, so it runs everywhere.
 func TestRepoDBToolPort(t *testing.T) {
-	want := []string{"r.db", "r.db.tar.gz", "r.files", "r.files.tar.gz"}
+	want := []string{"r.db.tar.gz", "r.files.tar.gz"}
 	mem := newMemStore()
 	r := &binaryRepository{Store: mem, tool: fakeTool{}}
 
@@ -324,6 +360,7 @@ func TestRepoDBToolPort(t *testing.T) {
 		t.Fatalf("InitArch: %v", err)
 	}
 	assertSuperset(t, mem.names("r", "x86_64"), want, "InitArch")
+	assertAliases(t, r, mem, "InitArch")
 
 	pkg := stream.NewFileStream("foo-1.0-1-x86_64.pkg.tar.zst", "application/octet-stream",
 		nopSeekCloser{bytes.NewReader([]byte("pkg"))})
@@ -332,6 +369,7 @@ func TestRepoDBToolPort(t *testing.T) {
 	}
 	got := mem.names("r", "x86_64")
 	assertSuperset(t, got, want, "RepoAdd")
+	assertAliases(t, r, mem, "RepoAdd")
 	if contains(got, "foo-1.0-1-x86_64.pkg.tar.zst") {
 		t.Errorf("RepoAdd stored the package file through the DB path; the caller's StoreFile owns it")
 	}
@@ -340,6 +378,7 @@ func TestRepoDBToolPort(t *testing.T) {
 		t.Fatalf("RepoRemove: %v", err)
 	}
 	assertSuperset(t, mem.names("r", "x86_64"), want, "RepoRemove")
+	assertAliases(t, r, mem, "RepoRemove")
 }
 
 // TestRepoDBCASNoLostUpdate proves the compare-and-swap retry preserves both

@@ -69,7 +69,18 @@ func (r *binaryRepository) Arches(name string) ([]string, error) {
 // there. This lets os/<arch>/ serve like a normal pacman repo.
 func (r *binaryRepository) FetchFile(repo, arch, file string) (stream.File, error) {
 	f, err := r.Store.FetchFile(repo, arch, file)
-	if err == nil || arch == "any" || !strings.Contains(file, "-any.pkg.tar.") {
+	if err == nil {
+		return f, nil
+	}
+	// <repo>.db / <repo>.files are not stored; they are byte-identical aliases of
+	// their .tar.gz archives, served from the single archive so no stale copy can
+	// trail it.
+	if target := dbAliasTarget(repo, file); target != "" {
+		if af, aerr := r.Store.FetchFile(repo, arch, target); aerr == nil {
+			return aliasFile{File: af, name: file}, nil
+		}
+	}
+	if arch == "any" || !strings.Contains(file, "-any.pkg.tar.") {
 		return f, err
 	}
 	if af, aerr := r.Store.FetchFile(repo, "any", file); aerr == nil {
@@ -77,6 +88,27 @@ func (r *binaryRepository) FetchFile(repo, arch, file string) (stream.File, erro
 	}
 	return f, err
 }
+
+// dbAliasTarget maps a bare DB name to the archive it aliases, or "" if file is
+// not an alias.
+func dbAliasTarget(repo, file string) string {
+	switch file {
+	case repo + ".db":
+		return repo + ".db.tar.gz"
+	case repo + ".files":
+		return repo + ".files.tar.gz"
+	}
+	return ""
+}
+
+// aliasFile serves an archive under the requested bare DB name so the response's
+// filename matches what the client asked for.
+type aliasFile struct {
+	stream.File
+	name string
+}
+
+func (a aliasFile) FileName() string { return a.name }
 
 func (r *binaryRepository) FetchDB(repoName, archName string) (stream.File, error) {
 	return r.FetchFile(repoName, archName, repoName+".db")
@@ -140,10 +172,10 @@ func (r *binaryRepository) VerifyPkgRepo(name string) error {
 			return utils.WrapErr(err, fmt.Sprintf("failed to get files for arch %s", arch))
 		}
 
+		// Only the archives are stored; <repo>.db / <repo>.files are served as
+		// aliases of them, so they are not required as standalone objects.
 		requiredFiles := []string{
-			name + ".db",
 			name + ".db.tar.gz",
-			name + ".files",
 			name + ".files.tar.gz",
 		}
 
