@@ -84,15 +84,6 @@ func CopyDir(src, dst string) error {
 	})
 }
 
-// CopyFile copies a single file from src to dst, preserving the source file's permissions.
-func CopyFile(srcFile, dstFile string) error {
-	srcInfo, err := os.Stat(srcFile)
-	if err != nil {
-		return fmt.Errorf("stat source file: %w", err)
-	}
-	return copyFile(srcFile, dstFile, srcInfo.Mode())
-}
-
 func copyFile(srcFile, dstFile string, mode fs.FileMode) error {
 	src, err := os.Open(srcFile)
 	if err != nil {
@@ -110,25 +101,6 @@ func copyFile(srcFile, dstFile string, mode fs.FileMode) error {
 	return err
 }
 
-// ChmodRecursive applies dirMode to directories and fileMode to files under root.
-func ChmodRecursive(root string, dirMode, fileMode fs.FileMode) error {
-	return filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-
-		info, err := d.Info()
-		if err != nil {
-			return err
-		}
-
-		if info.IsDir() {
-			return os.Chmod(path, dirMode)
-		}
-		return os.Chmod(path, fileMode)
-	})
-}
-
 func MoveFile(org string, dst string) error {
 	var orgabs, dstabs string
 	var err error
@@ -143,16 +115,12 @@ func MoveFile(org string, dst string) error {
 		return err
 	}
 
-	// If the file is already in the destination, do nothing
 	if path.Dir(orgabs) == path.Dir(dstabs) && path.Base(orgabs) == path.Base(dstabs) {
 		return nil
 	}
-	// If the file directory is the same, just rename it
 	if path.Dir(orgabs) == path.Dir(dstabs) {
 		return os.Rename(orgabs, dstabs)
 	}
-
-	// If the file is not in the same directory, copy it and delete the original
 
 	orgfile, err := os.Open(orgabs)
 	if err != nil {
@@ -175,16 +143,9 @@ func MoveFile(org string, dst string) error {
 	}
 	defer dstfile.Close()
 
-	_, err = io.Copy(dstfile, orgfile)
-	orgfile.Close()
-	if err != nil {
+	if _, err = io.Copy(dstfile, orgfile); err != nil {
 		return err
 	}
 
-	err = os.Remove(orgabs)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return os.Remove(orgabs)
 }
