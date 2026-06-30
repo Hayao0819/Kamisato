@@ -1,9 +1,8 @@
 "use client";
-import { BugIcon, Download, ExternalLink, Hammer } from "lucide-react";
+import { Download, ExternalLink, Hammer } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { BugReportDialog } from "@/components/bug-report-dialog";
 import { useAPIClient } from "@/components/lumine-provider";
 import { PageContainer } from "@/components/page-container";
 import { PageHeader } from "@/components/page-header";
@@ -156,18 +155,6 @@ export default function ClientPackageDetailPage() {
                                 <Download className="h-4 w-4" />
                                 ダウンロード
                             </Button>
-                            <BugReportDialog
-                                packageInfo={pkg}
-                                trigger={
-                                    <Button
-                                        variant="outline"
-                                        className="h-9 gap-1.5 rounded-sm text-[14px]"
-                                    >
-                                        <BugIcon className="h-4 w-4" />
-                                        バグ報告
-                                    </Button>
-                                }
-                            />
                             <Link
                                 href={`/builds?repo=${encodeURIComponent(repo)}&arch=${encodeURIComponent(arch)}`}
                             >

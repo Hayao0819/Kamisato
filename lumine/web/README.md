@@ -9,7 +9,6 @@ Lumine Web is a frontend application for the Arch Linux package repository backe
 - Display package list
 - Search packages
 - Show Ayato backend server status
-- Bug reporting for packages (mock function)
 
 ## Technologies Used
 
