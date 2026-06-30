@@ -6,14 +6,16 @@ import (
 	"github.com/spf13/pflag"
 )
 
+type RepoEntry struct {
+	Dir     string `koanf:"dir" json:"dir"`
+	DestDir string `koanf:"destdir" json:"destdir"`
+}
+
 type AyakaConfig struct {
-	LegacyRepoDir string `koanf:"repodir" json:"repodir"`
-	LegacyDestDir string `koanf:"destdir" json:"destdir"`
-	Repos         []struct {
-		Dir     string `koanf:"dir" json:"dir"`
-		DestDir string `koanf:"destdir" json:"destdir"`
-	} `koanf:"repos" json:"repos"`
-	Debug bool `koanf:"debug" json:"debug"`
+	LegacyRepoDir string      `koanf:"repodir" json:"repodir"`
+	LegacyDestDir string      `koanf:"destdir" json:"destdir"`
+	Repos         []RepoEntry `koanf:"repos" json:"repos"`
+	Debug         bool        `koanf:"debug" json:"debug"`
 }
 
 func (c *AyakaConfig) Marshal() ([]byte, error) {

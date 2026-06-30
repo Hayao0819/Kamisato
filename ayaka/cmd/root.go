@@ -42,10 +42,7 @@ func RootCmd() *cobra.Command {
 
 			if shared.Config.LegacyRepoDir != "" || shared.Config.LegacyDestDir != "" {
 				slog.Warn("Using legacy configuration fields 'repodir' or 'destdir' is deprecated. Please migrate to the new 'repos' field.")
-				shared.Config.Repos = append(shared.Config.Repos, struct {
-					Dir     string `koanf:"dir" json:"dir"`
-					DestDir string `koanf:"destdir" json:"destdir"`
-				}{
+				shared.Config.Repos = append(shared.Config.Repos, conf.RepoEntry{
 					Dir:     shared.Config.LegacyRepoDir,
 					DestDir: shared.Config.LegacyDestDir,
 				})
