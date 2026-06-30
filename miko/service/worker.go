@@ -23,7 +23,10 @@ func (s *Service) process(ctx context.Context, job *domain.BuildJob) {
 		cancel()
 		if job.Log != nil {
 			job.Log.Close()
-			s.update(job.ID, func(j *domain.BuildJob) { j.Logs = job.Log.String() })
+			s.update(job.ID, func(j *domain.BuildJob) {
+				j.Logs = job.Log.String()
+				j.Log = nil
+			})
 		}
 		slog.Info("Skipping cancelled job", "id", job.ID)
 		return
@@ -56,7 +59,10 @@ func (s *Service) process(ctx context.Context, job *domain.BuildJob) {
 	defer func() {
 		if job.Log != nil {
 			job.Log.Close()
-			s.update(job.ID, func(j *domain.BuildJob) { j.Logs = job.Log.String() })
+			s.update(job.ID, func(j *domain.BuildJob) {
+				j.Logs = job.Log.String()
+				j.Log = nil
+			})
 		}
 	}()
 
