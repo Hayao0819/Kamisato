@@ -15,6 +15,11 @@ import (
 
 // initBinaryStore keeps the IO layer conf-free by unpacking conf into the plain values the backends take.
 func initBinaryStore(cfg *conf.AyatoConfig) (blob.Store, error) {
+	repoNames := make([]string, 0, len(cfg.Repos))
+	for _, r := range cfg.Repos {
+		repoNames = append(repoNames, r.Name)
+	}
+
 	if cfg.Store.StorageType == "s3" {
 		slog.Warn("Using S3 is still experimental, please use with caution")
 		a := cfg.Store.AWSS3
@@ -26,6 +31,7 @@ func initBinaryStore(cfg *conf.AyatoConfig) (blob.Store, error) {
 			SecretAccessKey: a.SecretAccessKey,
 			SessionToken:    a.SessionToken,
 			UsePathStyle:    a.UsePathStyle,
+			RepoNames:       repoNames,
 		})
 		if err != nil {
 			// Fail closed: silently downgrading to localfs would put durable state on
@@ -37,10 +43,6 @@ func initBinaryStore(cfg *conf.AyatoConfig) (blob.Store, error) {
 	}
 
 	slog.Info("Using local file system as the binary store")
-	repoNames := make([]string, 0, len(cfg.Repos))
-	for _, r := range cfg.Repos {
-		repoNames = append(repoNames, r.Name)
-	}
 	return localfs.New(cfg.Store.LocalRepoDir, repoNames), nil
 }
 
