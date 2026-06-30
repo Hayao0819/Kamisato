@@ -88,12 +88,12 @@ func selectPackages(pkgs []*pkg.SourcePackage, names []string) []*pkg.SourcePack
 // diffPackages returns the source packages that are newer than (or missing
 // from) the remote repo rr.
 func diffPackages(src []*pkg.SourcePackage, rr *repo.RemoteRepo) ([]*pkg.SourcePackage, error) {
-	var shoubuild []*pkg.SourcePackage
+	var toBuild []*pkg.SourcePackage
 	for _, sp := range src {
 		rp := rr.PkgByPkgBase(sp.Base())
 		if rp == nil {
 			slog.Warn("Package does not exist in remote repository", "pkgbase", sp.Base())
-			shoubuild = append(shoubuild, sp)
+			toBuild = append(toBuild, sp)
 			continue
 		}
 		cmp, err := alpm.VerCmp(sp.Version(), rp.Version())
@@ -103,10 +103,10 @@ func diffPackages(src []*pkg.SourcePackage, rr *repo.RemoteRepo) ([]*pkg.SourceP
 		}
 		if cmp > 0 {
 			slog.Debug("Local package is newer", "pkgbase", sp.Base(), "local", sp.Version(), "remote", rp.Version())
-			shoubuild = append(shoubuild, sp)
+			toBuild = append(toBuild, sp)
 		}
 	}
-	return shoubuild, nil
+	return toBuild, nil
 }
 
 // Repo builds the named packages in r (all of them when none are named).
@@ -134,19 +134,19 @@ func Repo(r *repo.SourceRepo, t *builder.Target, dest string, pkgs ...string) er
 
 // Diff builds only the packages in s that are newer than (or missing from) the remote repo rr.
 func Diff(s *repo.SourceRepo, t *builder.Target, rr *repo.RemoteRepo, dest string, pkgs ...string) error {
-	shoubuild, err := diffPackages(s.Pkgs, rr)
+	toBuild, err := diffPackages(s.Pkgs, rr)
 	if err != nil {
 		return err
 	}
-	shoubuild = selectPackages(shoubuild, pkgs)
+	toBuild = selectPackages(toBuild, pkgs)
 
-	if len(shoubuild) == 0 {
+	if len(toBuild) == 0 {
 		slog.Info("No packages to build")
 		return nil
 	}
 
 	outDir := path.Join(dest, t.Arch)
-	for _, p := range shoubuild {
+	for _, p := range toBuild {
 		pkgbase := p.Base()
 		slog.Debug("Starting package build", "pkgbase", pkgbase)
 		if err := Package(p, t, outDir); err != nil {
