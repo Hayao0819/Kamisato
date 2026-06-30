@@ -8,11 +8,16 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"time"
 
 	utils "github.com/Hayao0819/Kamisato/internal/utils"
 	pkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
 	"github.com/Hayao0819/Kamisato/pkg/raiou"
 )
+
+// dbHTTPClient downloads repo databases with a bounded timeout so a slow or
+// hung mirror can't block the caller indefinitely.
+var dbHTTPClient = &http.Client{Timeout: 30 * time.Second}
 
 type RemoteRepo struct {
 	Name   string
@@ -44,7 +49,7 @@ func RepoFromURL(server string, name string) (*RemoteRepo, error) {
 		return nil, err
 	}
 
-	resp, err := http.Get(dburl)
+	resp, err := dbHTTPClient.Get(dburl)
 	if err != nil {
 		return nil, fmt.Errorf("failed to download database: %w", err)
 	}
