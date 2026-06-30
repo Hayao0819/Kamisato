@@ -4,9 +4,6 @@ import { fileURLToPath } from "node:url";
 const isDev = process.env.NODE_ENV === "development";
 
 const nextConfig = {
-    typescript: {
-        ignoreBuildErrors: true,
-    },
     images: {
         unoptimized: true,
     },

@@ -10,7 +10,8 @@
         "lint": "biome lint --write",
         "fix": "biome check --write --unsafe",
         "check": "biome check",
-        "gen:types": "go run github.com/gzuidhof/tygo@latest generate"
+        "gen:types": "go run github.com/gzuidhof/tygo@latest generate",
+        "typecheck": "tsc --noEmit"
     },
     "dependencies": {
         "@radix-ui/react-dialog": "1.1.15",
