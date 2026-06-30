@@ -3,6 +3,7 @@ package ayatoclient
 import (
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 
 	"github.com/Hayao0819/Kamisato/internal/utils"
@@ -13,7 +14,7 @@ import (
 // served under any concrete arch via ayato's fallback, so requesting the build
 // arch works regardless of the package's own arch.
 func DownloadPackage(base, repo, arch, file, dest string) error {
-	resp, err := http.Get(endpoint(base, "/repo/"+repo+"/"+arch+"/"+file))
+	resp, err := http.Get(endpoint(base, "/repo/"+url.PathEscape(repo)+"/"+url.PathEscape(arch)+"/"+url.PathEscape(file)))
 	if err != nil {
 		return utils.WrapErr(err, "failed to download "+file)
 	}
