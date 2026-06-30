@@ -51,6 +51,9 @@ const (
 	KindChroot Kind = "chroot"
 	// KindContainer builds in a throwaway container (distro-independent).
 	KindContainer Kind = "container"
+	// KindBwrap builds in a bubblewrap sandbox over the host toolchain. Host-only
+	// (rootless user namespaces); refuses to run nested inside a container.
+	KindBwrap Kind = "bwrap"
 )
 
 // Options configures backend construction. Fields a backend does not use are
@@ -71,6 +74,10 @@ type Options struct {
 	// CcacheDir, when set, is bind-mounted at /build/ccache by the container
 	// backend to persist a compiler cache across builds (chroot ignores it).
 	CcacheDir string
+	// BwrapRootfs is the path to a pristine Arch rootfs (pacstrap'd, with a
+	// populated pacman keyring) used as the read-only lower layer by the bwrap
+	// backend. Required for KindBwrap.
+	BwrapRootfs string
 }
 
 // New returns a Backend for the given kind. An empty kind defaults to chroot,
@@ -81,6 +88,8 @@ func New(kind Kind, opts Options) (Backend, error) {
 		return newChrootBackend(opts), nil
 	case KindContainer:
 		return newContainerBackend(opts), nil
+	case KindBwrap:
+		return newBwrapBackend(opts), nil
 	default:
 		return nil, fmt.Errorf("unknown build backend: %q", kind)
 	}
