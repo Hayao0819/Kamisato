@@ -7,31 +7,31 @@
         }
     ],
     "port": 9000,
-    "maxsize": 10000000000000000,
+    "max_size": 10000000000000000,
     "auth": {
         "username": "",
         "password": ""
     },
     "store": {
-        "dbtype": "",
+        "db_type": "",
         "sql": {
             "driver": "",
-            "server": "",
+            "host": "",
             "user": "",
             "password": "",
             "database": ""
         },
-        "storagetye": "",
+        "storage_type": "",
         "awss3": {
             "region": "",
-            "accesskeyid": "",
-            "secretkey": "",
-            "sessiontoken": "",
+            "access_key_id": "",
+            "secret_access_key": "",
+            "session_token": "",
             "bucket": "",
             "endpoint": "",
-            "usepathstyle": true
+            "use_path_style": true
         },
         "badgerdb": "../test/ayato/db",
-        "localrepodir": "../test/ayato/srv"
+        "local_repo_dir": "../test/ayato/srv"
     }
 }
