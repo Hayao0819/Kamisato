@@ -15,19 +15,6 @@ updates the repository database automatically, and proxies build requests to mik
 
 ## Dependencies
 
-`ayato` depends on the `repo-add` and `repo-remove` commands, which are included
-in the `pacman` package.
-
-Your entire system does not need to be managed by `pacman`; you can simply install
-the `pacman` package on any distribution.
-
-This is one of the advantages of `ayato` not being responsible for package compilation
-itself.
-
-- ArchLinux/Manjaro: You are probably already using Pacman
-- Debian/Ubuntu: `apt install pacman-package-manager`
-- AlpineLinux: `apk add pacman`
-- Fedora: `dnf install pacman`
-
-In other words, you can host the Pacman package manager on almost any distribution.
-(I personally do not like using ArchLinux for server purposes.)
+`ayato` writes the repository database in Go and never compiles packages itself,
+so it runs on any system with no `pacman` installed. (I personally do not like
+using ArchLinux for server purposes.)
