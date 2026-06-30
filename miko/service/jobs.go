@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"path/filepath"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/Hayao0819/Kamisato/internal/utils"
@@ -16,12 +18,41 @@ import (
 // and command construction in the backends, so reject anything else up front.
 var allowedArches = map[string]bool{"x86_64": true, "aarch64": true, "armv7h": true}
 
+// validateInstallPkgs rejects InstallPkgs that point outside the staging dir.
+// Each entry is bind-mounted into the untrusted build, so an unchecked host
+// path lets a caller exfiltrate arbitrary files (signing keys under data_dir,
+// /etc, ssh keys). miko has no upload endpoint for deps: operators stage them
+// under <data_dir>/staging, and remote callers upload deps as source files.
+func (s *Service) validateInstallPkgs(pkgs []string) error {
+	if len(pkgs) == 0 {
+		return nil
+	}
+	if s.cfg.DataDir == "" {
+		return fmt.Errorf("%w: install_pkgs not accepted without a staging dir", ErrInvalidRequest)
+	}
+	base := filepath.Join(s.cfg.DataDir, "staging")
+	for _, p := range pkgs {
+		abs, err := filepath.Abs(p)
+		if err != nil {
+			return fmt.Errorf("%w: invalid install_pkgs path %q", ErrInvalidRequest, p)
+		}
+		rel, err := filepath.Rel(base, abs)
+		if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+			return fmt.Errorf("%w: install_pkgs path escapes staging dir: %q", ErrInvalidRequest, p)
+		}
+	}
+	return nil
+}
+
 func (s *Service) Submit(req *domain.BuildRequest) (string, error) {
 	if req == nil {
 		return "", fmt.Errorf("%w: request is nil", ErrInvalidRequest)
 	}
 	if !allowedArches[req.Arch] {
 		return "", fmt.Errorf("%w: unsupported arch %q", ErrInvalidRequest, req.Arch)
+	}
+	if err := s.validateInstallPkgs(req.InstallPkgs); err != nil {
+		return "", err
 	}
 
 	job := &domain.BuildJob{
