@@ -30,6 +30,17 @@ func TestSqlConfigDSN(t *testing.T) {
 			want: "/var/lib/ayato/ayato.db",
 		},
 		{
+			// A password with reserved bytes must not corrupt the DSN.
+			name: "mysql password with reserved chars",
+			cfg:  SqlConfig{Driver: "mysql", Host: "db", User: "root", Password: "p@ss:w/rd", Database: "ayato"},
+			want: "root:p@ss:w/rd@tcp(db:3306)/ayato",
+		},
+		{
+			name: "postgres password with space and quote",
+			cfg:  SqlConfig{Driver: "postgres", Host: "localhost", User: "admin", Password: "a b'c", Database: "ayato"},
+			want: `host=localhost port=5432 user=admin password='a b\'c' dbname=ayato`,
+		},
+		{
 			name:    "unsupported driver",
 			cfg:     SqlConfig{Driver: "oracle", Host: "h", User: "u", Database: "d"},
 			wantErr: true,

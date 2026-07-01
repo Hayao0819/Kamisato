@@ -3,8 +3,12 @@ package conf
 import (
 	"errors"
 	"fmt"
+	"net"
+	"net/url"
 	"path/filepath"
 	"strings"
+
+	"github.com/go-sql-driver/mysql"
 )
 
 type SqlConfig struct {
@@ -41,13 +45,22 @@ func (c SqlConfig) postgresDSN() (string, error) {
 
 	base := fmt.Sprintf(
 		"host=%s port=%s user=%s password=%s dbname=%s",
-		c.Host, port, c.User, c.Password, c.Database,
+		pqQuote(c.Host), pqQuote(port), pqQuote(c.User), pqQuote(c.Password), pqQuote(c.Database),
 	)
 
 	if c.AdditionalDSN != "" {
 		return fmt.Sprintf("%s %s", base, strings.TrimSpace(c.AdditionalDSN)), nil
 	}
 	return base, nil
+}
+
+// pqQuote quotes a libpq keyword/value connection-string value so that a secret
+// containing a space, quote or backslash cannot corrupt the DSN.
+func pqQuote(v string) string {
+	if !strings.ContainsAny(v, ` '\`) {
+		return v
+	}
+	return "'" + strings.NewReplacer(`\`, `\\`, `'`, `\'`).Replace(v) + "'"
 }
 
 func (c SqlConfig) mysqlDSN() (string, error) {
@@ -59,15 +72,25 @@ func (c SqlConfig) mysqlDSN() (string, error) {
 		port = "3306"
 	}
 
-	base := fmt.Sprintf(
-		"%s:%s@tcp(%s:%s)/%s",
-		c.User, c.Password, c.Host, port, c.Database,
-	)
-
+	// go-sql-driver's Config.FormatDSN escapes credentials and parameters, so a
+	// password with @, :, / or other reserved bytes does not break the DSN.
+	cfg := mysql.NewConfig()
+	cfg.User = c.User
+	cfg.Passwd = c.Password
+	cfg.Net = "tcp"
+	cfg.Addr = net.JoinHostPort(c.Host, port)
+	cfg.DBName = c.Database
 	if c.AdditionalDSN != "" {
-		return fmt.Sprintf("%s?%s", base, strings.TrimPrefix(c.AdditionalDSN, "?")), nil
+		params, err := url.ParseQuery(strings.TrimPrefix(c.AdditionalDSN, "?"))
+		if err != nil {
+			return "", fmt.Errorf("mysql: invalid additional_dsn: %w", err)
+		}
+		cfg.Params = make(map[string]string, len(params))
+		for k := range params {
+			cfg.Params[k] = params.Get(k)
+		}
 	}
-	return base, nil
+	return cfg.FormatDSN(), nil
 }
 
 func (c SqlConfig) sqliteDSN() (string, error) {
