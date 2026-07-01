@@ -1,6 +1,7 @@
 package aurweb
 
 import (
+	"cmp"
 	"hash/fnv"
 	"slices"
 
@@ -44,8 +45,8 @@ func FromSrcinfo(si *raiou.SRCINFO, meta SrcinfoMeta) []Pkg {
 
 	out := make([]Pkg, 0, len(pkgs))
 	for _, p := range pkgs {
-		desc := firstNonEmpty(p.PkgDesc, global.PkgDesc)
-		url := firstNonEmpty(p.URL, global.URL)
+		desc := cmp.Or(p.PkgDesc, global.PkgDesc)
+		url := cmp.Or(p.URL, global.URL)
 		out = append(out, Pkg{
 			ID:             stableID(p.PkgName),
 			Name:           p.PkgName,
@@ -119,15 +120,6 @@ func mergeList(a, b []string) []string {
 	}
 	slices.Sort(out)
 	return out
-}
-
-func firstNonEmpty(vals ...string) string {
-	for _, v := range vals {
-		if v != "" {
-			return v
-		}
-	}
-	return ""
 }
 
 // stableID derives a deterministic positive int from a name; aurweb IDs are

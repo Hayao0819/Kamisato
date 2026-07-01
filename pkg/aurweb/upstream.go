@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -84,7 +85,7 @@ func (u *AURUpstream) GitBase() string { return u.gitBase }
 
 func (u *AURUpstream) Info(ctx context.Context, names []string) ([]Pkg, error) {
 	var out []Pkg
-	for chunk := range slicesChunk(names, upstreamBatchSize) {
+	for chunk := range slices.Chunk(names, upstreamBatchSize) {
 		v := url.Values{}
 		v.Set("v", strconv.Itoa(Version))
 		v.Set("type", "info")

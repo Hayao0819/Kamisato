@@ -7,7 +7,6 @@ import (
 	"archive/tar"
 	"fmt"
 	"io"
-	"os"
 	"path"
 	"strings"
 
@@ -51,15 +50,6 @@ func (p *SourcePackage) Dir() string {
 type BinaryPackage struct {
 	path string
 	info *raiou.PKGINFO
-}
-
-func OpenBinaryPackage(binPath string) (*BinaryPackage, error) {
-	file, err := os.Open(binPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open file: %w", err)
-	}
-	defer file.Close()
-	return ReadBinaryPackage(binPath, file)
 }
 
 // walkPackageTar decompresses r and calls fn for each tar entry. Returning

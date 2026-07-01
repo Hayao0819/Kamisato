@@ -1,6 +1,7 @@
 package aurweb
 
 import (
+	"cmp"
 	"net/http"
 	"regexp"
 	"strings"
@@ -113,7 +114,7 @@ func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request, q rpcQuery
 		return
 	}
 
-	arg := firstArg(q.args)
+	arg := cmp.Or(q.args...)
 	if by != ByMaintainer {
 		if arg == "" {
 			s.writeError(w, r, q.callback, q.version, "No request type/data specified.")
@@ -148,7 +149,7 @@ func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request, q rpcQuery
 
 func (s *Server) handleSuggest(w http.ResponseWriter, r *http.Request, q rpcQuery, pkgbase bool) {
 	ctx := r.Context()
-	arg := firstArg(q.args)
+	arg := cmp.Or(q.args...)
 
 	local, err := s.backend.Suggest(ctx, arg, pkgbase)
 	if err != nil {

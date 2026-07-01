@@ -2,7 +2,6 @@ package aurweb
 
 import (
 	"io"
-	"iter"
 	"strconv"
 	"strings"
 )
@@ -13,20 +12,6 @@ const maxResponseBytes = 32 << 20 // 32 MiB
 
 func readAllLimited(r io.Reader) ([]byte, error) {
 	return io.ReadAll(io.LimitReader(r, maxResponseBytes))
-}
-
-// slicesChunk iterates s in contiguous slices of at most n elements.
-func slicesChunk[T any](s []T, n int) iter.Seq[[]T] {
-	return func(yield func([]T) bool) {
-		if n <= 0 {
-			n = len(s)
-		}
-		for i := 0; i < len(s); i += n {
-			if !yield(s[i:min(i+n, len(s))]) {
-				return
-			}
-		}
-	}
 }
 
 // mergeUnique concatenates lists, keeping the first occurrence of each distinct
@@ -66,15 +51,6 @@ func dedupeNonEmpty(in []string) []string {
 		out = append(out, v)
 	}
 	return out
-}
-
-func firstArg(args []string) string {
-	for _, a := range args {
-		if a != "" {
-			return a
-		}
-	}
-	return ""
 }
 
 func parseVersion(seg string) int {

@@ -48,14 +48,6 @@ func parseKeyValues(lines []string) ([]keyValue, error) {
 	return kv, nil
 }
 
-func KvToMap(kvs []keyValue) map[string]string {
-	m := make(map[string]string, len(kvs))
-	for _, kv := range kvs {
-		m[kv.Key()] = kv.Value()
-	}
-	return m
-}
-
 func readLines(r io.Reader) ([]string, error) {
 	scanner := bufio.NewScanner(r)
 	lines := make([]string, 0)
