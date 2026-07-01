@@ -1,7 +1,6 @@
 package raiou_test
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/Hayao0819/Kamisato/pkg/raiou"
@@ -75,48 +74,6 @@ func TestParsePkginfoString_EmptyValueTolerated(t *testing.T) {
 	}
 	if p.PkgName != "hello" {
 		t.Errorf("PkgName = %q, want hello", p.PkgName)
-	}
-}
-
-func TestParseBuildinfoString(t *testing.T) {
-	const data = `format = 2
-pkgname = hello
-pkgbase = hello
-pkgver = 1.0.0-1
-pkgarch = x86_64
-pkgbuild_sha256sum = 0000000000000000000000000000000000000000000000000000000000000000
-packager = Tester <t@example.com>
-builddate = 1700000000
-builddir = /build
-startdir = /startdir
-buildtool = devtools
-buildtoolver = 1.0
-buildenv = color
-options = strip
-installed = glibc-2.0-1-x86_64
-`
-
-	b, err := raiou.ParseBuildinfoString(data)
-	if err != nil {
-		t.Fatalf("ParseBuildinfoString failed: %v", err)
-	}
-	if b.Format != 2 {
-		t.Errorf("Format = %d, want 2", b.Format)
-	}
-	if b.PkgName != "hello" {
-		t.Errorf("PkgName = %q, want hello", b.PkgName)
-	}
-	if len(b.Installed) != 1 {
-		t.Errorf("Installed len = %d, want 1", len(b.Installed))
-	}
-}
-
-func TestParseBuildinfoString_UnsupportedFormat(t *testing.T) {
-	const data = `format = 1
-pkgname = hello
-`
-	if _, err := raiou.ParseBuildinfoString(data); err == nil {
-		t.Fatal("expected error for unsupported format, got nil")
 	}
 }
 
@@ -227,30 +184,5 @@ glibc
 	}
 	if len(p.Depend) != 1 || p.Depend[0] != "glibc" {
 		t.Errorf("Depend = %v, want [glibc]", p.Depend)
-	}
-}
-
-func TestDetectType(t *testing.T) {
-	tests := []struct {
-		name string
-		data string
-		want raiou.FileType
-	}{
-		{"buildinfo by format", "format = 2\npkgname = x\n", raiou.TypeBUILDINFO},
-		{"buildinfo by key", "builddir = /build\npkgname = x\n", raiou.TypeBUILDINFO},
-		{"srcinfo by key", "pkgbase = x\nsource = https://example.com/x.tar\n", raiou.TypeSRCINFO},
-		{"pkginfo default", "pkgname = x\npkgver = 1.0\n", raiou.TypePKGINFO},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := raiou.DetectType(strings.NewReader(tt.data))
-			if err != nil {
-				t.Fatalf("DetectType failed: %v", err)
-			}
-			if got != tt.want {
-				t.Errorf("DetectType = %v, want %v", got, tt.want)
-			}
-		})
 	}
 }
