@@ -47,11 +47,11 @@ func (l *LocalStore) StoreFile(repo string, arch string, file stream.SeekFile) e
 	dstFilePath := path.Join(repoPath, name)
 	dstFile, err := os.OpenFile(dstFilePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o644)
 	if err != nil {
-		return fmt.Errorf("create file err: %s", err.Error())
+		return utils.WrapErr(err, "failed to create file")
 	}
 	defer dstFile.Close()
 	if _, err := io.Copy(dstFile, file); err != nil {
-		return fmt.Errorf("copy file err: %s", err.Error())
+		return utils.WrapErr(err, "failed to copy file")
 	}
 	return nil
 }
