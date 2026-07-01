@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -18,6 +19,11 @@ import (
 // allowedArches are the architectures a build may target. Arch flows into shell
 // and command construction in the backends, so reject anything else up front.
 var allowedArches = map[string]bool{"x86_64": true, "aarch64": true, "armv7h": true}
+
+// repoNamePattern bounds the repo name to a pacman-safe charset. Repo flows into
+// the upload target and, with resolve_aur_deps, into the generated build script's
+// pacman.conf, so a newline or shell metacharacter must be rejected up front.
+var repoNamePattern = regexp.MustCompile(`^[a-zA-Z0-9._-]+$`)
 
 // validateInstallPkgs rejects InstallPkgs that point outside the staging dir.
 // Each entry is bind-mounted into the untrusted build, so an unchecked host
@@ -51,6 +57,9 @@ func (s *Service) Submit(req *domain.BuildRequest) (string, error) {
 	}
 	if !allowedArches[req.Arch] {
 		return "", fmt.Errorf("%w: unsupported arch %q", ErrInvalidRequest, req.Arch)
+	}
+	if req.Repo != "" && !repoNamePattern.MatchString(req.Repo) {
+		return "", fmt.Errorf("%w: invalid repo name %q", ErrInvalidRequest, req.Repo)
 	}
 	if err := s.validateInstallPkgs(req.InstallPkgs); err != nil {
 		return "", err
