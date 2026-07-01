@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/Hayao0819/Kamisato/internal/conf"
@@ -42,11 +43,21 @@ func (s *Service) runBuild(ctx context.Context, job *domain.BuildJob) (*builder.
 	}
 	timeout := time.Duration(timeoutMin) * time.Minute
 
+	buildRepos := extraRepos(s.cfg.Build.ExtraRepos)
+	if s.cfg.Build.ResolveAURDeps && req.Repo != "" && s.cfg.Ayato.URL != "" {
+		// Expose the target repo so dependencies published during this run resolve.
+		buildRepos = append(buildRepos, builder.RepoSpec{
+			Name:     req.Repo,
+			Server:   strings.TrimRight(s.cfg.Ayato.URL, "/") + "/repo/$repo/$arch",
+			SigLevel: "Optional TrustAll",
+		})
+	}
+
 	opts := builder.Options{
 		Image:      s.cfg.Build.Image,
 		Timeout:    timeout,
 		DockerHost: s.cfg.DockerHost,
-		ExtraRepos: extraRepos(s.cfg.Build.ExtraRepos),
+		ExtraRepos: buildRepos,
 	}
 	if s.cfg.Cache.Enabled {
 		opts.PacmanCacheDir = s.cfg.Cache.PacmanCacheDir
@@ -56,6 +67,13 @@ func (s *Service) runBuild(ctx context.Context, job *domain.BuildJob) (*builder.
 	if err != nil {
 		_ = os.RemoveAll(outDir)
 		return nil, "", utils.WrapErr(err, "failed to create build backend")
+	}
+
+	// Build and publish any unbuilt AUR dependencies before the target so it can
+	// install them from the exposed repo (no-op unless resolve_aur_deps is set).
+	if err := s.resolveAndBuildDeps(ctx, job, backend, srcDir); err != nil {
+		_ = os.RemoveAll(outDir)
+		return nil, "", err
 	}
 
 	spec := builder.Spec{

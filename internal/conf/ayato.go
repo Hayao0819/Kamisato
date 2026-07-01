@@ -115,6 +115,14 @@ type BuildConfig struct {
 	// ExtraRepos are pacman repositories added to the build environment (e.g. the
 	// ayato repo) so already-published dependencies resolve during a build.
 	ExtraRepos []ExtraRepo `koanf:"extra_repos"`
+	// ResolveAURDeps, when set, makes miko resolve a target's unbuilt AUR
+	// dependencies (from its .SRCINFO), build each in dependency order and publish
+	// it to ayato before building the target. Opt-in; the target repo is exposed to
+	// the build automatically so the freshly published dependencies resolve.
+	ResolveAURDeps bool `koanf:"resolve_aur_deps"`
+	// AURRPCURL overrides the aurweb RPC endpoint used to resolve AUR dependencies.
+	// Empty uses the canonical AUR.
+	AURRPCURL string `koanf:"aur_rpc_url"`
 }
 
 // ExtraRepo is a pacman repository exposed inside the build environment.
