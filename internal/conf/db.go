@@ -55,9 +55,10 @@ func (c SqlConfig) postgresDSN() (string, error) {
 }
 
 // pqQuote quotes a libpq keyword/value connection-string value so that a secret
-// containing a space, quote or backslash cannot corrupt the DSN.
+// containing whitespace, a quote or a backslash cannot corrupt the DSN. libpq
+// treats every ASCII whitespace byte as a value separator, so all are triggers.
 func pqQuote(v string) string {
-	if !strings.ContainsAny(v, ` '\`) {
+	if !strings.ContainsAny(v, " \t\n\r\f\v'\\") {
 		return v
 	}
 	return "'" + strings.NewReplacer(`\`, `\\`, `'`, `\'`).Replace(v) + "'"
@@ -72,8 +73,8 @@ func (c SqlConfig) mysqlDSN() (string, error) {
 		port = "3306"
 	}
 
-	// go-sql-driver's Config.FormatDSN escapes credentials and parameters, so a
-	// password with @, :, / or other reserved bytes does not break the DSN.
+	// go-sql-driver's Config.FormatDSN emits a DSN its own ParseDSN round-trips, so
+	// a password with @, :, / or other reserved bytes does not break parsing.
 	cfg := mysql.NewConfig()
 	cfg.User = c.User
 	cfg.Passwd = c.Password
