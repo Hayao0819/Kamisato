@@ -105,8 +105,10 @@ func (l *Loader[T]) Load() error {
 	return nil
 }
 
-// loadFile merges one config file. A missing file or unsupported extension is
-// skipped silently; other errors are returned.
+// loadFile merges one config file. A missing file is skipped silently; a file
+// that exists but has an unsupported extension is an error (a likely typo that
+// would otherwise leave the program running on empty defaults). Parse errors are
+// returned too.
 func (l *Loader[T]) loadFile(path string) error {
 	info, err := os.Stat(path)
 	if err != nil {
@@ -121,8 +123,7 @@ func (l *Loader[T]) loadFile(path string) error {
 
 	parser, err := parserForExtension(filepath.Ext(path))
 	if err != nil {
-		slog.Debug("Skipping unsupported file", "path", path, "ext", filepath.Ext(path))
-		return nil
+		return fmt.Errorf("%s: %w", path, err)
 	}
 
 	slog.Debug("Loading config", "path", path)

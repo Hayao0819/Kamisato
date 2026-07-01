@@ -1,7 +1,9 @@
 package conf
 
 import (
+	"fmt"
 	"log/slog"
+	"slices"
 
 	"github.com/spf13/pflag"
 )
@@ -65,10 +67,26 @@ func LoadMikoConfig(flags *pflag.FlagSet, configFile string) (*MikoConfig, error
 		files = []string{"miko_config.json", "miko_config.toml", "miko_config.yaml"}
 	}
 
-	return loadConfig[MikoConfig](
+	cfg, err := loadConfig[MikoConfig](
 		dirs,
 		files,
 		flags,
 		"MIKO",
 	)
+	if err != nil {
+		return nil, err
+	}
+	if err := cfg.Validate(); err != nil {
+		return nil, err
+	}
+	return cfg, nil
+}
+
+// Validate rejects an unknown build executor so a typo fails loudly instead of
+// silently falling back to the default backend.
+func (c *MikoConfig) Validate() error {
+	if !slices.Contains([]string{"", "container", "chroot", "bwrap"}, c.Executor) {
+		return fmt.Errorf("executor: unknown value %q (want container, chroot or bwrap)", c.Executor)
+	}
+	return nil
 }

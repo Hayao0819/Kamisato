@@ -1,5 +1,22 @@
 package conf
 
+import (
+	"fmt"
+	"slices"
+)
+
+// Validate rejects unknown db_type/storage_type values so a typo fails loudly
+// instead of silently falling through to a default backend.
+func (c StoreConfig) Validate() error {
+	if !slices.Contains([]string{"", "badgerdb", "cfkv", "sql"}, c.DBType) {
+		return fmt.Errorf("store.db_type: unknown value %q (want badgerdb, cfkv or sql)", c.DBType)
+	}
+	if !slices.Contains([]string{"", "localfs", "s3"}, c.StorageType) {
+		return fmt.Errorf("store.storage_type: unknown value %q (want localfs or s3)", c.StorageType)
+	}
+	return nil
+}
+
 // StoreConfig describes how application data and binaries are stored.
 type StoreConfig struct {
 	// DBType selects the shared generic key-value store backend

@@ -211,6 +211,9 @@ func LoadAyatoConfig(flags *pflag.FlagSet, configFile string) (*AyatoConfig, err
 // could be derived from spoofable request headers: with GitHub login on,
 // PublicOrigin is mandatory and must be an absolute http(s) origin without a path.
 func (c *AyatoConfig) Validate() error {
+	if err := c.Store.Validate(); err != nil {
+		return err
+	}
 	if err := c.Auth.CI.validate(); err != nil {
 		return err
 	}
