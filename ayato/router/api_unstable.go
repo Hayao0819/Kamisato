@@ -14,14 +14,14 @@ import (
 
 func SetRoute(e *gin.Engine, h *handler.Handler, m *middleware.Middleware) error {
 	if err := view.Set(e); err != nil {
-		return utils.WrapErr(err, "テンプレート設定に失敗")
+		return utils.WrapErr(err, "failed to configure templates")
 	}
 
 	// Reverse proxy to miko. miko holds builds/jobs as the single source of truth,
 	// and ayato just passes through with an API key (clients never reach miko directly).
 	mikoProxy, err := h.MikoProxy()
 	if err != nil {
-		return utils.WrapErr(err, "miko プロキシの初期化に失敗")
+		return utils.WrapErr(err, "failed to initialize the miko proxy")
 	}
 
 	// Throttle unauthenticated auth endpoints per client IP (5 req/s, burst 20)
