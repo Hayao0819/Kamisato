@@ -44,7 +44,18 @@ func (a aurSource) ProvidedBy(ctx context.Context, name string) (*Pkg, error) {
 	if len(ps) == 0 {
 		return nil, nil
 	}
-	p := fromAUR(ps[0])
+	// aurweb search records omit the relation arrays (provides/depends), so fetch
+	// the full info record: the resolver needs the provider's version-qualified
+	// provides to satisfy a versioned constraint and its own deps to recurse.
+	infos, err := a.up.Info(ctx, []string{ps[0].Name})
+	if err != nil {
+		return nil, err
+	}
+	if len(infos) == 0 {
+		p := fromAUR(ps[0])
+		return &p, nil
+	}
+	p := fromAUR(infos[0])
 	return &p, nil
 }
 
