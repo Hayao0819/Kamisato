@@ -22,8 +22,10 @@ type Pkg struct {
 	Deps        []string // depends + makedepends + checkdepends, raw specs
 }
 
-// RepoChecker reports which of the given dep specs are NOT satisfied by the
-// configured sync repos (official + ayato), resolving provides and versions.
+// RepoChecker reports which of the given dep specs the build environment cannot
+// already provide, so only those need resolving against the AUR. It is a
+// best-effort filter (an optimisation): a spec it lets through but which is not in
+// the AUR is treated as repo-provided and skipped by the resolver.
 type RepoChecker interface {
 	Unsatisfied(deps []string) ([]string, error)
 }
@@ -37,8 +39,9 @@ type AURSource interface {
 }
 
 // Resolve returns the AUR package bases to build, dependencies first, so that
-// rootDeps the repos cannot satisfy become buildable. It errors on an
-// unresolvable dependency, an unsatisfiable version constraint, or a cycle.
+// rootDeps the repos cannot satisfy become buildable. Dependencies not found in
+// the AUR are treated as repo-provided (the build environment's pacman installs
+// them) and skipped; it errors on an unsatisfiable version constraint or a cycle.
 func Resolve(ctx context.Context, rootDeps []string, repo RepoChecker, aur AURSource) ([]Pkg, error) {
 	missing, err := repo.Unsatisfied(rootDeps)
 	if err != nil {
@@ -50,7 +53,10 @@ func Resolve(ctx context.Context, rootDeps []string, repo RepoChecker, aur AURSo
 		if err != nil {
 			return nil, err
 		}
-		if err := r.visit(p); err != nil {
+		if p == nil {
+			continue
+		}
+		if err := r.visit(*p); err != nil {
 			return nil, err
 		}
 	}
@@ -91,7 +97,10 @@ func (r *resolver) visit(p Pkg) error {
 		if err != nil {
 			return fmt.Errorf("resolving dependency of %q: %w", p.PackageBase, err)
 		}
-		if err := r.visit(d); err != nil {
+		if d == nil {
+			continue
+		}
+		if err := r.visit(*d); err != nil {
 			return err
 		}
 	}
@@ -102,13 +111,15 @@ func (r *resolver) visit(p Pkg) error {
 }
 
 // resolveSpec finds the AUR package satisfying one dep spec: by name first, then
-// by provides for a virtual dependency, verifying the version constraint.
-func (r *resolver) resolveSpec(spec string) (Pkg, error) {
+// by provides for a virtual dependency, verifying the version constraint. It
+// returns nil (no error) when the spec is not in the AUR, meaning it is provided
+// by the build environment's repos and needs no build.
+func (r *resolver) resolveSpec(spec string) (*Pkg, error) {
 	c := dep.Parse(spec)
 
 	pkgs, err := r.aur.Info(r.ctx, []string{c.Name})
 	if err != nil {
-		return Pkg{}, err
+		return nil, err
 	}
 	for _, p := range pkgs {
 		if p.Name != c.Name {
@@ -116,26 +127,26 @@ func (r *resolver) resolveSpec(spec string) (Pkg, error) {
 		}
 		ok, err := c.Satisfies(p.Version)
 		if err != nil {
-			return Pkg{}, err
+			return nil, err
 		}
 		if !ok {
-			return Pkg{}, fmt.Errorf("depsolve: AUR %s-%s does not satisfy %q", p.Name, p.Version, spec)
+			return nil, fmt.Errorf("depsolve: AUR %s-%s does not satisfy %q", p.Name, p.Version, spec)
 		}
-		return p, nil
+		return &p, nil
 	}
 
 	p, err := r.aur.ProvidedBy(r.ctx, c.Name)
 	if err != nil {
-		return Pkg{}, err
+		return nil, err
 	}
 	if p != nil {
 		if err := checkProvides(c, *p); err != nil {
-			return Pkg{}, err
+			return nil, err
 		}
-		return *p, nil
+		return p, nil
 	}
 
-	return Pkg{}, fmt.Errorf("depsolve: cannot resolve dependency %q (not in repos or the AUR)", spec)
+	return nil, nil
 }
 
 // checkProvides verifies a versioned dependency against a provider's provides

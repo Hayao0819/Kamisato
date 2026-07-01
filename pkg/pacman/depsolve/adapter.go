@@ -8,7 +8,10 @@ import (
 )
 
 // NewRepoChecker returns a RepoChecker backed by `pacman -T` against the running
-// system's configured sync repos.
+// system's locally installed packages. It is a best-effort pre-filter: specs it
+// lets through that are not in the AUR are treated as repo-provided by the
+// resolver, so a dep already available in the build environment's sync repos does
+// not need to be installed on this host for resolution to succeed.
 func NewRepoChecker() RepoChecker { return alpmRepoChecker{} }
 
 type alpmRepoChecker struct{}

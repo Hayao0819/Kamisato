@@ -128,8 +128,14 @@ func TestResolveCycle(t *testing.T) {
 	}
 }
 
-func TestResolveUnresolvable(t *testing.T) {
-	if _, err := depsolve.Resolve(context.Background(), []string{"nope"}, fakeRepo{}, fakeAUR{}); err == nil {
-		t.Fatal("expected an unresolvable-dependency error")
+func TestResolveSkipsNonAUR(t *testing.T) {
+	// A dependency not in the AUR is provided by the build environment's repos:
+	// it is skipped, not treated as an error.
+	order, err := depsolve.Resolve(context.Background(), []string{"nope"}, fakeRepo{}, fakeAUR{})
+	if err != nil {
+		t.Fatalf("non-AUR dep should be skipped, got error: %v", err)
+	}
+	if len(order) != 0 {
+		t.Fatalf("expected empty build order, got %v", order)
 	}
 }
