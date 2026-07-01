@@ -3,7 +3,13 @@ import {
     type AuthMode,
     createAuthClient,
 } from "./auth-client";
-import type { BuildRequest, BuildStats, Job } from "./types";
+import type {
+    BuildRequest,
+    BuildStats,
+    Job,
+    PackageInfo,
+    PacmanPkgsResponse,
+} from "./types";
 
 // Optional features ayato advertises so the UI hides what is not configured.
 // recaptcha_site_key is non-empty only when the bug form must render a widget.
@@ -75,14 +81,21 @@ function mutationError(
 }
 
 export class APIClient {
-    async fetchAllPkgs(repo: string, arch: string) {
+    async fetchAllPkgs(
+        repo: string,
+        arch: string,
+    ): Promise<PacmanPkgsResponse> {
         const res = await this.authedFetch(this.endpoints.allPkgs(repo, arch));
         if (!res.ok)
             throw new Error(`Failed to fetch packages: ${res.statusText}`);
         return res.json();
     }
 
-    async fetchPackageDetail(repo: string, arch: string, pkgbase: string) {
+    async fetchPackageDetail(
+        repo: string,
+        arch: string,
+        pkgbase: string,
+    ): Promise<PackageInfo> {
         const res = await this.authedFetch(
             this.endpoints.packageDetail(repo, arch, pkgbase),
         );
@@ -90,7 +103,7 @@ export class APIClient {
         return res.json();
     }
 
-    async fetchRepos() {
+    async fetchRepos(): Promise<string[] | { repos?: string[] }> {
         const res = await this.authedFetch(this.endpoints.repos());
         if (!res.ok)
             throw new Error(
@@ -99,7 +112,7 @@ export class APIClient {
         return res.json();
     }
 
-    async fetchArches(repo: string) {
+    async fetchArches(repo: string): Promise<string[] | { arches?: string[] }> {
         const res = await this.authedFetch(this.endpoints.arches(repo));
         if (!res.ok)
             throw new Error(

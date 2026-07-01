@@ -12,7 +12,7 @@ import { Toaster } from "@/components/ui/toaster";
 export const metadata: Metadata = {
     title: "Arch Linux パッケージリポジトリ - Lumine",
     description:
-        "Ayakaバックエンドを利用したArch Linux向けの非公式パッケージリポジトリWebフロントエンド。",
+        "Ayatoバックエンドを利用したArch Linux向けの非公式パッケージリポジトリWebフロントエンド。",
 };
 
 export default function RootLayout({

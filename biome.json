@@ -7,7 +7,11 @@
     },
     "files": {
         "ignoreUnknown": false,
-        "includes": ["./lumine/web/**", "!**/node_modules"]
+        "includes": [
+            "./lumine/web/**",
+            "!**/node_modules",
+            "!lumine/web/src/lib/generated/**"
+        ]
     },
     "formatter": {
         "enabled": true,

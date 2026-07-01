@@ -4,8 +4,8 @@
 import type { PacmanPkgs } from "./generated/ayato_domain";
 import type {
     BuildJob,
-    BuildRequest as GeneratedBuildRequest,
     BuildStats,
+    BuildRequest as GeneratedBuildRequest,
     GitSource,
 } from "./generated/miko_domain";
 import type { PKGINFO } from "./generated/raiou";
