@@ -1,0 +1,25 @@
+name: Go Test
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Run go test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+
+      - name: Prepare dummy web
+        run: mkdir -p lumine/embed/out && touch lumine/embed/out/index.html
+
+      - name: Run go test
+        run: go test ./... -race -shuffle=on

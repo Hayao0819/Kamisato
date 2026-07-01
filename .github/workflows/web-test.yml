@@ -1,0 +1,37 @@
+name: Lumine Web Test
+
+on:
+  push:
+    paths:
+      - 'lumine/web/**'
+      - '.github/workflows/web-test.yml'
+  pull_request:
+    paths:
+      - 'lumine/web/**'
+      - '.github/workflows/web-test.yml'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - uses: volta-cli/action@v4
+        with:
+          node-version: '22'
+
+      - name: Install corepack
+        run: volta install corepack
+
+      - name: Install dependencies
+        working-directory: ./lumine/web
+        run: pnpm install
+
+      - name: Typecheck (pnpm run typecheck)
+        working-directory: ./lumine/web
+        run: pnpm run typecheck
+
+      - name: Test (pnpm run test)
+        working-directory: ./lumine/web
+        run: pnpm run test
