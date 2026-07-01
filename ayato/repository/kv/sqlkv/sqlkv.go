@@ -15,6 +15,7 @@ import (
 
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
 	"github.com/Hayao0819/Kamisato/internal/utils"
+	"github.com/Hayao0819/Kamisato/internal/weblog"
 	_ "github.com/lib/pq"
 	"gorm.io/driver/mysql"
 	"gorm.io/driver/postgres"
@@ -53,7 +54,7 @@ func New(driver, dsn string) (*Store, error) {
 	}
 
 	db, err := gorm.Open(dialector, &gorm.Config{
-		Logger: utils.GormLog(),
+		Logger: weblog.GormLog(),
 	})
 	if err != nil {
 		return nil, err

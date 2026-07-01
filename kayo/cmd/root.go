@@ -12,6 +12,7 @@ import (
 
 	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/internal/utils"
+	"github.com/Hayao0819/Kamisato/internal/weblog"
 	ayatocmd "github.com/Hayao0819/Kamisato/kayo/cmd/ayato"
 	hookcmd "github.com/Hayao0819/Kamisato/kayo/cmd/hook"
 	"github.com/Hayao0819/Kamisato/kayo/cmd/shared"
@@ -88,7 +89,7 @@ func run(cmd *cobra.Command, _ []string) error {
 	}
 
 	engine := gin.New()
-	engine.Use(gin.Recovery(), utils.GinLog())
+	engine.Use(gin.Recovery(), weblog.GinLog())
 	if err := engine.SetTrustedProxies(nil); err != nil {
 		return utils.WrapErr(err, "failed to reset trusted proxies")
 	}

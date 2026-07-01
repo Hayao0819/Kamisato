@@ -18,6 +18,7 @@ import (
 	"github.com/Hayao0819/Kamisato/ayato/service"
 	"github.com/Hayao0819/Kamisato/internal/conf"
 	utils "github.com/Hayao0819/Kamisato/internal/utils"
+	"github.com/Hayao0819/Kamisato/internal/weblog"
 	"github.com/Hayao0819/Kamisato/pkg/aurweb"
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/cobra"
@@ -91,7 +92,7 @@ func RootCmd() *cobra.Command {
 
 			engine := gin.New()
 			engine.Use(gin.Recovery())
-			engine.Use(utils.GinLog())
+			engine.Use(weblog.GinLog())
 
 			// Trust no proxy by default so ClientIP() is the real peer and the
 			// spoofable X-Forwarded-For is ignored (the rate-limit key is only

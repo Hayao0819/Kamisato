@@ -17,6 +17,7 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/apikey"
 	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/internal/utils"
+	"github.com/Hayao0819/Kamisato/internal/weblog"
 	"github.com/Hayao0819/Kamisato/miko/handler"
 	"github.com/Hayao0819/Kamisato/miko/router"
 	"github.com/Hayao0819/Kamisato/miko/service"
@@ -166,7 +167,7 @@ func RootCmd() *cobra.Command {
 
 			engine := gin.New()
 			engine.Use(gin.Recovery())
-			engine.Use(utils.GinLog())
+			engine.Use(weblog.GinLog())
 			if err := router.SetRoute(engine, h, verifier); err != nil {
 				return utils.WrapErr(err, "failed to set routing")
 			}

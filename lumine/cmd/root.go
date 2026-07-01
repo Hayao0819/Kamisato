@@ -10,6 +10,7 @@ import (
 	"os"
 
 	utils "github.com/Hayao0819/Kamisato/internal/utils"
+	"github.com/Hayao0819/Kamisato/internal/weblog"
 	"github.com/Hayao0819/Kamisato/lumine/embed"
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/cobra"
@@ -71,7 +72,7 @@ func RootCmd() *cobra.Command {
 
 			engine := gin.New()
 			engine.Use(gin.Recovery())
-			engine.Use(utils.GinLog())
+			engine.Use(weblog.GinLog())
 
 			var env lumineEnv
 			switch authMode {
