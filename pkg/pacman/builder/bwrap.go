@@ -43,12 +43,13 @@ const bwrapBuildUID = "1000"
 // --overlay, unprivileged overlayfs, a keyring-populated rootfs); it cannot run
 // in this CI sandbox. Cross-arch (CARCH override / qemu) is not yet supported.
 type bwrapBackend struct {
-	rootfs  string
-	timeout time.Duration
+	rootfs     string
+	timeout    time.Duration
+	extraRepos []RepoSpec
 }
 
 func newBwrapBackend(opts Options) Backend {
-	return &bwrapBackend{rootfs: opts.BwrapRootfs, timeout: opts.Timeout}
+	return &bwrapBackend{rootfs: opts.BwrapRootfs, timeout: opts.Timeout, extraRepos: opts.ExtraRepos}
 }
 
 func (b *bwrapBackend) Name() string { return "bwrap" }
@@ -109,7 +110,7 @@ func (b *bwrapBackend) Build(ctx context.Context, spec Spec) (*Result, error) {
 		out = io.MultiWriter(os.Stdout, spec.LogWriter)
 	}
 
-	depsScript, installBinds := bwrapInstall(spec.InstallPkgs)
+	depsScript, installBinds := bwrapInstall(spec.InstallPkgs, b.extraRepos)
 
 	// Phase 1: install deps as root-in-userns over the shared overlay.
 	slog.Info("bwrap phase 1: installing dependencies", "dir", srcAbs, "rootfs", b.rootfs)
@@ -136,8 +137,9 @@ func (b *bwrapBackend) Build(ctx context.Context, spec Spec) (*Result, error) {
 }
 
 // bwrapInstall turns local InstallPkgs (build-chain deps not yet published) into
-// read-only binds plus the pacman -U lines substituted into the deps script.
-func bwrapInstall(installPkgs []string) (script string, binds [][2]string) {
+// read-only binds plus the pacman -U lines substituted into the deps script, and
+// injects any extra repositories into the deps script's pacman.conf edit.
+func bwrapInstall(installPkgs []string, extraRepos []RepoSpec) (script string, binds [][2]string) {
 	var cmds strings.Builder
 	for i, p := range installPkgs {
 		dest := fmt.Sprintf("/build/install/%d-%s", i, filepath.Base(p))
@@ -146,7 +148,9 @@ func bwrapInstall(installPkgs []string) (script string, binds [][2]string) {
 		// the bash -c deps script, mirroring the container backend.
 		fmt.Fprintf(&cmds, "pacman -U --noconfirm %s\n", shellQuote(dest))
 	}
-	return strings.ReplaceAll(bwrapDepsScript, "__INSTALL__", strings.TrimRight(cmds.String(), "\n")), binds
+	script = strings.ReplaceAll(bwrapDepsScript, "__EXTRA_REPOS__", extraReposScript(extraRepos))
+	script = strings.ReplaceAll(script, "__INSTALL__", strings.TrimRight(cmds.String(), "\n"))
+	return script, binds
 }
 
 // bwrapArgs builds the sandbox for one phase: the rootfs as a read-only overlay

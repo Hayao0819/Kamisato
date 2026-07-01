@@ -78,6 +78,11 @@ type Options struct {
 	// populated pacman keyring) used as the read-only lower layer by the bwrap
 	// backend. Required for KindBwrap.
 	BwrapRootfs string
+	// ExtraRepos are pacman repositories added to the build environment (e.g. the
+	// ayato repo) so already-published dependencies resolve during the build. The
+	// container and bwrap backends inject them into /etc/pacman.conf; the chroot
+	// backend does not (use InstallPkgs for its build-chain dependencies).
+	ExtraRepos []RepoSpec
 }
 
 // New returns a Backend for the given kind. An empty kind defaults to chroot,

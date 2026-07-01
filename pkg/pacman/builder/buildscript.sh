@@ -1,4 +1,7 @@
 set -e
+# Extra repositories (e.g. ayato) are appended to pacman.conf before the first
+# sync so their databases are available to dependency resolution below.
+__EXTRA_REPOS__
 # makepkg refuses to run as root (exit 10); build as an unprivileged builduser.
 # builduser keeps passwordless sudo because `makepkg --syncdeps` calls
 # `sudo pacman -S` to install makedepends.

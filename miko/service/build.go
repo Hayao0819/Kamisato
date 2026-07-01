@@ -6,6 +6,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/internal/utils"
 	"github.com/Hayao0819/Kamisato/miko/domain"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/builder"
@@ -45,6 +46,7 @@ func (s *Service) runBuild(ctx context.Context, job *domain.BuildJob) (*builder.
 		Image:      s.cfg.Build.Image,
 		Timeout:    timeout,
 		DockerHost: s.cfg.DockerHost,
+		ExtraRepos: extraRepos(s.cfg.Build.ExtraRepos),
 	}
 	if s.cfg.Cache.Enabled {
 		opts.PacmanCacheDir = s.cfg.Cache.PacmanCacheDir
@@ -71,6 +73,18 @@ func (s *Service) runBuild(ctx context.Context, job *domain.BuildJob) (*builder.
 		return nil, "", utils.WrapErr(err, "build failed")
 	}
 	return res, outDir, nil
+}
+
+// extraRepos maps the configured extra repositories to the builder's RepoSpec.
+func extraRepos(repos []conf.ExtraRepo) []builder.RepoSpec {
+	if len(repos) == 0 {
+		return nil
+	}
+	out := make([]builder.RepoSpec, 0, len(repos))
+	for _, r := range repos {
+		out = append(out, builder.RepoSpec{Name: r.Name, Server: r.Server, SigLevel: r.SigLevel})
+	}
+	return out
 }
 
 // archBuildFor maps a CARCH to the devtools wrapper used by the chroot backend,

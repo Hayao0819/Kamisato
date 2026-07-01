@@ -30,7 +30,7 @@ func TestBwrapArgsOverlayAndUID(t *testing.T) {
 }
 
 func TestBwrapInstallBinds(t *testing.T) {
-	script, binds := bwrapInstall([]string{"/cache/dep-1.0-1-x86_64.pkg.tar.zst"})
+	script, binds := bwrapInstall([]string{"/cache/dep-1.0-1-x86_64.pkg.tar.zst"}, nil)
 	if len(binds) != 1 || binds[0][0] != "/cache/dep-1.0-1-x86_64.pkg.tar.zst" {
 		t.Fatalf("unexpected binds: %v", binds)
 	}
@@ -39,6 +39,10 @@ func TestBwrapInstallBinds(t *testing.T) {
 	}
 	if strings.Contains(script, "__INSTALL__") {
 		t.Error("__INSTALL__ placeholder not replaced")
+	}
+	// With no extra repos the placeholder collapses to nothing.
+	if strings.Contains(script, "__EXTRA_REPOS__") {
+		t.Error("__EXTRA_REPOS__ placeholder not replaced")
 	}
 	// The dep phase must disable pacman's nested download sandbox.
 	if !strings.Contains(script, "DisableSandbox") {

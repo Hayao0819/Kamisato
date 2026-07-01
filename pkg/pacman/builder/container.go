@@ -37,6 +37,7 @@ type containerBackend struct {
 	host           string
 	pacmanCacheDir string
 	ccacheDir      string
+	extraRepos     []RepoSpec
 }
 
 func newContainerBackend(opts Options) Backend {
@@ -54,6 +55,7 @@ func newContainerBackend(opts Options) Backend {
 		host:           opts.DockerHost,
 		pacmanCacheDir: opts.PacmanCacheDir,
 		ccacheDir:      opts.CcacheDir,
+		extraRepos:     opts.ExtraRepos,
 	}
 }
 
@@ -133,6 +135,7 @@ func (b *containerBackend) Build(ctx context.Context, spec Spec) (*Result, error
 
 	script := buildScript
 	script = strings.ReplaceAll(script, "__ARCH__", spec.Arch)
+	script = strings.ReplaceAll(script, "__EXTRA_REPOS__", extraReposScript(b.extraRepos))
 	script = strings.ReplaceAll(script, "__INSTALL__", strings.TrimRight(installCmd.String(), "\n"))
 
 	containerConfig := &container.Config{

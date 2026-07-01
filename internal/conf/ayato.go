@@ -112,6 +112,16 @@ type BuildConfig struct {
 	Image     string `koanf:"image"`      // Docker image (default: "archlinux:latest")
 	Timeout   int    `koanf:"timeout"`    // Build timeout in minutes (default: 30)
 	GnupgHome string `koanf:"gnupg_home"` // GPG home directory for signing
+	// ExtraRepos are pacman repositories added to the build environment (e.g. the
+	// ayato repo) so already-published dependencies resolve during a build.
+	ExtraRepos []ExtraRepo `koanf:"extra_repos"`
+}
+
+// ExtraRepo is a pacman repository exposed inside the build environment.
+type ExtraRepo struct {
+	Name     string `koanf:"name"`     // pacman repo name, e.g. "ayato"
+	Server   string `koanf:"server"`   // Server line, e.g. https://repo.example.com/$repo/$arch
+	SigLevel string `koanf:"siglevel"` // optional SigLevel; empty defaults to "Optional TrustAll"
 }
 
 type AuthConfig struct {

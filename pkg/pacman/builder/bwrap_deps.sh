@@ -4,6 +4,9 @@ set -e
 # it off for the build environment.
 sed -i '/^\[options\]/a DisableSandbox' /etc/pacman.conf
 
+# Extra repositories (e.g. ayato) so already-published dependencies resolve below.
+__EXTRA_REPOS__
+
 pacman -Sy --noconfirm --needed base-devel
 
 # A passwd/group entry so the non-root build phase (uid 1000) resolves to a name.

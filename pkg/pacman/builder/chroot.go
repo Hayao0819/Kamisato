@@ -21,6 +21,9 @@ type chrootBackend struct {
 }
 
 func newChrootBackend(opts Options) Backend {
+	if len(opts.ExtraRepos) > 0 {
+		slog.Warn("chroot backend ignores extra_repos; publish build-chain dependencies as InstallPkgs instead")
+	}
 	return &chrootBackend{opts: opts}
 }
 
