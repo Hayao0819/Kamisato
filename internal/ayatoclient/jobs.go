@@ -16,20 +16,20 @@ import (
 
 // SubmitBuild posts a build request to ayato with a Bearer CLI token and returns
 // the job id assigned by miko.
-func SubmitBuild(base, token string, req *BuildRequest) (string, error) {
+func SubmitBuild(ctx context.Context, base, token string, req *BuildRequest) (string, error) {
 	body, err := json.Marshal(req)
 	if err != nil {
 		return "", utils.WrapErr(err, "failed to encode build request")
 	}
 
-	httpReq, err := http.NewRequest(http.MethodPost, endpoint(base, "/api/unstable/build"), bytes.NewReader(body))
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint(base, "/api/unstable/build"), bytes.NewReader(body))
 	if err != nil {
 		return "", utils.WrapErr(err, "failed to create build request")
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
 	httpReq.Header.Set("Authorization", "Bearer "+token)
 
-	resp, err := http.DefaultClient.Do(httpReq)
+	resp, err := apiClient.Do(httpReq)
 	if err != nil {
 		return "", utils.WrapErr(err, "failed to submit build")
 	}
@@ -49,8 +49,8 @@ func SubmitBuild(base, token string, req *BuildRequest) (string, error) {
 }
 
 // ListJobs fetches all jobs from ayato. The jobs endpoint is public.
-func ListJobs(base string) ([]Job, error) {
-	resp, err := http.Get(endpoint(base, "/api/unstable/jobs"))
+func ListJobs(ctx context.Context, base string) ([]Job, error) {
+	resp, err := get(ctx, apiClient, endpoint(base, "/api/unstable/jobs"))
 	if err != nil {
 		return nil, utils.WrapErr(err, "failed to list jobs")
 	}
@@ -68,8 +68,8 @@ func ListJobs(base string) ([]Job, error) {
 }
 
 // JobStatus fetches a single job by id from ayato. The endpoint is public.
-func JobStatus(base, id string) (*Job, error) {
-	resp, err := http.Get(endpoint(base, "/api/unstable/jobs/"+id))
+func JobStatus(ctx context.Context, base, id string) (*Job, error) {
+	resp, err := get(ctx, apiClient, endpoint(base, "/api/unstable/jobs/"+id))
 	if err != nil {
 		return nil, utils.WrapErr(err, "failed to get job status")
 	}
@@ -97,20 +97,20 @@ func WaitJob(ctx context.Context, base, id string, logs io.Writer) (*Job, error)
 		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
-		job, err := JobStatus(base, id)
+		job, err := JobStatus(ctx, base, id)
 		if err != nil {
 			return nil, err
 		}
 		switch job.Status {
 		case "success", "failed", "cancelled":
 			if logs != nil && !streamed {
-				_ = StreamLogs(base, id, logs) // a fast job: dump whatever buffered
+				_ = StreamLogs(ctx, base, id, logs) // a fast job: dump whatever buffered
 			}
 			return job, nil
 		case "running":
 			if logs != nil && !streamed {
 				streamed = true
-				_ = StreamLogs(base, id, logs) // blocks until the stream closes
+				_ = StreamLogs(ctx, base, id, logs) // blocks until the stream closes
 				continue                       // re-fetch the now-terminal status
 			}
 		}
@@ -125,14 +125,14 @@ func WaitJob(ctx context.Context, base, id string, logs io.Writer) (*Job, error)
 }
 
 // CancelJob requests cancellation of a job through ayato's authenticated proxy.
-func CancelJob(base, token, id string) error {
-	httpReq, err := http.NewRequest(http.MethodDelete, endpoint(base, "/api/unstable/jobs/"+id), nil)
+func CancelJob(ctx context.Context, base, token, id string) error {
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodDelete, endpoint(base, "/api/unstable/jobs/"+id), nil)
 	if err != nil {
 		return utils.WrapErr(err, "failed to create cancel request")
 	}
 	httpReq.Header.Set("Authorization", "Bearer "+token)
 
-	resp, err := http.DefaultClient.Do(httpReq)
+	resp, err := apiClient.Do(httpReq)
 	if err != nil {
 		return utils.WrapErr(err, "failed to cancel job")
 	}
@@ -145,8 +145,8 @@ func CancelJob(base, token, id string) error {
 }
 
 // FetchStats fetches miko's build statistics from ayato (public endpoint).
-func FetchStats(base string) (*Stats, error) {
-	resp, err := http.Get(endpoint(base, "/api/unstable/stats"))
+func FetchStats(ctx context.Context, base string) (*Stats, error) {
+	resp, err := get(ctx, apiClient, endpoint(base, "/api/unstable/stats"))
 	if err != nil {
 		return nil, utils.WrapErr(err, "failed to get stats")
 	}
@@ -166,8 +166,8 @@ func FetchStats(base string) (*Stats, error) {
 // StreamLogs reads the Server-Sent Events log stream for a job and writes each
 // log line to w. The logs endpoint is public, so no auth is sent. It returns
 // when the stream is closed by the server.
-func StreamLogs(base, id string, w io.Writer) error {
-	resp, err := http.Get(endpoint(base, "/api/unstable/jobs/"+id+"/logs"))
+func StreamLogs(ctx context.Context, base, id string, w io.Writer) error {
+	resp, err := get(ctx, streamClient, endpoint(base, "/api/unstable/jobs/"+id+"/logs"))
 	if err != nil {
 		return utils.WrapErr(err, "failed to open log stream")
 	}

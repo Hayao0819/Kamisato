@@ -22,7 +22,7 @@ func mikoStatsCmd() *cobra.Command {
 				return err
 			}
 
-			stats, err := ayatoclient.FetchStats(base)
+			stats, err := ayatoclient.FetchStats(cmd.Context(), base)
 			if err != nil {
 				return utils.WrapErr(err, "failed to get stats")
 			}

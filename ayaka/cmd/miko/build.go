@@ -59,9 +59,9 @@ func mikoBuildCmd() *cobra.Command {
 				if localKey == "" {
 					return utils.NewErr("--sign-local requires --local-key")
 				}
-				return shared.RunRemoteBuildLocalSign(opts, localKey, localPass)
+				return shared.RunRemoteBuildLocalSign(cmd.Context(), opts, localKey, localPass)
 			}
-			return shared.RunRemoteBuild(opts)
+			return shared.RunRemoteBuild(cmd.Context(), opts)
 		},
 	}
 	cmd.Flags().BoolVar(&signLocal, "sign-local", false, "Download the build and sign it locally instead of on miko")

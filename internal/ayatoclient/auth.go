@@ -2,6 +2,7 @@ package ayatoclient
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"strconv"
@@ -11,7 +12,7 @@ import (
 
 // ExchangeCLICode trades a one-time CLI code plus its PKCE verifier for a CLI
 // token over ayaka's direct ayato connection.
-func ExchangeCLICode(base, code, verifier string) (token, login string, id int64, err error) {
+func ExchangeCLICode(ctx context.Context, base, code, verifier string) (token, login string, id int64, err error) {
 	body, err := json.Marshal(struct {
 		Code         string `json:"code"`
 		CodeVerifier string `json:"code_verifier"`
@@ -20,7 +21,13 @@ func ExchangeCLICode(base, code, verifier string) (token, login string, id int64
 		return "", "", 0, utils.WrapErr(err, "failed to encode exchange request")
 	}
 
-	resp, err := http.Post(endpoint(base, "/api/unstable/auth/cli/exchange"), "application/json", bytes.NewReader(body))
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint(base, "/api/unstable/auth/cli/exchange"), bytes.NewReader(body))
+	if err != nil {
+		return "", "", 0, utils.WrapErr(err, "failed to create exchange request")
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	resp, err := apiClient.Do(httpReq)
 	if err != nil {
 		return "", "", 0, utils.WrapErr(err, "failed to exchange code")
 	}
@@ -42,14 +49,14 @@ func ExchangeCLICode(base, code, verifier string) (token, login string, id int64
 }
 
 // ListAdmins fetches the ayato admin allowlist with a Bearer CLI token.
-func ListAdmins(base, token string) ([]Admin, error) {
-	httpReq, err := http.NewRequest(http.MethodGet, endpoint(base, "/api/unstable/auth/admins"), nil)
+func ListAdmins(ctx context.Context, base, token string) ([]Admin, error) {
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint(base, "/api/unstable/auth/admins"), nil)
 	if err != nil {
 		return nil, utils.WrapErr(err, "failed to create list admins request")
 	}
 	httpReq.Header.Set("Authorization", "Bearer "+token)
 
-	resp, err := http.DefaultClient.Do(httpReq)
+	resp, err := apiClient.Do(httpReq)
 	if err != nil {
 		return nil, utils.WrapErr(err, "failed to list admins")
 	}
@@ -70,7 +77,7 @@ func ListAdmins(base, token string) ([]Admin, error) {
 
 // AddAdmin adds an admin by numeric id or by GitHub login. When id is zero the
 // login is sent and ayato resolves it; otherwise the id is sent.
-func AddAdmin(base, token string, id int64, login string) (Admin, error) {
+func AddAdmin(ctx context.Context, base, token string, id int64, login string) (Admin, error) {
 	var payload struct {
 		ID    int64  `json:"id,omitempty"`
 		Login string `json:"login,omitempty"`
@@ -85,14 +92,14 @@ func AddAdmin(base, token string, id int64, login string) (Admin, error) {
 		return Admin{}, utils.WrapErr(err, "failed to encode add admin request")
 	}
 
-	httpReq, err := http.NewRequest(http.MethodPost, endpoint(base, "/api/unstable/auth/admins"), bytes.NewReader(body))
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint(base, "/api/unstable/auth/admins"), bytes.NewReader(body))
 	if err != nil {
 		return Admin{}, utils.WrapErr(err, "failed to create add admin request")
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
 	httpReq.Header.Set("Authorization", "Bearer "+token)
 
-	resp, err := http.DefaultClient.Do(httpReq)
+	resp, err := apiClient.Do(httpReq)
 	if err != nil {
 		return Admin{}, utils.WrapErr(err, "failed to add admin")
 	}
@@ -110,14 +117,14 @@ func AddAdmin(base, token string, id int64, login string) (Admin, error) {
 }
 
 // RemoveAdmin removes an admin by numeric id.
-func RemoveAdmin(base, token string, id int64) error {
-	httpReq, err := http.NewRequest(http.MethodDelete, endpoint(base, "/api/unstable/auth/admins/"+strconv.FormatInt(id, 10)), nil)
+func RemoveAdmin(ctx context.Context, base, token string, id int64) error {
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodDelete, endpoint(base, "/api/unstable/auth/admins/"+strconv.FormatInt(id, 10)), nil)
 	if err != nil {
 		return utils.WrapErr(err, "failed to create remove admin request")
 	}
 	httpReq.Header.Set("Authorization", "Bearer "+token)
 
-	resp, err := http.DefaultClient.Do(httpReq)
+	resp, err := apiClient.Do(httpReq)
 	if err != nil {
 		return utils.WrapErr(err, "failed to remove admin")
 	}

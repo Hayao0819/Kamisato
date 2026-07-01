@@ -20,7 +20,7 @@ func mikoStatusCmd() *cobra.Command {
 				return err
 			}
 
-			job, err := ayatoclient.JobStatus(base, args[0])
+			job, err := ayatoclient.JobStatus(cmd.Context(), base, args[0])
 			if err != nil {
 				return utils.WrapErr(err, "failed to get job status")
 			}

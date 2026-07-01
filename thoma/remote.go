@@ -99,17 +99,17 @@ func remoteBuild(args []string) error {
 		Timeout:  cfg.timeout,
 	}
 
+	// Cancel the submit and wait on Ctrl-C/SIGTERM so a job stuck in queued does
+	// not hang the makepkg invocation forever.
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
 	fmt.Fprintf(os.Stderr, "thoma: delegating build to %s (repo %s, arch %s)\n", cfg.serverURL, cfg.repo, cfg.arch)
-	jobID, err := ayatoclient.SubmitBuild(cfg.serverURL, cfg.token, req)
+	jobID, err := ayatoclient.SubmitBuild(ctx, cfg.serverURL, cfg.token, req)
 	if err != nil {
 		return utils.WrapErr(err, "failed to submit build")
 	}
 	fmt.Fprintf(os.Stderr, "thoma: build job %s\n", jobID)
-
-	// Cancel the wait on Ctrl-C/SIGTERM so a job stuck in queued does not hang
-	// the makepkg invocation forever.
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
 
 	job, err := ayatoclient.WaitJob(ctx, cfg.serverURL, jobID, os.Stdout)
 	if err != nil {
@@ -126,7 +126,7 @@ func remoteBuild(args []string) error {
 	if err != nil {
 		return err
 	}
-	return placePackages(cfg, dests, job.Packages)
+	return placePackages(ctx, cfg, dests, job.Packages)
 }
 
 // readSource reads the PKGBUILD and small sidecar files from the build dir to
@@ -209,7 +209,7 @@ func configArg(args []string) string {
 // expected path. Packages are matched by pkgname (stable across pkgver drift on
 // VCS packages), and the file is written under the name yay expects so its
 // post-build os.Stat and pacman -U succeed.
-func placePackages(cfg *config, dests, built []string) error {
+func placePackages(ctx context.Context, cfg *config, dests, built []string) error {
 	for _, dest := range dests {
 		want := pkgName(filepath.Base(dest))
 		match := ""
@@ -222,7 +222,7 @@ func placePackages(cfg *config, dests, built []string) error {
 		if match == "" {
 			return utils.NewErrf("no built package matches %q (built: %s)", filepath.Base(dest), strings.Join(built, ", "))
 		}
-		if err := ayatoclient.DownloadPackage(cfg.serverURL, cfg.repo, cfg.arch, match, dest); err != nil {
+		if err := ayatoclient.DownloadPackage(ctx, cfg.serverURL, cfg.repo, cfg.arch, match, dest); err != nil {
 			return err
 		}
 		fmt.Fprintf(os.Stderr, "thoma: placed %s -> %s\n", match, dest)

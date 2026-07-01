@@ -23,7 +23,7 @@ func adminRemoveCmd() *cobra.Command {
 			if perr != nil || id <= 0 {
 				return utils.NewErrf("invalid id: %s", args[0])
 			}
-			if err := ayatoclient.RemoveAdmin(srv.URL, srv.Password, id); err != nil {
+			if err := ayatoclient.RemoveAdmin(cmd.Context(), srv.URL, srv.Password, id); err != nil {
 				return utils.WrapErr(err, "failed to remove admin")
 			}
 			fmt.Fprintf(cmd.OutOrStdout(), "removed admin %d\n", id)

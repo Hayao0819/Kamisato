@@ -19,7 +19,7 @@ func adminListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			admins, err := ayatoclient.ListAdmins(srv.URL, srv.Password)
+			admins, err := ayatoclient.ListAdmins(cmd.Context(), srv.URL, srv.Password)
 			if err != nil {
 				return utils.WrapErr(err, "failed to list admins")
 			}

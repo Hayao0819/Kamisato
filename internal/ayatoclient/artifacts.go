@@ -1,6 +1,7 @@
 package ayatoclient
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -10,8 +11,8 @@ import (
 )
 
 // ListArtifacts returns the downloadable artifact names of a client-signed job.
-func ListArtifacts(base, id string) ([]string, error) {
-	resp, err := http.Get(endpoint(base, "/api/unstable/jobs/"+id+"/artifacts"))
+func ListArtifacts(ctx context.Context, base, id string) ([]string, error) {
+	resp, err := get(ctx, apiClient, endpoint(base, "/api/unstable/jobs/"+id+"/artifacts"))
 	if err != nil {
 		return nil, utils.WrapErr(err, "failed to list artifacts")
 	}
@@ -29,9 +30,9 @@ func ListArtifacts(base, id string) ([]string, error) {
 }
 
 // DownloadArtifact streams one job artifact to w.
-func DownloadArtifact(base, id, name string, w io.Writer) error {
+func DownloadArtifact(ctx context.Context, base, id, name string, w io.Writer) error {
 	u := endpoint(base, "/api/unstable/jobs/"+id+"/artifacts/"+url.PathEscape(name))
-	resp, err := http.Get(u)
+	resp, err := get(ctx, streamClient, u)
 	if err != nil {
 		return utils.WrapErr(err, "failed to download artifact")
 	}

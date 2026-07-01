@@ -31,7 +31,7 @@ type RemoteBuildOpts struct {
 
 // RunRemoteBuild submits a build to ayato and prints the job id. The source is
 // --git, else the local PKGBUILD of the named source package.
-func RunRemoteBuild(o RemoteBuildOpts) error {
+func RunRemoteBuild(ctx context.Context, o RemoteBuildOpts) error {
 	srv, err := ResolveAyatoServer(o.Server)
 	if err != nil {
 		return err
@@ -42,7 +42,7 @@ func RunRemoteBuild(o RemoteBuildOpts) error {
 	}
 
 	slog.Info("submitting remote build", "server", srv.URL, "repo", o.Repo)
-	jobID, err := ayatoclient.SubmitBuild(srv.URL, srv.Password, req)
+	jobID, err := ayatoclient.SubmitBuild(ctx, srv.URL, srv.Password, req)
 	if err != nil {
 		return utils.WrapErr(err, "failed to submit build")
 	}
@@ -82,7 +82,7 @@ func buildRequest(o RemoteBuildOpts) (*ayatoclient.BuildRequest, error) {
 
 // RunRemoteBuildLocalSign builds on miko without server-side signing, downloads
 // the artifacts, signs them locally with keyPath, and uploads them to ayato.
-func RunRemoteBuildLocalSign(o RemoteBuildOpts, keyPath, passphrase string) error {
+func RunRemoteBuildLocalSign(ctx context.Context, o RemoteBuildOpts, keyPath, passphrase string) error {
 	srv, err := ResolveAyatoServer(o.Server)
 	if err != nil {
 		return err
@@ -97,17 +97,17 @@ func RunRemoteBuildLocalSign(o RemoteBuildOpts, keyPath, passphrase string) erro
 	}
 	req.SignMode = "client"
 
-	jobID, err := ayatoclient.SubmitBuild(srv.URL, srv.Password, req)
+	jobID, err := ayatoclient.SubmitBuild(ctx, srv.URL, srv.Password, req)
 	if err != nil {
 		return utils.WrapErr(err, "failed to submit build")
 	}
 	slog.Info("submitted client-signed build", "job", jobID, "server", srv.URL)
 
-	if err := waitForJob(srv.URL, jobID); err != nil {
+	if err := waitForJob(ctx, srv.URL, jobID); err != nil {
 		return err
 	}
 
-	names, err := ayatoclient.ListArtifacts(srv.URL, jobID)
+	names, err := ayatoclient.ListArtifacts(ctx, srv.URL, jobID)
 	if err != nil {
 		return err
 	}
@@ -136,7 +136,7 @@ func RunRemoteBuildLocalSign(o RemoteBuildOpts, keyPath, passphrase string) erro
 		if err != nil {
 			return err
 		}
-		if derr := ayatoclient.DownloadArtifact(srv.URL, jobID, name, f); derr != nil {
+		if derr := ayatoclient.DownloadArtifact(ctx, srv.URL, jobID, name, f); derr != nil {
 			_ = f.Close()
 			return derr
 		}
@@ -160,10 +160,10 @@ func RunRemoteBuildLocalSign(o RemoteBuildOpts, keyPath, passphrase string) erro
 const clientBuildTimeout = 2 * time.Hour
 
 // waitForJob polls until the job reaches a terminal state or the timeout elapses.
-func waitForJob(base, id string) error {
+func waitForJob(ctx context.Context, base, id string) error {
 	deadline := time.Now().Add(clientBuildTimeout)
 	for {
-		job, err := ayatoclient.JobStatus(base, id)
+		job, err := ayatoclient.JobStatus(ctx, base, id)
 		if err != nil {
 			return err
 		}

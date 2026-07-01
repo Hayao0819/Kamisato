@@ -157,7 +157,7 @@ func browserLogin(cmd *cobra.Command, server string, noBrowser bool) (token, log
 		return "", "", utils.WrapErr(ctx.Err(), "login timed out or was cancelled")
 	}
 
-	token, login, _, err = ayatoclient.ExchangeCLICode(server, code, verifier)
+	token, login, _, err = ayatoclient.ExchangeCLICode(ctx, server, code, verifier)
 	if err != nil {
 		return "", "", utils.WrapErr(err, "failed to exchange login code")
 	}

@@ -1,6 +1,7 @@
 package ayatoclient
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -18,7 +19,7 @@ func TestSubmitBuildSendsBearer(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	id, err := SubmitBuild(srv.URL, "tok123", &BuildRequest{Repo: "r", Arch: "x86_64"})
+	id, err := SubmitBuild(context.Background(), srv.URL, "tok123", &BuildRequest{Repo: "r", Arch: "x86_64"})
 	if err != nil {
 		t.Fatalf("SubmitBuild: %v", err)
 	}
@@ -43,7 +44,7 @@ func TestCancelJobSendsBearer(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	if err := CancelJob(srv.URL, "tok123", "job-9"); err != nil {
+	if err := CancelJob(context.Background(), srv.URL, "tok123", "job-9"); err != nil {
 		t.Fatalf("CancelJob: %v", err)
 	}
 	if gotAuth != "Bearer tok123" {
@@ -69,7 +70,7 @@ func TestExchangeCLICodeRoundTrip(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	token, login, id, err := ExchangeCLICode(srv.URL, "the-code", "the-verifier")
+	token, login, id, err := ExchangeCLICode(context.Background(), srv.URL, "the-code", "the-verifier")
 	if err != nil {
 		t.Fatalf("ExchangeCLICode: %v", err)
 	}
@@ -105,7 +106,7 @@ func TestAddAdminLoginVsID(t *testing.T) {
 			}))
 			defer srv.Close()
 
-			admin, err := AddAdmin(srv.URL, "tok", tc.id, tc.login)
+			admin, err := AddAdmin(context.Background(), srv.URL, "tok", tc.id, tc.login)
 			if err != nil {
 				t.Fatalf("AddAdmin: %v", err)
 			}
@@ -129,7 +130,7 @@ func TestRemoveAdminPath(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	if err := RemoveAdmin(srv.URL, "tok", 13); err != nil {
+	if err := RemoveAdmin(context.Background(), srv.URL, "tok", 13); err != nil {
 		t.Fatalf("RemoveAdmin: %v", err)
 	}
 	if gotMethod != http.MethodDelete {

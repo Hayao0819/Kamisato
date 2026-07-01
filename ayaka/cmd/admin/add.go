@@ -26,7 +26,7 @@ func adminAddCmd() *cobra.Command {
 			} else {
 				login = args[0]
 			}
-			admin, err := ayatoclient.AddAdmin(srv.URL, srv.Password, id, login)
+			admin, err := ayatoclient.AddAdmin(cmd.Context(), srv.URL, srv.Password, id, login)
 			if err != nil {
 				return utils.WrapErr(err, "failed to add admin")
 			}

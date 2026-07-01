@@ -5,18 +5,39 @@
 package ayatoclient
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/Hayao0819/Kamisato/internal/utils"
+)
+
+// apiClient bounds a regular JSON API call so a hung ayato cannot hang the CLI.
+// Streaming and download requests use streamClient instead — a total timeout
+// would abort a long log stream or a large package transfer — and rely on
+// context cancellation.
+var (
+	apiClient    = &http.Client{Timeout: 30 * time.Second}
+	streamClient = &http.Client{}
 )
 
 // endpoint joins the ayato base URL with an API path, tolerating a trailing
 // slash on the base.
 func endpoint(base, p string) string {
 	return strings.TrimRight(base, "/") + p
+}
+
+// get issues a GET carrying ctx (for cancellation and, on apiClient, the
+// timeout).
+func get(ctx context.Context, client *http.Client, url string) (*http.Response, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, err
+	}
+	return client.Do(req)
 }
 
 // responseErr builds an error from a non-success response, including any error

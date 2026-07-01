@@ -1,6 +1,7 @@
 package shared
 
 import (
+	"context"
 	"strings"
 
 	"github.com/Hayao0819/Kamisato/internal/ayatoclient"
@@ -37,7 +38,7 @@ func BuildPkgRows(repos []*repo.SourceRepo, format, server string) []PkgRow {
 	var jobs []ayatoclient.Job
 	if wantBuild {
 		if base := ayatoBaseBestEffort(server); base != "" {
-			jobs, _ = ayatoclient.ListJobs(base)
+			jobs, _ = ayatoclient.ListJobs(context.Background(), base)
 		}
 	}
 
