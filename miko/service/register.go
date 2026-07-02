@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -11,6 +10,7 @@ import (
 
 	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/internal/httpx"
+	"github.com/Hayao0819/Kamisato/internal/utils"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/sign"
 )
 
@@ -40,7 +40,7 @@ func RegisterWorkerCert(ctx context.Context, cfg *conf.MikoConfig, ks *sign.Keys
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
-		return fmt.Errorf("ayato register signer: status %d: %s", resp.StatusCode, string(body))
+		return utils.NewErrf("ayato register signer: status %d: %s", resp.StatusCode, string(body))
 	}
 	slog.Info("registered worker signing key with ayato", "url", url)
 	return nil
