@@ -70,7 +70,7 @@ func TestPlacePackages(t *testing.T) {
 			}
 			dest := filepath.Join(t.TempDir(), tc.destName)
 
-			err := placePackages(context.Background(), cfg, srv.URL, "job-123", []string{dest}, tc.built)
+			err := placePackages(context.Background(), cfg, srv.URL, "", "job-123", []string{dest}, tc.built)
 			if tc.wantErr != "" {
 				if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
 					t.Fatalf("err = %v, want substring %q", err, tc.wantErr)

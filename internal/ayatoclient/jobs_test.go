@@ -20,7 +20,7 @@ func TestWaitJobCancelsOnContext(t *testing.T) {
 	defer cancel()
 
 	start := time.Now()
-	_, err := WaitJob(ctx, srv.URL, "job-1", nil)
+	_, err := WaitJob(ctx, srv.URL, "", "job-1", nil)
 	if !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("WaitJob err = %v, want context.DeadlineExceeded", err)
 	}

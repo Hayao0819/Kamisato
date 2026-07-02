@@ -15,7 +15,7 @@ import (
 // served under any concrete arch via ayato's fallback, so requesting the build
 // arch works regardless of the package's own arch.
 func DownloadPackage(ctx context.Context, base, repo, arch, file, dest string) error {
-	resp, err := get(ctx, streamClient, endpoint(base, "/repo/"+url.PathEscape(repo)+"/"+url.PathEscape(arch)+"/"+url.PathEscape(file)))
+	resp, err := get(ctx, streamClient, endpoint(base, "/repo/"+url.PathEscape(repo)+"/"+url.PathEscape(arch)+"/"+url.PathEscape(file)), "")
 	if err != nil {
 		return utils.WrapErr(err, "failed to download "+file)
 	}

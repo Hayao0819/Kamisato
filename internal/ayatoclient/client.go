@@ -35,11 +35,14 @@ func endpoint(base, p string) string {
 }
 
 // get issues a GET carrying ctx (for cancellation and, on apiClient, the
-// timeout).
-func get(ctx context.Context, client *http.Client, url string) (*http.Response, error) {
+// timeout), attaching the Bearer token when non-empty.
+func get(ctx context.Context, client *http.Client, url, token string) (*http.Response, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
+	}
+	if token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
 	}
 	return client.Do(req)
 }

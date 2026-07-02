@@ -119,7 +119,7 @@ func remoteBuild(args []string) error {
 	}
 	fmt.Fprintf(os.Stderr, "thoma: build job %s\n", jobID)
 
-	job, err := ayatoclient.WaitJob(ctx, base, jobID, os.Stdout)
+	job, err := ayatoclient.WaitJob(ctx, base, token, jobID, os.Stdout)
 	if err != nil {
 		return utils.WrapErr(err, "failed while waiting for build")
 	}
@@ -134,7 +134,7 @@ func remoteBuild(args []string) error {
 	if err != nil {
 		return err
 	}
-	return placePackages(ctx, cfg, base, jobID, dests, job.Packages)
+	return placePackages(ctx, cfg, base, token, jobID, dests, job.Packages)
 }
 
 // packageDests asks the real makepkg where the output packages belong, so the
@@ -178,7 +178,7 @@ func configArg(args []string) string {
 // expected path. Packages are matched by pkgname (stable across pkgver drift on
 // VCS packages), and the file is written under the name yay expects so its
 // post-build os.Stat and pacman -U succeed.
-func placePackages(ctx context.Context, cfg *conf.ThomaConfig, base, jobID string, dests, built []string) error {
+func placePackages(ctx context.Context, cfg *conf.ThomaConfig, base, token, jobID string, dests, built []string) error {
 	for _, dest := range dests {
 		want := pkgName(filepath.Base(dest))
 		match := ""
@@ -191,7 +191,7 @@ func placePackages(ctx context.Context, cfg *conf.ThomaConfig, base, jobID strin
 		if match == "" {
 			return utils.NewErrf("no built package matches %q (built: %s)", filepath.Base(dest), strings.Join(built, ", "))
 		}
-		if err := downloadBuilt(ctx, cfg, base, jobID, match, dest); err != nil {
+		if err := downloadBuilt(ctx, cfg, base, token, jobID, match, dest); err != nil {
 			return err
 		}
 		fmt.Fprintf(os.Stderr, "thoma: placed %s -> %s\n", match, dest)
@@ -202,7 +202,7 @@ func placePackages(ctx context.Context, cfg *conf.ThomaConfig, base, jobID strin
 // downloadBuilt fetches one built package to dest. Ayato mode pulls the
 // published, host-signed package from ayato's repo route; direct mode pulls the
 // unsigned artifact retained on the miko job.
-func downloadBuilt(ctx context.Context, cfg *conf.ThomaConfig, base, jobID, name, dest string) error {
+func downloadBuilt(ctx context.Context, cfg *conf.ThomaConfig, base, token, jobID, name, dest string) error {
 	if !cfg.Direct() {
 		return ayatoclient.DownloadPackage(ctx, base, cfg.Repo, cfg.Arch, name, dest)
 	}
@@ -210,7 +210,7 @@ func downloadBuilt(ctx context.Context, cfg *conf.ThomaConfig, base, jobID, name
 	if err != nil {
 		return utils.WrapErr(err, "failed to create "+dest)
 	}
-	if err := ayatoclient.DownloadArtifact(ctx, base, jobID, name, f); err != nil {
+	if err := ayatoclient.DownloadArtifact(ctx, base, token, jobID, name, f); err != nil {
 		_ = f.Close()
 		return err
 	}

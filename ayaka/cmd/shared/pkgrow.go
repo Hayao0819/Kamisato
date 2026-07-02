@@ -37,8 +37,8 @@ func BuildPkgRows(repos []*repo.SourceRepo, format, server string) []PkgRow {
 	}
 	var jobs []ayatoclient.Job
 	if wantBuild {
-		if base := ayatoBaseBestEffort(server); base != "" {
-			jobs, _ = ayatoclient.ListJobs(context.Background(), base)
+		if base, token := ayatoBaseBestEffort(server); base != "" {
+			jobs, _ = ayatoclient.ListJobs(context.Background(), base, token)
 		}
 	}
 
@@ -126,16 +126,16 @@ func LatestJobStatus(jobs []ayatoclient.Job, repoName string, names []string) st
 	return status
 }
 
-// ayatoBaseBestEffort resolves the ayato base URL: --server, else serverdb default, else "".
-func ayatoBaseBestEffort(server string) string {
-	if server != "" {
-		return server
-	}
-	base, err := blinkyutils.ResolveServerName(server)
+// ayatoBaseBestEffort resolves the ayato base URL and CLI token for the build
+// column: the registered --server (or serverdb default). Returns empty strings
+// when no registered server is available, so the caller skips the job lookup —
+// which the auth-gated jobs endpoint would reject without the token anyway.
+func ayatoBaseBestEffort(server string) (base, token string) {
+	srv, err := blinkyutils.ResolveServer(server)
 	if err != nil {
-		return ""
+		return "", ""
 	}
-	return base
+	return srv.URL, srv.Password
 }
 
 // orDash renders an empty value as "-" so columns stay aligned.

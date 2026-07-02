@@ -20,7 +20,7 @@ func mikoLogsCmd() *cobra.Command {
 				return err
 			}
 
-			if err := ayatoclient.StreamLogs(cmd.Context(), srv.URL, args[0], os.Stdout); err != nil {
+			if err := ayatoclient.StreamLogs(cmd.Context(), srv.URL, srv.Password, args[0], os.Stdout); err != nil {
 				return utils.WrapErr(err, "failed to stream logs")
 			}
 			return nil

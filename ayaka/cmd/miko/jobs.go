@@ -18,7 +18,7 @@ func mikoJobsCmd() *cobra.Command {
 				return err
 			}
 
-			jobs, err := ayatoclient.ListJobs(cmd.Context(), srv.URL)
+			jobs, err := ayatoclient.ListJobs(cmd.Context(), srv.URL, srv.Password)
 			if err != nil {
 				return utils.WrapErr(err, "failed to list jobs")
 			}

@@ -107,7 +107,7 @@ func RunRemoteBuildLocalSign(ctx context.Context, o RemoteBuildOpts, keyPath, pa
 	// Bound the wait so a stuck queued/running job cannot hang the CLI forever.
 	waitCtx, cancel := context.WithTimeout(ctx, clientBuildTimeout)
 	defer cancel()
-	job, err := ayatoclient.WaitJob(waitCtx, srv.URL, jobID, nil)
+	job, err := ayatoclient.WaitJob(waitCtx, srv.URL, srv.Password, jobID, nil)
 	if err != nil {
 		return err
 	}
@@ -118,7 +118,7 @@ func RunRemoteBuildLocalSign(ctx context.Context, o RemoteBuildOpts, keyPath, pa
 		return utils.NewErr("build cancelled")
 	}
 
-	names, err := ayatoclient.ListArtifacts(ctx, srv.URL, jobID)
+	names, err := ayatoclient.ListArtifacts(ctx, srv.URL, srv.Password, jobID)
 	if err != nil {
 		return err
 	}
@@ -147,7 +147,7 @@ func RunRemoteBuildLocalSign(ctx context.Context, o RemoteBuildOpts, keyPath, pa
 		if err != nil {
 			return err
 		}
-		if derr := ayatoclient.DownloadArtifact(ctx, srv.URL, jobID, name, f); derr != nil {
+		if derr := ayatoclient.DownloadArtifact(ctx, srv.URL, srv.Password, jobID, name, f); derr != nil {
 			_ = f.Close()
 			return derr
 		}
