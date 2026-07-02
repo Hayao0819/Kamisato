@@ -40,6 +40,12 @@ type entry struct {
 	verified  func() bool
 }
 
+// delegatedVerified reports whether this source's signed catalog currently vouches
+// for its packages (delegated and live-verified), so they bypass the trust store.
+func (e entry) delegatedVerified() bool {
+	return e.delegated && e.verified != nil && e.verified()
+}
+
 // Composite is an aurweb.Backend over an ordered set of sources, applying the
 // trust gate as results are merged.
 type Composite struct {
@@ -76,13 +82,10 @@ func (c *Composite) add(e entry) {
 	})
 }
 
-// keep applies the trust gate to a package from entry e, except a delegated
-// source whose attestation currently verifies passes unchanged.
+// keep applies the trust gate to a package from entry e; a delegated source whose
+// attestation currently verifies bypasses the store inside gate.
 func (c *Composite) keep(e entry, p aurweb.Pkg) (aurweb.Pkg, bool) {
-	if e.delegated && e.verified != nil && e.verified() {
-		return p, true
-	}
-	return gate(c.store, c.mode, e.source, p)
+	return gate(c.store, c.mode, e.source, e.delegatedVerified(), p)
 }
 
 // Sync refreshes every source that supports it, logging but not failing on a
@@ -212,7 +215,7 @@ func (c *Composite) Resolve(ctx context.Context, name string) (pkg aurweb.Pkg, s
 		}
 		for _, p := range pkgs {
 			if p.Name == name {
-				return p, e.source, e.delegated && e.verified != nil && e.verified(), true
+				return p, e.source, e.delegatedVerified(), true
 			}
 		}
 	}

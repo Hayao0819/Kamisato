@@ -23,6 +23,19 @@ type Verdict struct {
 	Reasons  []string
 }
 
+// EvaluateResolved is the canonical trust verdict for a package already resolved
+// through the federation layer. A delegated source whose signed catalog currently
+// verifies is trusted outright, bypassing the store; a nil store is likewise
+// trusting (gating disabled). Otherwise Evaluate decides. The federation merge
+// gate and the install-time verify hook both route through this so the delegation
+// bypass cannot drift between them.
+func (s *Store) EvaluateResolved(source, pkgbase, maintainer string, delegatedVerified bool) Verdict {
+	if delegatedVerified || s == nil {
+		return Verdict{Decision: Trusted}
+	}
+	return s.Evaluate(source, pkgbase, maintainer)
+}
+
 // Evaluate judges a resolved package using only resolution-time facts (source,
 // pkgbase, current maintainer account). It does not look at the commit — that is
 // the build-time pin's job. Overlays are trusted by configuration and should be

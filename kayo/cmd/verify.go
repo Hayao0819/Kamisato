@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"io"
 	"log/slog"
 	"strings"
 
@@ -13,6 +14,35 @@ import (
 	"github.com/Hayao0819/Kamisato/pkg/pacman/hook"
 	"github.com/spf13/cobra"
 )
+
+// verifyTarget is a resolved install target plus the delegation flag the hook
+// needs to gate it.
+type verifyTarget struct {
+	pkg               aurweb.Pkg
+	source            string
+	delegatedVerified bool
+}
+
+// reportTrust writes one status line per target (in the order given) and reports
+// whether any target needs review. It routes every target through the canonical
+// trust.EvaluateResolved, the same gate the federation merge uses, so the
+// install-time verdict cannot diverge from the resolve-time one.
+func reportTrust(w io.Writer, store *trust.Store, order []string, found map[string]verifyTarget) (needsReview bool) {
+	for _, name := range order {
+		t, ok := found[name]
+		if !ok {
+			continue // official-repo package, or unknown to the AUR
+		}
+		v := store.EvaluateResolved(t.source, t.pkg.PackageBase, t.pkg.Maintainer, t.delegatedVerified)
+		if v.Decision == trust.Trusted {
+			fmt.Fprintf(w, "  ok      %s (%s)\n", name, t.source)
+			continue
+		}
+		fmt.Fprintf(w, "  REVIEW  %s (%s) — %s\n", name, t.source, strings.Join(v.Reasons, "; "))
+		needsReview = true
+	}
+	return needsReview
+}
 
 // verifyCmd is the install-time backstop the pacman PreTransaction hook calls.
 // Official-repo packages are not ours to gate, so they are skipped.
@@ -46,16 +76,11 @@ func verifyCmd() *cobra.Command {
 			up := shared.UpstreamClient(cfg)
 			enforce := strict || cfg.ResolvedEnforceMode() == "enforce"
 
-			type resolved struct {
-				pkg               aurweb.Pkg
-				source            string
-				delegatedVerified bool
-			}
-			found := make(map[string]resolved, len(names))
+			found := make(map[string]verifyTarget, len(names))
 			var unknown []string
 			for _, name := range names {
 				if pkg, source, delegatedVerified, ok := comp.Resolve(ctx, name); ok {
-					found[name] = resolved{pkg, source, delegatedVerified}
+					found[name] = verifyTarget{pkg, source, delegatedVerified}
 				} else {
 					unknown = append(unknown, name)
 				}
@@ -88,34 +113,12 @@ func verifyCmd() *cobra.Command {
 						slog.Warn("upstream lookup failed; AUR packages unverified this run", "error", ierr)
 					}
 					for _, p := range ps {
-						found[p.Name] = resolved{pkg: p, source: "aur"}
+						found[p.Name] = verifyTarget{pkg: p, source: "aur"}
 					}
 				}
 			}
 
-			out := cmd.OutOrStdout()
-			blocked := false
-			for _, name := range names {
-				r, ok := found[name]
-				if !ok {
-					continue // official-repo package, or unknown to the AUR
-				}
-				// A delegated source whose attestation currently verifies bypasses the
-				// trust store, matching the daemon's keep() path.
-				if r.delegatedVerified {
-					fmt.Fprintf(out, "  ok      %s (%s)\n", name, r.source)
-					continue
-				}
-				v := store.Evaluate(r.source, r.pkg.PackageBase, r.pkg.Maintainer)
-				if v.Decision == trust.Trusted {
-					fmt.Fprintf(out, "  ok      %s (%s)\n", name, r.source)
-					continue
-				}
-				fmt.Fprintf(out, "  REVIEW  %s (%s) — %s\n", name, r.source, strings.Join(v.Reasons, "; "))
-				blocked = true
-			}
-
-			if blocked && enforce {
+			if reportTrust(cmd.OutOrStdout(), store, names, found) && enforce {
 				return utils.NewErr("untrusted packages in transaction; review with 'kayo update' or 'kayo trust add'")
 			}
 			return nil

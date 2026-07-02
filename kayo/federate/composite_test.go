@@ -83,23 +83,27 @@ func TestGate(t *testing.T) {
 	takeover := aurweb.Pkg{Name: "yay", PackageBase: "yay", Maintainer: "attacker", Description: "d"}
 
 	// enforce: unreviewed and takeover are both dropped.
-	if _, keep := gate(st, "enforce", "aur", unreviewed); keep {
+	if _, keep := gate(st, "enforce", "aur", false, unreviewed); keep {
 		t.Error("enforce should drop unreviewed package")
 	}
-	if _, keep := gate(st, "enforce", "aur", takeover); keep {
+	if _, keep := gate(st, "enforce", "aur", false, takeover); keep {
 		t.Error("enforce should drop maintainer-changed package")
+	}
+	// enforce: a delegated-verified source bypasses the store even for unreviewed.
+	if _, keep := gate(st, "enforce", "aur", true, unreviewed); !keep {
+		t.Error("delegated-verified should bypass the gate in enforce mode")
 	}
 
 	// warn: unreviewed passes unannotated (avoid noise on every AUR package).
-	if gp, keep := gate(st, "warn", "aur", unreviewed); !keep || strings.HasPrefix(gp.Description, "[kayo") {
+	if gp, keep := gate(st, "warn", "aur", false, unreviewed); !keep || strings.HasPrefix(gp.Description, "[kayo") {
 		t.Errorf("warn should pass unreviewed unannotated: keep=%v desc=%q", keep, gp.Description)
 	}
 	// warn: a violated approval (maintainer changed) is annotated.
-	if gp, keep := gate(st, "warn", "aur", takeover); !keep || !strings.Contains(gp.Description, "maintainer changed") {
+	if gp, keep := gate(st, "warn", "aur", false, takeover); !keep || !strings.Contains(gp.Description, "maintainer changed") {
 		t.Errorf("warn should annotate takeover: keep=%v desc=%q", keep, gp.Description)
 	}
 	// overlays are trusted by config regardless of mode.
-	if gp, keep := gate(st, "enforce", "overlay", unreviewed); !keep || strings.HasPrefix(gp.Description, "[kayo") {
+	if gp, keep := gate(st, "enforce", "overlay", false, unreviewed); !keep || strings.HasPrefix(gp.Description, "[kayo") {
 		t.Errorf("overlay should always pass clean: keep=%v desc=%q", keep, gp.Description)
 	}
 }

@@ -8,22 +8,21 @@ import (
 	"github.com/Hayao0819/Kamisato/pkg/aurweb"
 )
 
-// gate applies the trust verdict to one resolved package. A trusted result
-// passes unchanged. A needs-review result is dropped in "enforce" mode; in
-// "warn" mode it is annotated only when it violates an EXISTING approval (e.g. a
-// maintainer change) — never for the normal "never reviewed" state, which would
-// noisily prefix every upstream package.
-func gate(st *trust.Store, mode, source string, p aurweb.Pkg) (aurweb.Pkg, bool) {
-	if st == nil {
-		return p, true
-	}
-	v := st.Evaluate(source, p.PackageBase, p.Maintainer)
+// gate applies the trust verdict to one resolved package via the canonical
+// trust.EvaluateResolved (so delegatedVerified bypasses the store consistently
+// with the verify hook). A trusted result passes unchanged. A needs-review result
+// is dropped in "enforce" mode; in "warn" mode it is annotated only when it
+// violates an EXISTING approval (e.g. a maintainer change) — never for the normal
+// "never reviewed" state, which would noisily prefix every upstream package.
+func gate(st *trust.Store, mode, source string, delegatedVerified bool, p aurweb.Pkg) (aurweb.Pkg, bool) {
+	v := st.EvaluateResolved(source, p.PackageBase, p.Maintainer, delegatedVerified)
 	if v.Decision == trust.Trusted {
 		return p, true
 	}
 	if mode == "enforce" {
 		return p, false
 	}
+	// A non-trusted verdict means the store was consulted, so st is non-nil here.
 	if _, approved := st.Approval(p.PackageBase); approved {
 		p.Description = "[kayo: " + strings.Join(v.Reasons, "; ") + "] " + p.Description
 	}
@@ -58,7 +57,7 @@ func (u *TrustUpstream) Search(ctx context.Context, by aurweb.By, arg string) ([
 func (u *TrustUpstream) gateAll(pkgs []aurweb.Pkg) []aurweb.Pkg {
 	out := pkgs[:0]
 	for _, p := range pkgs {
-		if gp, keep := gate(u.Store, u.Mode, "aur", p); keep {
+		if gp, keep := gate(u.Store, u.Mode, "aur", false, p); keep {
 			out = append(out, gp)
 		}
 	}
