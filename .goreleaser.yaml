@@ -40,12 +40,24 @@ builds:
     ldflags:
       - -s -w
 
+  - id: thoma
+    main: ./thoma
+    binary: thoma
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+
 archives:
   - id: default
     builds:
       - ayaka
       - ayato
       - lumine
+      - thoma
     format: tar.gz
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     files:
