@@ -1,4 +1,6 @@
-package utils
+// Package compress sniffs and transparently decodes the compression formats
+// pacman uses for its repo databases and package archives.
+package compress
 
 import (
 	"bufio"

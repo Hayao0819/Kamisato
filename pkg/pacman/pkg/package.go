@@ -10,7 +10,7 @@ import (
 	"path"
 	"strings"
 
-	"github.com/Hayao0819/Kamisato/internal/utils"
+	"github.com/Hayao0819/Kamisato/pkg/compress"
 	"github.com/Hayao0819/Kamisato/pkg/raiou"
 	"github.com/Hayao0819/nahi/futils"
 )
@@ -52,7 +52,7 @@ type BinaryPackage struct {
 // stop=true from fn ends the walk early. It centralizes the decompress + tar
 // scaffolding shared by ReadBinaryPackage and ReadBinaryPackageMeta.
 func walkPackageTar(r io.Reader, fn func(hdr *tar.Header, content io.Reader) (stop bool, err error)) error {
-	decoder, _, err := utils.DetectCompression(r)
+	decoder, _, err := compress.DetectCompression(r)
 	if err != nil {
 		return fmt.Errorf("failed to create decoder: %w", err)
 	}
