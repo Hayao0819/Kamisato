@@ -14,11 +14,11 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/httpx"
 )
 
-// DefaultUserAgent is sent on every upstream request; the AUR blocks the default
+// defaultUserAgent is sent on every upstream request; the AUR blocks the default
 // user agents of common HTTP libraries.
-const DefaultUserAgent = "kamisato-aurweb/1.0 (+https://github.com/Hayao0819/Kamisato)"
+const defaultUserAgent = "kamisato-aurweb/1.0 (+https://github.com/Hayao0819/Kamisato)"
 
-const DefaultAURBase = "https://aur.archlinux.org"
+const defaultAURBase = "https://aur.archlinux.org"
 
 // upstreamBatchSize bounds how many pkgnames go into one info GET, matching the
 // AUR helper convention and keeping the URL within limits.
@@ -59,7 +59,7 @@ func WithGitBase(base string) AURUpstreamOption {
 // "https://aur.archlinux.org/rpc"; an empty value uses the canonical AUR.
 func NewAURUpstream(rpcURL string, opts ...AURUpstreamOption) *AURUpstream {
 	if rpcURL == "" {
-		rpcURL = DefaultAURBase + "/rpc"
+		rpcURL = defaultAURBase + "/rpc"
 	}
 	rpcURL = strings.TrimRight(rpcURL, "/")
 	rpcURL = strings.TrimSuffix(rpcURL, "?")
@@ -67,7 +67,7 @@ func NewAURUpstream(rpcURL string, opts ...AURUpstreamOption) *AURUpstream {
 	u := &AURUpstream{
 		rpcURL:     rpcURL,
 		gitBase:    deriveOrigin(rpcURL),
-		userAgent:  DefaultUserAgent,
+		userAgent:  defaultUserAgent,
 		client:     httpx.New(15*time.Second, 3),
 		dumpClient: httpx.New(3*time.Minute, 3),
 	}
@@ -176,7 +176,7 @@ func (u *AURUpstream) get(ctx context.Context, v url.Values) ([]byte, error) {
 func deriveOrigin(rawURL string) string {
 	parsed, err := url.Parse(rawURL)
 	if err != nil || parsed.Host == "" {
-		return DefaultAURBase
+		return defaultAURBase
 	}
 	return parsed.Scheme + "://" + parsed.Host
 }

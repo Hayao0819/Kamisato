@@ -26,31 +26,31 @@ type dbEntry struct {
 	files []byte
 }
 
-// DBBuilder assembles the pacman ".db" (desc only) and ".files" (desc + files)
+// dbBuilder assembles the pacman ".db" (desc only) and ".files" (desc + files)
 // archives natively, replacing the repo-add CLI. The usual cycle is: LoadDB +
 // LoadFiles to seed from the existing archives, Upsert or Remove to mutate, then
 // WriteDB + WriteFiles to emit the new archives.
-type DBBuilder struct {
+type dbBuilder struct {
 	entries map[string]*dbEntry // keyed by dir "<pkg>-<ver>"
 }
 
-func NewDBBuilder() *DBBuilder {
-	return &DBBuilder{entries: map[string]*dbEntry{}}
+func newDBBuilder() *dbBuilder {
+	return &dbBuilder{entries: map[string]*dbEntry{}}
 }
 
 // LoadDB reads a ".db" archive (desc-only) into the builder. A nil reader is a
 // no-op, so a fresh repository can be built from nothing.
-func (b *DBBuilder) LoadDB(r io.Reader) error {
+func (b *dbBuilder) LoadDB(r io.Reader) error {
 	return b.load(r, false)
 }
 
 // LoadFiles reads a ".files" archive (desc + files) into the builder, capturing
 // each package's files member so a rewrite preserves it.
-func (b *DBBuilder) LoadFiles(r io.Reader) error {
+func (b *dbBuilder) LoadFiles(r io.Reader) error {
 	return b.load(r, true)
 }
 
-func (b *DBBuilder) load(r io.Reader, withFiles bool) error {
+func (b *dbBuilder) load(r io.Reader, withFiles bool) error {
 	if r == nil {
 		return nil
 	}
@@ -101,7 +101,7 @@ func (b *DBBuilder) load(r io.Reader, withFiles bool) error {
 // Upsert adds (or replaces) a package's entry. Any existing entry with the same
 // package name is removed first, matching repo-add, which drops all prior
 // entries for a name before writing the new one.
-func (b *DBBuilder) Upsert(meta *pkg.BinaryPackageMeta) error {
+func (b *dbBuilder) Upsert(meta *pkg.BinaryPackageMeta) error {
 	if meta == nil || meta.Info == nil {
 		return fmt.Errorf("nil package metadata")
 	}
@@ -124,7 +124,7 @@ func (b *DBBuilder) Upsert(meta *pkg.BinaryPackageMeta) error {
 
 // Remove drops every entry whose package name matches, reporting whether any
 // were removed.
-func (b *DBBuilder) Remove(name string) bool {
+func (b *dbBuilder) Remove(name string) bool {
 	removed := false
 	for dir, e := range b.entries {
 		if e.name == name {
@@ -136,16 +136,16 @@ func (b *DBBuilder) Remove(name string) bool {
 }
 
 // WriteDB writes the gzipped ".db" archive (desc members only).
-func (b *DBBuilder) WriteDB(w io.Writer) error {
+func (b *dbBuilder) WriteDB(w io.Writer) error {
 	return b.write(w, false)
 }
 
 // WriteFiles writes the gzipped ".files" archive (desc + files members).
-func (b *DBBuilder) WriteFiles(w io.Writer) error {
+func (b *dbBuilder) WriteFiles(w io.Writer) error {
 	return b.write(w, true)
 }
 
-func (b *DBBuilder) write(w io.Writer, withFiles bool) error {
+func (b *dbBuilder) write(w io.Writer, withFiles bool) error {
 	gz := gzip.NewWriter(w)
 	tw := tar.NewWriter(gz)
 
@@ -172,7 +172,7 @@ func (b *DBBuilder) write(w io.Writer, withFiles bool) error {
 	return nil
 }
 
-func (b *DBBuilder) sortedDirs() []string {
+func (b *dbBuilder) sortedDirs() []string {
 	dirs := make([]string, 0, len(b.entries))
 	for d := range b.entries {
 		dirs = append(dirs, d)

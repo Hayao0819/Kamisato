@@ -55,7 +55,7 @@ func readMember(t *testing.T, archive []byte, name string) ([]byte, bool) {
 }
 
 func TestDBBuilderUpsertAndRead(t *testing.T) {
-	b := NewDBBuilder()
+	b := newDBBuilder()
 	if err := b.Upsert(metaFor("foo", "1.0-1", []string{"usr/", "usr/bin/foo"})); err != nil {
 		t.Fatal(err)
 	}
@@ -90,7 +90,7 @@ func TestDBBuilderUpsertAndRead(t *testing.T) {
 }
 
 func TestDBBuilderUpsertReplacesSameName(t *testing.T) {
-	b := NewDBBuilder()
+	b := newDBBuilder()
 	if err := b.Upsert(metaFor("foo", "1.0-1", nil)); err != nil {
 		t.Fatal(err)
 	}
@@ -115,7 +115,7 @@ func TestDBBuilderUpsertReplacesSameName(t *testing.T) {
 }
 
 func TestDBBuilderRemove(t *testing.T) {
-	b := NewDBBuilder()
+	b := newDBBuilder()
 	if err := b.Upsert(metaFor("foo", "1.0-1", nil)); err != nil {
 		t.Fatal(err)
 	}
@@ -142,7 +142,7 @@ func TestDBBuilderRemove(t *testing.T) {
 // untouched package's files list, which the desc parser would otherwise drop.
 func TestDBBuilderPreservesUntouchedFiles(t *testing.T) {
 	// Build an initial .files archive holding package "a" with a files list.
-	initial := NewDBBuilder()
+	initial := newDBBuilder()
 	if err := initial.Upsert(metaFor("a", "1-1", []string{"usr/", "usr/lib/a.so"})); err != nil {
 		t.Fatal(err)
 	}
@@ -152,7 +152,7 @@ func TestDBBuilderPreservesUntouchedFiles(t *testing.T) {
 	}
 
 	// Reload it, add an unrelated package "b", and re-emit the files archive.
-	b := NewDBBuilder()
+	b := newDBBuilder()
 	if err := b.LoadFiles(bytes.NewReader(filesArchive.Bytes())); err != nil {
 		t.Fatal(err)
 	}

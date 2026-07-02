@@ -143,8 +143,8 @@ func toolPathsFor(dbPath string) (toolPaths, error) {
 	}, nil
 }
 
-func loadToolBuilder(paths toolPaths) (*DBBuilder, error) {
-	b := NewDBBuilder()
+func loadToolBuilder(paths toolPaths) (*dbBuilder, error) {
+	b := newDBBuilder()
 	if err := loadToolArchive(paths.db, b.LoadDB); err != nil {
 		return nil, err
 	}
@@ -166,7 +166,7 @@ func loadToolArchive(path string, load func(io.Reader) error) error {
 	return load(f)
 }
 
-func writeToolBuilder(b *DBBuilder, paths toolPaths) error {
+func writeToolBuilder(b *dbBuilder, paths toolPaths) error {
 	if err := writeToolArchive(paths.db, b.WriteDB); err != nil {
 		return err
 	}
