@@ -104,8 +104,18 @@ func RunRemoteBuildLocalSign(ctx context.Context, o RemoteBuildOpts, keyPath, pa
 	}
 	slog.Info("submitted client-signed build", "job", jobID, "server", srv.URL)
 
-	if err := waitForJob(ctx, srv.URL, jobID); err != nil {
+	// Bound the wait so a stuck queued/running job cannot hang the CLI forever.
+	waitCtx, cancel := context.WithTimeout(ctx, clientBuildTimeout)
+	defer cancel()
+	job, err := ayatoclient.WaitJob(waitCtx, srv.URL, jobID, nil)
+	if err != nil {
 		return err
+	}
+	switch job.Status {
+	case "failed":
+		return utils.NewErrf("build failed: %s", job.Err)
+	case "cancelled":
+		return utils.NewErr("build cancelled")
 	}
 
 	names, err := ayatoclient.ListArtifacts(ctx, srv.URL, jobID)
@@ -159,29 +169,6 @@ func RunRemoteBuildLocalSign(ctx context.Context, o RemoteBuildOpts, keyPath, pa
 // clientBuildTimeout bounds how long the local-sign flow waits for a remote
 // build, so a stuck queued/running job does not hang the CLI forever.
 const clientBuildTimeout = 2 * time.Hour
-
-// waitForJob polls until the job reaches a terminal state or the timeout elapses.
-func waitForJob(ctx context.Context, base, id string) error {
-	deadline := time.Now().Add(clientBuildTimeout)
-	for {
-		job, err := ayatoclient.JobStatus(ctx, base, id)
-		if err != nil {
-			return err
-		}
-		switch job.Status {
-		case "success":
-			return nil
-		case "failed":
-			return utils.NewErrf("build failed: %s", job.Err)
-		case "cancelled":
-			return utils.NewErr("build cancelled")
-		}
-		if time.Now().After(deadline) {
-			return utils.NewErrf("timed out waiting for job %s (last status %q)", id, job.Status)
-		}
-		time.Sleep(2 * time.Second)
-	}
-}
 
 // readLocalSource reads the PKGBUILD and files of a source package in the repo.
 // With one named package that one is used, else the repo must hold exactly one.
