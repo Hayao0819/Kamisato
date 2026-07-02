@@ -16,6 +16,10 @@ type Spec struct {
 	OutDir string
 	// Arch is the target CARCH (x86_64, aarch64, armv7h, ...).
 	Arch string
+	// Microarch, when set, targets an x86-64 feature level (x86_64_v2/v3/v4): the
+	// backend injects the matching -march into the build's makepkg.conf. Empty
+	// builds at the arch's baseline. Only the container backend honours it.
+	Microarch string
 	// ArchBuild is the devtools wrapper used by the chroot backend
 	// (e.g. extra-x86_64-build). The container backend ignores it.
 	ArchBuild string

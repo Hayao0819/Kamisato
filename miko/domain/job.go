@@ -34,6 +34,9 @@ const (
 type BuildRequest struct {
 	Repo string `json:"repo"`
 	Arch string `json:"arch"`
+	// Microarch, when set, targets an x86-64 feature level (x86_64_v2/v3/v4). It
+	// requires Arch x86_64; empty builds at the arch's baseline.
+	Microarch string `json:"microarch,omitempty"`
 	// Mutually exclusive with Pkgbuild; exactly one source must be provided.
 	Git *GitSource `json:"git,omitempty"`
 	// Pkgbuild is the raw PKGBUILD contents.

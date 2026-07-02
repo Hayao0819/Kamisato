@@ -4,6 +4,9 @@ package buildclient
 type BuildRequest struct {
 	Repo string `json:"repo"`
 	Arch string `json:"arch"`
+	// Microarch targets an x86-64 feature level (x86_64_v2/v3/v4); empty builds at
+	// the arch baseline.
+	Microarch string `json:"microarch,omitempty"`
 	// Git clones a git/AUR repository as the build source. Mutually exclusive
 	// with Pkgbuild.
 	Git *GitSource `json:"git,omitempty"`

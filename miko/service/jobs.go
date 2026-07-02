@@ -13,6 +13,7 @@ import (
 
 	"github.com/Hayao0819/Kamisato/internal/errwrap"
 	"github.com/Hayao0819/Kamisato/miko/domain"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/builder"
 )
 
 // allowedArches are the architectures a build may target. Arch flows into shell
@@ -59,6 +60,16 @@ func (s *Service) Submit(req *domain.BuildRequest) (string, error) {
 	}
 	if req.Repo != "" && !repoNamePattern.MatchString(req.Repo) {
 		return "", fmt.Errorf("%w: invalid repo name %q", ErrInvalidRequest, req.Repo)
+	}
+	if req.Microarch != "" {
+		// Feature levels are an x86-64 concept, and an unknown tier must fail loudly
+		// rather than silently building at the baseline.
+		if req.Arch != "x86_64" {
+			return "", fmt.Errorf("%w: microarch %q requires arch x86_64", ErrInvalidRequest, req.Microarch)
+		}
+		if !builder.ValidMicroarch(req.Microarch) {
+			return "", fmt.Errorf("%w: unknown microarch tier %q", ErrInvalidRequest, req.Microarch)
+		}
 	}
 	if err := s.validateInstallPkgs(req.InstallPkgs); err != nil {
 		return "", err

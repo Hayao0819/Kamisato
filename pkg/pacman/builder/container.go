@@ -143,9 +143,10 @@ func (b *containerBackend) Build(ctx context.Context, spec Spec) (*Result, error
 	script = strings.ReplaceAll(script, "__EXTRA_REPOS__", extraReposScript(b.extraRepos))
 	script = strings.ReplaceAll(script, "__INSTALL__", strings.TrimRight(installCmd.String(), "\n"))
 
-	// Stage the static override as a real host file so the entrypoint copies it
-	// into place instead of generating it via a heredoc.
-	overridePath, cleanupOverride, err := stageOverrideConf()
+	// Stage the override as a real host file so the entrypoint copies it into
+	// place instead of generating it via a heredoc. The microarch tier, when set,
+	// is baked in here as extra -march flags.
+	overridePath, cleanupOverride, err := stageOverrideConf(spec.Microarch)
 	if err != nil {
 		return nil, err
 	}
@@ -262,14 +263,20 @@ func (b *containerBackend) Build(ctx context.Context, spec Spec) (*Result, error
 	return &Result{Packages: pkgs}, nil
 }
 
-// stageOverrideConf writes the embedded makepkg override base to a host temp
-// file for bind-mounting into the container, returning its path and a cleanup.
-func stageOverrideConf() (string, func(), error) {
+// stageOverrideConf writes the embedded makepkg override base — plus the
+// microarch tier's -march flags when a tier is given — to a host temp file for
+// bind-mounting into the container, returning its path and a cleanup. It errors
+// on an unknown tier.
+func stageOverrideConf(microarch string) (string, func(), error) {
+	march, err := microarchOverride(microarch)
+	if err != nil {
+		return "", nil, err
+	}
 	f, err := os.CreateTemp("", "makepkg-override-*.conf")
 	if err != nil {
 		return "", nil, wrapErr(err, "failed to stage makepkg override")
 	}
-	if _, err := f.WriteString(makepkgOverrideConf); err != nil {
+	if _, err := f.WriteString(makepkgOverrideConf + march); err != nil {
 		_ = f.Close()
 		_ = os.Remove(f.Name())
 		return "", nil, wrapErr(err, "failed to write makepkg override")

@@ -80,6 +80,7 @@ func (s *Service) runBuild(ctx context.Context, job *domain.BuildJob) (*builder.
 		SrcDir:      srcDir,
 		OutDir:      outDir,
 		Arch:        req.Arch,
+		Microarch:   req.Microarch,
 		ArchBuild:   s.archBuildFor(req.Arch),
 		InstallPkgs: req.InstallPkgs,
 		LogWriter:   s.LogBuffer(job.ID),
