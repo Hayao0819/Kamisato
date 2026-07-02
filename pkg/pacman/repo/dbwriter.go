@@ -172,6 +172,18 @@ func (b *dbBuilder) write(w io.Writer, withFiles bool) error {
 	return nil
 }
 
+// names returns the package names currently held (the %NAME% of each entry),
+// used by Merge to decide which upstream entries a local overlay shadows.
+func (b *dbBuilder) names() []string {
+	out := make([]string, 0, len(b.entries))
+	for _, e := range b.entries {
+		if e.name != "" {
+			out = append(out, e.name)
+		}
+	}
+	return out
+}
+
 func (b *dbBuilder) sortedDirs() []string {
 	dirs := make([]string, 0, len(b.entries))
 	for d := range b.entries {

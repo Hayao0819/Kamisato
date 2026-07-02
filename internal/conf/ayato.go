@@ -5,6 +5,7 @@ import (
 	"net"
 	"net/url"
 	"path"
+	"strings"
 	"time"
 
 	"github.com/Hayao0819/Kamisato/internal/confloader"
@@ -282,6 +283,51 @@ type BinRepoConfig struct {
 	// PromotionKeepInSource keeps a promoted package published in its source tier
 	// instead of moving it to the next one. Default (false) is a move.
 	PromotionKeepInSource bool `koanf:"promotion_keep_in_source,omitempty"`
+	// Upstream layers this repo on top of a referenced pacman repo database: the
+	// served .db/.files becomes the merge of the upstream database with
+	// locally-published packages, local shadowing upstream on a name collision.
+	// Empty disables layering, so the repo behaves exactly as a plain repo.
+	Upstream UpstreamRepoConfig `koanf:"upstream,omitempty"`
+}
+
+// UpstreamRepoConfig configures the upstream a repo layers local packages on top
+// of (the CachyOS overlay model).
+type UpstreamRepoConfig struct {
+	// DBURL is the upstream .db URL, e.g. an official Arch mirror path
+	// "https://mirror/extra/os/$arch/extra.db" or another ayato. A "$arch"
+	// placeholder is substituted per architecture. Empty disables layering.
+	DBURL string `koanf:"db_url,omitempty"`
+	// FilesURL is the matching .files URL for the merged files database; empty
+	// derives it from DBURL by swapping ".db" for ".files".
+	FilesURL string `koanf:"files_url,omitempty"`
+}
+
+// Enabled reports whether the repo layers an upstream database.
+func (u UpstreamRepoConfig) Enabled() bool { return u.DBURL != "" }
+
+// DBURLFor resolves the upstream .db URL for one architecture.
+func (u UpstreamRepoConfig) DBURLFor(arch string) string {
+	return strings.ReplaceAll(u.DBURL, "$arch", arch)
+}
+
+// FilesURLFor resolves the upstream .files URL for one architecture, deriving it
+// from the .db URL when not set explicitly.
+func (u UpstreamRepoConfig) FilesURLFor(arch string) string {
+	f := u.FilesURL
+	if f == "" {
+		f = deriveFilesURL(u.DBURL)
+	}
+	return strings.ReplaceAll(f, "$arch", arch)
+}
+
+// deriveFilesURL turns a ".db" URL into its ".files" sibling (extra.db ->
+// extra.files, extra.db.tar.gz -> extra.files.tar.gz).
+func deriveFilesURL(dbURL string) string {
+	i := strings.LastIndex(dbURL, ".db")
+	if i < 0 {
+		return dbURL
+	}
+	return dbURL[:i] + ".files" + dbURL[i+len(".db"):]
 }
 
 // Tier names a stage in a tiered repo's staging -> testing -> stable flow.
@@ -433,6 +479,18 @@ func (c *AyatoConfig) Repo(name string) *BinRepoConfig {
 		}
 	}
 	return nil
+}
+
+// UpstreamRepoNames lists the physical repo names that layer an upstream
+// database, so the repository layer can serve their merged view.
+func (c *AyatoConfig) UpstreamRepoNames() []string {
+	var out []string
+	for i := range c.Repos {
+		if c.Repos[i].Upstream.Enabled() {
+			out = append(out, c.Repos[i].PhysicalRepos()...)
+		}
+	}
+	return out
 }
 
 // ResolveRepo returns the logical BinRepoConfig backing a physical pacman repo

@@ -45,3 +45,23 @@ func (h *Handler) PromoteHandler(ctx *gin.Context) {
 	}
 	ctx.String(http.StatusOK, fmt.Sprintf("'%s' promoted from %s to %s in %s", req.Pkgname, req.From, req.To, repoName))
 }
+
+// SyncUpstreamHandler refreshes an upstream-layered repo from its upstream
+// database and rebuilds the served merged view. Admin-gated: it fetches a remote
+// database and rewrites the served db. The response reports the per-arch change.
+func (h *Handler) SyncUpstreamHandler(ctx *gin.Context) {
+	repoName := ctx.Param("repo")
+	if repoName == "" {
+		ctx.JSON(http.StatusBadRequest, domain.APIError{Message: "repository name is required"})
+		return
+	}
+	res, err := h.s.SyncUpstream(ctx.Request.Context(), repoName)
+	if err != nil {
+		ctx.JSON(errToStatus(err), domain.APIError{
+			Message: "sync upstream err",
+			Reason:  err.Error(),
+		})
+		return
+	}
+	ctx.JSON(http.StatusOK, res)
+}

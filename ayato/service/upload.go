@@ -325,6 +325,9 @@ func (s *Service) UploadFiles(repo string, files []*domain.UploadFiles) error {
 		}
 		named = append(named, archKey{p.storeArch, p.pkgName})
 	}
+	// For an upstream-layered repo, refresh the served merged database so the newly
+	// published packages appear in the merged view.
+	s.rebuildMergedIfUpstream(repo, archOrder)
 	return nil
 }
 
@@ -369,7 +372,7 @@ func (s *Service) publishTarget(repo string) string {
 // legitimately miss). A missing db or absent package is ("", false, nil); only a
 // real backend error is surfaced, so the gate fails closed on an unreadable db.
 func (s *Service) publishedVersion(repo, arch, pkgname string) (string, bool, error) {
-	rr, err := s.pkgBinaryRepo.RemoteRepo(repo, arch)
+	rr, err := s.overlayRepo(repo, arch)
 	if err != nil {
 		if errors.Is(err, blob.ErrNotFound) {
 			return "", false, nil

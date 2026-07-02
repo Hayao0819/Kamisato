@@ -98,6 +98,9 @@ func New(cfg *conf.AyatoConfig) (NameStore, BinaryRepository, AuthRepository, kv
 		}
 		binOpts = append(binOpts, WithSigningTool(signer))
 	}
+	if cfg != nil {
+		binOpts = append(binOpts, WithUpstreamRepos(cfg.UpstreamRepoNames()))
+	}
 
 	// The pool decorates the raw store so package writes are content-addressed and
 	// reads resolve through pointers; serializing wraps it so per-(repo, arch)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"os"
 	"slices"
 	"time"
@@ -14,6 +15,7 @@ import (
 	"github.com/Hayao0819/Kamisato/ayato/repository"
 	"github.com/Hayao0819/Kamisato/ayato/stream"
 	"github.com/Hayao0819/Kamisato/internal/conf"
+	"github.com/Hayao0819/Kamisato/internal/httpx"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/gpg"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/sign"
 	"github.com/Hayao0819/Kamisato/pkg/raiou"
@@ -27,6 +29,9 @@ type Service struct {
 	denylistRepo  repository.DenylistRepository // nil when per-token revocation is not wired
 	pool          repository.PoolCollector      // nil when the content-addressed pool is disabled
 	cfg           *conf.AyatoConfig
+	// upstreamClient fetches upstream repo databases for the overlay/merge sync,
+	// with the shared retry/timeout policy of internal/httpx.
+	upstreamClient *http.Client
 
 	// Signature trust roots: baseEntities from verify.keyring, trustedFprs from
 	// verify.trusted_keys (allowlist), masterEntities from verify.master_keys
@@ -101,6 +106,7 @@ type Servicer interface {
 	RepoReader
 	Uploader
 	Promoter
+	Syncer
 	AdminService
 	SignerRegistry
 	Revoker
@@ -109,11 +115,12 @@ type Servicer interface {
 
 func New(pkgNameRepo repository.NameStore, pkgBinaryRepo repository.BinaryRepository, authRepo repository.AuthRepository, signerRepo repository.SignerRepository, config *conf.AyatoConfig) *Service {
 	s := &Service{
-		pkgNameRepo:   pkgNameRepo,
-		pkgBinaryRepo: pkgBinaryRepo,
-		authRepo:      authRepo,
-		signerRepo:    signerRepo,
-		cfg:           config,
+		pkgNameRepo:    pkgNameRepo,
+		pkgBinaryRepo:  pkgBinaryRepo,
+		authRepo:       authRepo,
+		signerRepo:     signerRepo,
+		cfg:            config,
+		upstreamClient: httpx.Default(),
 	}
 	if config == nil {
 		return s

@@ -3,11 +3,20 @@ package repo
 import (
 	"crypto"
 	"fmt"
+	"io"
 	"os"
 
 	"github.com/ProtonMail/go-crypto/openpgp"
 	"github.com/ProtonMail/go-crypto/openpgp/packet"
 )
+
+// SignDetached writes a detached OpenPGP signature of r to w, using EdDSA over
+// SHA-256 to match the digests ayato's verification keyring accepts. It is the
+// byte-level primitive the file-based detachSignFile and the merged-db signer
+// share.
+func SignDetached(entity *openpgp.Entity, r io.Reader, w io.Writer) error {
+	return openpgp.DetachSign(w, entity, r, &packet.Config{Algorithm: packet.PubKeyAlgoEdDSA, DefaultHash: crypto.SHA256})
+}
 
 // maybeSign detach-signs the .db/.files archives when a signed database is
 // requested. RepoAddBatch/RepoRemove already reject useSignedDB with a nil signer,
@@ -45,7 +54,7 @@ func detachSignFile(entity *openpgp.Entity, srcPath, sigPath string) error {
 	if err != nil {
 		return fmt.Errorf("failed to create %s: %w", sigPath, err)
 	}
-	if err := openpgp.DetachSign(out, entity, in, &packet.Config{Algorithm: packet.PubKeyAlgoEdDSA, DefaultHash: crypto.SHA256}); err != nil {
+	if err := SignDetached(entity, in, out); err != nil {
 		_ = out.Close()
 		return fmt.Errorf("failed to sign %s: %w", srcPath, err)
 	}

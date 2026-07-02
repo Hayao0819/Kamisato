@@ -33,6 +33,17 @@ type BinaryRepository interface {
 	// (repo, arch) database that was published unsigned before DB signing was
 	// enabled. A no-op when the db is absent or already signed.
 	BackfillSignatures(name, arch string) error
+	// RebuildMerged recomputes an upstream repo's served database by merging the
+	// stored upstream snapshot with the local overlay (local shadows upstream). It
+	// is how a local publish/remove reaches the served view of an upstream repo.
+	RebuildMerged(name, arch string, useSignedDB bool) error
+	// ApplyUpstreamSnapshot records a freshly fetched upstream db/files snapshot and
+	// its conditional-GET validators, then rebuilds the merged database, returning
+	// the change relative to the previous snapshot.
+	ApplyUpstreamSnapshot(name, arch string, dbGz, filesGz []byte, etag, lastModified string, useSignedDB bool) (repo.DBDiff, error)
+	// UpstreamValidators returns the stored ETag/Last-Modified of the last synced
+	// upstream snapshot (empty when none), for a conditional GET.
+	UpstreamValidators(name, arch string) (etag, lastModified string, err error)
 	FetchDB(repoName, archName string) (stream.File, error)
 	FetchFileWithMeta(repo, arch, file string) (stream.File, blob.FileMeta, error)
 	PkgNames(repoName, archName string) ([]string, error)
@@ -53,6 +64,13 @@ type binaryRepository struct {
 	// (repo.NativeTool). Injected (e.g. a fake) in tests, or set to repo.CLITool
 	// to shell out to repo-add instead.
 	tool repoDBTool
+	// dbSigner detach-signs the merged upstream database (the repo-DB writer signs
+	// the overlay itself); nil when DB signing is off.
+	dbSigner *openpgp.Entity
+	// upstream is the set of repos that layer an upstream database. For those, the
+	// served <repo>.db/.files is the merged view (<repo>.merged.*) rather than the
+	// bare overlay. Empty for a plain deployment.
+	upstream map[string]bool
 }
 
 // BinaryRepoOption configures a binaryRepository at construction.
@@ -65,6 +83,22 @@ func WithSigningTool(entity *openpgp.Entity) BinaryRepoOption {
 	return func(r *binaryRepository) {
 		if entity != nil {
 			r.tool = repo.NewSigningNativeTool(entity)
+			r.dbSigner = entity
+		}
+	}
+}
+
+// WithUpstreamRepos marks the repos whose served database is the merge of an
+// upstream database with the local overlay, so their bare <repo>.db/.files serve
+// the merged view.
+func WithUpstreamRepos(names []string) BinaryRepoOption {
+	return func(r *binaryRepository) {
+		if len(names) == 0 {
+			return
+		}
+		r.upstream = make(map[string]bool, len(names))
+		for _, n := range names {
+			r.upstream[n] = true
 		}
 	}
 }
@@ -102,11 +136,11 @@ func (r *binaryRepository) FetchFile(repo, arch, file string) (stream.File, erro
 	}
 	// <repo>.db / <repo>.files are not stored; they are byte-identical aliases of
 	// their .tar.gz archives, served from the single archive so no stale copy can
-	// trail it. The bare name always misses, so a transient error reading the
-	// archive must be surfaced, not masked as the bare-name ErrNotFound — else a
-	// caller like the upload version gate reads a backend hiccup as "no such db"
-	// and fails open.
-	if target := dbAliasTarget(repo, file); target != "" {
+	// trail it. An upstream repo serves the merged archive first, then the overlay.
+	// The bare name always misses, so a transient error reading the archive must be
+	// surfaced, not masked as the bare-name ErrNotFound — else a caller like the
+	// upload version gate reads a backend hiccup as "no such db" and fails open.
+	for _, target := range r.dbAliasTargets(repo, file) {
 		af, aerr := r.Store.FetchFile(repo, arch, target)
 		if aerr == nil {
 			return aliasFile{File: af, name: file}, nil
@@ -139,7 +173,7 @@ func (r *binaryRepository) FetchFileWithMeta(repo, arch, file string) (stream.Fi
 	if err == nil {
 		return f, meta, nil
 	}
-	if target := dbAliasTarget(repo, file); target != "" {
+	for _, target := range r.dbAliasTargets(repo, file) {
 		af, ameta, aerr := mf.FetchFileWithMeta(repo, arch, target)
 		if aerr == nil {
 			return aliasFile{File: af, name: file}, ameta, nil
@@ -157,21 +191,44 @@ func (r *binaryRepository) FetchFileWithMeta(repo, arch, file string) (stream.Fi
 	return f, meta, err
 }
 
-// dbAliasTarget maps a bare DB name to the archive it aliases, or "" if file is
-// not an alias. The detached signatures alias the same way: <repo>.db.sig is
-// served from the single stored <repo>.db.tar.gz.sig, so no copy can trail it.
-func dbAliasTarget(repo, file string) string {
+// dbAliasArchive maps a bare DB name to the archive it aliases under a given base
+// prefix, or "" if file is not an alias name. The detached signatures alias the
+// same way: <repo>.db.sig is served from the single stored <base>.db.tar.gz.sig,
+// so no copy can trail it.
+func dbAliasArchive(repo, base, file string) string {
 	switch file {
 	case repo + ".db":
-		return repo + ".db.tar.gz"
+		return base + ".db.tar.gz"
 	case repo + ".files":
-		return repo + ".files.tar.gz"
+		return base + ".files.tar.gz"
 	case repo + ".db.sig":
-		return repo + ".db.tar.gz.sig"
+		return base + ".db.tar.gz.sig"
 	case repo + ".files.sig":
-		return repo + ".files.tar.gz.sig"
+		return base + ".files.tar.gz.sig"
 	}
 	return ""
+}
+
+// mergedBase is the artifact prefix for a repo's merged (upstream + overlay)
+// database, kept distinct from the bare overlay so RepoAddBatch's compare-and-swap
+// still owns <repo>.db.tar.gz.
+func mergedBase(repo string) string { return repo + ".merged" }
+
+func (r *binaryRepository) isUpstreamRepo(repo string) bool { return r.upstream[repo] }
+
+// dbAliasTargets lists, in order, the stored objects a bare DB name can be served
+// from. For a plain repo that is just the overlay archive. For an upstream repo it
+// is the merged archive first, then the overlay as a fallback before the first
+// sync materializes the merged view. Returns nil when file is not a DB alias name.
+func (r *binaryRepository) dbAliasTargets(repo, file string) []string {
+	overlay := dbAliasArchive(repo, repo, file)
+	if overlay == "" {
+		return nil
+	}
+	if r.isUpstreamRepo(repo) {
+		return []string{dbAliasArchive(repo, mergedBase(repo), file), overlay}
+	}
+	return []string{overlay}
 }
 
 // aliasFile serves an archive under the requested bare DB name so the response's
@@ -188,8 +245,13 @@ func (a aliasFile) FileName() string { return a.name }
 // a real object: <repo>.db / <repo>.files resolve to their .tar.gz archive, and
 // an -any package (and its .sig) is stored once under "any/", so presign there.
 func (r *binaryRepository) StoreFileWithSignedURL(repo, arch, name string) (string, error) {
-	if target := dbAliasTarget(repo, name); target != "" {
-		name = target
+	if overlay := dbAliasArchive(repo, repo, name); overlay != "" {
+		// An upstream repo's db/files is synthesized (merged): force streaming so the
+		// FetchFile merged->overlay fallback governs which artifact is served.
+		if r.isUpstreamRepo(repo) {
+			return "", nil
+		}
+		name = overlay
 	} else if arch != "any" && strings.Contains(name, "-any.pkg.tar.") {
 		arch = "any"
 	}

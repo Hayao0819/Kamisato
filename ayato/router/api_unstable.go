@@ -100,6 +100,8 @@ func SetRoute(e *gin.Engine, h *handler.Handler, m *middleware.Middleware) error
 			// Tier promotion advances a package through a tiered repo's
 			// staging -> testing -> stable flow; a release action, so admin-gated.
 			blinky.POST("/:repo/promote", h.PromoteHandler)
+			// Refresh an upstream-layered repo's merged database from its upstream.
+			blinky.POST("/:repo/sync-upstream", h.SyncUpstreamHandler)
 		}
 
 		// miko proxy reads and mutations require a session or Bearer CLI token (no

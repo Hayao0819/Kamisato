@@ -43,6 +43,21 @@ func (m *MockBinaryRepository) EXPECT() *MockBinaryRepositoryMockRecorder {
 	return m.recorder
 }
 
+// ApplyUpstreamSnapshot mocks base method.
+func (m *MockBinaryRepository) ApplyUpstreamSnapshot(name, arch string, dbGz, filesGz []byte, etag, lastModified string, useSignedDB bool) (repo.DBDiff, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ApplyUpstreamSnapshot", name, arch, dbGz, filesGz, etag, lastModified, useSignedDB)
+	ret0, _ := ret[0].(repo.DBDiff)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ApplyUpstreamSnapshot indicates an expected call of ApplyUpstreamSnapshot.
+func (mr *MockBinaryRepositoryMockRecorder) ApplyUpstreamSnapshot(name, arch, dbGz, filesGz, etag, lastModified, useSignedDB any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ApplyUpstreamSnapshot", reflect.TypeOf((*MockBinaryRepository)(nil).ApplyUpstreamSnapshot), name, arch, dbGz, filesGz, etag, lastModified, useSignedDB)
+}
+
 // Arches mocks base method.
 func (m *MockBinaryRepository) Arches(arg0 string) ([]string, error) {
 	m.ctrl.T.Helper()
@@ -207,6 +222,20 @@ func (mr *MockBinaryRepositoryMockRecorder) PkgNames(repoName, archName any) *go
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PkgNames", reflect.TypeOf((*MockBinaryRepository)(nil).PkgNames), repoName, archName)
 }
 
+// RebuildMerged mocks base method.
+func (m *MockBinaryRepository) RebuildMerged(name, arch string, useSignedDB bool) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RebuildMerged", name, arch, useSignedDB)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// RebuildMerged indicates an expected call of RebuildMerged.
+func (mr *MockBinaryRepositoryMockRecorder) RebuildMerged(name, arch, useSignedDB any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RebuildMerged", reflect.TypeOf((*MockBinaryRepository)(nil).RebuildMerged), name, arch, useSignedDB)
+}
+
 // RemoteRepo mocks base method.
 func (m *MockBinaryRepository) RemoteRepo(name, arch string) (*repo.RemoteRepo, error) {
 	m.ctrl.T.Helper()
@@ -320,6 +349,22 @@ func (m *MockBinaryRepository) StoreFileWithSignedURL(arg0, arch, name string) (
 func (mr *MockBinaryRepositoryMockRecorder) StoreFileWithSignedURL(arg0, arch, name any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StoreFileWithSignedURL", reflect.TypeOf((*MockBinaryRepository)(nil).StoreFileWithSignedURL), arg0, arch, name)
+}
+
+// UpstreamValidators mocks base method.
+func (m *MockBinaryRepository) UpstreamValidators(name, arch string) (string, string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpstreamValidators", name, arch)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(string)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// UpstreamValidators indicates an expected call of UpstreamValidators.
+func (mr *MockBinaryRepositoryMockRecorder) UpstreamValidators(name, arch any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpstreamValidators", reflect.TypeOf((*MockBinaryRepository)(nil).UpstreamValidators), name, arch)
 }
 
 // VerifyPkgRepo mocks base method.

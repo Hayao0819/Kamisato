@@ -15,6 +15,7 @@ import (
 	time "time"
 
 	domain "github.com/Hayao0819/Kamisato/ayato/domain"
+	service "github.com/Hayao0819/Kamisato/ayato/service"
 	stream "github.com/Hayao0819/Kamisato/ayato/stream"
 	conf "github.com/Hayao0819/Kamisato/internal/conf"
 	raiou "github.com/Hayao0819/Kamisato/pkg/raiou"
@@ -861,6 +862,21 @@ func (m *MockServicer) SignedURL(repo, arch, name string) (string, error) {
 func (mr *MockServicerMockRecorder) SignedURL(repo, arch, name any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SignedURL", reflect.TypeOf((*MockServicer)(nil).SignedURL), repo, arch, name)
+}
+
+// SyncUpstream mocks base method.
+func (m *MockServicer) SyncUpstream(ctx context.Context, repo string) (service.UpstreamSyncResult, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SyncUpstream", ctx, repo)
+	ret0, _ := ret[0].(service.UpstreamSyncResult)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// SyncUpstream indicates an expected call of SyncUpstream.
+func (mr *MockServicerMockRecorder) SyncUpstream(ctx, repo any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SyncUpstream", reflect.TypeOf((*MockServicer)(nil).SyncUpstream), ctx, repo)
 }
 
 // UnregisterSigner mocks base method.

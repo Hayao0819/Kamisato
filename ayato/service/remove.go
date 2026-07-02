@@ -50,6 +50,9 @@ func (s *Service) RemovePkg(rname string, arch string, pkgname string) error {
 			return errwrap.WrapErr(err, fmt.Sprintf("repo-remove %s from %s/%s", pkgname, rname, a))
 		}
 	}
+	// For an upstream-layered repo, refresh the served merged database so the
+	// removed package disappears from the merged view.
+	s.rebuildMergedIfUpstream(rname, dbArches)
 
 	// Keep the shared arch=any file while another arch still lists it; a concrete
 	// file always goes with its arch.
