@@ -1,8 +1,11 @@
 package stream
 
 import (
+	"errors"
 	"io"
 )
+
+var errNilStream = errors.New("stream: nil underlying stream")
 
 type FileStream struct {
 	fileName    string
@@ -19,10 +22,10 @@ func NewFileStream(fileName string, contentType string, stream io.ReadSeekCloser
 }
 
 func (f *FileStream) Read(p []byte) (n int, err error) {
-	if f.stream != nil {
-		return f.stream.Read(p)
+	if f.stream == nil {
+		return 0, io.EOF
 	}
-	return 0, nil
+	return f.stream.Read(p)
 }
 
 func (f *FileStream) Close() error {
@@ -44,5 +47,8 @@ func (f *FileStream) ContentType() string {
 }
 
 func (f *FileStream) Seek(offset int64, whence int) (int64, error) {
+	if f.stream == nil {
+		return 0, errNilStream
+	}
 	return f.stream.Seek(offset, whence)
 }
