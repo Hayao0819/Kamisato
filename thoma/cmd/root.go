@@ -8,6 +8,7 @@ package cmd
 
 import (
 	"os"
+	"os/exec"
 	"syscall"
 
 	"github.com/spf13/cobra"
@@ -37,19 +38,54 @@ func run(args []string) error {
 	return passthrough(args)
 }
 
-// realMakepkg is the makepkg binary thoma delegates pass-through invocations to.
-func realMakepkg() string {
+// realMakepkg resolves the makepkg binary thoma delegates pass-through
+// invocations to, trying in order: the explicit THOMA_MAKEPKG / config override,
+// $PATH, then the canonical /usr/bin/makepkg. A candidate that is the same file
+// as this executable is skipped: when thoma is installed *as* makepkg
+// (makepkgbin=thoma with /usr/bin/makepkg symlinked to thoma), delegating to it
+// would loop forever through syscall.Exec.
+func realMakepkg(configured string) string {
+	self, _ := os.Executable()
+	var candidates []string
 	if p := os.Getenv("THOMA_MAKEPKG"); p != "" {
-		return p
+		candidates = append(candidates, p)
+	}
+	if configured != "" {
+		candidates = append(candidates, configured)
+	}
+	if p, err := exec.LookPath("makepkg"); err == nil {
+		candidates = append(candidates, p)
+	}
+	candidates = append(candidates, "/usr/bin/makepkg")
+	for _, c := range candidates {
+		if self != "" && sameFile(c, self) {
+			continue
+		}
+		return c
 	}
 	return "/usr/bin/makepkg"
+}
+
+// sameFile reports whether a and b resolve to the same on-disk file, following
+// symlinks — so a /usr/bin/makepkg symlink pointing back at the thoma binary is
+// caught even though the two paths differ.
+func sameFile(a, b string) bool {
+	fa, err := os.Stat(a)
+	if err != nil {
+		return false
+	}
+	fb, err := os.Stat(b)
+	if err != nil {
+		return false
+	}
+	return os.SameFile(fa, fb)
 }
 
 // passthrough replaces the process with the real makepkg, preserving args, env,
 // cwd, stdio and exit code exactly — used for every invocation that is not the
 // heavy compile (source download, --nobuild, --packagelist, --printsrcinfo, …).
 func passthrough(args []string) error {
-	bin := realMakepkg()
+	bin := realMakepkg("")
 	return syscall.Exec(bin, append([]string{bin}, args...), os.Environ())
 }
 

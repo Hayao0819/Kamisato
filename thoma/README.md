@@ -34,7 +34,7 @@ koanf precedence.
 | `THOMA_MODE` | `ayato` or `direct` | `ayato` |
 | `THOMA_SERVER` | ayato server URL, or the miko URL in direct mode | default server |
 | `THOMA_API_KEY` | miko api key (required in direct mode) | — |
-| `THOMA_ARCH` | build architecture | `uname -m` |
+| `THOMA_ARCH` | build architecture | makepkg.conf `CARCH`, else `uname -m` |
 | `THOMA_MAKEPKG` | real makepkg | `/usr/bin/makepkg` |
 | `THOMA_TIMEOUT` | timeout, minutes | miko default |
 

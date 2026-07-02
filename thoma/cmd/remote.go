@@ -45,7 +45,17 @@ func resolveEndpoint(cfg *conf.ThomaConfig) (base, token string, err error) {
 	return resolveServer(cfg.Server)
 }
 
+// detectArch resolves the build arch. makepkg.conf's CARCH is authoritative and
+// can disagree with `uname -m` (armv7h userland on an aarch64 kernel, an i686
+// build chroot on x86_64), so source it first and fall back to uname only when
+// it is unset or unreadable.
 func detectArch() string {
+	out, err := exec.Command("bash", "-c", `source /etc/makepkg.conf 2>/dev/null; printf %s "$CARCH"`).Output()
+	if err == nil {
+		if a := strings.TrimSpace(string(out)); a != "" {
+			return a
+		}
+	}
 	if out, err := exec.Command("uname", "-m").Output(); err == nil {
 		if a := strings.TrimSpace(string(out)); a != "" {
 			return a
@@ -120,7 +130,7 @@ func remoteBuild(args []string) error {
 		return utils.NewErrf("remote build %s", job.Status)
 	}
 
-	dests, err := packageDests(args)
+	dests, err := packageDests(realMakepkg(cfg.Makepkg), args)
 	if err != nil {
 		return err
 	}
@@ -129,12 +139,12 @@ func remoteBuild(args []string) error {
 
 // packageDests asks the real makepkg where the output packages belong, so the
 // downloaded artifacts land exactly where yay's --packagelist told it to look.
-func packageDests(incoming []string) ([]string, error) {
+func packageDests(mkpkg string, incoming []string) ([]string, error) {
 	args := []string{"--packagelist", "--ignorearch"}
 	if conf := configArg(incoming); conf != "" {
 		args = append(args, "--config", conf)
 	}
-	out, err := exec.Command(realMakepkg(), args...).Output()
+	out, err := exec.Command(mkpkg, args...).Output()
 	if err != nil {
 		return nil, utils.WrapErr(err, "failed to run makepkg --packagelist")
 	}
