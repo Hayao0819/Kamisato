@@ -74,7 +74,12 @@ func (h *Handler) RepoFileHandler(ctx *gin.Context) {
 	if !meta.LastModified.IsZero() {
 		ctx.Header("Last-Modified", meta.LastModified.UTC().Format(http.TimeFormat))
 	}
-	if meta.ETag != "" || !meta.LastModified.IsZero() {
+	// A package archive is content-immutable — its version is baked into the file
+	// name — so it can be cached forever. The .db/.files metadata is rewritten in
+	// place on every publish, so it must revalidate (no-cache).
+	if isImmutablePackageFile(fileName) {
+		ctx.Header("Cache-Control", "public, max-age=31536000, immutable")
+	} else if meta.ETag != "" || !meta.LastModified.IsZero() {
 		ctx.Header("Cache-Control", "no-cache")
 	}
 	if notModified(ctx.Request, meta) {
@@ -89,6 +94,15 @@ func (h *Handler) RepoFileHandler(ctx *gin.Context) {
 	if err != nil {
 		slog.Error("failed to write file to response", "error", err)
 	}
+}
+
+// isImmutablePackageFile reports whether name is a package archive (or its
+// detached signature). Those are content-immutable because the version is part
+// of the name; the repo DB/metadata artifacts (.db, .files, .db.tar.gz and their
+// .sig) are rewritten in place and are NOT immutable. The ".pkg.tar." infix is
+// present only in package archives, so it distinguishes the two.
+func isImmutablePackageFile(name string) bool {
+	return strings.Contains(name, ".pkg.tar.")
 }
 
 // notModified evaluates the request's conditional headers against the served
