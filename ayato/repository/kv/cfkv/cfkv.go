@@ -9,12 +9,12 @@ package cfkv
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv/cfkv/logger"
-	"github.com/Hayao0819/Kamisato/internal/utils"
 	"github.com/cloudflare/cloudflare-go"
 )
 
@@ -33,7 +33,7 @@ var _ kv.Store = (*Store)(nil)
 func New(account, token, namespace string) (*Store, error) {
 	c, err := cloudflare.NewWithAPIToken(token, cloudflare.UsingLogger(logger.Default()))
 	if err != nil {
-		return nil, utils.WrapErr(err, "cfkv: new client")
+		return nil, fmt.Errorf("cfkv: new client: %w", err)
 	}
 	return &Store{
 		client:      c,
@@ -60,7 +60,7 @@ func (s *Store) Get(ns, key string) ([]byte, error) {
 		if errors.As(err, &notFound) {
 			return nil, kv.ErrNotFound
 		}
-		return nil, utils.WrapErr(err, "cfkv: get")
+		return nil, fmt.Errorf("cfkv: get: %w", err)
 	}
 	return v, nil
 }
@@ -75,7 +75,10 @@ func (s *Store) Set(ns, key string, value []byte, ttl time.Duration) error {
 			Key:         composite(ns, key),
 			Value:       value,
 		})
-		return utils.WrapErr(err, "cfkv: set")
+		if err != nil {
+			return fmt.Errorf("cfkv: set: %w", err)
+		}
+		return nil
 	}
 	_, err := s.client.WriteWorkersKVEntries(s.ctx, s.accountIdentifier(), cloudflare.WriteWorkersKVEntriesParams{
 		NamespaceID: s.namespaceId,
@@ -85,7 +88,10 @@ func (s *Store) Set(ns, key string, value []byte, ttl time.Duration) error {
 			ExpirationTTL: int(ttl.Seconds()),
 		}},
 	})
-	return utils.WrapErr(err, "cfkv: set with ttl")
+	if err != nil {
+		return fmt.Errorf("cfkv: set with ttl: %w", err)
+	}
+	return nil
 }
 
 func (s *Store) Delete(ns, key string) error {
@@ -93,7 +99,10 @@ func (s *Store) Delete(ns, key string) error {
 		NamespaceID: s.namespaceId,
 		Key:         composite(ns, key),
 	})
-	return utils.WrapErr(err, "cfkv: delete")
+	if err != nil {
+		return fmt.Errorf("cfkv: delete: %w", err)
+	}
+	return nil
 }
 
 // List pages through the Workers KV list-keys API by namespace prefix, fetching
@@ -110,7 +119,7 @@ func (s *Store) List(ns string) ([]kv.Entry, error) {
 			Cursor:      cursor,
 		})
 		if err != nil {
-			return nil, utils.WrapErr(err, "cfkv: list keys")
+			return nil, fmt.Errorf("cfkv: list keys: %w", err)
 		}
 		for _, k := range resp.Result {
 			if !strings.HasPrefix(k.Name, prefix) {
@@ -125,7 +134,7 @@ func (s *Store) List(ns string) ([]kv.Entry, error) {
 				if errors.As(gerr, &notFound) {
 					continue
 				}
-				return nil, utils.WrapErr(gerr, "cfkv: list get value")
+				return nil, fmt.Errorf("cfkv: list get value: %w", gerr)
 			}
 			out = append(out, kv.Entry{Key: strings.TrimPrefix(k.Name, prefix), Value: v})
 		}
