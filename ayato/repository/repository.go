@@ -230,11 +230,28 @@ func (r *binaryRepository) PkgNames(repoName, archName string) ([]string, error)
 	return names, nil
 }
 
-// Not implemented: the .files database is not parsed yet, so this reports
-// domain.ErrNotImplemented rather than a misleading empty list (the handler
-// answers 501).
+// PkgFiles returns the file list a package installs, read from the (repo, arch)
+// ".files" database. A repo with no .files archive, or a package absent from it,
+// is domain.ErrNotFound (the handler answers 404).
 func (r *binaryRepository) PkgFiles(repoName, archName, pkgName string) ([]string, error) {
-	return nil, domain.ErrNotImplemented
+	f, err := r.FetchFile(repoName, archName, repoName+".files.tar.gz")
+	if err != nil {
+		if errors.Is(err, blob.ErrNotFound) {
+			return nil, domain.ErrNotFound
+		}
+		return nil, errwrap.WrapErr(err, "failed to fetch files db")
+	}
+	defer f.Close()
+
+	byName, err := repo.FilesFromDB(f)
+	if err != nil {
+		return nil, errwrap.WrapErr(err, "failed to parse files db")
+	}
+	files, ok := byName[pkgName]
+	if !ok {
+		return nil, fmt.Errorf("%w: package %q has no files entry in %s/%s", domain.ErrNotFound, pkgName, repoName, archName)
+	}
+	return files, nil
 }
 
 func (r *binaryRepository) VerifyPkgRepo(name string) error {
