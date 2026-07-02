@@ -11,6 +11,7 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/utils"
 	"github.com/Hayao0819/Kamisato/miko/domain"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/builder"
+	"github.com/cenkalti/backoff/v5"
 )
 
 func (s *Service) process(ctx context.Context, job *domain.BuildJob) {
@@ -171,46 +172,46 @@ func (s *Service) ArtifactDir(id string) (string, error) {
 	return job.ArtifactDir, nil
 }
 
-// buildWithRetry runs the build with retry/backoff, retrying only on a genuine
-// failure while attempts remain and the context is live.
+// buildOutcome bundles runBuild's two success values so backoff.Retry can carry
+// them through its single generic result type.
+type buildOutcome struct {
+	res    *builder.Result
+	outDir string
+}
+
+// buildWithRetry runs the build, retrying a genuine failure up to MaxRetries
+// times with exponential backoff and jitter. Cancellation is terminal and does
+// not consume a retry.
 func (s *Service) buildWithRetry(ctx context.Context, job *domain.BuildJob) (*builder.Result, string, error) {
 	maxRetries := s.cfg.MaxRetries
-	if maxRetries < 0 {
-		maxRetries = 0
-	}
-	backoff := time.Duration(s.cfg.RetryBackoff) * time.Second
 
-	var (
-		res    *builder.Result
-		outDir string
-		err    error
-	)
-	for attempt := 0; ; attempt++ {
-		res, outDir, err = s.runBuild(ctx, job)
-		if err == nil {
-			return res, outDir, nil
-		}
-		// Do not retry on cancellation or when the loop is out of attempts.
-		if isCancelled(ctx, err) || attempt >= maxRetries {
-			return res, outDir, err
-		}
+	exp := backoff.NewExponentialBackOff()
+	exp.InitialInterval = time.Duration(s.cfg.RetryBackoff) * time.Second
 
-		line := fmt.Sprintf("retry %d/%d after error: %v\n", attempt+1, maxRetries, err)
+	attempt := 0
+	notify := func(err error, _ time.Duration) {
+		attempt++
 		if job.Log != nil {
-			_, _ = job.Log.Write([]byte(line))
+			_, _ = job.Log.Write([]byte(fmt.Sprintf("retry %d/%d after error: %v\n", attempt, maxRetries, err)))
 		}
-		s.update(job.ID, func(j *domain.BuildJob) { j.Retries = attempt + 1 })
-
-		if backoff > 0 {
-			t := time.NewTimer(backoff)
-			select {
-			case <-ctx.Done():
-				t.Stop()
-				return res, outDir, err
-			case <-t.C:
-			}
-		}
+		s.update(job.ID, func(j *domain.BuildJob) { j.Retries = attempt })
 	}
+
+	op := func() (buildOutcome, error) {
+		res, outDir, err := s.runBuild(ctx, job)
+		if err != nil && isCancelled(ctx, err) {
+			return buildOutcome{res, outDir}, backoff.Permanent(err)
+		}
+		return buildOutcome{res, outDir}, err
+	}
+
+	out, err := backoff.Retry(ctx, op,
+		backoff.WithBackOff(exp),
+		backoff.WithMaxTries(uint(maxRetries)+1),
+		backoff.WithMaxElapsedTime(0), // no total-time cap: honor the configured retry count
+		backoff.WithNotify(notify),
+	)
+	return out.res, out.outDir, err
 }
 
 func isCancelled(ctx context.Context, err error) bool {
