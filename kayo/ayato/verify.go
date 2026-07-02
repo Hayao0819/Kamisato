@@ -2,19 +2,12 @@ package ayato
 
 import (
 	"crypto/ed25519"
-	"crypto/sha256"
 	"encoding/base64"
-	"encoding/hex"
 	"time"
 
+	"github.com/Hayao0819/Kamisato/internal/kayoproto"
 	"github.com/Hayao0819/Kamisato/internal/utils"
 )
-
-// KeyID mirrors ayato's key handle: first 16 hex of SHA-256(pub).
-func KeyID(pub []byte) string {
-	sum := sha256.Sum256(pub)
-	return hex.EncodeToString(sum[:])[:16]
-}
 
 // Verifier checks an ayato catalog's detached Ed25519 signature and freshness.
 type Verifier struct {
@@ -40,7 +33,7 @@ func NewVerifier(pubB64 string, maxAge time.Duration) (*Verifier, error) {
 	if maxAge <= 0 {
 		return nil, utils.NewErr("ayato: maxAge must be positive")
 	}
-	return &Verifier{pub: ed25519.PublicKey(pub), keyID: KeyID(pub), maxAge: maxAge, leeway: time.Minute}, nil
+	return &Verifier{pub: ed25519.PublicKey(pub), keyID: kayoproto.KeyID(pub), maxAge: maxAge, leeway: time.Minute}, nil
 }
 
 func (v *Verifier) KeyID() string { return v.keyID }

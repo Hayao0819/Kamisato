@@ -5,11 +5,26 @@
 package kayoproto
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"time"
 
 	"github.com/Hayao0819/Kamisato/pkg/aurweb"
 )
+
+// keyIDHexLen is how many leading hex chars of SHA-256(pub) form a key handle.
+const keyIDHexLen = 16
+
+// KeyID is the wire handle for a catalog-signing public key: the first 16 hex
+// chars of its SHA-256. The signing (ayato) and verifying (kayo) sides both
+// derive the handle this way so a key_id printed on one matches the other. It is
+// a human-comparable handle for logs and out-of-band pin confirmation, never a
+// crypto decision.
+func KeyID(pub []byte) string {
+	sum := sha256.Sum256(pub)
+	return hex.EncodeToString(sum[:])[:keyIDHexLen]
+}
 
 // Catalog is an ayato instance's managed packages and the git URL each pkgbase
 // is cloned from.
