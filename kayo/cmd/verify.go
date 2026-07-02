@@ -100,7 +100,7 @@ func verifyCmd() *cobra.Command {
 				return err
 			}
 			ctx := cmd.Context()
-			comp, err := shared.BuildComposite(ctx, cfg)
+			comp, _, err := shared.BuildComposite(ctx, cfg)
 			if err != nil {
 				return err
 			}

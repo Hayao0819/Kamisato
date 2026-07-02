@@ -77,6 +77,25 @@ func TestOverlayPriorityShadowing(t *testing.T) {
 	}
 }
 
+// TestSourceDirs asserts a synced overlay exposes its pkgbase -> checkout mapping,
+// which the daemon needs to materialize an approved pin from the overlay tree.
+func TestSourceDirs(t *testing.T) {
+	repo := makeOverlayRepo(t, "mypkg", "1")
+	r := syncedRegistry(t, []conf.OverlayConfig{{Name: "ov", URL: repo}})
+
+	dirs := r.SourceDirs()
+	dir, ok := dirs["mypkg"]
+	if !ok {
+		t.Fatalf("SourceDirs missing pkgbase mypkg: %+v", dirs)
+	}
+	if filepath.Base(dir) != "ov" {
+		t.Errorf("SourceDirs[mypkg] = %q, want the overlay checkout dir (…/ov)", dir)
+	}
+	if _, err := os.Stat(filepath.Join(dir, ".SRCINFO")); err != nil {
+		t.Errorf("overlay checkout not present at %q: %v", dir, err)
+	}
+}
+
 // TestOverlayEqualPriorityKeepsFirst pins the tie-break: at equal priority the
 // first overlay wins and a later same-priority overlay does NOT override it, so
 // adding an overlay can't silently displace an existing package by matching its

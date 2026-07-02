@@ -8,6 +8,7 @@ package gitserve
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -49,6 +50,30 @@ func Materialize(ctx context.Context, root, pkgbase, sourceDir, commit string) e
 
 func Remove(root, pkgbase string) error {
 	return os.RemoveAll(filepath.Join(root, pkgbase+".git"))
+}
+
+// MaterializePins (re)serves every pkgbase in sources at its approved commit,
+// reconciling the served root with the trust store's pins (e.g. after a cache
+// wipe or an overlay re-sync). pin returns the approved commit for a pkgbase, or
+// ok=false to leave it unserved so it falls through the Handler to the upstream
+// redirect. It is best-effort: a pkgbase whose approved commit is unreachable in
+// its source is logged via the joined error and skipped, not fatal. Returns the
+// number materialized.
+func MaterializePins(ctx context.Context, root string, sources map[string]string, pin func(pkgbase string) (string, bool)) (int, error) {
+	var served int
+	var errs []error
+	for pkgbase, dir := range sources {
+		commit, ok := pin(pkgbase)
+		if !ok || commit == "" {
+			continue
+		}
+		if err := Materialize(ctx, root, pkgbase, dir, commit); err != nil {
+			errs = append(errs, errwrap.WrapErr(err, "pin "+pkgbase))
+			continue
+		}
+		served++
+	}
+	return served, errors.Join(errs...)
 }
 
 // Handler serves materialized repos as static files and delegates everything

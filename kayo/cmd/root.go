@@ -69,11 +69,28 @@ func run(cmd *cobra.Command, _ []string) error {
 	}
 	mode := cfg.ResolvedEnforceMode()
 
-	comp, err := shared.BuildComposite(ctx, cfg)
+	comp, overlays, err := shared.BuildComposite(ctx, cfg)
 	if err != nil {
 		return err
 	}
 	comp.SetGate(store, mode)
+
+	// Serve approved overlay pins from their checkouts so a client cloning through
+	// kayo gets the exact reviewed commit, not the overlay's floating HEAD. An
+	// overlay pkgbase with no approval falls through to the redirect. This also
+	// reconciles the served root after a cache wipe or overlay re-sync.
+	if overlays != nil {
+		n, perr := gitserve.MaterializePins(ctx, cfg.ServedRoot(), overlays.SourceDirs(), func(pkgbase string) (string, bool) {
+			ap, ok := store.Approval(pkgbase)
+			return ap.Commit, ok
+		})
+		if perr != nil {
+			slog.Warn("some overlay pins could not be materialized", "error", perr)
+		}
+		if n > 0 {
+			slog.Info("served approved overlay pins", "count", n)
+		}
+	}
 
 	opts := []aurweb.Option{aurweb.WithLogger(slog.Default())}
 	if up := shared.UpstreamClient(cfg); up != nil {

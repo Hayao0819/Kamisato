@@ -10,8 +10,10 @@ package overlay
 import (
 	"context"
 	"log/slog"
+	"maps"
 	"os"
 	"path/filepath"
+	"sync"
 
 	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/internal/errwrap"
@@ -28,6 +30,9 @@ type Registry struct {
 
 	cacheDir string
 	overlays []conf.OverlayConfig
+
+	mu   sync.RWMutex
+	dirs map[string]string // pkgbase -> local working tree, for serving pinned commits
 }
 
 // New builds an empty Registry. Call Sync before serving.
@@ -36,7 +41,16 @@ func New(cacheDir string, overlays []conf.OverlayConfig) *Registry {
 		Index:    pkgindex.New(),
 		cacheDir: cacheDir,
 		overlays: overlays,
+		dirs:     map[string]string{},
 	}
+}
+
+// SourceDirs returns a snapshot of pkgbase -> local working tree for every synced
+// overlay, so a caller can materialize an approved pin from the overlay checkout.
+func (r *Registry) SourceDirs() map[string]string {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return maps.Clone(r.dirs)
 }
 
 // Sync clones or updates every overlay, re-parses their .SRCINFO, and atomically
@@ -49,6 +63,7 @@ func (r *Registry) Sync(ctx context.Context) error {
 	index := map[string]aurweb.Pkg{}
 	prio := map[string]int{}
 	bases := map[string]string{}
+	dirs := map[string]string{}
 
 	for _, o := range r.overlays {
 		dir := filepath.Join(r.cacheDir, o.Name)
@@ -75,6 +90,7 @@ func (r *Registry) Sync(ctx context.Context) error {
 		}
 
 		bases[pkgs[0].PackageBase] = o.URL
+		dirs[pkgs[0].PackageBase] = dir
 		for _, p := range pkgs {
 			if cur, ok := prio[p.Name]; ok && cur >= o.Priority {
 				slog.Warn("overlay package shadowed by higher/equal priority overlay", "package", p.Name, "overlay", o.Name)
@@ -87,6 +103,9 @@ func (r *Registry) Sync(ctx context.Context) error {
 	}
 
 	r.Replace(index, bases)
+	r.mu.Lock()
+	r.dirs = dirs
+	r.mu.Unlock()
 	return nil
 }
 

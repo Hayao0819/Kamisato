@@ -18,22 +18,26 @@ func LoadConfig(cmd *cobra.Command) (*conf.KayoConfig, error) {
 	return conf.LoadKayoConfig(cmd.Flags(), configFile)
 }
 
-// BuildComposite creates and syncs the overlay and ayato sources into an
-// ungated Composite, shared by the daemon and the verify command.
-func BuildComposite(ctx context.Context, cfg *conf.KayoConfig) (*federate.Composite, error) {
+// BuildComposite creates and syncs the overlay and ayato sources into an ungated
+// Composite, shared by the daemon and the verify command. The overlay Registry is
+// returned separately (nil when no overlays are configured) so the daemon can
+// serve approved overlay pins from its checkouts; it is already registered on the
+// Composite.
+func BuildComposite(ctx context.Context, cfg *conf.KayoConfig) (*federate.Composite, *overlay.Registry, error) {
 	comp := federate.New()
+	var reg *overlay.Registry
 	if len(cfg.Overlays) > 0 {
-		reg := overlay.New(cfg.ResolvedCacheDir(), cfg.Overlays)
+		reg = overlay.New(cfg.ResolvedCacheDir(), cfg.Overlays)
 		slog.Info("Syncing overlays", "count", len(cfg.Overlays), "cache", cfg.ResolvedCacheDir())
 		if err := reg.Sync(ctx); err != nil {
-			return nil, errwrap.WrapErr(err, "initial overlay sync failed")
+			return nil, nil, errwrap.WrapErr(err, "initial overlay sync failed")
 		}
 		comp.Add(reg, federate.TierOverlay, 0, "overlay")
 	}
 	if len(cfg.Ayato) > 0 {
 		pins, err := ayatosrc.OpenPinStore(cfg.AyatoPinStorePath())
 		if err != nil {
-			return nil, errwrap.WrapErr(err, "failed to open ayato pin store")
+			return nil, nil, errwrap.WrapErr(err, "failed to open ayato pin store")
 		}
 		for _, a := range cfg.Ayato {
 			src, err := ayatosrc.New(ayatosrc.Options{
@@ -46,7 +50,7 @@ func BuildComposite(ctx context.Context, cfg *conf.KayoConfig) (*federate.Compos
 				Pins:            pins,
 			})
 			if err != nil {
-				return nil, errwrap.WrapErr(err, "ayato source "+a.Name)
+				return nil, nil, errwrap.WrapErr(err, "ayato source "+a.Name)
 			}
 			if err := src.Sync(ctx); err != nil {
 				slog.Error("ayato source initial sync failed", "name", a.Name, "error", err)
@@ -60,7 +64,7 @@ func BuildComposite(ctx context.Context, cfg *conf.KayoConfig) (*federate.Compos
 				"delegated", a.Delegated(), "insecure", a.Insecure)
 		}
 	}
-	return comp, nil
+	return comp, reg, nil
 }
 
 func UpstreamClient(cfg *conf.KayoConfig) *aurweb.AURUpstream {
