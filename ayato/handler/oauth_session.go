@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -148,9 +149,11 @@ func (h *Handler) MeHandler(c *gin.Context) {
 // Sessions are stateless: clearing the cookie ends the session; the signed token
 // otherwise expires by TTL.
 func (h *Handler) LogoutHandler(c *gin.Context) {
-	// Defense-in-depth vs logout CSRF: reject cross-site callers (non-browser
-	// callers send no Sec-Fetch-Site).
-	if sfs := c.GetHeader("Sec-Fetch-Site"); sfs != "" && sfs != "same-origin" {
+	// Logout mutates session state, so gate it against CSRF and fail closed:
+	// accept only a proven same-origin caller. A request that presents no
+	// same-origin signal at all (no Sec-Fetch-Site and no matching Origin/Referer)
+	// is rejected rather than allowed through.
+	if !h.sameOriginRequest(c) {
 		c.AbortWithStatus(http.StatusForbidden)
 		return
 	}
@@ -174,4 +177,33 @@ func (h *Handler) LogoutHandler(c *gin.Context) {
 		h.setSessionCookie(c, "", scheme == "https", -1)
 	}
 	c.JSON(http.StatusOK, gin.H{"ok": true})
+}
+
+// sameOriginRequest is the fail-closed CSRF gate for state-changing browser
+// endpoints. Sec-Fetch-Site, when the browser sends it, is authoritative. When
+// it is absent, fall back to requiring the Origin/Referer host to equal the
+// request host, so a genuine same-origin call still passes. A request carrying
+// neither signal (or a cross-site one) is rejected.
+func (h *Handler) sameOriginRequest(c *gin.Context) bool {
+	if sfs := c.GetHeader("Sec-Fetch-Site"); sfs != "" {
+		return sfs == "same-origin"
+	}
+	origin := c.GetHeader("Origin")
+	if origin == "" {
+		origin = c.GetHeader("Referer")
+	}
+	host := hostOfURL(origin)
+	return host != "" && strings.EqualFold(host, c.Request.Host)
+}
+
+// hostOfURL returns the host[:port] of a URL, or "" if it cannot be parsed.
+func hostOfURL(raw string) string {
+	if raw == "" {
+		return ""
+	}
+	u, err := url.Parse(raw)
+	if err != nil || u.Host == "" {
+		return ""
+	}
+	return u.Host
 }
