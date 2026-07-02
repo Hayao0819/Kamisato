@@ -5,9 +5,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// AddRepoServerFlags registers the shared server-selection flags.
+// AddRepoServerFlags registers the shared --server selection flag plus the
+// credential overrides that only the repo-upload path needs.
 func AddRepoServerFlags(cmd *cobra.Command) {
-	cmd.Flags().StringP("server", "s", "", "ayato server (default: serverdb default)")
+	AddServerFlag(cmd)
 	cmd.Flags().String("username", "", "Username for server login (overrides saved value)")
 	cmd.Flags().String("password", "", "Password for server login (overrides saved value)")
 	cmd.Flags().BoolP("ask-pass", "K", false, "Prompt for password interactively")
@@ -15,10 +16,6 @@ func AddRepoServerFlags(cmd *cobra.Command) {
 
 // RepoClient resolves the endpoint and credentials from flags and the serverdb, returning a Blinky client.
 func RepoClient(cmd *cobra.Command) (*blinkyutils.Client, error) {
-	serverFlag, err := cmd.Flags().GetString("server")
-	if err != nil {
-		return nil, err
-	}
 	usernameFlag, err := cmd.Flags().GetString("username")
 	if err != nil {
 		return nil, err
@@ -32,7 +29,7 @@ func RepoClient(cmd *cobra.Command) (*blinkyutils.Client, error) {
 		return nil, err
 	}
 
-	info, err := blinkyutils.ResolveServer(serverFlag)
+	info, err := ServerFromFlag(cmd)
 	if err != nil {
 		return nil, err
 	}

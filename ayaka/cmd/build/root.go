@@ -21,7 +21,6 @@ import (
 func Cmd() *cobra.Command {
 	var gpgkey string
 	var diffMode bool
-	var server string
 	var repo string
 	var remote bool
 	var executor string
@@ -82,6 +81,10 @@ func Cmd() *cobra.Command {
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
+			server, err := cmd.Flags().GetString("server")
+			if err != nil {
+				return err
+			}
 			var buildPkgs []string
 			if len(args) > 1 {
 				buildPkgs = args[1:]
@@ -161,7 +164,7 @@ func Cmd() *cobra.Command {
 	cmd.Flags().StringVar(&gpgkey, "gpgkey", "", "Deprecated: use --key")
 	_ = cmd.Flags().MarkDeprecated("gpgkey", "use --key instead")
 	cmd.Flags().BoolVar(&diffMode, "diff", false, "Enable diff build mode (build only new packages)")
-	cmd.Flags().StringVarP(&server, "server", "s", "", "ayato server (diff compare, or --remote target)")
+	shared.AddServerFlag(&cmd)
 	cmd.Flags().BoolVar(&remote, "remote", false, "Build on miko (via ayato) instead of locally")
 	cmd.Flags().StringVar(&executor, "executor", "chroot", "Local build backend: chroot or container")
 	cmd.Flags().StringVar(&arch, "arch", "x86_64", "Target architecture for the build")

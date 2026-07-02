@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
 	"github.com/Hayao0819/Kamisato/internal/ayatoclient"
 	"github.com/Hayao0819/Kamisato/internal/utils"
 	"github.com/spf13/cobra"
@@ -15,7 +16,7 @@ func adminRemoveCmd() *cobra.Command {
 		Short: "Remove an ayato admin by numeric id",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			srv, err := resolveAdminServer(cmd)
+			srv, err := shared.ServerFromFlag(cmd)
 			if err != nil {
 				return err
 			}

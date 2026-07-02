@@ -5,6 +5,7 @@ import (
 	"os"
 	"text/tabwriter"
 
+	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
 	"github.com/Hayao0819/Kamisato/internal/ayatoclient"
 	"github.com/Hayao0819/Kamisato/internal/utils"
 	"github.com/spf13/cobra"
@@ -16,12 +17,12 @@ func mikoJobsCmd() *cobra.Command {
 		Short: "List build jobs on miko",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			base, err := resolveJobBase(cmd)
+			srv, err := shared.ServerFromFlag(cmd)
 			if err != nil {
 				return err
 			}
 
-			jobs, err := ayatoclient.ListJobs(cmd.Context(), base)
+			jobs, err := ayatoclient.ListJobs(cmd.Context(), srv.URL)
 			if err != nil {
 				return utils.WrapErr(err, "failed to list jobs")
 			}

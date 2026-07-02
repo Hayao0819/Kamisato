@@ -11,7 +11,6 @@ import (
 // selectable with a Docker-style --format template.
 func Cmd() *cobra.Command {
 	var format string
-	var server string
 
 	cmd := cobra.Command{
 		Use:   "list [repo]",
@@ -40,6 +39,10 @@ func Cmd() *cobra.Command {
 				repos = []*repo.SourceRepo{argrepo}
 			}
 
+			server, err := cmd.Flags().GetString("server")
+			if err != nil {
+				return err
+			}
 			if format == "" {
 				format = shared.DefaultListFormat
 			}
@@ -49,6 +52,6 @@ func Cmd() *cobra.Command {
 	}
 
 	cmd.Flags().StringVar(&format, "format", "", "Format the output with a Go template (Docker-style; 'table ...' or 'json')")
-	cmd.Flags().StringVarP(&server, "server", "s", "", "ayato server for build status (default: serverdb default)")
+	shared.AddServerFlag(&cmd)
 	return &cmd
 }

@@ -15,12 +15,7 @@ func mikoCancelCmd() *cobra.Command {
 		Short: "Cancel a queued or running build job",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			server, err := cmd.Flags().GetString("server")
-			if err != nil {
-				return err
-			}
-
-			srv, err := shared.ResolveAyatoServer(server)
+			srv, err := shared.ServerFromFlag(cmd)
 			if err != nil {
 				return err
 			}

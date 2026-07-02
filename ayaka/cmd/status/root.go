@@ -19,8 +19,6 @@ type statusItem struct {
 }
 
 func Cmd() *cobra.Command {
-	var server string
-
 	cmd := &cobra.Command{
 		Use:   "status [repo]",
 		Short: "Show packages that are out of date or failed to build",
@@ -43,6 +41,10 @@ func Cmd() *cobra.Command {
 				repos = []*repo.SourceRepo{argrepo}
 			}
 
+			server, err := cmd.Flags().GetString("server")
+			if err != nil {
+				return err
+			}
 			// defaultListFormat references every column, so all are populated.
 			rows := shared.BuildPkgRows(repos, shared.DefaultListFormat, server)
 			printStatus(cmd.OutOrStdout(), rows, len(repos) > 1)
@@ -50,7 +52,7 @@ func Cmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVarP(&server, "server", "s", "", "ayato server for build status (default: serverdb default)")
+	shared.AddServerFlag(cmd)
 	return cmd
 }
 

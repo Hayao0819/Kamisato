@@ -1,6 +1,7 @@
 package mikocmd
 
 import (
+	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
 	"github.com/spf13/cobra"
 )
 
@@ -13,7 +14,7 @@ func Cmd() *cobra.Command {
 		Short: "Submit and inspect builds on the miko build service",
 		Long:  "Submit build jobs to miko (via ayato) and inspect their status and logs.",
 	}
-	cmd.PersistentFlags().StringP("server", "s", "", "ayato server that relays to miko (default: serverdb default)")
+	shared.AddServerFlag(cmd)
 	cmd.AddCommand(
 		mikoBuildCmd(),
 		mikoJobsCmd(),

@@ -3,6 +3,7 @@ package mikocmd
 import (
 	"os"
 
+	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
 	"github.com/Hayao0819/Kamisato/internal/ayatoclient"
 	"github.com/Hayao0819/Kamisato/internal/utils"
 	"github.com/spf13/cobra"
@@ -14,12 +15,12 @@ func mikoLogsCmd() *cobra.Command {
 		Short: "Stream logs from a build job",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			base, err := resolveJobBase(cmd)
+			srv, err := shared.ServerFromFlag(cmd)
 			if err != nil {
 				return err
 			}
 
-			if err := ayatoclient.StreamLogs(cmd.Context(), base, args[0], os.Stdout); err != nil {
+			if err := ayatoclient.StreamLogs(cmd.Context(), srv.URL, args[0], os.Stdout); err != nil {
 				return utils.WrapErr(err, "failed to stream logs")
 			}
 			return nil
