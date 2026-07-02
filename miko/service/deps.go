@@ -12,6 +12,7 @@ import (
 	"github.com/Hayao0819/Kamisato/pkg/aurweb"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/builder"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/depsolve"
+	"github.com/Hayao0819/Kamisato/pkg/raiou"
 )
 
 // resolveAndBuildDeps resolves a target's unbuilt AUR dependencies, builds each in
@@ -29,7 +30,11 @@ func (s *Service) resolveAndBuildDeps(ctx context.Context, job *domain.BuildJob,
 		slog.Warn("resolve_aur_deps is on but the source has no .SRCINFO; skipping AUR dependency resolution", "err", err)
 		return nil
 	}
-	rootDeps := srcinfoBuildDeps(data, job.Request.Arch)
+	rootDeps, err := srcinfoBuildDeps(data, job.Request.Arch)
+	if err != nil {
+		slog.Warn("could not parse the source .SRCINFO; skipping AUR dependency resolution", "err", err)
+		return nil
+	}
 	if len(rootDeps) == 0 {
 		return nil
 	}
@@ -88,30 +93,35 @@ func (s *Service) buildAndPublishDep(ctx context.Context, job *domain.BuildJob, 
 }
 
 // srcinfoBuildDeps extracts the build-relevant dependency specs (depends,
-// makedepends, checkdepends, including the arch-specific variants) from .SRCINFO
-// content, preserving order and de-duplicating.
-func srcinfoBuildDeps(data []byte, arch string) []string {
-	want := map[string]bool{}
-	for _, base := range []string{"depends", "makedepends", "checkdepends"} {
-		want[base] = true
-		if arch != "" {
-			want[base+"_"+arch] = true
-		}
+// makedepends, checkdepends) from .SRCINFO content, merging the arch-specific
+// variants for arch, preserving order and de-duplicating.
+func srcinfoBuildDeps(data []byte, arch string) ([]string, error) {
+	si, err := raiou.ParseSrcinfoString(string(data))
+	if err != nil {
+		return nil, err
 	}
+
 	var out []string
 	seen := map[string]bool{}
-	for _, line := range strings.Split(string(data), "\n") {
-		key, val, ok := strings.Cut(line, "=")
-		if !ok {
-			continue
+	add := func(as raiou.ArchStrings) {
+		// The empty key holds arch-independent values; arch holds the
+		// arch-scoped ones (depends_<arch>), both relevant to this build.
+		for _, group := range [][]string{as[""], as[arch]} {
+			for _, v := range group {
+				if v == "" || seen[v] {
+					continue
+				}
+				seen[v] = true
+				out = append(out, v)
+			}
 		}
-		key = strings.TrimSpace(key)
-		val = strings.TrimSpace(val)
-		if val == "" || !want[key] || seen[val] {
-			continue
-		}
-		seen[val] = true
-		out = append(out, val)
 	}
-	return out
+
+	add(si.MakeDepends)
+	add(si.CheckDepends)
+	add(si.Depends)
+	for _, pkg := range si.Packages {
+		add(pkg.Depends)
+	}
+	return out, nil
 }
