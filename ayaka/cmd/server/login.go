@@ -33,6 +33,10 @@ func LoginCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			device, err := cmd.Flags().GetBool("device")
+			if err != nil {
+				return err
+			}
 
 			if tokenFlag != "" {
 				return saveLogin(serverURL, "token", tokenFlag, setDefault)
@@ -41,18 +45,26 @@ func LoginCmd() *cobra.Command {
 			ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt)
 			defer stop()
 
-			token, login, err := oauth.LoopbackLogin(ctx, serverURL,
-				oauth.WithNoBrowser(noBrowser),
-				oauth.WithBrowserOpener(shared.OpenBrowser),
-				oauth.WithOutput(cmd.OutOrStdout()),
-			)
+			login := func() (string, string, error) {
+				// Device flow: no loopback listener, so it works over SSH/CI where the
+				// browser is on another machine.
+				if device {
+					return oauth.DeviceLogin(ctx, serverURL, oauth.WithDeviceOutput(cmd.OutOrStdout()))
+				}
+				return oauth.LoopbackLogin(ctx, serverURL,
+					oauth.WithNoBrowser(noBrowser),
+					oauth.WithBrowserOpener(shared.OpenBrowser),
+					oauth.WithOutput(cmd.OutOrStdout()),
+				)
+			}
+			token, loginName, err := login()
 			if err != nil {
 				return err
 			}
-			if err := saveLogin(serverURL, login, token, setDefault); err != nil {
+			if err := saveLogin(serverURL, loginName, token, setDefault); err != nil {
 				return err
 			}
-			fmt.Fprintf(cmd.OutOrStdout(), "%s として %s にログインしました\n", login, serverURL)
+			fmt.Fprintf(cmd.OutOrStdout(), "%s として %s にログインしました\n", loginName, serverURL)
 			return nil
 		},
 	}
@@ -60,6 +72,7 @@ func LoginCmd() *cobra.Command {
 	cmd.Flags().Bool("default", false, "Set server as default for repo and miko commands")
 	cmd.Flags().String("token", "", "Store the given CLI token directly (headless; skips the browser)")
 	cmd.Flags().Bool("no-browser", false, "Print the login URL instead of opening a browser")
+	cmd.Flags().Bool("device", false, "Use the device authorization flow (no local browser; for SSH/CI)")
 
 	return cmd
 }
