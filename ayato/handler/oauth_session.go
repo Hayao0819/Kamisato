@@ -95,11 +95,19 @@ func (h *Handler) WebExchangeHandler(c *gin.Context) {
 		c.JSON(http.StatusForbidden, gin.H{"error": "not allowed"})
 		return
 	}
+	// A jti makes the web bearer individually revocable (logout denylists it),
+	// matching the CLI token; without it a leaked bearer lives its full TTL.
+	jti, err := auth.NewJTI()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "token"})
+		return
+	}
 	token, err := h.signer.Sign(auth.Claims{
 		Typ:      auth.TypBearer,
 		GitHubID: rec.GitHubID,
 		Login:    rec.Login,
 		Name:     "web",
+		JTI:      jti,
 		Exp:      time.Now().Add(bearerTTL),
 	})
 	if err != nil {
@@ -145,6 +153,21 @@ func (h *Handler) LogoutHandler(c *gin.Context) {
 	if sfs := c.GetHeader("Sec-Fetch-Site"); sfs != "" && sfs != "same-origin" {
 		c.AbortWithStatus(http.StatusForbidden)
 		return
+	}
+	// Bearer-mode logout: individually revoke the presented web (or CLI) token so
+	// it cannot be replayed before its TTL. Best-effort — cookie-mode logout is
+	// handled by clearing the cookie below, and the signed session token has no
+	// jti and simply expires.
+	if h.signer != nil {
+		if authz := c.GetHeader("Authorization"); strings.HasPrefix(authz, "Bearer ") {
+			tok := strings.TrimPrefix(authz, "Bearer ")
+			for _, typ := range []string{auth.TypBearer, auth.TypCLI} {
+				if claims, verr := h.signer.VerifyTyp(tok, typ); verr == nil && claims.JTI != "" {
+					_ = h.s.Revoke(claims.JTI, time.Until(claims.Exp))
+					break
+				}
+			}
+		}
 	}
 	if h.cfg != nil {
 		scheme, _ := h.externalBase(c)
