@@ -3,6 +3,7 @@ package middleware
 import (
 	"encoding/base64"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/Hayao0819/Kamisato/ayato/auth"
@@ -63,7 +64,7 @@ func (m *Middleware) RequireAdmin(allowBasic bool) gin.HandlerFunc {
 
 		// CSRF defense-in-depth for the cookie path: cross-site requests aren't
 		// same-origin. Bearer/basic (non-browser) callers skip this.
-		if via == ctxViaSession && c.GetHeader("Sec-Fetch-Site") != "same-origin" {
+		if via == ctxViaSession && !m.sameOriginRequest(c) {
 			c.AbortWithStatus(http.StatusForbidden)
 			return
 		}
@@ -87,6 +88,51 @@ const (
 	ctxViaBearer  = "bearer"
 	ctxViaBasic   = "basic"
 )
+
+// sameOriginRequest is the CSRF gate for the cookie path. Sec-Fetch-Site, when
+// the browser sends it, is authoritative. When it is absent, fall back to an
+// Origin/Referer allowlist so a legitimate same-origin request is not blocked
+// while a cross-site one still is. Fails closed when no origin can be resolved.
+func (m *Middleware) sameOriginRequest(c *gin.Context) bool {
+	if sfs := c.GetHeader("Sec-Fetch-Site"); sfs != "" {
+		return sfs == "same-origin"
+	}
+	origin := c.GetHeader("Origin")
+	if origin == "" {
+		origin = originOfURL(c.GetHeader("Referer"))
+	}
+	if origin == "" {
+		return false
+	}
+	return m.allowedOrigin(origin)
+}
+
+// allowedOrigin matches an origin (scheme://host) case-insensitively against the
+// configured PublicOrigin/SelfOrigin allowlist, normalizing each so a trailing
+// slash does not cause a spurious mismatch.
+func (m *Middleware) allowedOrigin(origin string) bool {
+	if m.cfg == nil {
+		return false
+	}
+	for _, allowed := range []string{m.cfg.Auth.PublicOrigin, m.cfg.Auth.SelfOrigin} {
+		if allowed != "" && strings.EqualFold(origin, originOfURL(allowed)) {
+			return true
+		}
+	}
+	return false
+}
+
+// originOfURL returns the scheme://host of a URL, or "" if it cannot be parsed.
+func originOfURL(raw string) string {
+	if raw == "" {
+		return ""
+	}
+	u, err := url.Parse(raw)
+	if err != nil || u.Scheme == "" || u.Host == "" {
+		return ""
+	}
+	return u.Scheme + "://" + u.Host
+}
 
 func (m *Middleware) resolve(c *gin.Context, allowBasic bool) (id int64, login, via string, ok bool) {
 	if sid, err := c.Cookie(m.cfg.Auth.CookieName()); err == nil && sid != "" {

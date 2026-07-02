@@ -16,6 +16,15 @@ func githubCfg(origin string) *AyatoConfig {
 	return c
 }
 
+func TestCookieNameDefaultHasHostPrefix(t *testing.T) {
+	if got := (AuthConfig{}).CookieName(); got != "__Host-ayato_session" {
+		t.Errorf("default cookie name = %q, want __Host-ayato_session", got)
+	}
+	if got := (AuthConfig{SessionCookieName: "custom"}).CookieName(); got != "custom" {
+		t.Errorf("explicit cookie name = %q, want custom", got)
+	}
+}
+
 func TestValidateNoGitHubIsOK(t *testing.T) {
 	if err := (&AyatoConfig{}).Validate(); err != nil {
 		t.Fatalf("no GitHub config: Validate = %v, want nil", err)

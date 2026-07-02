@@ -149,7 +149,11 @@ type AuthConfig struct {
 	// BootstrapAdminGitHubID is seeded into the admin allowlist on first run
 	// when the allowlist is empty.
 	BootstrapAdminGitHubID int64 `koanf:"bootstrap_admin_github_id,omitempty"`
-	// SessionCookieName is the web session cookie name (default "ayato_session").
+	// SessionCookieName is the web session cookie name (default
+	// "__Host-ayato_session"). The __Host- prefix pins the cookie to the exact
+	// host over HTTPS and requires Secure + Path=/ + no Domain (all emitted by
+	// setSessionCookie). Plain-HTTP localhost dev cannot set a __Host- cookie, so
+	// serve HTTPS or override this via AYATO_AUTH_SESSION_COOKIE_NAME.
 	SessionCookieName string `koanf:"session_cookie_name,omitempty"`
 	// SessionSecret holds HMAC keys for the stateless auth signer. The first signs;
 	// all verify, so a key rotates by prepending a new one. Each must be >= 32 bytes.
@@ -168,7 +172,7 @@ func (a AuthConfig) CookieName() string {
 	if a.SessionCookieName != "" {
 		return a.SessionCookieName
 	}
-	return "ayato_session"
+	return "__Host-ayato_session"
 }
 
 type BinRepoConfig struct {

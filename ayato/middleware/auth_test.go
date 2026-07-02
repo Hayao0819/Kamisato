@@ -149,6 +149,41 @@ func TestRequireAdminCookieRequiresSecFetch(t *testing.T) {
 	}
 }
 
+// When the browser omits Sec-Fetch-Site, the cookie path falls back to an
+// Origin/Referer allowlist: a matching origin passes, a foreign one is rejected,
+// and no resolvable origin fails closed.
+func TestRequireAdminCookieOriginFallback(t *testing.T) {
+	m, signer := testMiddleware(t, 42)
+	m.cfg.Auth.PublicOrigin = "https://repo.example.com"
+	sid := sessionToken(t, signer, 42, "alice")
+
+	withCookie := func(mutate func(*http.Request)) *httptest.ResponseRecorder {
+		return run(m, false, func(req *http.Request) {
+			req.AddCookie(&http.Cookie{Name: m.cfg.Auth.CookieName(), Value: sid})
+			mutate(req)
+		})
+	}
+
+	if w := withCookie(func(req *http.Request) {
+		req.Header.Set("Origin", "https://repo.example.com")
+	}); w.Code != http.StatusOK {
+		t.Fatalf("matching Origin without Sec-Fetch-Site: status = %d, want 200", w.Code)
+	}
+	if w := withCookie(func(req *http.Request) {
+		req.Header.Set("Origin", "https://evil.example.com")
+	}); w.Code != http.StatusForbidden {
+		t.Fatalf("foreign Origin: status = %d, want 403", w.Code)
+	}
+	if w := withCookie(func(req *http.Request) {
+		req.Header.Set("Referer", "https://repo.example.com/packages")
+	}); w.Code != http.StatusOK {
+		t.Fatalf("matching Referer without Origin: status = %d, want 200", w.Code)
+	}
+	if w := withCookie(func(*http.Request) {}); w.Code != http.StatusForbidden {
+		t.Fatalf("no origin headers: status = %d, want 403 (fail closed)", w.Code)
+	}
+}
+
 func TestRequireAdminBasicTokenBlinkyOnly(t *testing.T) {
 	m, signer := testMiddleware(t, 42)
 	tok := cliToken(t, signer, 42, "alice")
