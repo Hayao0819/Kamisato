@@ -1,15 +1,16 @@
 package shared
 
 import (
-	"os/exec"
+	"context"
 	"strings"
+
+	"github.com/Hayao0819/Kamisato/internal/gitcmd"
 )
 
 func GitRootDir(dir string) (string, error) {
-	cmd := exec.Command("git", "-C", dir, "rev-parse", "--show-toplevel")
-	out, err := cmd.Output()
+	out, err := gitcmd.Output(context.Background(), dir, "rev-parse", "--show-toplevel")
 	if err != nil {
 		return "", err
 	}
-	return strings.TrimSpace(string(out)), nil
+	return strings.TrimSpace(out), nil
 }
