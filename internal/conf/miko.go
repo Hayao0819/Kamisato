@@ -56,6 +56,47 @@ type MikoConfig struct {
 	// AURTrust gates which recursively-resolved AUR dependencies may be
 	// auto-built when resolve_aur_deps is on.
 	AURTrust AURTrustConfig `koanf:"aur_trust"`
+	// NvCheck configures upstream version monitoring (nvchecker-style): each
+	// entry watches a source for a newer version and rebuilds when one appears.
+	NvCheck NvCheckConfig `koanf:"nvcheck"`
+	// SonameRebuild, when true, walks a built package's shared objects after a
+	// successful build and rebuilds its reverse-dependencies on a soname bump.
+	SonameRebuild bool `koanf:"soname_rebuild"`
+	// AURGitBase is the git base used to clone the PKGBUILD when a monitor or
+	// soname bump rebuilds a package (default https://aur.archlinux.org).
+	AURGitBase string `koanf:"aur_git_base"`
+}
+
+// NvCheckConfig configures upstream version monitoring.
+type NvCheckConfig struct {
+	// IntervalMin runs a periodic check every IntervalMin minutes; 0 disables the
+	// ticker (the check can still be run on demand via CheckUpstreamVersions).
+	IntervalMin int `koanf:"interval_min"`
+	// Entries are the monitored packages.
+	Entries []NvCheckEntry `koanf:"entries"`
+}
+
+// NvCheckEntry monitors one pkgbase against an upstream source and describes how
+// to rebuild it when a newer version appears.
+type NvCheckEntry struct {
+	Pkgbase string `koanf:"pkgbase"`
+	// Kind selects the source: "github", "github_tag", "pypi" or "http".
+	Kind string `koanf:"kind"`
+	// Repo is "owner/name" for the github/github_tag kinds.
+	Repo string `koanf:"repo"`
+	// Package is the project name for the pypi kind.
+	Package string `koanf:"package"`
+	// URL and Regex drive the "http" kind: fetch URL, extract the version from the
+	// first capture group of Regex.
+	URL   string `koanf:"url"`
+	Regex string `koanf:"regex"`
+	// Prefix is stripped from the matched version (e.g. "v" for "v1.2.3" tags).
+	Prefix string `koanf:"prefix"`
+	// BuildRepo and Arch target the rebuild; Git overrides the source clone URL
+	// (default: <aur_git_base>/<pkgbase>.git).
+	BuildRepo string `koanf:"build_repo"`
+	Arch      string `koanf:"arch"`
+	Git       string `koanf:"git"`
 }
 
 // AURTrustConfig is miko's build-time trust policy for AUR dependencies. It
@@ -143,6 +184,9 @@ func (c *MikoConfig) applyDefaults() {
 	}
 	if c.MaxLogReaders == 0 {
 		c.MaxLogReaders = 8
+	}
+	if c.AURGitBase == "" {
+		c.AURGitBase = "https://aur.archlinux.org"
 	}
 }
 

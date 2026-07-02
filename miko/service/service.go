@@ -52,6 +52,9 @@ type Service struct {
 	// sweepOnce ensures a single artifact-sweep loop runs even when several
 	// worker goroutines share this Service (cfg.Concurrency > 1).
 	sweepOnce sync.Once
+	// nvcheckOnce ensures a single upstream-version monitor loop runs regardless
+	// of the worker count.
+	nvcheckOnce sync.Once
 
 	mu    sync.Mutex
 	store map[string]*domain.BuildJob

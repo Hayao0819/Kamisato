@@ -52,6 +52,13 @@ func (s *Service) validateInstallPkgs(pkgs []string) error {
 }
 
 func (s *Service) Submit(req *domain.BuildRequest) (string, error) {
+	return s.submitWithReason(req, domain.ReasonManual)
+}
+
+// submitWithReason validates req and enqueues it tagged with reason. Submit and
+// the automated triggers (version-update monitor, soname rebuild chain) share
+// this path so every job runs the same validation.
+func (s *Service) submitWithReason(req *domain.BuildRequest, reason domain.BuildReason) (string, error) {
 	if req == nil {
 		return "", fmt.Errorf("%w: request is nil", ErrInvalidRequest)
 	}
@@ -80,7 +87,7 @@ func (s *Service) Submit(req *domain.BuildRequest) (string, error) {
 		Repo:      req.Repo,
 		Arch:      req.Arch,
 		Status:    domain.JobStatusQueued,
-		Reason:    domain.ReasonManual,
+		Reason:    reason,
 		Request:   req,
 		CreatedAt: time.Now(),
 	}
@@ -211,6 +218,15 @@ func (s *Service) Run(ctx context.Context) {
 			s.sweepLoop(ctx, sweepInterval, artifactRetention)
 		}()
 	})
+	if interval := s.nvcheckInterval(); interval > 0 {
+		s.nvcheckOnce.Do(func() {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				s.nvcheckLoop(ctx, interval)
+			}()
+		})
+	}
 	defer wg.Wait()
 
 	for {

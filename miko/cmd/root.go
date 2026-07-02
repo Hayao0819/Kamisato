@@ -164,6 +164,7 @@ func RootCmd() *cobra.Command {
 	cmd.SilenceUsage = true
 
 	cmd.AddCommand(apikeyCmd())
+	cmd.AddCommand(nvcheckCmd())
 
 	return &cmd
 }
