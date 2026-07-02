@@ -60,6 +60,8 @@ func SetRoute(e *gin.Engine, h *handler.Handler, m *middleware.Middleware) error
 			api.POST("/auth/web/exchange", authLimit, h.WebExchangeHandler)
 			api.GET("/auth/me", authLimit, h.MeHandler)
 			api.POST("/auth/logout", h.LogoutHandler)
+			// Revokes the presented CLI token by its jti; the signature is the auth.
+			api.POST("/auth/cli/revoke", authLimit, h.RevokeCLIHandler)
 		}
 
 		if mikoProxy != nil {

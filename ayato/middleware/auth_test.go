@@ -25,6 +25,11 @@ func (f fakeChecker) IsAdmin(id int64) bool {
 	return f.allowed[id]
 }
 
+// fakeDenylist is a minimal denylistChecker backed by a static revoked set.
+type fakeDenylist struct{ revoked map[string]bool }
+
+func (f fakeDenylist) IsRevoked(jti string) bool { return f.revoked[jti] }
+
 func testMiddleware(t *testing.T, bootstrap int64) (*Middleware, *auth.Signer) {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
@@ -181,6 +186,29 @@ func TestRequireAdminCookieOriginFallback(t *testing.T) {
 	}
 	if w := withCookie(func(*http.Request) {}); w.Code != http.StatusForbidden {
 		t.Fatalf("no origin headers: status = %d, want 403 (fail closed)", w.Code)
+	}
+}
+
+// A CLI token whose jti is on the denylist must fail the Bearer path (401),
+// while an otherwise-identical token with a live jti still authenticates.
+func TestRequireAdminRevokedTokenRejected(t *testing.T) {
+	m, signer := testMiddleware(t, 42)
+	m.WithDenylist(fakeDenylist{revoked: map[string]bool{"revoked-jti": true}})
+
+	revoked, err := signer.Sign(auth.Claims{Typ: auth.TypCLI, GitHubID: 42, Login: "alice", Name: "cli", JTI: "revoked-jti", Exp: time.Now().Add(time.Hour)})
+	if err != nil {
+		t.Fatalf("sign revoked: %v", err)
+	}
+	if w := run(m, false, func(req *http.Request) { req.Header.Set("Authorization", "Bearer "+revoked) }); w.Code != http.StatusUnauthorized {
+		t.Fatalf("revoked token: status = %d, want 401", w.Code)
+	}
+
+	live, err := signer.Sign(auth.Claims{Typ: auth.TypCLI, GitHubID: 42, Login: "alice", Name: "cli", JTI: "live-jti", Exp: time.Now().Add(time.Hour)})
+	if err != nil {
+		t.Fatalf("sign live: %v", err)
+	}
+	if w := run(m, false, func(req *http.Request) { req.Header.Set("Authorization", "Bearer "+live) }); w.Code != http.StatusOK {
+		t.Fatalf("non-revoked token: status = %d, want 200", w.Code)
 	}
 }
 

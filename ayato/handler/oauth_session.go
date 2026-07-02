@@ -46,11 +46,17 @@ func (h *Handler) CLIExchangeHandler(c *gin.Context) {
 		return
 	}
 
+	jti, err := auth.NewJTI()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "token"})
+		return
+	}
 	token, err := h.signer.Sign(auth.Claims{
 		Typ:      auth.TypCLI,
 		GitHubID: rec.GitHubID,
 		Login:    rec.Login,
 		Name:     "cli",
+		JTI:      jti,
 		Exp:      time.Now().Add(tokenTTL),
 	})
 	if err != nil {
@@ -120,6 +126,9 @@ func (h *Handler) MeHandler(c *gin.Context) {
 		tok := strings.TrimPrefix(authz, "Bearer ")
 		for _, typ := range []string{auth.TypBearer, auth.TypCLI} {
 			if claims, verr := h.signer.VerifyTyp(tok, typ); verr == nil && h.s.IsAdmin(claims.GitHubID) {
+				if h.denylist != nil && claims.JTI != "" && h.denylist.IsRevoked(claims.JTI) {
+					continue
+				}
 				c.JSON(http.StatusOK, gin.H{"authenticated": true, "id": claims.GitHubID, "login": claims.Login})
 				return
 			}

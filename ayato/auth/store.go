@@ -26,6 +26,10 @@ func randToken(n int) (string, error) {
 // its hash is signed into the state token) and the CLI loopback fallback state.
 func NewState() (string, error) { return randToken(32) }
 
+// NewJTI returns a fresh 128-bit token id that makes a minted token individually
+// revocable via the denylist.
+func NewJTI() (string, error) { return randToken(16) }
+
 // HashHex returns the hex SHA-256 of s, used to bind the OAuth state token to a
 // browser cookie nonce without carrying the plaintext nonce.
 func HashHex(s string) string {

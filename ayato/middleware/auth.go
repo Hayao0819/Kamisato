@@ -18,11 +18,17 @@ type adminChecker interface {
 	IsAdmin(id int64) bool
 }
 
+// denylistChecker reports whether a token id has been revoked.
+type denylistChecker interface {
+	IsRevoked(jti string) bool
+}
+
 type Middleware struct {
-	cfg     *conf.AyatoConfig
-	checker adminChecker // nil = auth unconfigured; RequireAdmin fails closed (503)
-	signer  *auth.Signer
-	ci      *ciauth.Authorizer // nil = no CI auth
+	cfg      *conf.AyatoConfig
+	checker  adminChecker // nil = auth unconfigured; RequireAdmin fails closed (503)
+	signer   *auth.Signer
+	ci       *ciauth.Authorizer // nil = no CI auth
+	denylist denylistChecker    // nil = per-token revocation not wired
 }
 
 func New(cfg *conf.AyatoConfig) *Middleware {
@@ -35,6 +41,19 @@ func (m *Middleware) WithAuth(checker adminChecker, signer *auth.Signer) *Middle
 	m.checker = checker
 	m.signer = signer
 	return m
+}
+
+// WithDenylist attaches the per-token revocation check. Unwired (nil) means no
+// per-token revocation, same as before this feature.
+func (m *Middleware) WithDenylist(dl denylistChecker) *Middleware {
+	m.denylist = dl
+	return m
+}
+
+// revoked reports whether a verified token has been individually revoked. Tokens
+// without a JTI (sessions, pre-feature tokens) are never denylisted here.
+func (m *Middleware) revoked(c *auth.Claims) bool {
+	return m.denylist != nil && c.JTI != "" && m.denylist.IsRevoked(c.JTI)
 }
 
 // Gin context keys for the resolved requester (audit logging).
@@ -148,6 +167,9 @@ func (m *Middleware) resolve(c *gin.Context, allowBasic bool) (id int64, login, 
 		tok := strings.TrimPrefix(authz, "Bearer ")
 		for _, typ := range []string{auth.TypCLI, auth.TypBearer} {
 			if claims, terr := m.signer.VerifyTyp(tok, typ); terr == nil {
+				if m.revoked(claims) {
+					return 0, "", "", false
+				}
 				return claims.GitHubID, claims.Login, ctxViaBearer, true
 			}
 		}
@@ -157,6 +179,9 @@ func (m *Middleware) resolve(c *gin.Context, allowBasic bool) (id int64, login, 
 	if allowBasic && strings.HasPrefix(authz, "Basic ") {
 		if _, pass, perr := decodeBasic(authz); perr == nil {
 			if claims, terr := m.signer.VerifyTyp(pass, auth.TypCLI); terr == nil {
+				if m.revoked(claims) {
+					return 0, "", "", false
+				}
 				return claims.GitHubID, claims.Login, ctxViaBasic, true
 			}
 		}

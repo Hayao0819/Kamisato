@@ -116,6 +116,27 @@ func AddAdmin(ctx context.Context, base, token string, id int64, login string) (
 	return admin, nil
 }
 
+// RevokeCLIToken denylists the given CLI token server-side by its jti. The token
+// authorizes its own revocation, so it is sent as the Bearer credential.
+func RevokeCLIToken(ctx context.Context, base, token string) error {
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint(base, "/api/unstable/auth/cli/revoke"), nil)
+	if err != nil {
+		return utils.WrapErr(err, "failed to create revoke request")
+	}
+	httpReq.Header.Set("Authorization", "Bearer "+token)
+
+	resp, err := apiClient.Do(httpReq)
+	if err != nil {
+		return utils.WrapErr(err, "failed to revoke token")
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return responseErr(resp, "revoke token")
+	}
+	return nil
+}
+
 // RemoveAdmin removes an admin by numeric id.
 func RemoveAdmin(ctx context.Context, base, token string, id int64) error {
 	httpReq, err := http.NewRequestWithContext(ctx, http.MethodDelete, endpoint(base, "/api/unstable/auth/admins/"+strconv.FormatInt(id, 10)), nil)

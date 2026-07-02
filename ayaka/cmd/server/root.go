@@ -16,6 +16,7 @@ func Cmd() *cobra.Command {
 		AddCmd(),
 		LoginCmd(),
 		LogoutCmd(),
+		RevokeCmd(),
 		RemoveCmd(),
 		SetDefaultCmd(),
 	)

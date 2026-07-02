@@ -60,6 +60,7 @@ func RootCmd() *cobra.Command {
 			defer func() { _ = kvStore.Close() }()
 
 			signerRepo := repository.NewSignerRepository(kvStore)
+			denylistRepo := repository.NewDenylistRepository(kvStore)
 			s := service.New(pkgNameRepo, pkgBinaryRepo, authRepo, signerRepo, cfg)
 			h := handler.New(s, cfg)
 			m := middleware.New(cfg)
@@ -74,8 +75,8 @@ func RootCmd() *cobra.Command {
 				if serr != nil {
 					return utils.WrapErr(serr, "failed to build session signer")
 				}
-				h.WithAuth(signer)
-				m.WithAuth(s, signer)
+				h.WithAuth(signer).WithDenylist(denylistRepo)
+				m.WithAuth(s, signer).WithDenylist(denylistRepo)
 			} else {
 				// No signer: mutating and admin routes fail closed (503) rather than
 				// allowing unauthenticated access.

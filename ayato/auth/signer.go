@@ -44,7 +44,10 @@ type Claims struct {
 	CLIState  string `json:",omitempty"`
 	CLI       bool   `json:",omitempty"`
 	Web       bool   `json:",omitempty"`
-	Exp       time.Time
+	// JTI is a unique token id set on CLI tokens so a single token can be revoked
+	// via the denylist. omitempty keeps tokens that never set it byte-identical.
+	JTI string `json:",omitempty"`
+	Exp time.Time
 }
 
 // Signer mints and verifies stateless HMAC-SHA256 tokens. secrets[0] signs; all
