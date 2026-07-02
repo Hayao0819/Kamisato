@@ -40,13 +40,6 @@ func RootCmd() *cobra.Command {
 				utils.UseColorLog(slog.LevelInfo)
 			}
 
-			if shared.Config.LegacyRepoDir != "" || shared.Config.LegacyDestDir != "" {
-				slog.Warn("Using legacy configuration fields 'repodir' or 'destdir' is deprecated. Please migrate to the new 'repos' field.")
-				shared.Config.Repos = append(shared.Config.Repos, conf.RepoEntry{
-					Dir:     shared.Config.LegacyRepoDir,
-					DestDir: shared.Config.LegacyDestDir,
-				})
-			}
 			if err := shared.InitSrcRepos(); err != nil {
 				return err
 			}

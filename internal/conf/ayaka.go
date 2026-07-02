@@ -2,6 +2,8 @@ package conf
 
 import (
 	"encoding/json"
+	"fmt"
+	"log/slog"
 
 	"github.com/spf13/pflag"
 )
@@ -23,12 +25,41 @@ func (c *AyakaConfig) Marshal() ([]byte, error) {
 }
 
 func LoadAyakaConfig(flags *pflag.FlagSet) (*AyakaConfig, error) {
-	return loadConfig[AyakaConfig](
+	cfg, err := loadConfig[AyakaConfig](
 		commonConfigDirs(),
 		[]string{".ayakarc.json", ".ayakarc.toml", ".ayakarc.yaml"},
 		flags,
 		"AYAKA",
 	)
+	if err != nil {
+		return nil, err
+	}
+	cfg.migrateLegacy()
+	if err := cfg.Validate(); err != nil {
+		return nil, err
+	}
+	return cfg, nil
+}
+
+// migrateLegacy folds the deprecated top-level repodir/destdir into the repos
+// list so the rest of the CLI only ever deals with the current shape.
+func (c *AyakaConfig) migrateLegacy() {
+	if c.LegacyRepoDir == "" && c.LegacyDestDir == "" {
+		return
+	}
+	slog.Warn("Using legacy configuration fields 'repodir' or 'destdir' is deprecated. Please migrate to the new 'repos' field.")
+	c.Repos = append(c.Repos, RepoEntry{Dir: c.LegacyRepoDir, DestDir: c.LegacyDestDir})
+}
+
+// Validate rejects a repos entry without a source directory, which would
+// otherwise surface later as a confusing load failure.
+func (c *AyakaConfig) Validate() error {
+	for i, r := range c.Repos {
+		if r.Dir == "" {
+			return fmt.Errorf("repos[%d]: dir is required", i)
+		}
+	}
+	return nil
 }
 
 type SrcRepoConfig struct {
