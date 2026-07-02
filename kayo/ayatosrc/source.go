@@ -1,7 +1,7 @@
-// Package ayato makes a remote ayato instance act as a kayo package source: it
+// Package ayatosrc makes a remote ayato instance act as a kayo package source: it
 // fetches the instance's catalog and implements aurweb.Backend so kayo can federate
 // ayato alongside local git overlays and the upstream AUR.
-package ayato
+package ayatosrc
 
 import (
 	"net/http"

@@ -1,4 +1,4 @@
-package ayato
+package ayatosrc
 
 import (
 	"context"

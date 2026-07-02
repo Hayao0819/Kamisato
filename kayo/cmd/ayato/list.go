@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/Hayao0819/Kamisato/internal/conf"
-	ayatosrc "github.com/Hayao0819/Kamisato/kayo/ayato"
+	"github.com/Hayao0819/Kamisato/kayo/ayatosrc"
 	"github.com/Hayao0819/Kamisato/kayo/cmd/shared"
 	"github.com/spf13/cobra"
 )
