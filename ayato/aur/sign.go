@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"os"
 	"time"
 
 	"github.com/Hayao0819/Kamisato/internal/kayoproto"
@@ -42,6 +43,19 @@ func NewCatalogSigner(seedB64 string, ttl time.Duration) (*CatalogSigner, error)
 	priv := ed25519.NewKeyFromSeed(seed)
 	pub := priv.Public().(ed25519.PublicKey)
 	return &CatalogSigner{keyID: KeyID(pub), priv: priv, pub: pub, ttl: ttl}, nil
+}
+
+// NewCatalogSignerFromEnv builds the signer from AYATO_AUR_SIGNING_SEED, mirroring
+// how the repository factory loads the DB signing key: the seed is a private key,
+// so it comes only from the environment, never a config file. An unset seed is not
+// an error — it returns a nil signer so the catalog is served unsigned (legacy) —
+// but a present-yet-malformed seed fails closed.
+func NewCatalogSignerFromEnv(ttl time.Duration) (*CatalogSigner, error) {
+	seed := os.Getenv("AYATO_AUR_SIGNING_SEED")
+	if seed == "" {
+		return nil, nil
+	}
+	return NewCatalogSigner(seed, ttl)
 }
 
 func (s *CatalogSigner) KeyID() string        { return s.keyID }

@@ -35,7 +35,7 @@ type Backend struct {
 	defaultMaint string
 }
 
-func New(store kv.Store, defaultMaintainer string) *Backend {
+func NewBackend(store kv.Store, defaultMaintainer string) *Backend {
 	return &Backend{kv: store, defaultMaint: defaultMaintainer}
 }
 

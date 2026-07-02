@@ -1,6 +1,7 @@
 package aur
 
 import (
+	"context"
 	"encoding/json"
 	"log/slog"
 	"net/http"
@@ -13,10 +14,19 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// SourceManager is the subset of *Backend the admin/catalog Handler drives:
+// registering and removing sources, listing pkgbases, and building the catalog.
+type SourceManager interface {
+	Register(ctx context.Context, gitURL, ref, maintainer string) (pkgbase string, names []string, err error)
+	Remove(ctx context.Context, pkgbase string) error
+	List(ctx context.Context) ([]string, error)
+	Catalog(ctx context.Context) (kayoproto.Catalog, error)
+}
+
 // Handler is the admin-only management surface for registered AUR sources and the
 // kayo-facing catalog.
 type Handler struct {
-	b      *Backend
+	sm     SourceManager
 	signer *CatalogSigner
 
 	// The public /catalog is unauthenticated and rebuilds from hundreds of KV
@@ -28,10 +38,16 @@ type Handler struct {
 	cacheExp time.Time
 }
 
-// A nil signer serves the catalog unsigned (legacy); kayo refuses that for any
-// pinned source. cacheTTL bounds how long a built envelope is reused.
-func NewHandler(b *Backend, signer *CatalogSigner, cacheTTL time.Duration) *Handler {
-	return &Handler{b: b, signer: signer, cacheTTL: cacheTTL}
+// cacheTTL bounds how long a built envelope is reused.
+func NewHandler(sm SourceManager, cacheTTL time.Duration) *Handler {
+	return &Handler{sm: sm, cacheTTL: cacheTTL}
+}
+
+// WithSigner enables catalog signing. A nil signer serves the catalog unsigned
+// (legacy); kayo refuses that for any pinned source.
+func (h *Handler) WithSigner(signer *CatalogSigner) *Handler {
+	h.signer = signer
+	return h
 }
 
 type registerRequest struct {
@@ -55,7 +71,7 @@ func (h *Handler) RegisterHandler(c *gin.Context) {
 		return
 	}
 
-	pkgbase, names, err := h.b.Register(c.Request.Context(), req.GitURL, req.Ref, req.Maintainer)
+	pkgbase, names, err := h.sm.Register(c.Request.Context(), req.GitURL, req.Ref, req.Maintainer)
 	if err != nil {
 		slog.Error("AUR register failed", "git_url", req.GitURL, "error", err)
 		c.JSON(http.StatusBadGateway, domain.APIError{Message: "failed to register source", Reason: err.Error()})
@@ -74,7 +90,7 @@ func (h *Handler) CatalogHandler(c *gin.Context) {
 		return
 	}
 
-	cat, err := h.b.Catalog(c.Request.Context())
+	cat, err := h.sm.Catalog(c.Request.Context())
 	if err != nil {
 		// Public endpoint: log the cause, don't leak it in the response body.
 		slog.Error("AUR catalog failed", "error", err)
@@ -137,7 +153,7 @@ func (h *Handler) PubkeyHandler(c *gin.Context) {
 }
 
 func (h *Handler) ListHandler(c *gin.Context) {
-	bases, err := h.b.List(c.Request.Context())
+	bases, err := h.sm.List(c.Request.Context())
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, domain.APIError{Message: "failed to list sources", Reason: err.Error()})
 		return
@@ -152,7 +168,7 @@ func (h *Handler) RemoveHandler(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, domain.APIError{Message: "pkgbase is required"})
 		return
 	}
-	if err := h.b.Remove(c.Request.Context(), pkgbase); err != nil {
+	if err := h.sm.Remove(c.Request.Context(), pkgbase); err != nil {
 		c.JSON(http.StatusInternalServerError, domain.APIError{Message: "failed to remove source", Reason: err.Error()})
 		return
 	}

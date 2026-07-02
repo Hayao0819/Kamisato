@@ -73,7 +73,7 @@ func TestCatalogHandlerCachesEnvelope(t *testing.T) {
 		t.Fatal(err)
 	}
 	ck := &countingKV{memKV: m}
-	h := NewHandler(New(ck, "maint"), nil, time.Minute)
+	h := NewHandler(NewBackend(ck, "maint"), time.Minute)
 
 	call := func() {
 		w := httptest.NewRecorder()
@@ -136,7 +136,7 @@ pkgname = privtool
 
 func TestRegisterQueryRemove(t *testing.T) {
 	repo := initGitRepo(t, srcinfoFixture)
-	b := New(newMemKV(), "ops@example")
+	b := NewBackend(newMemKV(), "ops@example")
 	ctx := context.Background()
 
 	// ingest is the parse/store half of Register; the clone half is exercised by
@@ -184,7 +184,7 @@ func TestRegisterQueryRemove(t *testing.T) {
 }
 
 func TestRegisterRejectsUnsafeURL(t *testing.T) {
-	b := New(newMemKV(), "ops@example")
+	b := NewBackend(newMemKV(), "ops@example")
 	for _, url := range []string{"file:///etc/passwd", "ext::sh -c id", "https://169.254.169.254/x"} {
 		if _, _, err := b.Register(context.Background(), url, "", ""); err == nil {
 			t.Errorf("Register(%q) = nil, want rejected", url)

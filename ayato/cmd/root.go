@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/Hayao0819/Kamisato/ayato/aur"
@@ -19,7 +18,6 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/conf"
 	utils "github.com/Hayao0819/Kamisato/internal/utils"
 	"github.com/Hayao0819/Kamisato/internal/weblog"
-	"github.com/Hayao0819/Kamisato/pkg/aurweb"
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/cobra"
 )
@@ -113,36 +111,11 @@ func RootCmd() *cobra.Command {
 			slog.Info("Routing initialized")
 
 			if cfg.AUR.Enabled {
-				aurBackend := aur.New(kvStore, cfg.AUR.Maintainer)
-				aurOpts := []aurweb.Option{aurweb.WithLogger(slog.Default())}
-				if cfg.AUR.Upstream.Enabled {
-					up := aurweb.NewAURUpstream(cfg.AUR.Upstream.RPCURL,
-						aurweb.WithGitBase(cfg.AUR.Upstream.GitBase),
-						aurweb.WithUserAgent(cfg.AUR.Upstream.UserAgent),
-					)
-					aurOpts = append(aurOpts, aurweb.WithUpstream(up))
+				mod, merr := aur.New(cfg, kvStore)
+				if merr != nil {
+					return utils.WrapErr(merr, "failed to initialize AUR module")
 				}
-				// TTL bounds both the signed envelope's freshness and how long the
-				// public /catalog response is cached.
-				ttl := time.Duration(cfg.AUR.CatalogTTLMinutes) * time.Minute
-				if ttl <= 0 {
-					ttl = 60 * time.Minute
-				}
-				// The catalog signing seed comes only from the environment, never
-				// the config file (it is a private key).
-				var signer *aur.CatalogSigner
-				if seed := os.Getenv("AYATO_AUR_SIGNING_SEED"); seed != "" {
-					signer, err = aur.NewCatalogSigner(seed, ttl)
-					if err != nil {
-						return utils.WrapErr(err, "failed to build catalog signer")
-					}
-					slog.Info("AUR catalog signing enabled", "key_id", signer.KeyID())
-				} else {
-					slog.Warn("AYATO_AUR_SIGNING_SEED is unset; the kayo-facing catalog is served unsigned")
-				}
-				aurSrv := aurweb.New(aurBackend, aurOpts...)
-				router.SetAUR(engine, m, aurSrv, aur.NewHandler(aurBackend, signer, ttl))
-				slog.Info("aurweb-compatible API enabled", "upstream", cfg.AUR.Upstream.Enabled, "signed", signer != nil)
+				router.SetAUR(engine, m, mod.Server, mod.Handler)
 			}
 
 			if err := s.InitAll(); err != nil {
