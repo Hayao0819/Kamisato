@@ -12,6 +12,19 @@ type keyedMutex struct {
 	locks map[string]*sync.Mutex
 }
 
+// lock acquires the per-key mutex and returns its unlock func; callers use
+// `defer k.lock(key)()` so it is released on every return path, including the one
+// where the critical section blocks on blob.Store (S3) I/O.
+//
+// The acquire is deliberately NOT context-aware: ayato threads no request context
+// into the repository/blob layer (the S3 backend itself runs on
+// context.Background()), so there is no deadline to select on here. A waiter
+// therefore blocks until the holder finishes rather than bailing out on its own
+// timeout. Making it cancellable would mean threading context.Context through
+// blob.Store, BinaryRepository, and the service layer (and their generated
+// mocks); until then the hold time is bounded only by the S3 client's own
+// timeouts and retry budget. The always-release-via-defer above is what keeps a
+// timed-out request from leaking the lock.
 func (k *keyedMutex) lock(key string) func() {
 	k.mu.Lock()
 	if k.locks == nil {
