@@ -35,7 +35,7 @@ func (s *Service) resolveAndBuildDeps(ctx context.Context, job *domain.BuildJob,
 	}
 
 	up := aurweb.NewAURUpstream(s.cfg.Build.AURRPCURL)
-	order, err := depsolve.Resolve(ctx, rootDeps, depsolve.NewRepoChecker(), depsolve.NewAURSource(up))
+	order, err := depsolve.Resolve(ctx, rootDeps, NewRepoChecker(), NewAURSource(up))
 	if err != nil {
 		return utils.WrapErr(err, "failed to resolve AUR dependencies")
 	}
