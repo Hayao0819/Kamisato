@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"errors"
 	"fmt"
 	"path"
 	"strings"
@@ -97,10 +98,17 @@ func (r *binaryRepository) FetchFile(repo, arch, file string) (stream.File, erro
 	}
 	// <repo>.db / <repo>.files are not stored; they are byte-identical aliases of
 	// their .tar.gz archives, served from the single archive so no stale copy can
-	// trail it.
+	// trail it. The bare name always misses, so a transient error reading the
+	// archive must be surfaced, not masked as the bare-name ErrNotFound — else a
+	// caller like the upload version gate reads a backend hiccup as "no such db"
+	// and fails open.
 	if target := dbAliasTarget(repo, file); target != "" {
-		if af, aerr := r.Store.FetchFile(repo, arch, target); aerr == nil {
+		af, aerr := r.Store.FetchFile(repo, arch, target)
+		if aerr == nil {
 			return aliasFile{File: af, name: file}, nil
+		}
+		if !errors.Is(aerr, blob.ErrNotFound) {
+			return nil, aerr
 		}
 	}
 	if arch == "any" || !strings.Contains(file, "-any.pkg.tar.") {
@@ -128,8 +136,12 @@ func (r *binaryRepository) FetchFileWithMeta(repo, arch, file string) (stream.Fi
 		return f, meta, nil
 	}
 	if target := dbAliasTarget(repo, file); target != "" {
-		if af, ameta, aerr := mf.FetchFileWithMeta(repo, arch, target); aerr == nil {
+		af, ameta, aerr := mf.FetchFileWithMeta(repo, arch, target)
+		if aerr == nil {
 			return aliasFile{File: af, name: file}, ameta, nil
+		}
+		if !errors.Is(aerr, blob.ErrNotFound) {
+			return nil, blob.FileMeta{}, aerr
 		}
 	}
 	if arch == "any" || !strings.Contains(file, "-any.pkg.tar.") {
