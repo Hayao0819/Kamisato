@@ -27,7 +27,7 @@ func mikoBuildCmd() *cobra.Command {
 		Args:  cobra.MinimumNArgs(1),
 		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 			if len(args) == 0 {
-				return shared.GetSrcRepoNames(), cobra.ShellCompDirectiveNoFileComp
+				return shared.AppFrom(cmd).GetSrcRepoNames(), cobra.ShellCompDirectiveNoFileComp
 			}
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		},
@@ -35,7 +35,7 @@ func mikoBuildCmd() *cobra.Command {
 			// With a git source the repo arg names the destination repo on
 			// ayato, which need not exist locally. Otherwise it must be a known
 			// source repo.
-			if gitURL == "" && !slices.Contains(shared.GetSrcRepoNames(), args[0]) {
+			if gitURL == "" && !slices.Contains(shared.AppFrom(cmd).GetSrcRepoNames(), args[0]) {
 				return utils.WrapErr(shared.ErrInvalidRepoName, args[0])
 			}
 			return nil

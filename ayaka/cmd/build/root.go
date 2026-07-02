@@ -31,12 +31,13 @@ func Cmd() *cobra.Command {
 		Short: "Build packages locally (--diff for diff build, --remote to build on miko)",
 		Args:  cobra.MinimumNArgs(1),
 		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+			app := shared.AppFrom(cmd)
 			if len(args) == 0 {
-				return shared.GetSrcRepoNames(), cobra.ShellCompDirectiveNoFileComp
+				return app.GetSrcRepoNames(), cobra.ShellCompDirectiveNoFileComp
 			}
 
 			repoName := args[0]
-			sr := shared.GetSrcRepo(repoName)
+			sr := app.GetSrcRepo(repoName)
 			if sr == nil {
 				return nil, cobra.ShellCompDirectiveNoFileComp
 			}
@@ -52,7 +53,7 @@ func Cmd() *cobra.Command {
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			repo = args[0]
 
-			if !slices.Contains(shared.GetSrcRepoNames(), repo) {
+			if !slices.Contains(shared.AppFrom(cmd).GetSrcRepoNames(), repo) {
 				return utils.WrapErr(shared.ErrInvalidRepoName, repo)
 			}
 
@@ -94,15 +95,16 @@ func Cmd() *cobra.Command {
 				})
 			}
 
-			srcrepo := shared.GetSrcRepo(repo)
+			app := shared.AppFrom(cmd)
+			srcrepo := app.GetSrcRepo(repo)
 			if srcrepo == nil {
 				return utils.WrapErr(shared.ErrSourceRepoNotFound, repo)
 			}
-			destDir := shared.GetDestDir(repo)
+			destDir := app.GetDestDir(repo)
 			if destDir == "" {
 				return utils.WrapErr(shared.ErrNoDestDir, repo)
 			}
-			srcdir := shared.GetSrcDir(repo)
+			srcdir := app.GetSrcDir(repo)
 			if srcdir == "" {
 				return utils.WrapErr(shared.ErrNoSourceDir, repo)
 			}

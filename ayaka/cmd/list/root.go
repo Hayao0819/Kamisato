@@ -25,14 +25,15 @@ func Cmd() *cobra.Command {
 		Args: cobra.MaximumNArgs(1),
 		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 			if len(args) == 0 {
-				return shared.GetSrcRepoNames(), cobra.ShellCompDirectiveNoFileComp
+				return shared.AppFrom(cmd).GetSrcRepoNames(), cobra.ShellCompDirectiveNoFileComp
 			}
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			repos := shared.SrcRepos
+			app := shared.AppFrom(cmd)
+			repos := app.SrcRepos
 			if len(args) > 0 {
-				argrepo := shared.GetSrcRepo(args[0])
+				argrepo := app.GetSrcRepo(args[0])
 				if argrepo == nil {
 					return utils.WrapErr(shared.ErrInvalidRepoName, args[0])
 				}

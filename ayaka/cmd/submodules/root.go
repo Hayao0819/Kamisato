@@ -22,7 +22,7 @@ func Cmd() *cobra.Command {
 		Short:   "Update git submodules in the repository",
 		Long:    "Pull and update all git submodules in the repository directories.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			for _, r := range shared.Config.Repos {
+			for _, r := range shared.AppFrom(cmd).Config.Repos {
 				root, err := shared.GitRootDir(r.Dir)
 				if err != nil {
 					slog.Warn("skipping non-git repository", "dir", r.Dir)

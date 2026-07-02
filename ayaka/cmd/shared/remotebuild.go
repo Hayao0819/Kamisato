@@ -37,7 +37,7 @@ func RunRemoteBuild(ctx context.Context, o RemoteBuildOpts) error {
 	if err != nil {
 		return err
 	}
-	req, err := buildRequest(o)
+	req, err := buildRequest(ctx, o)
 	if err != nil {
 		return err
 	}
@@ -54,7 +54,7 @@ func RunRemoteBuild(ctx context.Context, o RemoteBuildOpts) error {
 
 // buildRequest assembles the build request from opts: a git source, else the
 // local PKGBUILD of the named source package.
-func buildRequest(o RemoteBuildOpts) (*ayatoclient.BuildRequest, error) {
+func buildRequest(ctx context.Context, o RemoteBuildOpts) (*ayatoclient.BuildRequest, error) {
 	arch := o.Arch
 	if arch == "" {
 		arch = "x86_64"
@@ -69,7 +69,7 @@ func buildRequest(o RemoteBuildOpts) (*ayatoclient.BuildRequest, error) {
 		req.Git = &ayatoclient.GitSource{URL: o.GitURL, Ref: o.GitRef, Subdir: o.GitSubdir}
 		return req, nil
 	}
-	pkgbuild, files, err := readLocalSource(o.Repo, o.Pkgs)
+	pkgbuild, files, err := readLocalSource(ctx, o.Repo, o.Pkgs)
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +92,7 @@ func RunRemoteBuildLocalSign(ctx context.Context, o RemoteBuildOpts, keyPath, pa
 	if err != nil {
 		return utils.WrapErr(err, "failed to load local signing key")
 	}
-	req, err := buildRequest(o)
+	req, err := buildRequest(ctx, o)
 	if err != nil {
 		return err
 	}
@@ -185,8 +185,8 @@ func waitForJob(ctx context.Context, base, id string) error {
 
 // readLocalSource reads the PKGBUILD and files of a source package in the repo.
 // With one named package that one is used, else the repo must hold exactly one.
-func readLocalSource(repo string, pkgs []string) (string, map[string]string, error) {
-	srcrepo := GetSrcRepo(repo)
+func readLocalSource(ctx context.Context, repo string, pkgs []string) (string, map[string]string, error) {
+	srcrepo := AppFromContext(ctx).GetSrcRepo(repo)
 	if srcrepo == nil {
 		return "", nil, utils.WrapErr(ErrSourceRepoNotFound, repo)
 	}

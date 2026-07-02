@@ -21,20 +21,21 @@ func Cmd() *cobra.Command {
 		Args:    cobra.MaximumNArgs(1),
 		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 			if len(args) == 0 {
-				return shared.GetSrcRepoNames(), cobra.ShellCompDirectiveNoFileComp
+				return shared.AppFrom(cmd).GetSrcRepoNames(), cobra.ShellCompDirectiveNoFileComp
 			}
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			dirs := make([]string, 0, len(shared.Config.Repos))
+			app := shared.AppFrom(cmd)
+			dirs := make([]string, 0, len(app.Config.Repos))
 			if len(args) > 0 {
-				d := shared.GetSrcDir(args[0])
+				d := app.GetSrcDir(args[0])
 				if d == "" {
 					return utils.WrapErr(shared.ErrInvalidRepoName, args[0])
 				}
 				dirs = append(dirs, d)
 			} else {
-				for _, r := range shared.Config.Repos {
+				for _, r := range app.Config.Repos {
 					dirs = append(dirs, r.Dir)
 				}
 			}

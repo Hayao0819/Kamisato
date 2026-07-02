@@ -32,17 +32,18 @@ func RootCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			shared.Config = c
 
-			if shared.Config.Debug {
+			if c.Debug {
 				utils.UseColorLog(slog.LevelDebug)
 			} else {
 				utils.UseColorLog(slog.LevelInfo)
 			}
 
-			if err := shared.InitSrcRepos(); err != nil {
+			app, err := shared.NewApp(c)
+			if err != nil {
 				return err
 			}
+			cmd.SetContext(shared.WithApp(cmd.Context(), app))
 
 			return nil
 		},

@@ -42,11 +42,12 @@ func Cmd() *cobra.Command {
 // runAurFetch is the shared add/update path: a missing package is cloned, an
 // existing one is pulled.
 func runAurFetch(cmd *cobra.Command, repoName string, pkgs []string, aurBase string, force bool) error {
-	if shared.GetSrcRepo(repoName) == nil {
+	app := shared.AppFrom(cmd)
+	if app.GetSrcRepo(repoName) == nil {
 		return utils.WrapErr(shared.ErrInvalidRepoName, repoName)
 	}
 
-	repoDir := shared.GetSrcDir(repoName)
+	repoDir := app.GetSrcDir(repoName)
 	if repoDir == "" {
 		return utils.WrapErr(shared.ErrNoSourceDir, repoName)
 	}
