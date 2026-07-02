@@ -15,13 +15,8 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/ayatoclient"
 	"github.com/Hayao0819/Kamisato/internal/blinkyutils"
 	"github.com/Hayao0819/Kamisato/internal/utils"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/srcpkg"
 )
-
-// maxInlineSource caps the size of a build-dir file shipped inline to miko.
-// Larger files are assumed to be sources makepkg downloaded locally, which miko
-// re-fetches from the PKGBUILD itself, so shipping them would only bloat the
-// request.
-const maxInlineSource = 1 << 20 // 1 MiB
 
 type config struct {
 	serverURL string
@@ -86,7 +81,9 @@ func remoteBuild(args []string) error {
 	if err != nil {
 		return utils.WrapErr(err, "failed to get working directory")
 	}
-	pkgbuild, files, err := readSource(cwd)
+	pkgbuild, files, err := srcpkg.ReadInline(cwd, func(name string, size int64) {
+		fmt.Fprintf(os.Stderr, "thoma: skipping large file %q (%d bytes); miko fetches sources itself\n", name, size)
+	})
 	if err != nil {
 		return err
 	}
@@ -127,45 +124,6 @@ func remoteBuild(args []string) error {
 		return err
 	}
 	return placePackages(ctx, cfg, dests, job.Packages)
-}
-
-// readSource reads the PKGBUILD and small sidecar files from the build dir to
-// ship to miko. Directories, build outputs, the regenerated .SRCINFO, and large
-// files (assumed downloaded sources) are skipped.
-func readSource(dir string) (pkgbuild string, files map[string]string, err error) {
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		return "", nil, utils.WrapErr(err, "failed to read build directory")
-	}
-
-	files = map[string]string{}
-	for _, e := range entries {
-		if e.IsDir() {
-			continue
-		}
-		name := e.Name()
-		if name == ".SRCINFO" || strings.HasSuffix(name, ".log") || strings.Contains(name, ".pkg.tar") {
-			continue
-		}
-		if info, ierr := e.Info(); ierr == nil && name != "PKGBUILD" && info.Size() > maxInlineSource {
-			fmt.Fprintf(os.Stderr, "thoma: skipping large file %q (%d bytes); miko fetches sources itself\n", name, info.Size())
-			continue
-		}
-		b, rerr := os.ReadFile(filepath.Join(dir, name))
-		if rerr != nil {
-			return "", nil, utils.WrapErr(rerr, "failed to read "+name)
-		}
-		if name == "PKGBUILD" {
-			pkgbuild = string(b)
-			continue
-		}
-		files[name] = string(b)
-	}
-
-	if pkgbuild == "" {
-		return "", nil, utils.NewErr("no PKGBUILD found in " + dir)
-	}
-	return pkgbuild, files, nil
 }
 
 // packageDests asks the real makepkg where the output packages belong, so the

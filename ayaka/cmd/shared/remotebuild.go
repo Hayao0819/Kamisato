@@ -16,6 +16,7 @@ import (
 	pkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
 	pacmanrepo "github.com/Hayao0819/Kamisato/pkg/pacman/repo"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/sign"
+	srcpkg "github.com/Hayao0819/Kamisato/pkg/pacman/srcpkg"
 )
 
 type RemoteBuildOpts struct {
@@ -190,39 +191,14 @@ func readLocalSource(repo string, pkgs []string) (string, map[string]string, err
 		return "", nil, utils.WrapErr(ErrSourceRepoNotFound, repo)
 	}
 
-	srcpkg, err := selectSourcePkg(srcrepo, pkgs)
+	sp, err := selectSourcePkg(srcrepo, pkgs)
 	if err != nil {
 		return "", nil, err
 	}
 
-	dir := srcpkg.Dir()
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		return "", nil, utils.WrapErr(err, "failed to read source directory")
-	}
-
-	var pkgbuild string
-	files := map[string]string{}
-	for _, e := range entries {
-		if e.IsDir() {
-			continue
-		}
-		name := e.Name()
-		content, err := os.ReadFile(filepath.Join(dir, name))
-		if err != nil {
-			return "", nil, utils.WrapErr(err, "failed to read "+name)
-		}
-		if name == "PKGBUILD" {
-			pkgbuild = string(content)
-			continue
-		}
-		files[name] = string(content)
-	}
-
-	if pkgbuild == "" {
-		return "", nil, utils.NewErr("PKGBUILD not found in " + dir)
-	}
-	return pkgbuild, files, nil
+	return srcpkg.ReadInline(sp.Dir(), func(name string, size int64) {
+		slog.Warn("skipping large source file", "name", name, "size", size)
+	})
 }
 
 // selectSourcePkg picks the source package to submit: with none named the repo
