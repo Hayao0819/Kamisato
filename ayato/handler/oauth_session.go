@@ -10,9 +10,33 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// CLI PKCE exchange. The code is a stateless signed token with no stored "used"
-// set, so it is replay-limited, not single-use: its 60s TTL and the bound PKCE
-// verifier are what constrain replay within that window.
+// consumeCode records the presented code as spent so it cannot be replayed. It
+// writes the error response and returns false when the code was already redeemed
+// (or the guard errors); with no guard wired it allows the exchange. The code id
+// is the hash of the code itself, keyed with the code's remaining lifetime so the
+// entry self-evicts once the code would have expired.
+func (h *Handler) consumeCode(c *gin.Context, code string, rec *auth.Claims) bool {
+	if h.replay == nil {
+		return true
+	}
+	firstUse, err := h.replay.Consume(auth.HashHex(code), time.Until(rec.Exp))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "token"})
+		return false
+	}
+	if !firstUse {
+		// Same opaque message as an invalid code: a caller cannot tell replay apart.
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid or used code"})
+		return false
+	}
+	return true
+}
+
+// CLI PKCE exchange. The code is a stateless signed token; a kv-backed one-time
+// guard (h.replay, when wired) records its id on first redemption with a TTL equal
+// to the code's remaining life, so a second exchange within the 60s window is
+// rejected as used. The "used" set lives in the shared kv, not process memory, so
+// ayato stays stateless. The bound PKCE verifier still proves possession.
 func (h *Handler) CLIExchangeHandler(c *gin.Context) {
 	if h.signer == nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "auth not configured"})
@@ -44,6 +68,11 @@ func (h *Handler) CLIExchangeHandler(c *gin.Context) {
 	// Re-check allowlist at exchange time (fail-closed).
 	if !h.s.IsAdmin(rec.GitHubID) {
 		c.JSON(http.StatusForbidden, gin.H{"error": "not allowed"})
+		return
+	}
+
+	// One-time guard: redeem this code exactly once (a replay reads as used).
+	if !h.consumeCode(c, body.Code, rec) {
 		return
 	}
 
@@ -94,6 +123,10 @@ func (h *Handler) WebExchangeHandler(c *gin.Context) {
 	// Re-check allowlist at exchange time (fail-closed).
 	if !h.s.IsAdmin(rec.GitHubID) {
 		c.JSON(http.StatusForbidden, gin.H{"error": "not allowed"})
+		return
+	}
+	// One-time guard: redeem this code exactly once (a replay reads as used).
+	if !h.consumeCode(c, body.Code, rec) {
 		return
 	}
 	// A jti makes the web bearer individually revocable (logout denylists it),

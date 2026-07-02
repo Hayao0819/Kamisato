@@ -33,3 +33,12 @@ type Store interface {
 	List(ns string) ([]Entry, error)
 	Close() error
 }
+
+// Adder is an optional Store capability: atomically set key only when it is
+// absent, reporting whether this call created it. It is the primitive a one-time /
+// replay guard needs — two racing callers cannot both observe "created". Backends
+// that cannot insert atomically (an eventually-consistent store) simply do not
+// implement it, and callers fall back to a Get-then-Set check.
+type Adder interface {
+	Add(ns, key string, value []byte, ttl time.Duration) (created bool, err error)
+}

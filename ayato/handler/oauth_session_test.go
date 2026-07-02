@@ -63,6 +63,51 @@ func jtiOf(t *testing.T, token string) string {
 	return c.JTI
 }
 
+// A code redeemed once must be rejected on replay: the first CLI exchange mints a
+// token, an immediate second exchange of the same code reads as used (400). The
+// kv-backed guard is what closes the replay window the stateless code otherwise
+// leaves open.
+func TestCLIExchangeRejectsCodeReplay(t *testing.T) {
+	h, _, signer := denylistHandler(t, 42)
+	store, err := badgerkv.New(t.TempDir())
+	if err != nil {
+		t.Fatalf("badgerkv.New: %v", err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+	h.WithReplayGuard(repository.NewReplayGuard(store))
+
+	const verifier = "cli-verifier-cli-verifier-cli-verifier-0123"
+	challenge := oauth2.S256ChallengeFromVerifier(verifier)
+	code, err := signer.Sign(auth.Claims{
+		Typ:       auth.TypCodeCLI,
+		GitHubID:  42,
+		Login:     "alice",
+		Challenge: challenge,
+		Exp:       time.Now().Add(time.Minute),
+	})
+	if err != nil {
+		t.Fatalf("sign code: %v", err)
+	}
+
+	exchange := func() int {
+		r := gin.New()
+		r.POST("/exchange", h.CLIExchangeHandler)
+		w := httptest.NewRecorder()
+		body := `{"code":"` + code + `","code_verifier":"` + verifier + `"}`
+		req := httptest.NewRequest(http.MethodPost, "/exchange", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		r.ServeHTTP(w, req)
+		return w.Code
+	}
+
+	if got := exchange(); got != http.StatusOK {
+		t.Fatalf("first exchange = %d, want 200 (fresh code redeems)", got)
+	}
+	if got := exchange(); got != http.StatusBadRequest {
+		t.Fatalf("replayed exchange = %d, want 400 (code already used)", got)
+	}
+}
+
 // The web bearer exchange must mint a token carrying a jti, and that jti must be
 // honoured by the denylist so MeHandler reads a revoked token as unauthenticated.
 func TestWebExchangeMintsRevocableBearer(t *testing.T) {

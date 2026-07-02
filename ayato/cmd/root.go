@@ -60,6 +60,7 @@ func RootCmd() *cobra.Command {
 
 			signerRepo := repository.NewSignerRepository(kvStore)
 			denylistRepo := repository.NewDenylistRepository(kvStore)
+			replayGuard := repository.NewReplayGuard(kvStore)
 			s := service.New(pkgNameRepo, pkgBinaryRepo, authRepo, signerRepo, cfg)
 			h := handler.New(s, cfg)
 			m := middleware.New(cfg)
@@ -75,6 +76,7 @@ func RootCmd() *cobra.Command {
 					return errwrap.WrapErr(serr, "failed to build session signer")
 				}
 				h.WithAuth(signer)
+				h.WithReplayGuard(replayGuard)
 				s.WithDenylist(denylistRepo)
 				m.WithAuth(s, signer).WithDenylist(denylistRepo)
 			} else {

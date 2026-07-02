@@ -151,3 +151,38 @@ func TestTTLExpiry(t *testing.T) {
 		time.Sleep(20 * time.Millisecond)
 	}
 }
+
+// TestAddIsFirstWriterWins covers the atomic set-if-absent primitive the one-time
+// code guard relies on: the first Add creates the key (created=true), and a second
+// Add of the same key reports created=false without overwriting the value.
+func TestAddIsFirstWriterWins(t *testing.T) {
+	s, err := badgerkv.New(t.TempDir())
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	t.Cleanup(func() { _ = s.Close() })
+
+	created, err := s.Add("ns", "code", []byte("first"), time.Minute)
+	if err != nil {
+		t.Fatalf("first Add: %v", err)
+	}
+	if !created {
+		t.Fatal("first Add should report created")
+	}
+
+	created, err = s.Add("ns", "code", []byte("second"), time.Minute)
+	if err != nil {
+		t.Fatalf("second Add: %v", err)
+	}
+	if created {
+		t.Fatal("second Add of an existing key must report not-created")
+	}
+
+	got, err := s.Get("ns", "code")
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if string(got) != "first" {
+		t.Fatalf("value = %q, want the first writer's value (no overwrite)", got)
+	}
+}

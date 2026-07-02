@@ -121,6 +121,28 @@ func (s *Store) Delete(ns, key string) error {
 		Delete(&Entry{}).Error
 }
 
+// Add inserts key only when it is absent, using INSERT ... ON CONFLICT DO NOTHING
+// so the check-and-set is one atomic statement. RowsAffected reports whether this
+// call created the row. An already-expired row still occupies its primary key, but
+// the replay guard's caller only records ids whose token is still within its TTL,
+// so a lingering expired row never shadows a fresh insert of a distinct id.
+func (s *Store) Add(ns, key string, value []byte, ttl time.Duration) (bool, error) {
+	if s.db == nil {
+		return false, errors.New("sqlkv: database connection is nil")
+	}
+	var expiresAt *time.Time
+	if ttl > 0 {
+		t := time.Now().Add(ttl)
+		expiresAt = &t
+	}
+	e := Entry{Namespace: ns, Key: key, Value: value, ExpiresAt: expiresAt}
+	res := s.db.Clauses(clause.OnConflict{DoNothing: true}).Create(&e)
+	if res.Error != nil {
+		return false, errwrap.WrapErr(res.Error, "sqlkv: add")
+	}
+	return res.RowsAffected > 0, nil
+}
+
 func (s *Store) List(ns string) ([]kv.Entry, error) {
 	if s.db == nil {
 		return nil, errors.New("sqlkv: database connection is nil")

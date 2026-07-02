@@ -141,6 +141,34 @@ func (s *Store) Delete(ns, key string) error {
 	})
 }
 
+// Add sets key only when it is absent. Badger's serializable transaction records
+// the read of a missing key, so two racing Adds of the same key cannot both commit
+// with created=true: one wins and the other's Commit conflicts (surfaced as an
+// error), which fails closed rather than allowing a double-insert.
+func (s *Store) Add(ns, key string, value []byte, ttl time.Duration) (bool, error) {
+	created := false
+	err := s.db.Update(func(txn *badger.Txn) error {
+		_, gerr := txn.Get(composite(ns, key))
+		if gerr == nil {
+			created = false
+			return nil
+		}
+		if !errors.Is(gerr, badger.ErrKeyNotFound) {
+			return gerr
+		}
+		e := badger.NewEntry(composite(ns, key), value)
+		if ttl > 0 {
+			e = e.WithTTL(ttl)
+		}
+		created = true
+		return txn.SetEntry(e)
+	})
+	if err != nil {
+		return false, errwrap.WrapErr(err, "badgerkv: add")
+	}
+	return created, nil
+}
+
 func (s *Store) List(ns string) ([]kv.Entry, error) {
 	prefix := nsPrefix(ns)
 	var out []kv.Entry

@@ -2,6 +2,7 @@ package handler
 
 import (
 	"log/slog"
+	"time"
 
 	"github.com/Hayao0819/Kamisato/ayato/auth"
 	"github.com/Hayao0819/Kamisato/ayato/bugreport"
@@ -16,6 +17,13 @@ type Handler struct {
 	signer    *auth.Signer       // nil when auth is not wired (tests)
 	reporter  bugreport.Reporter // nil when bug reporting is not configured
 	recaptcha recaptcha.Verifier // nil when reCAPTCHA is not configured
+	replay    replayGuard        // nil when the one-time code guard is not wired
+}
+
+// replayGuard records a one-time PKCE code id at redemption so a replayed code is
+// rejected. A narrow local interface keeps the handler off the repository package.
+type replayGuard interface {
+	Consume(id string, ttl time.Duration) (firstUse bool, err error)
 }
 
 func New(service service.Servicer, cfg *conf.AyatoConfig) *Handler {
@@ -57,5 +65,12 @@ func bugReportConfig(c conf.BugReportConfig) bugreport.Config {
 // WithAuth attaches the stateless signer; set at startup, tests omit it (signer stays nil).
 func (h *Handler) WithAuth(signer *auth.Signer) *Handler {
 	h.signer = signer
+	return h
+}
+
+// WithReplayGuard attaches the kv-backed one-time code guard. Unwired (nil) means
+// codes are replay-limited only by their TTL, as before this feature.
+func (h *Handler) WithReplayGuard(g replayGuard) *Handler {
+	h.replay = g
 	return h
 }
