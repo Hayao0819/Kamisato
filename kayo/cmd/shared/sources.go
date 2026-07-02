@@ -10,7 +10,13 @@ import (
 	"github.com/Hayao0819/Kamisato/kayo/federate"
 	"github.com/Hayao0819/Kamisato/kayo/overlay"
 	"github.com/Hayao0819/Kamisato/pkg/aurweb"
+	"github.com/spf13/cobra"
 )
+
+func LoadConfig(cmd *cobra.Command) (*conf.KayoConfig, error) {
+	configFile, _ := cmd.Flags().GetString("config")
+	return conf.LoadKayoConfig(cmd.Flags(), configFile)
+}
 
 // BuildComposite creates and syncs the overlay and ayato sources into an
 // ungated Composite, shared by the daemon and the verify command.

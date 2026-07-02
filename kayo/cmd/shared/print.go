@@ -101,3 +101,10 @@ func PrintFindings(w io.Writer, report audit.Report) {
 		fmt.Fprintf(w, "  [%s] %s: %s — %s\n", f.Severity, f.Code, f.Title, f.Detail)
 	}
 }
+
+func Short(commit string) string {
+	if len(commit) > 12 {
+		return commit[:12]
+	}
+	return commit
+}
