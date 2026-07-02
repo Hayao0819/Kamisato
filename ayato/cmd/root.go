@@ -93,6 +93,7 @@ func RootCmd() *cobra.Command {
 			engine := gin.New()
 			engine.Use(gin.Recovery())
 			engine.Use(weblog.GinLog())
+			engine.Use(m.SecurityHeaders())
 
 			// Trust no proxy by default so ClientIP() is the real peer and the
 			// spoofable X-Forwarded-For is ignored (the rate-limit key is only
