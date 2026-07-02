@@ -12,7 +12,7 @@ import (
 
 	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/internal/errwrap"
-	"github.com/Hayao0819/Kamisato/internal/utils"
+	"github.com/Hayao0819/Kamisato/internal/logging"
 	"github.com/Hayao0819/Kamisato/internal/weblog"
 	ayatocmd "github.com/Hayao0819/Kamisato/kayo/cmd/ayato"
 	hookcmd "github.com/Hayao0819/Kamisato/kayo/cmd/hook"
@@ -53,10 +53,10 @@ func run(cmd *cobra.Command, _ []string) error {
 	}
 
 	if cfg.Debug {
-		utils.UseColorLog(slog.LevelDebug)
+		logging.UseColorLog(slog.LevelDebug)
 		gin.SetMode(gin.DebugMode)
 	} else {
-		utils.UseColorLog(slog.LevelInfo)
+		logging.UseColorLog(slog.LevelInfo)
 		gin.SetMode(gin.ReleaseMode)
 	}
 

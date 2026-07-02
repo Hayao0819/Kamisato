@@ -15,7 +15,7 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/apikey"
 	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/internal/errwrap"
-	"github.com/Hayao0819/Kamisato/internal/utils"
+	"github.com/Hayao0819/Kamisato/internal/logging"
 	"github.com/Hayao0819/Kamisato/internal/weblog"
 	"github.com/Hayao0819/Kamisato/miko/handler"
 	"github.com/Hayao0819/Kamisato/miko/router"
@@ -86,11 +86,11 @@ func RootCmd() *cobra.Command {
 			}
 
 			if cfg.Debug {
-				utils.UseColorLog(slog.LevelDebug)
+				logging.UseColorLog(slog.LevelDebug)
 				slog.Debug("Debug mode enabled")
 				gin.SetMode(gin.DebugMode)
 			} else {
-				utils.UseColorLog(slog.LevelInfo)
+				logging.UseColorLog(slog.LevelInfo)
 				gin.SetMode(gin.ReleaseMode)
 			}
 

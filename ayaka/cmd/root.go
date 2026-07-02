@@ -17,7 +17,7 @@ import (
 	statuscmd "github.com/Hayao0819/Kamisato/ayaka/cmd/status"
 	submodulescmd "github.com/Hayao0819/Kamisato/ayaka/cmd/submodules"
 	"github.com/Hayao0819/Kamisato/internal/conf"
-	"github.com/Hayao0819/Kamisato/internal/utils"
+	"github.com/Hayao0819/Kamisato/internal/logging"
 	"github.com/Hayao0819/nahi/cobrautils"
 	"github.com/spf13/cobra"
 )
@@ -34,9 +34,9 @@ func RootCmd() *cobra.Command {
 			}
 
 			if c.Debug {
-				utils.UseColorLog(slog.LevelDebug)
+				logging.UseColorLog(slog.LevelDebug)
 			} else {
-				utils.UseColorLog(slog.LevelInfo)
+				logging.UseColorLog(slog.LevelInfo)
 			}
 
 			app, err := shared.NewApp(c)
