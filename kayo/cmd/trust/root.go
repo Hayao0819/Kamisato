@@ -9,6 +9,6 @@ func Cmd() *cobra.Command {
 		Use:   "trust",
 		Short: "Manage the local trust store (approved packages and maintainers)",
 	}
-	cmd.AddCommand(trustAddCmd(), trustListCmd(), trustRemoveCmd())
+	cmd.AddCommand(trustAddCmd(), trustListCmd(), trustRemoveCmd(), whitelistCmd())
 	return cmd
 }

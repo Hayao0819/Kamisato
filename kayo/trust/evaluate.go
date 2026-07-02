@@ -39,11 +39,17 @@ func (s *Store) EvaluateResolved(source, pkgbase, maintainer string, delegatedVe
 // Evaluate judges a resolved package using only resolution-time facts (source,
 // pkgbase, current maintainer account). It does not look at the commit — that is
 // the build-time pin's job. Overlays are trusted by configuration and should be
-// passed source "overlay". A vouched maintainer (TrustMaintainer) auto-allows a
-// HANDOFF of an already-approved package to that account; it never auto-trusts a
-// brand-new, unreviewed package.
+// passed source "overlay". A whitelisted pkgbase is auto-approved regardless of
+// review state. A vouched maintainer (TrustMaintainer) auto-allows a HANDOFF of an
+// already-approved package to that account; it never auto-trusts a brand-new,
+// unreviewed package.
 func (s *Store) Evaluate(source, pkgbase, maintainer string) Verdict {
 	if source == "overlay" {
+		return Verdict{Decision: Trusted}
+	}
+	// An explicit whitelist entry is a deliberate blanket trust of the pkgbase; it
+	// skips both the new-package inspection below and the maintainer-change check.
+	if s.IsWhitelisted(pkgbase) {
 		return Verdict{Decision: Trusted}
 	}
 

@@ -32,6 +32,10 @@ func trustListCmd() *cobra.Command {
 			for _, a := range store.Approvals() {
 				fmt.Fprintf(out, "  %s @ %s (maintainer %q, source %s)\n", a.Pkgbase, shared.Short(a.Commit), a.Maintainer, a.Source)
 			}
+			fmt.Fprintln(out, "whitelist:")
+			for _, w := range store.WhitelistEntries() {
+				fmt.Fprintf(out, "  %s\n", w.Pkgbase)
+			}
 			return nil
 		},
 	}

@@ -27,6 +27,18 @@ type TrustedMaintainer struct {
 	Note    string    `json:"note,omitempty"`
 }
 
+// WhitelistEntry is a pkgbase the user unconditionally auto-approves. Unlike an
+// Approval it pins no commit and records no maintainer: it is a blanket "always
+// trust this pkgbase" escape hatch that skips the new-package inspection AND the
+// maintainer-change check, so a maintainer swap on a whitelisted pkgbase is NOT
+// caught. It is blunter than `trust add` (which reviews and pins a commit); use it
+// only for packages accepted without review.
+type WhitelistEntry struct {
+	Pkgbase string    `json:"pkgbase"`
+	AddedAt time.Time `json:"added_at"`
+	Note    string    `json:"note,omitempty"`
+}
+
 // Approval records that a pkgbase was reviewed at a specific commit under a
 // specific maintainer account. A later commit or a changed maintainer is a
 // signal to re-review.
@@ -42,6 +54,7 @@ type Approval struct {
 type data struct {
 	Maintainers map[string]TrustedMaintainer `json:"maintainers"` // key = source\x00account
 	Approvals   map[string]Approval          `json:"approvals"`   // key = pkgbase
+	Whitelist   map[string]WhitelistEntry    `json:"whitelist"`   // key = pkgbase
 }
 
 // Store persists trust state to a JSON file. It is safe for concurrent use.
@@ -57,7 +70,7 @@ func mkey(source, account string) string { return source + "\x00" + account }
 func Open(path string) (*Store, error) {
 	s := &Store{
 		path: path,
-		data: data{Maintainers: map[string]TrustedMaintainer{}, Approvals: map[string]Approval{}},
+		data: data{Maintainers: map[string]TrustedMaintainer{}, Approvals: map[string]Approval{}, Whitelist: map[string]WhitelistEntry{}},
 	}
 	raw, err := os.ReadFile(path)
 	if os.IsNotExist(err) {
@@ -74,6 +87,9 @@ func Open(path string) (*Store, error) {
 	}
 	if s.data.Approvals == nil {
 		s.data.Approvals = map[string]Approval{}
+	}
+	if s.data.Whitelist == nil {
+		s.data.Whitelist = map[string]WhitelistEntry{}
 	}
 	return s, nil
 }
@@ -125,6 +141,43 @@ func (s *Store) RemoveApproval(pkgbase string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	delete(s.data.Approvals, pkgbase)
+}
+
+// AddWhitelist unconditionally auto-approves pkgbase (no-op if already listed).
+func (s *Store) AddWhitelist(pkgbase, note string) {
+	if pkgbase == "" {
+		return
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, ok := s.data.Whitelist[pkgbase]; ok {
+		return
+	}
+	s.data.Whitelist[pkgbase] = WhitelistEntry{Pkgbase: pkgbase, AddedAt: time.Now(), Note: note}
+}
+
+func (s *Store) RemoveWhitelist(pkgbase string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.data.Whitelist, pkgbase)
+}
+
+func (s *Store) IsWhitelisted(pkgbase string) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	_, ok := s.data.Whitelist[pkgbase]
+	return ok
+}
+
+func (s *Store) WhitelistEntries() []WhitelistEntry {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	out := make([]WhitelistEntry, 0, len(s.data.Whitelist))
+	for _, w := range s.data.Whitelist {
+		out = append(out, w)
+	}
+	slices.SortFunc(out, func(a, b WhitelistEntry) int { return cmp.Compare(a.Pkgbase, b.Pkgbase) })
+	return out
 }
 
 func (s *Store) Maintainers() []TrustedMaintainer {
