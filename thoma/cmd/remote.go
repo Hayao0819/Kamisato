@@ -31,6 +31,20 @@ func resolveServer(name string) (url, token string, err error) {
 	return info.URL, info.Password, nil
 }
 
+// resolveEndpoint picks the build server and bearer credential for the active
+// mode. Ayato mode goes through an ayato server (URL and CLI token from the
+// login database); direct mode talks to a miko builder itself, authenticating
+// with the configured api key.
+func resolveEndpoint(cfg *conf.ThomaConfig) (base, token string, err error) {
+	if cfg.Direct() {
+		if cfg.Server == "" {
+			return "", "", utils.NewErr("direct mode needs THOMA_SERVER set to the miko URL")
+		}
+		return cfg.Server, cfg.ApiKey, nil
+	}
+	return resolveServer(cfg.Server)
+}
+
 func detectArch() string {
 	if out, err := exec.Command("uname", "-m").Output(); err == nil {
 		if a := strings.TrimSpace(string(out)); a != "" {
@@ -49,7 +63,7 @@ func remoteBuild(args []string) error {
 		cfg.Arch = detectArch()
 	}
 
-	base, token, err := resolveServer(cfg.Server)
+	base, token, err := resolveEndpoint(cfg)
 	if err != nil {
 		return err
 	}
@@ -72,13 +86,23 @@ func remoteBuild(args []string) error {
 		Files:    files,
 		Timeout:  cfg.Timeout,
 	}
+	// Direct mode leaves the build unsigned on the worker so thoma can pull the
+	// artifact straight from the job: miko retains artifacts only for client-sign
+	// jobs, and deliberately does not publish them to the shared repo.
+	if cfg.Direct() {
+		req.SignMode = "client"
+	}
 
 	// Cancel the submit and wait on Ctrl-C/SIGTERM so a job stuck in queued does
 	// not hang the makepkg invocation forever.
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	fmt.Fprintf(os.Stderr, "thoma: delegating build to %s (repo %s, arch %s)\n", base, cfg.Repo, cfg.Arch)
+	mode := cfg.Mode
+	if mode == "" {
+		mode = conf.ThomaModeAyato
+	}
+	fmt.Fprintf(os.Stderr, "thoma: delegating build to %s (mode %s, repo %s, arch %s)\n", base, mode, cfg.Repo, cfg.Arch)
 	jobID, err := ayatoclient.SubmitBuild(ctx, base, token, req)
 	if err != nil {
 		return utils.WrapErr(err, "failed to submit build")
@@ -100,7 +124,7 @@ func remoteBuild(args []string) error {
 	if err != nil {
 		return err
 	}
-	return placePackages(ctx, cfg, base, dests, job.Packages)
+	return placePackages(ctx, cfg, base, jobID, dests, job.Packages)
 }
 
 // packageDests asks the real makepkg where the output packages belong, so the
@@ -144,7 +168,7 @@ func configArg(args []string) string {
 // expected path. Packages are matched by pkgname (stable across pkgver drift on
 // VCS packages), and the file is written under the name yay expects so its
 // post-build os.Stat and pacman -U succeed.
-func placePackages(ctx context.Context, cfg *conf.ThomaConfig, base string, dests, built []string) error {
+func placePackages(ctx context.Context, cfg *conf.ThomaConfig, base, jobID string, dests, built []string) error {
 	for _, dest := range dests {
 		want := pkgName(filepath.Base(dest))
 		match := ""
@@ -157,12 +181,30 @@ func placePackages(ctx context.Context, cfg *conf.ThomaConfig, base string, dest
 		if match == "" {
 			return utils.NewErrf("no built package matches %q (built: %s)", filepath.Base(dest), strings.Join(built, ", "))
 		}
-		if err := ayatoclient.DownloadPackage(ctx, base, cfg.Repo, cfg.Arch, match, dest); err != nil {
+		if err := downloadBuilt(ctx, cfg, base, jobID, match, dest); err != nil {
 			return err
 		}
 		fmt.Fprintf(os.Stderr, "thoma: placed %s -> %s\n", match, dest)
 	}
 	return nil
+}
+
+// downloadBuilt fetches one built package to dest. Ayato mode pulls the
+// published, host-signed package from ayato's repo route; direct mode pulls the
+// unsigned artifact retained on the miko job.
+func downloadBuilt(ctx context.Context, cfg *conf.ThomaConfig, base, jobID, name, dest string) error {
+	if !cfg.Direct() {
+		return ayatoclient.DownloadPackage(ctx, base, cfg.Repo, cfg.Arch, name, dest)
+	}
+	f, err := os.Create(dest)
+	if err != nil {
+		return utils.WrapErr(err, "failed to create "+dest)
+	}
+	if err := ayatoclient.DownloadArtifact(ctx, base, jobID, name, f); err != nil {
+		_ = f.Close()
+		return err
+	}
+	return f.Close()
 }
 
 // pkgName strips the -<ver>-<rel>-<arch>.pkg.tar.* tail from a package filename,
