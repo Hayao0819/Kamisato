@@ -8,43 +8,34 @@
 package overlay
 
 import (
-	"cmp"
 	"context"
 	"log/slog"
 	"os"
 	"path/filepath"
-	"slices"
-	"strings"
-	"sync"
 
 	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/internal/gitcmd"
 	"github.com/Hayao0819/Kamisato/internal/utils"
+	"github.com/Hayao0819/Kamisato/kayo/pkgindex"
 	"github.com/Hayao0819/Kamisato/pkg/aurweb"
 	"github.com/Hayao0819/Kamisato/pkg/raiou"
 )
 
 // Registry is the live, swappable index over all overlays. It satisfies
-// aurweb.Backend and is safe for concurrent use.
+// aurweb.Backend through the embedded index and is safe for concurrent use.
 type Registry struct {
+	*pkgindex.Index
+
 	cacheDir string
 	overlays []conf.OverlayConfig
-
-	mu    sync.RWMutex
-	index map[string]aurweb.Pkg // keyed by pkgname
-	prio  map[string]int        // pkgname -> winning overlay priority
-	bases map[string]string     // pkgbase -> git clone URL (redirect target)
-	names []string              // sorted pkgnames, for suggest
 }
 
 // New builds an empty Registry. Call Sync before serving.
 func New(cacheDir string, overlays []conf.OverlayConfig) *Registry {
 	return &Registry{
+		Index:    pkgindex.New(),
 		cacheDir: cacheDir,
 		overlays: overlays,
-		index:    map[string]aurweb.Pkg{},
-		prio:     map[string]int{},
-		bases:    map[string]string{},
 	}
 }
 
@@ -95,94 +86,8 @@ func (r *Registry) Sync(ctx context.Context) error {
 		slog.Info("overlay synced", "overlay", o.Name, "packages", len(pkgs))
 	}
 
-	names := make([]string, 0, len(index))
-	for n := range index {
-		names = append(names, n)
-	}
-	slices.Sort(names)
-
-	r.mu.Lock()
-	r.index, r.prio, r.bases, r.names = index, prio, bases, names
-	r.mu.Unlock()
+	r.Replace(index, bases)
 	return nil
-}
-
-func (r *Registry) Info(_ context.Context, requested []string) ([]aurweb.Pkg, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	var out []aurweb.Pkg
-	for _, n := range requested {
-		if p, ok := r.index[n]; ok {
-			out = append(out, p)
-		}
-	}
-	return out, nil
-}
-
-func (r *Registry) Search(_ context.Context, by aurweb.By, arg string) ([]aurweb.Pkg, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	var out []aurweb.Pkg
-	for _, p := range r.index {
-		if aurweb.Match(p, by, arg) {
-			out = append(out, p)
-		}
-	}
-	slices.SortFunc(out, func(a, b aurweb.Pkg) int { return cmp.Compare(a.Name, b.Name) })
-	return out, nil
-}
-
-func (r *Registry) Suggest(_ context.Context, arg string, pkgbase bool) ([]string, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	var pool []string
-	if pkgbase {
-		seen := map[string]bool{}
-		for _, p := range r.index {
-			if !seen[p.PackageBase] {
-				seen[p.PackageBase] = true
-				pool = append(pool, p.PackageBase)
-			}
-		}
-		slices.Sort(pool)
-	} else {
-		pool = r.names
-	}
-
-	var out []string
-	for _, n := range pool {
-		if strings.HasPrefix(n, arg) {
-			out = append(out, n)
-			if len(out) >= aurweb.SuggestLimit {
-				break
-			}
-		}
-	}
-	return out, nil
-}
-
-func (r *Registry) All(_ context.Context) ([]aurweb.Pkg, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	out := make([]aurweb.Pkg, 0, len(r.index))
-	for _, p := range r.index {
-		out = append(out, p)
-	}
-	return out, nil
-}
-
-func (r *Registry) SourceURL(_ context.Context, pkgbase string) (string, bool, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	if u, ok := r.bases[pkgbase]; ok {
-		return u, true, nil
-	}
-	return "", false, nil
 }
 
 func fetchOverlay(ctx context.Context, dir string, o conf.OverlayConfig) error {

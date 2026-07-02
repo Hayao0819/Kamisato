@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Hayao0819/Kamisato/pkg/aurweb"
+	"github.com/Hayao0819/Kamisato/kayo/pkgindex"
 )
 
 const (
@@ -29,8 +29,11 @@ type Options struct {
 
 // Source is one ayato instance, refreshed by Sync. A catalog only swaps in after
 // its signature and freshness verify (unless Insecure), so the index never holds
-// unverified data.
+// unverified data. The embedded index serves the read-side Backend methods; mu
+// guards only the verification bookkeeping below it.
 type Source struct {
+	*pkgindex.Index
+
 	name            string
 	base            string
 	client          *http.Client
@@ -40,9 +43,6 @@ type Source struct {
 	pins            *PinStore
 
 	mu           sync.RWMutex
-	index        map[string]aurweb.Pkg
-	sources      map[string]string
-	names        []string
 	verifier     *Verifier // set when explicitly pinned
 	lastIssued   time.Time // anti-rollback watermark (in-memory)
 	expiresAt    time.Time // served catalog's signed expiry (zero if none)
@@ -53,6 +53,7 @@ type Source struct {
 // either TrustOnFirstUse or Insecure.
 func New(o Options) (*Source, error) {
 	s := &Source{
+		Index:           pkgindex.New(),
 		name:            o.Name,
 		base:            strings.TrimRight(o.BaseURL, "/"),
 		client:          &http.Client{Timeout: 15 * time.Second},
@@ -60,8 +61,6 @@ func New(o Options) (*Source, error) {
 		insecure:        o.Insecure,
 		trustOnFirstUse: o.TrustOnFirstUse,
 		pins:            o.Pins,
-		index:           map[string]aurweb.Pkg{},
-		sources:         map[string]string{},
 	}
 	if o.PubKey != "" {
 		v, err := NewVerifier(o.PubKey, o.MaxAge)

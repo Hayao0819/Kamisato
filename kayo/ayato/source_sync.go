@@ -6,7 +6,6 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
-	"slices"
 	"time"
 
 	"github.com/Hayao0819/Kamisato/internal/kayoproto"
@@ -73,15 +72,13 @@ func (s *Source) Sync(ctx context.Context) error {
 
 	cat := signed.Catalog
 	index := make(map[string]aurweb.Pkg, len(cat.Packages))
-	names := make([]string, 0, len(cat.Packages))
 	for _, p := range cat.Packages {
 		index[p.Name] = p
-		names = append(names, p.Name)
 	}
-	slices.Sort(names)
+	s.Replace(index, cat.Sources)
 
 	s.mu.Lock()
-	s.index, s.sources, s.names, s.lastVerified = index, cat.Sources, names, verified
+	s.lastVerified = verified
 	s.expiresAt = signed.ExpiresAt
 	if verified && signed.IssuedAt.After(s.lastIssued) {
 		s.lastIssued = signed.IssuedAt
