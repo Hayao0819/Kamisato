@@ -11,20 +11,29 @@ import (
 )
 
 type AyatoConfig struct {
-	Debug       bool            `koanf:"debug"`
-	RequireSign bool            `koanf:"require_sign"`
-	Port        int             `koanf:"port"`
-	MaxSize     int             `koanf:"max_size"`
-	Repos       []BinRepoConfig `koanf:"repos"`
-	Auth        AuthConfig      `koanf:"auth"`
-	Store       StoreConfig     `koanf:"store"`
-	Build       BuildConfig     `koanf:"build"`
-	Miko        MikoUpstream    `koanf:"miko"`
-	Verify      VerifyConfig    `koanf:"verify"`
-	AUR         AURConfig       `koanf:"aur"`
-	BugReport   BugReportConfig `koanf:"bug_report"`
-	Recaptcha   RecaptchaConfig `koanf:"recaptcha"`
-	Sign        SignConfig      `koanf:"sign"`
+	Debug       bool `koanf:"debug"`
+	RequireSign bool `koanf:"require_sign"`
+	// RequireBuildinfoProvenance gates ingest on the uploaded package's .BUILDINFO
+	// builddir matching BuildinfoBuildDir (miko's sandbox root). It is off by default
+	// so a deployment not fronting miko builders keeps accepting packages built
+	// elsewhere; turn it on to reject anything not built in the clean sandbox (a
+	// builder-infection signal). A missing .BUILDINFO fails closed.
+	RequireBuildinfoProvenance bool `koanf:"require_buildinfo_provenance"`
+	// BuildinfoBuildDir is the builddir the provenance gate requires; empty means
+	// the default "/build" (miko's sandbox root).
+	BuildinfoBuildDir string          `koanf:"buildinfo_builddir,omitempty"`
+	Port              int             `koanf:"port"`
+	MaxSize           int             `koanf:"max_size"`
+	Repos             []BinRepoConfig `koanf:"repos"`
+	Auth              AuthConfig      `koanf:"auth"`
+	Store             StoreConfig     `koanf:"store"`
+	Build             BuildConfig     `koanf:"build"`
+	Miko              MikoUpstream    `koanf:"miko"`
+	Verify            VerifyConfig    `koanf:"verify"`
+	AUR               AURConfig       `koanf:"aur"`
+	BugReport         BugReportConfig `koanf:"bug_report"`
+	Recaptcha         RecaptchaConfig `koanf:"recaptcha"`
+	Sign              SignConfig      `koanf:"sign"`
 	// RedirectDownloads, unset by default, answers a file download with a 302 to a
 	// presigned object URL whenever the blob backend can presign (S3), so the bytes
 	// go client<->object-store directly and skip ayato's egress (Cloud Run bills it).
@@ -41,6 +50,15 @@ type SignConfig struct {
 	// and <repo>.files.tar.gz.sig. The armored private key comes from
 	// AYATO_DB_SIGNING_KEY (optionally unlocked with AYATO_DB_SIGNING_PASSPHRASE).
 	DB bool `koanf:"db,omitempty"`
+}
+
+// ExpectedBuildDir returns the builddir the .BUILDINFO provenance gate requires,
+// defaulting to miko's "/build" sandbox root when unset.
+func (c *AyatoConfig) ExpectedBuildDir() string {
+	if c.BuildinfoBuildDir != "" {
+		return c.BuildinfoBuildDir
+	}
+	return "/build"
 }
 
 // RedirectDownloadsEnabled reports whether downloads should be redirected to a

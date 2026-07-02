@@ -47,6 +47,12 @@ func (s *Service) prepareUpload(repo string, files *domain.UploadFiles, kr *gpg.
 	pi := p.PKGINFO()
 	slog.Info("get pkg from bin", "pkgname", pi.PkgName, "pkgver", pi.PkgVer)
 
+	if s.cfg != nil && s.cfg.RequireBuildinfoProvenance {
+		if err := s.checkBuildinfoProvenance(pkgFileStream); err != nil {
+			return preparedUpload{}, err
+		}
+	}
+
 	hasSig := files.SigFile != nil
 	if s.cfg != nil && s.cfg.RequireSign && !hasSig {
 		return preparedUpload{}, fmt.Errorf("%w: package signature is required but none was provided", domain.ErrInvalidUpload)
@@ -115,6 +121,28 @@ func (s *Service) prepareUpload(repo string, files *domain.UploadFiles, kr *gpg.
 		prep.sigStream = files.SigFile
 	}
 	return prep, nil
+}
+
+// checkBuildinfoProvenance is a fail-closed ingest gate: it rejects a package
+// whose .BUILDINFO builddir is not the expected sandbox root — a signal it was not
+// built in miko's clean environment (builder infection) — and a package with no
+// .BUILDINFO at all. It leaves the stream re-seekable for the caller.
+func (s *Service) checkBuildinfoProvenance(pkgFileStream stream.SeekFile) error {
+	if _, err := pkgFileStream.Seek(0, io.SeekStart); err != nil {
+		return errwrap.WrapErr(err, "failed to seek package file for buildinfo check")
+	}
+	bi, err := pkg.ReadBuildInfo(pkgFileStream)
+	if err != nil {
+		if errors.Is(err, pkg.ErrBuildInfoNotFound) {
+			return fmt.Errorf("%w: package has no .BUILDINFO but provenance is required", domain.ErrInvalidUpload)
+		}
+		return fmt.Errorf("%w: failed to read package .BUILDINFO: %s", domain.ErrInvalidUpload, err.Error())
+	}
+	want := s.cfg.ExpectedBuildDir()
+	if bi.BuildDir != want {
+		return fmt.Errorf("%w: package builddir %q is not the expected sandbox root %q (not built in the clean environment)", domain.ErrInvalidUpload, bi.BuildDir, want)
+	}
+	return nil
 }
 
 // UploadFile publishes a single package; it is the one-item form of UploadFiles.
