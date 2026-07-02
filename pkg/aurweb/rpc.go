@@ -165,8 +165,8 @@ func (s *Server) handleSuggest(w http.ResponseWriter, r *http.Request, q rpcQuer
 			names = mergeStrings(local, up)
 		}
 	}
-	if len(names) > 20 {
-		names = names[:20]
+	if len(names) > SuggestLimit {
+		names = names[:SuggestLimit]
 	}
 	if names == nil {
 		names = []string{}

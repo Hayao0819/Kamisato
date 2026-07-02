@@ -157,8 +157,8 @@ func (c *Composite) Suggest(ctx context.Context, arg string, pkgbase bool) ([]st
 			}
 		}
 	}
-	if len(out) > 20 {
-		out = out[:20]
+	if len(out) > aurweb.SuggestLimit {
+		out = out[:aurweb.SuggestLimit]
 	}
 	return out, nil
 }

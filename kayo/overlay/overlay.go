@@ -156,7 +156,7 @@ func (r *Registry) Suggest(_ context.Context, arg string, pkgbase bool) ([]strin
 	for _, n := range pool {
 		if strings.HasPrefix(n, arg) {
 			out = append(out, n)
-			if len(out) >= 20 {
+			if len(out) >= aurweb.SuggestLimit {
 				break
 			}
 		}

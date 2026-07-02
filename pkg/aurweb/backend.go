@@ -2,6 +2,9 @@ package aurweb
 
 import "context"
 
+// SuggestLimit caps the number of name completions a suggest query returns.
+const SuggestLimit = 20
+
 // Backend is the package set a host manages. The Server queries it first and,
 // when an Upstream is configured, falls back to upstream for anything the
 // backend does not return.
@@ -14,8 +17,8 @@ type Backend interface {
 	// Search returns base-level records matching arg under the given field.
 	Search(ctx context.Context, by By, arg string) ([]Pkg, error)
 
-	// Suggest returns up to 20 pkgnames (or pkgbases when pkgbase is true) that
-	// begin with arg.
+	// Suggest returns up to SuggestLimit pkgnames (or pkgbases when pkgbase is
+	// true) that begin with arg.
 	Suggest(ctx context.Context, arg string, pkgbase bool) ([]string, error)
 
 	// All returns every package the backend manages, for the bulk dump endpoints.
