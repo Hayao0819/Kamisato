@@ -116,7 +116,7 @@ func RootCmd() *cobra.Command {
 				if merr != nil {
 					return utils.WrapErr(merr, "failed to initialize AUR module")
 				}
-				router.SetAUR(engine, m, mod.Server, mod.Handler)
+				router.SetAUR(engine, m, mod.Server, handler.NewAURHandler(mod.Service))
 			}
 
 			if err := s.InitAll(); err != nil {

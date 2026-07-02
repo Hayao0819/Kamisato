@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/Hayao0819/Kamisato/ayato/aur"
+	"github.com/Hayao0819/Kamisato/ayato/handler"
 	"github.com/Hayao0819/Kamisato/ayato/middleware"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/time/rate"
@@ -14,7 +14,7 @@ import (
 // Source management is admin-only; the read-only aurweb surface (/rpc,
 // /<pkgbase>.git, /cgit/...) is mounted as the NoRoute fallback so it never
 // shadows ayato's own routes.
-func SetAUR(e *gin.Engine, m *middleware.Middleware, srv http.Handler, h *aur.Handler) {
+func SetAUR(e *gin.Engine, m *middleware.Middleware, srv http.Handler, h *handler.AURHandler) {
 	// Public kayo-facing catalog + pubkey (no admin creds; kayo verifies the
 	// signature instead). Rate-limited because the catalog rebuild lists and
 	// unmarshals every registered package, which an attacker could amplify.

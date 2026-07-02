@@ -12,11 +12,11 @@ import (
 )
 
 // Module is the assembled AUR wiring: Server is the read-only aurweb surface
-// (/rpc, git redirects) mounted as the NoRoute fallback, and Handler is the
-// admin/catalog surface.
+// (/rpc, git redirects) mounted as the NoRoute fallback, and Service is the
+// gin-free backend for the admin/catalog surface.
 type Module struct {
 	Server  http.Handler
-	Handler *Handler
+	Service *Service
 }
 
 // New builds the AUR module from config and the shared KV store: the backend, the
@@ -61,9 +61,9 @@ func New(cfg *conf.AyatoConfig, store kv.Store) (*Module, error) {
 	}
 
 	srv := aurweb.New(backend, opts...)
-	handler := NewHandler(backend, ttl).WithSigner(signer)
+	svc := NewService(backend, ttl).WithSigner(signer)
 
 	slog.Info("aurweb-compatible API enabled",
 		"upstream", cfg.AUR.Upstream.Enabled, "signed", signer != nil, "rate_limit_per_day", rateLimit)
-	return &Module{Server: srv, Handler: handler}, nil
+	return &Module{Server: srv, Service: svc}, nil
 }

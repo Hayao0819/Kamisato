@@ -7,6 +7,7 @@ import (
 	"time"
 
 	ayatoaur "github.com/Hayao0819/Kamisato/ayato/aur"
+	"github.com/Hayao0819/Kamisato/ayato/handler"
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv/badgerkv"
 	"github.com/gin-gonic/gin"
 )
@@ -32,7 +33,8 @@ func TestAgainstRealAyatoHandler(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	h := ayatoaur.NewHandler(ayatoaur.NewBackend(store, "maint"), time.Hour).WithSigner(signer)
+	svc := ayatoaur.NewService(ayatoaur.NewBackend(store, "maint"), time.Hour).WithSigner(signer)
+	h := handler.NewAURHandler(svc)
 	r := gin.New()
 	r.GET(catalogPath, h.CatalogHandler)
 	r.GET(pubkeyPath, h.PubkeyHandler)

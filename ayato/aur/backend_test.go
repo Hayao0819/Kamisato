@@ -2,8 +2,6 @@ package aur
 
 import (
 	"context"
-	"net/http"
-	"net/http/httptest"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -12,7 +10,6 @@ import (
 
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
 	"github.com/Hayao0819/Kamisato/pkg/aurweb"
-	"github.com/gin-gonic/gin"
 )
 
 type memKV struct {
@@ -63,8 +60,7 @@ func (m *countingKV) List(ns string) ([]kv.Entry, error) {
 	return m.memKV.List(ns)
 }
 
-func TestCatalogHandlerCachesEnvelope(t *testing.T) {
-	gin.SetMode(gin.TestMode)
+func TestCatalogServiceCachesEnvelope(t *testing.T) {
 	m := newMemKV()
 	if err := m.Set(nsPkg, "foo", []byte(`{"Name":"foo"}`), 0); err != nil {
 		t.Fatal(err)
@@ -73,15 +69,11 @@ func TestCatalogHandlerCachesEnvelope(t *testing.T) {
 		t.Fatal(err)
 	}
 	ck := &countingKV{memKV: m}
-	h := NewHandler(NewBackend(ck, "maint"), time.Minute)
+	svc := NewService(NewBackend(ck, "maint"), time.Minute)
 
 	call := func() {
-		w := httptest.NewRecorder()
-		c, _ := gin.CreateTestContext(w)
-		c.Request = httptest.NewRequest(http.MethodGet, "/catalog", nil)
-		h.CatalogHandler(c)
-		if w.Code != http.StatusOK {
-			t.Fatalf("catalog status = %d, want 200", w.Code)
+		if _, err := svc.Envelope(context.Background()); err != nil {
+			t.Fatalf("Envelope: %v", err)
 		}
 	}
 
