@@ -30,6 +30,7 @@ require (
 	github.com/lib/pq v1.10.9
 	github.com/m-mizutani/clog v0.1.0
 	github.com/orandin/slog-gorm v1.4.0
+	github.com/otiai10/copy v1.14.1
 	github.com/samber/lo v1.51.0
 	github.com/samber/slog-gin v1.16.1
 	github.com/spf13/cobra v1.9.1
@@ -53,6 +54,7 @@ require (
 	github.com/go-jose/go-jose/v4 v4.1.4 // indirect
 	github.com/moby/sys/atomicwriter v0.1.0 // indirect
 	github.com/morikuni/aec v1.1.0 // indirect
+	github.com/otiai10/mint v1.6.3 // indirect
 	github.com/pkoukk/tiktoken-go v0.1.6 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.44.0 // indirect
 	go.opentelemetry.io/otel/sdk v1.44.0 // indirect

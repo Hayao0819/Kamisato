@@ -2,12 +2,11 @@ package utils
 
 import (
 	"bytes"
-	"fmt"
 	"io"
-	"io/fs"
 	"os"
-	"path"
 	"path/filepath"
+
+	"github.com/otiai10/copy"
 )
 
 type ReadSeekCloser struct {
@@ -32,120 +31,42 @@ func ResolvePath(baseDir, targetPath string) string {
 	return filepath.Clean(joined)
 }
 
-// CopyDir recursively copies the src tree to dst, which must not already exist (it is created).
+// CopyDir recursively copies the src tree to dst, creating dst if needed.
 func CopyDir(src, dst string) error {
-	srcInfo, err := os.Stat(src)
-	if err != nil {
-		return fmt.Errorf("stat source dir: %w", err)
-	}
-	if !srcInfo.IsDir() {
-		return fmt.Errorf("source is not a directory")
-	}
-
-	if err := os.MkdirAll(dst, srcInfo.Mode()); err != nil {
-		return fmt.Errorf("create dest dir: %w", err)
-	}
-
-	return filepath.WalkDir(src, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-
-		relPath, err := filepath.Rel(src, path)
-		if err != nil {
-			return err
-		}
-		dstPath := filepath.Join(dst, relPath)
-
-		info, err := d.Info()
-		if err != nil {
-			return err
-		}
-
-		switch {
-		case d.IsDir():
-			if err := os.MkdirAll(dstPath, info.Mode()); err != nil {
-				return err
-			}
-		case (info.Mode() & os.ModeSymlink) != 0:
-			linkTarget, err := os.Readlink(path)
-			if err != nil {
-				return err
-			}
-			if err := os.Symlink(linkTarget, dstPath); err != nil {
-				return err
-			}
-		default:
-			if err := copyFile(path, dstPath, info.Mode()); err != nil {
-				return err
-			}
-		}
-		return nil
-	})
-}
-
-func copyFile(srcFile, dstFile string, mode fs.FileMode) error {
-	src, err := os.Open(srcFile)
-	if err != nil {
-		return err
-	}
-	defer src.Close()
-
-	dst, err := os.OpenFile(dstFile, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, mode)
-	if err != nil {
-		return err
-	}
-	defer dst.Close()
-
-	_, err = io.Copy(dst, src)
-	return err
+	return copy.Copy(src, dst)
 }
 
 func MoveFile(org string, dst string) error {
-	var orgabs, dstabs string
-	var err error
-
-	orgabs, err = filepath.Abs(org)
+	orgabs, err := filepath.Abs(org)
 	if err != nil {
 		return err
 	}
 
-	dstabs, err = filepath.Abs(dst)
+	dstabs, err := filepath.Abs(dst)
 	if err != nil {
 		return err
 	}
-
-	if path.Dir(orgabs) == path.Dir(dstabs) && path.Base(orgabs) == path.Base(dstabs) {
-		return nil
-	}
-	if path.Dir(orgabs) == path.Dir(dstabs) {
-		return os.Rename(orgabs, dstabs)
-	}
-
-	orgfile, err := os.Open(orgabs)
-	if err != nil {
-		return err
-	}
-	defer orgfile.Close()
 
 	// If dst is an existing directory, move into it keeping the original name.
 	if dststat, err := os.Stat(dstabs); err == nil && dststat.IsDir() {
-		dstabs = path.Join(dstabs, path.Base(orgabs))
+		dstabs = filepath.Join(dstabs, filepath.Base(orgabs))
+	}
+	if orgabs == dstabs {
+		return nil
 	}
 
-	if err := os.MkdirAll(path.Dir(dstabs), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(dstabs), 0o755); err != nil {
 		return err
 	}
 
-	dstfile, err := os.Create(dstabs)
-	if err != nil {
+	// Rename is atomic within a single filesystem; fall back to a copy (which
+	// preserves the source mode) across devices, dropping the source only once
+	// the copy has succeeded.
+	if err := os.Rename(orgabs, dstabs); err == nil {
+		return nil
+	}
+	if err := copy.Copy(orgabs, dstabs); err != nil {
 		return err
 	}
-	defer dstfile.Close()
-
-	if _, err = io.Copy(dstfile, orgfile); err != nil {
-		return err
-	}
-
 	return os.Remove(orgabs)
 }
