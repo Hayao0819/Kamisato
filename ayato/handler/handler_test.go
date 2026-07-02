@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/Hayao0819/Kamisato/ayato/domain"
-	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
 	"github.com/Hayao0819/Kamisato/ayato/stream"
 	"github.com/Hayao0819/Kamisato/ayato/test/mocks"
 	"github.com/Hayao0819/Kamisato/internal/conf"
@@ -203,7 +202,7 @@ func TestRepoFileHandlerStreamsWhenPresignUnavailable(t *testing.T) {
 
 	// localfs cannot presign: SignedURL returns "", so the handler streams.
 	mockSvc.EXPECT().SignedURL("myrepo", "x86_64", "foo.pkg.tar.zst").Return("", nil)
-	mockSvc.EXPECT().GetFileWithMeta("myrepo", "x86_64", "foo.pkg.tar.zst").Return(fs, blob.FileMeta{}, nil)
+	mockSvc.EXPECT().GetFileWithMeta("myrepo", "x86_64", "foo.pkg.tar.zst").Return(fs, domain.FileMeta{}, nil)
 
 	r := gin.New()
 	r.GET("/repo/:repo/:arch/:file", h.RepoFileHandler)
@@ -228,9 +227,9 @@ func TestRepoFileHandlerReturns304OnMatchingETag(t *testing.T) {
 	const body, etag = "db-bytes", `"v1"`
 	mockSvc.EXPECT().SignedURL("myrepo", "x86_64", "myrepo.db").Return("", nil).Times(2)
 	mockSvc.EXPECT().GetFileWithMeta("myrepo", "x86_64", "myrepo.db").DoAndReturn(
-		func(_, _, _ string) (stream.File, blob.FileMeta, error) {
+		func(_, _, _ string) (stream.File, domain.FileMeta, error) {
 			return stream.NewFileStream("myrepo.db", "application/octet-stream",
-				utils.BufferToReadSeekCloser(bytes.NewBufferString(body))), blob.FileMeta{ETag: etag}, nil
+				utils.BufferToReadSeekCloser(bytes.NewBufferString(body))), domain.FileMeta{ETag: etag}, nil
 		}).Times(2)
 
 	r := gin.New()
@@ -270,9 +269,9 @@ func TestRepoFileHandlerReturns304OnIfModifiedSince(t *testing.T) {
 	modtime := time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC)
 	mockSvc.EXPECT().SignedURL("myrepo", "x86_64", "myrepo.db").Return("", nil).Times(3)
 	mockSvc.EXPECT().GetFileWithMeta("myrepo", "x86_64", "myrepo.db").DoAndReturn(
-		func(_, _, _ string) (stream.File, blob.FileMeta, error) {
+		func(_, _, _ string) (stream.File, domain.FileMeta, error) {
 			return stream.NewFileStream("myrepo.db", "application/octet-stream",
-				utils.BufferToReadSeekCloser(bytes.NewBufferString(body))), blob.FileMeta{LastModified: modtime}, nil
+				utils.BufferToReadSeekCloser(bytes.NewBufferString(body))), domain.FileMeta{LastModified: modtime}, nil
 		}).Times(3)
 
 	r := gin.New()
@@ -321,7 +320,7 @@ func TestRepoFileHandlerStreamsWhenRedirectDisabled(t *testing.T) {
 	// redirect_downloads=false forces streaming, so SignedURL is never consulted.
 	disabled := false
 	h := New(mockSvc, &conf.AyatoConfig{RedirectDownloads: &disabled})
-	mockSvc.EXPECT().GetFileWithMeta("myrepo", "x86_64", "foo.pkg.tar.zst").Return(fs, blob.FileMeta{}, nil)
+	mockSvc.EXPECT().GetFileWithMeta("myrepo", "x86_64", "foo.pkg.tar.zst").Return(fs, domain.FileMeta{}, nil)
 
 	r := gin.New()
 	r.GET("/repo/:repo/:arch/:file", h.RepoFileHandler)

@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/Hayao0819/Kamisato/ayato/domain"
-	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
 	"github.com/gin-gonic/gin"
 )
 
@@ -96,7 +95,7 @@ func (h *Handler) RepoFileHandler(ctx *gin.Context) {
 // file's validators. Per RFC 7232 If-None-Match takes precedence, so it is
 // checked first; If-Modified-Since (what pacman sends) is only consulted when no
 // If-None-Match is present.
-func notModified(req *http.Request, meta blob.FileMeta) bool {
+func notModified(req *http.Request, meta domain.FileMeta) bool {
 	if inm := req.Header.Get("If-None-Match"); inm != "" {
 		return meta.ETag != "" && etagMatches(inm, meta.ETag)
 	}

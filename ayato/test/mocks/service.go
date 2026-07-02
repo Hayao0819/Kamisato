@@ -14,7 +14,6 @@ import (
 
 	domain "github.com/Hayao0819/Kamisato/ayato/domain"
 	repository "github.com/Hayao0819/Kamisato/ayato/repository"
-	blob "github.com/Hayao0819/Kamisato/ayato/repository/blob"
 	stream "github.com/Hayao0819/Kamisato/ayato/stream"
 	raiou "github.com/Hayao0819/Kamisato/pkg/raiou"
 	gomock "go.uber.org/mock/gomock"
@@ -60,11 +59,11 @@ func (mr *MockRepoReaderMockRecorder) Arches(repo any) *gomock.Call {
 }
 
 // GetFileWithMeta mocks base method.
-func (m *MockRepoReader) GetFileWithMeta(repoName, archName, name string) (stream.File, blob.FileMeta, error) {
+func (m *MockRepoReader) GetFileWithMeta(repoName, archName, name string) (stream.File, domain.FileMeta, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetFileWithMeta", repoName, archName, name)
 	ret0, _ := ret[0].(stream.File)
-	ret1, _ := ret[1].(blob.FileMeta)
+	ret1, _ := ret[1].(domain.FileMeta)
 	ret2, _ := ret[2].(error)
 	return ret0, ret1, ret2
 }
@@ -501,11 +500,11 @@ func (mr *MockServicerMockRecorder) Arches(repo any) *gomock.Call {
 }
 
 // GetFileWithMeta mocks base method.
-func (m *MockServicer) GetFileWithMeta(repoName, archName, name string) (stream.File, blob.FileMeta, error) {
+func (m *MockServicer) GetFileWithMeta(repoName, archName, name string) (stream.File, domain.FileMeta, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetFileWithMeta", repoName, archName, name)
 	ret0, _ := ret[0].(stream.File)
-	ret1, _ := ret[1].(blob.FileMeta)
+	ret1, _ := ret[1].(domain.FileMeta)
 	ret2, _ := ret[2].(error)
 	return ret0, ret1, ret2
 }
