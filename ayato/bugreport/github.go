@@ -1,26 +1,30 @@
 package bugreport
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
 	"strings"
-	"time"
+
+	"github.com/google/go-github/v88/github"
 )
 
-const githubAPI = "https://api.github.com"
+// issue is the tracker-agnostic shape of an issue to open; business logic builds
+// it from a Report and never touches the GitHub client.
+type issue struct {
+	Title  string
+	Body   string
+	Labels []string
+}
 
-// githubReporter opens a GitHub issue per report. It uses the REST API directly
-// (no SDK dependency) with a fine-grained or classic token that can write issues.
+// issueCreator is the narrow port the reporter depends on, so tests can inject a
+// fake without an HTTP round-trip.
+type issueCreator interface {
+	CreateIssue(ctx context.Context, in issue) (url string, err error)
+}
+
+// githubReporter opens a GitHub issue per report through an issueCreator.
 type githubReporter struct {
-	client *http.Client
-	base   string
-	owner  string
-	repo   string
-	token  string
+	issues issueCreator
 }
 
 func newGitHub(cfg GitHubConfig) (Reporter, error) {
@@ -31,47 +35,42 @@ func newGitHub(cfg GitHubConfig) (Reporter, error) {
 	if cfg.Token == "" {
 		return nil, fmt.Errorf("bugreport: github token is required")
 	}
-	return &githubReporter{client: &http.Client{Timeout: 15 * time.Second}, base: githubAPI, owner: owner, repo: name, token: cfg.Token}, nil
+	c, err := github.NewClient(github.WithAuthToken(cfg.Token))
+	if err != nil {
+		return nil, fmt.Errorf("bugreport: github client: %w", err)
+	}
+	return &githubReporter{issues: ghAPI{c: c, owner: owner, repo: name}}, nil
 }
 
 func (g *githubReporter) Report(ctx context.Context, r Report) (string, error) {
-	payload := map[string]any{
-		"title": issueTitle(r),
-		"body":  issueBody(r),
+	return g.issues.CreateIssue(ctx, toIssue(r))
+}
+
+// ghAPI adapts the go-github client to issueCreator.
+type ghAPI struct {
+	c     *github.Client
+	owner string
+	repo  string
+}
+
+func (a ghAPI) CreateIssue(ctx context.Context, in issue) (string, error) {
+	iss, _, err := a.c.Issues.Create(ctx, a.owner, a.repo, &github.IssueRequest{
+		Title:  &in.Title,
+		Body:   &in.Body,
+		Labels: &in.Labels,
+	})
+	if err != nil {
+		return "", fmt.Errorf("bugreport: github issue creation failed: %w", err)
 	}
+	return iss.GetHTMLURL(), nil
+}
+
+func toIssue(r Report) issue {
+	in := issue{Title: issueTitle(r), Body: issueBody(r)}
 	if r.Severity != "" {
-		payload["labels"] = []string{"bug", r.Severity}
+		in.Labels = []string{"bug", r.Severity}
 	}
-	buf, err := json.Marshal(payload)
-	if err != nil {
-		return "", err
-	}
-
-	url := fmt.Sprintf("%s/repos/%s/%s/issues", g.base, g.owner, g.repo)
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(buf))
-	if err != nil {
-		return "", err
-	}
-	req.Header.Set("Authorization", "Bearer "+g.token)
-	req.Header.Set("Accept", "application/vnd.github+json")
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := g.client.Do(req)
-	if err != nil {
-		return "", fmt.Errorf("bugreport: github request: %w", err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusCreated {
-		body, _ := io.ReadAll(io.LimitReader(resp.Body, 2<<10))
-		return "", fmt.Errorf("bugreport: github issue creation failed (%s): %s", resp.Status, strings.TrimSpace(string(body)))
-	}
-	var out struct {
-		HTMLURL string `json:"html_url"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
-		return "", err
-	}
-	return out.HTMLURL, nil
+	return in
 }
 
 func issueTitle(r Report) string {

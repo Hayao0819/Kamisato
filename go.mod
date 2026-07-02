@@ -17,6 +17,7 @@ require (
 	github.com/gabriel-vasile/mimetype v1.4.10
 	github.com/gin-contrib/cors v1.7.6
 	github.com/gin-gonic/gin v1.10.1
+	github.com/google/go-github/v88 v88.0.0
 	github.com/joho/godotenv v1.5.1
 	github.com/klauspost/compress v1.18.0
 	github.com/knadh/koanf/parsers/json v1.0.0
@@ -111,7 +112,7 @@ require (
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/golang/snappy v1.0.0 // indirect
 	github.com/google/flatbuffers v25.2.10+incompatible // indirect
-	github.com/google/go-querystring v1.1.0 // indirect
+	github.com/google/go-querystring v1.2.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
