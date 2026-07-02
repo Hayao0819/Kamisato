@@ -7,22 +7,24 @@
 package ayatoclient
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"io"
 	"net/http"
 	"strings"
-	"time"
 
+	"github.com/Hayao0819/Kamisato/internal/httpx"
 	"github.com/Hayao0819/Kamisato/internal/utils"
 )
 
-// apiClient bounds a regular JSON API call so a hung ayato cannot hang the CLI.
+// apiClient handles regular JSON API calls; httpx.Default gives it a per-attempt
+// timeout and bounded retries so a hung or flaky ayato cannot hang the CLI.
 // Streaming and download requests use streamClient instead — a total timeout
 // would abort a long log stream or a large package transfer — and rely on
 // context cancellation.
 var (
-	apiClient    = &http.Client{Timeout: 30 * time.Second}
+	apiClient    = httpx.Default()
 	streamClient = &http.Client{}
 )
 
@@ -62,4 +64,46 @@ func responseErr(resp *http.Response, op string) error {
 		return utils.NewErrf("%s failed: %s", op, resp.Status)
 	}
 	return utils.NewErrf("%s failed: %s: %s", op, resp.Status, msg)
+}
+
+// doJSON runs a JSON API call on apiClient: it attaches the Bearer token when
+// token is set, sends body as a JSON request body when body is non-nil, maps a
+// status other than want to responseErr, and decodes the reply into out when out
+// is non-nil. op labels the operation in wrapped errors.
+func doJSON(ctx context.Context, method, url, token string, body, out any, want int, op string) error {
+	var reader io.Reader
+	if body != nil {
+		encoded, err := json.Marshal(body)
+		if err != nil {
+			return utils.WrapErr(err, "failed to encode "+op+" request")
+		}
+		reader = bytes.NewReader(encoded)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, method, url, reader)
+	if err != nil {
+		return utils.WrapErr(err, "failed to create "+op+" request")
+	}
+	if body != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
+	if token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
+
+	resp, err := apiClient.Do(req)
+	if err != nil {
+		return utils.WrapErr(err, "failed to send "+op+" request")
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != want {
+		return responseErr(resp, op)
+	}
+	if out != nil {
+		if err := json.NewDecoder(resp.Body).Decode(out); err != nil {
+			return utils.WrapErr(err, "failed to decode "+op+" response")
+		}
+	}
+	return nil
 }

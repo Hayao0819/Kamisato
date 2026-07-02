@@ -2,9 +2,7 @@ package ayatoclient
 
 import (
 	"bufio"
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -17,71 +15,29 @@ import (
 // SubmitBuild posts a build request to ayato with a Bearer CLI token and returns
 // the job id assigned by miko.
 func SubmitBuild(ctx context.Context, base, token string, req *BuildRequest) (string, error) {
-	body, err := json.Marshal(req)
-	if err != nil {
-		return "", utils.WrapErr(err, "failed to encode build request")
-	}
-
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint(base, "/api/unstable/build"), bytes.NewReader(body))
-	if err != nil {
-		return "", utils.WrapErr(err, "failed to create build request")
-	}
-	httpReq.Header.Set("Content-Type", "application/json")
-	httpReq.Header.Set("Authorization", "Bearer "+token)
-
-	resp, err := apiClient.Do(httpReq)
-	if err != nil {
-		return "", utils.WrapErr(err, "failed to submit build")
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusAccepted {
-		return "", responseErr(resp, "build submit")
-	}
-
 	var out struct {
 		JobID string `json:"job_id"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
-		return "", utils.WrapErr(err, "failed to decode build response")
+	if err := doJSON(ctx, http.MethodPost, endpoint(base, "/api/unstable/build"), token, req, &out, http.StatusAccepted, "build submit"); err != nil {
+		return "", err
 	}
 	return out.JobID, nil
 }
 
 // ListJobs fetches all jobs from ayato. The jobs endpoint is public.
 func ListJobs(ctx context.Context, base string) ([]Job, error) {
-	resp, err := get(ctx, apiClient, endpoint(base, "/api/unstable/jobs"))
-	if err != nil {
-		return nil, utils.WrapErr(err, "failed to list jobs")
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, responseErr(resp, "list jobs")
-	}
-
 	var jobs []Job
-	if err := json.NewDecoder(resp.Body).Decode(&jobs); err != nil {
-		return nil, utils.WrapErr(err, "failed to decode jobs")
+	if err := doJSON(ctx, http.MethodGet, endpoint(base, "/api/unstable/jobs"), "", nil, &jobs, http.StatusOK, "list jobs"); err != nil {
+		return nil, err
 	}
 	return jobs, nil
 }
 
 // JobStatus fetches a single job by id from ayato. The endpoint is public.
 func JobStatus(ctx context.Context, base, id string) (*Job, error) {
-	resp, err := get(ctx, apiClient, endpoint(base, "/api/unstable/jobs/"+id))
-	if err != nil {
-		return nil, utils.WrapErr(err, "failed to get job status")
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, responseErr(resp, "job status")
-	}
-
 	var job Job
-	if err := json.NewDecoder(resp.Body).Decode(&job); err != nil {
-		return nil, utils.WrapErr(err, "failed to decode job")
+	if err := doJSON(ctx, http.MethodGet, endpoint(base, "/api/unstable/jobs/"+id), "", nil, &job, http.StatusOK, "job status"); err != nil {
+		return nil, err
 	}
 	return &job, nil
 }
@@ -126,39 +82,14 @@ func WaitJob(ctx context.Context, base, id string, logs io.Writer) (*Job, error)
 
 // CancelJob requests cancellation of a job through ayato's authenticated proxy.
 func CancelJob(ctx context.Context, base, token, id string) error {
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodDelete, endpoint(base, "/api/unstable/jobs/"+id), nil)
-	if err != nil {
-		return utils.WrapErr(err, "failed to create cancel request")
-	}
-	httpReq.Header.Set("Authorization", "Bearer "+token)
-
-	resp, err := apiClient.Do(httpReq)
-	if err != nil {
-		return utils.WrapErr(err, "failed to cancel job")
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return responseErr(resp, "cancel job")
-	}
-	return nil
+	return doJSON(ctx, http.MethodDelete, endpoint(base, "/api/unstable/jobs/"+id), token, nil, nil, http.StatusOK, "cancel job")
 }
 
 // FetchStats fetches miko's build statistics from ayato (public endpoint).
 func FetchStats(ctx context.Context, base string) (*Stats, error) {
-	resp, err := get(ctx, apiClient, endpoint(base, "/api/unstable/stats"))
-	if err != nil {
-		return nil, utils.WrapErr(err, "failed to get stats")
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, responseErr(resp, "stats")
-	}
-
 	var stats Stats
-	if err := json.NewDecoder(resp.Body).Decode(&stats); err != nil {
-		return nil, utils.WrapErr(err, "failed to decode stats")
+	if err := doJSON(ctx, http.MethodGet, endpoint(base, "/api/unstable/stats"), "", nil, &stats, http.StatusOK, "stats"); err != nil {
+		return nil, err
 	}
 	return &stats, nil
 }
