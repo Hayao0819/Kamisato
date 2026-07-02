@@ -58,6 +58,11 @@ func SetRoute(e *gin.Engine, h *handler.Handler, m *middleware.Middleware) error
 			api.POST("/auth/cli/exchange", authLimit, h.CLIExchangeHandler)
 			api.GET("/auth/web/start", authLimit, h.WebStartHandler)
 			api.POST("/auth/web/exchange", authLimit, h.WebExchangeHandler)
+			// Device authorization (RFC 8628) for browserless CLI login.
+			api.POST("/auth/device/code", authLimit, h.DeviceCodeHandler)
+			api.GET("/auth/device", authLimit, h.DeviceVerifyHandler)
+			api.GET("/auth/device/approve", authLimit, h.DeviceApproveHandler)
+			api.POST("/auth/device/token", authLimit, h.DeviceTokenHandler)
 			api.GET("/auth/me", authLimit, h.MeHandler)
 			api.POST("/auth/logout", h.LogoutHandler)
 			// Revokes the presented CLI token by its jti; the signature is the auth.

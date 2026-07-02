@@ -54,6 +54,12 @@ func (h *Handler) GitHubCallbackHandler(c *gin.Context) {
 	// Fail-closed allowlist by numeric id.
 	if !h.s.IsAdmin(user.ID) {
 		slog.Warn("github login denied (not allowlisted)", "github_id", user.ID, "login", user.Login)
+		// The device flow records the rejection so the polling client stops with
+		// access_denied instead of waiting out the code's TTL.
+		if st.Device {
+			h.denyDeviceLogin(c, st)
+			return
+		}
 		c.JSON(http.StatusForbidden, gin.H{"error": "not allowed"})
 		return
 	}
@@ -64,6 +70,10 @@ func (h *Handler) GitHubCallbackHandler(c *gin.Context) {
 	}
 	if st.Web {
 		h.finishWebBearerLogin(c, st, user)
+		return
+	}
+	if st.Device {
+		h.finishDeviceLogin(c, st, user)
 		return
 	}
 	h.finishWebLogin(c, user)

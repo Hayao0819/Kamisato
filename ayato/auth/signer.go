@@ -42,8 +42,13 @@ type Claims struct {
 	Challenge string `json:",omitempty"`
 	Binding   string `json:",omitempty"`
 	CLIState  string `json:",omitempty"`
-	CLI       bool   `json:",omitempty"`
-	Web       bool   `json:",omitempty"`
+	// UserCode carries the RFC 8628 device user_code through the OAuth state so the
+	// callback knows which pending device authorization to approve or deny.
+	UserCode string `json:",omitempty"`
+	CLI      bool   `json:",omitempty"`
+	Web      bool   `json:",omitempty"`
+	// Device marks the state token as belonging to the device-authorization flow.
+	Device bool `json:",omitempty"`
 	// JTI is a unique token id set on CLI tokens so a single token can be revoked
 	// via the denylist. omitempty keeps tokens that never set it byte-identical.
 	JTI string `json:",omitempty"`

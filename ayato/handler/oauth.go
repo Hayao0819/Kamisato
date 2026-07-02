@@ -30,6 +30,11 @@ const (
 	bearerTTL  = 7 * 24 * time.Hour
 	codeTTL    = 60 * time.Second
 	stateTTL   = 10 * time.Minute
+	// deviceCodeTTL bounds how long a device authorization stays redeemable; the
+	// user has this long to approve in a browser. deviceInterval is the minimum
+	// poll spacing advertised to (and enforced against) the polling client.
+	deviceCodeTTL  = 10 * time.Minute
+	deviceInterval = 5 * time.Second
 )
 
 // githubUser is the subset of GET /user we rely on.

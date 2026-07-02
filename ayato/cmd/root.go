@@ -62,6 +62,7 @@ func RootCmd() *cobra.Command {
 			denylistRepo := repository.NewDenylistRepository(kvStore)
 			replayGuard := repository.NewReplayGuard(kvStore)
 			logTokenRepo := repository.NewLogTokenRepository(kvStore)
+			deviceRepo := repository.NewDeviceRepository(kvStore)
 			s := service.New(pkgNameRepo, pkgBinaryRepo, authRepo, signerRepo, cfg)
 			h := handler.New(s, cfg).WithLogTokens(logTokenRepo)
 			m := middleware.New(cfg).WithLogTokens(logTokenRepo)
@@ -78,6 +79,7 @@ func RootCmd() *cobra.Command {
 				}
 				h.WithAuth(signer)
 				h.WithReplayGuard(replayGuard)
+				h.WithDeviceStore(deviceRepo)
 				s.WithDenylist(denylistRepo)
 				m.WithAuth(s, signer).WithDenylist(denylistRepo)
 			} else {

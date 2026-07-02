@@ -19,6 +19,19 @@ type Handler struct {
 	recaptcha recaptcha.Verifier // nil when reCAPTCHA is not configured
 	replay    replayGuard        // nil when the one-time code guard is not wired
 	logTokens logTokenMinter     // nil when SSE log tokens are not wired
+	device    deviceStore        // nil when the device-authorization flow is not wired
+}
+
+// deviceStore is the RFC 8628 device-authorization rendezvous the handlers need.
+// A narrow local interface keeps the handler off the repository package, matching
+// replayGuard/logTokenMinter.
+type deviceStore interface {
+	CreateDevice(deviceCode, userCode string, ttl time.Duration) error
+	LookupByUserCode(userCode string) (status string, ok bool, err error)
+	ApproveDevice(userCode string, githubID int64, login string) (ok bool, err error)
+	DenyDevice(userCode string) (ok bool, err error)
+	PollDevice(deviceCode string) (status string, githubID int64, login string, ok bool, err error)
+	ConsumeDevice(deviceCode string) error
 }
 
 // replayGuard records a one-time PKCE code id at redemption so a replayed code is
@@ -85,5 +98,12 @@ func (h *Handler) WithReplayGuard(g replayGuard) *Handler {
 // mint endpoint reports unavailable and only bearer/session access to /logs works.
 func (h *Handler) WithLogTokens(m logTokenMinter) *Handler {
 	h.logTokens = m
+	return h
+}
+
+// WithDeviceStore attaches the kv-backed device-authorization store. Unwired (nil)
+// makes the device endpoints report the flow unavailable.
+func (h *Handler) WithDeviceStore(d deviceStore) *Handler {
+	h.device = d
 	return h
 }
