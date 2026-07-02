@@ -2,6 +2,7 @@ package aurweb
 
 import (
 	"io"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -14,30 +15,29 @@ func readAllLimited(r io.Reader) ([]byte, error) {
 	return io.ReadAll(io.LimitReader(r, maxResponseBytes))
 }
 
-// mergeUnique concatenates lists, keeping the first occurrence of each distinct
-// key. Earlier lists win, so callers pass the higher-precedence list first.
-func mergeUnique[T any, K comparable](key func(T) K, lists ...[]T) []T {
-	seen := map[K]bool{}
+// DedupeBy keeps the first occurrence of each distinct key, preserving order.
+// Merging callers concatenate the higher-precedence items first, so the survivor
+// of a name collision is the one that ranks highest.
+func DedupeBy[T any, K comparable](items []T, key func(T) K) []T {
+	seen := make(map[K]bool, len(items))
 	var out []T
-	for _, list := range lists {
-		for _, v := range list {
-			k := key(v)
-			if seen[k] {
-				continue
-			}
-			seen[k] = true
-			out = append(out, v)
+	for _, v := range items {
+		k := key(v)
+		if seen[k] {
+			continue
 		}
+		seen[k] = true
+		out = append(out, v)
 	}
 	return out
 }
 
 func mergeByName(local, upstream []Pkg) []Pkg {
-	return mergeUnique(func(p Pkg) string { return p.Name }, local, upstream)
+	return DedupeBy(slices.Concat(local, upstream), func(p Pkg) string { return p.Name })
 }
 
 func mergeStrings(local, upstream []string) []string {
-	return mergeUnique(func(s string) string { return s }, local, upstream)
+	return DedupeBy(slices.Concat(local, upstream), func(s string) string { return s })
 }
 
 func dedupeNonEmpty(in []string) []string {

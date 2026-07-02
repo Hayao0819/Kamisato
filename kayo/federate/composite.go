@@ -88,6 +88,25 @@ func (c *Composite) keep(e entry, p aurweb.Pkg) (aurweb.Pkg, bool) {
 	return gate(c.store, c.mode, e.source, e.delegatedVerified(), p)
 }
 
+// sourced pairs a package with the entry that produced it, so a merge can dedupe
+// by name and still gate each survivor against its own source's trust.
+type sourced struct {
+	entry entry
+	pkg   aurweb.Pkg
+}
+
+// gateUnique keeps the highest-ranked record per name (entries are pre-sorted, so
+// the first occurrence wins) and trust-gates each survivor.
+func (c *Composite) gateUnique(all []sourced) []aurweb.Pkg {
+	var out []aurweb.Pkg
+	for _, item := range aurweb.DedupeBy(all, func(s sourced) string { return s.pkg.Name }) {
+		if gp, keep := c.keep(item.entry, item.pkg); keep {
+			out = append(out, gp)
+		}
+	}
+	return out
+}
+
 // Sync refreshes every source that supports it, logging but not failing on a
 // single source's error.
 func (c *Composite) Sync(ctx context.Context) error {
@@ -102,8 +121,7 @@ func (c *Composite) Sync(ctx context.Context) error {
 }
 
 func (c *Composite) Info(ctx context.Context, names []string) ([]aurweb.Pkg, error) {
-	seen := map[string]bool{}
-	var out []aurweb.Pkg
+	var all []sourced
 	for _, e := range c.entries {
 		pkgs, err := e.backend.Info(ctx, names)
 		if err != nil {
@@ -111,21 +129,14 @@ func (c *Composite) Info(ctx context.Context, names []string) ([]aurweb.Pkg, err
 			continue
 		}
 		for _, p := range pkgs {
-			if seen[p.Name] {
-				continue
-			}
-			seen[p.Name] = true
-			if gp, keep := c.keep(e, p); keep {
-				out = append(out, gp)
-			}
+			all = append(all, sourced{e, p})
 		}
 	}
-	return out, nil
+	return c.gateUnique(all), nil
 }
 
 func (c *Composite) Search(ctx context.Context, by aurweb.By, arg string) ([]aurweb.Pkg, error) {
-	seen := map[string]bool{}
-	var out []aurweb.Pkg
+	var all []sourced
 	for _, e := range c.entries {
 		pkgs, err := e.backend.Search(ctx, by, arg)
 		if err != nil {
@@ -133,58 +144,40 @@ func (c *Composite) Search(ctx context.Context, by aurweb.By, arg string) ([]aur
 			continue
 		}
 		for _, p := range pkgs {
-			if seen[p.Name] {
-				continue
-			}
-			seen[p.Name] = true
-			if gp, keep := c.keep(e, p); keep {
-				out = append(out, gp)
-			}
+			all = append(all, sourced{e, p})
 		}
 	}
-	return out, nil
+	return c.gateUnique(all), nil
 }
 
 func (c *Composite) Suggest(ctx context.Context, arg string, pkgbase bool) ([]string, error) {
-	seen := map[string]bool{}
-	var out []string
+	var names []string
 	for _, e := range c.entries {
-		names, err := e.backend.Suggest(ctx, arg, pkgbase)
+		got, err := e.backend.Suggest(ctx, arg, pkgbase)
 		if err != nil {
 			continue
 		}
-		for _, n := range names {
-			if !seen[n] {
-				seen[n] = true
-				out = append(out, n)
-			}
-		}
+		names = append(names, got...)
 	}
-	if len(out) > aurweb.SuggestLimit {
-		out = out[:aurweb.SuggestLimit]
+	names = aurweb.DedupeBy(names, func(n string) string { return n })
+	if len(names) > aurweb.SuggestLimit {
+		names = names[:aurweb.SuggestLimit]
 	}
-	return out, nil
+	return names, nil
 }
 
 func (c *Composite) All(ctx context.Context) ([]aurweb.Pkg, error) {
-	seen := map[string]bool{}
-	var out []aurweb.Pkg
+	var all []sourced
 	for _, e := range c.entries {
 		pkgs, err := e.backend.All(ctx)
 		if err != nil {
 			continue
 		}
 		for _, p := range pkgs {
-			if seen[p.Name] {
-				continue
-			}
-			seen[p.Name] = true
-			if gp, keep := c.keep(e, p); keep {
-				out = append(out, gp)
-			}
+			all = append(all, sourced{e, p})
 		}
 	}
-	return out, nil
+	return c.gateUnique(all), nil
 }
 
 func (c *Composite) SourceURL(ctx context.Context, pkgbase string) (string, bool, error) {

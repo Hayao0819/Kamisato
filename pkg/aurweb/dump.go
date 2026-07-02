@@ -215,27 +215,20 @@ func (s *Server) buildNamesDump(ctx context.Context) ([]byte, error) {
 		return nil, err
 	}
 
-	seen := make(map[string]bool, len(local))
-	var names []string
+	names := make([]string, 0, len(local))
 	for _, p := range local {
-		if !seen[p.Name] {
-			seen[p.Name] = true
-			names = append(names, p.Name)
-		}
+		names = append(names, p.Name)
 	}
 	if ds, ok := s.upstream.(DumpSource); ok {
 		up, derr := ds.FetchNames(ctx)
 		if derr != nil {
 			s.log.Warn("aurweb: upstream names unavailable", "error", derr)
 		} else {
-			for _, n := range up {
-				if !seen[n] {
-					seen[n] = true
-					names = append(names, n)
-				}
-			}
+			names = append(names, up...)
 		}
 	}
+	// Local names lead, so DedupeBy keeps a local name over an upstream duplicate.
+	names = DedupeBy(names, func(n string) string { return n })
 
 	var buf bytes.Buffer
 	gz := gzip.NewWriter(&buf)
