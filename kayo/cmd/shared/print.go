@@ -9,8 +9,8 @@ import (
 	"strings"
 
 	"github.com/Hayao0819/Kamisato/internal/conf"
-	"github.com/Hayao0819/Kamisato/internal/llmaudit"
 	"github.com/Hayao0819/Kamisato/kayo/audit"
+	"github.com/Hayao0819/Kamisato/kayo/llmaudit"
 	"github.com/Hayao0819/Kamisato/kayo/trust"
 )
 
