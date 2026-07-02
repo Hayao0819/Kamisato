@@ -10,14 +10,7 @@ func (p *SourcePackage) Base() string {
 
 // Version returns the full version in epoch:pkgver-pkgrel form (for vercmp).
 func (p *SourcePackage) Version() string {
-	v := p.info.PkgVer
-	if p.info.PkgRel != "" {
-		v += "-" + p.info.PkgRel
-	}
-	if p.info.PkgEpoch != "" {
-		v = p.info.PkgEpoch + ":" + v
-	}
-	return v
+	return p.info.Version()
 }
 
 // Names returns the pkgbase and each sub-package name.

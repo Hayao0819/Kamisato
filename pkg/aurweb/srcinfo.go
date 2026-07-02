@@ -31,7 +31,7 @@ func FromSrcinfo(si *raiou.SRCINFO, meta SrcinfoMeta) []Pkg {
 
 	base := si.SrcinfoBase
 	global := si.SrcinfoPackage
-	version := joinVersion(base.PkgVer, base.PkgRel, base.PkgEpoch)
+	version := base.Version()
 	baseID := stableID(base.PkgBase)
 	urlPath := meta.URLPath
 	if urlPath == "" {
@@ -73,18 +73,6 @@ func FromSrcinfo(si *raiou.SRCINFO, meta SrcinfoMeta) []Pkg {
 		})
 	}
 	return out
-}
-
-// joinVersion renders the aurweb Version string: "[epoch:]pkgver-pkgrel".
-func joinVersion(ver, rel, epoch string) string {
-	v := ver
-	if rel != "" {
-		v += "-" + rel
-	}
-	if epoch != "" {
-		v = epoch + ":" + v
-	}
-	return v
 }
 
 // mergeArch unions two per-arch maps across all architectures, sorted.

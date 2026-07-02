@@ -45,6 +45,19 @@ type SrcinfoBase struct {
 	CheckDepends ArchStrings `mapstructure:"checkdepends" json:"checkdepends" yml:"checkdepends" toml:"checkdepends"`
 }
 
+// Version renders the full version "[epoch:]pkgver-pkgrel"; the epoch prefix and
+// the pkgrel suffix are dropped when their fields are empty.
+func (b *SrcinfoBase) Version() string {
+	v := b.PkgVer
+	if b.PkgRel != "" {
+		v += "-" + b.PkgRel
+	}
+	if b.PkgEpoch != "" {
+		v = b.PkgEpoch + ":" + v
+	}
+	return v
+}
+
 type SRCINFO struct {
 	SrcinfoBase    `mapstructure:",squash"`
 	SrcinfoPackage `mapstructure:",squash"`
