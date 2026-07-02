@@ -7,7 +7,6 @@ import (
 	"log/slog"
 	"os"
 	"path"
-	"strings"
 
 	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
 	"github.com/Hayao0819/Kamisato/ayato/stream"
@@ -17,25 +16,17 @@ import (
 	"github.com/samber/lo"
 )
 
-// validatePathComponent rejects values that could escape the repo directory.
-func validatePathComponent(c string) error {
-	if c == "" || c == "." || strings.ContainsRune(c, '/') || strings.ContainsRune(c, os.PathSeparator) || strings.Contains(c, "..") {
-		return os.ErrNotExist
-	}
-	return nil
-}
-
 func (l *LocalStore) StoreFile(repo string, arch string, file stream.SeekFile) error {
 	repoDir, err := l.getRepoDir(repo)
 	if err != nil {
 		return err
 	}
 
-	if err := validatePathComponent(arch); err != nil {
+	if err := blob.ValidatePathComponent(arch); err != nil {
 		return err
 	}
 	name := path.Base(file.FileName())
-	if err := validatePathComponent(name); err != nil {
+	if err := blob.ValidatePathComponent(name); err != nil {
 		return err
 	}
 
@@ -99,10 +90,10 @@ func (l *LocalStore) FetchFile(repo string, arch string, file string) (stream.Fi
 		return nil, err
 	}
 
-	if err := validatePathComponent(arch); err != nil {
+	if err := blob.ValidatePathComponent(arch); err != nil {
 		return nil, err
 	}
-	if err := validatePathComponent(file); err != nil {
+	if err := blob.ValidatePathComponent(file); err != nil {
 		return nil, err
 	}
 
@@ -125,10 +116,10 @@ func (l *LocalStore) DeleteFile(repo string, arch string, file string) error {
 		return err
 	}
 
-	if err := validatePathComponent(arch); err != nil {
+	if err := blob.ValidatePathComponent(arch); err != nil {
 		return err
 	}
-	if err := validatePathComponent(file); err != nil {
+	if err := blob.ValidatePathComponent(file); err != nil {
 		return err
 	}
 

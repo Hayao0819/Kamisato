@@ -125,7 +125,7 @@ func (s *S3) RepoNames() ([]string, error) {
 // one is configured. The S3 keyspace is flat, so this is for uniform validation
 // rather than traversal defense.
 func (s *S3) validateListRepo(repo string) error {
-	if err := validatePathComponent(repo); err != nil {
+	if err := blob.ValidatePathComponent(repo); err != nil {
 		return err
 	}
 	if len(s.repoNames) > 0 && !lo.Contains(s.repoNames, repo) {
@@ -152,7 +152,7 @@ func (s *S3) Files(repo string, arch string) ([]string, error) {
 	if err := s.validateListRepo(repo); err != nil {
 		return nil, err
 	}
-	if err := validatePathComponent(arch); err != nil {
+	if err := blob.ValidatePathComponent(arch); err != nil {
 		return nil, err
 	}
 	l, err := s.listFiles(fmt.Sprintf("%s/%s/", repo, arch))

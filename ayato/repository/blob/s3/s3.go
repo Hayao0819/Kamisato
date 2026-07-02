@@ -103,29 +103,21 @@ func key(repo, arch, name string) string {
 	return repo + "/" + arch + "/" + name
 }
 
-// validatePathComponent rejects values that could escape the key prefix.
-func validatePathComponent(c string) error {
-	if c == "" || c == "." || strings.ContainsRune(c, '/') || strings.ContainsRune(c, os.PathSeparator) || strings.Contains(c, "..") {
-		return os.ErrNotExist
-	}
-	return nil
-}
-
 // validatedKey mirrors the localfs guards before building an object key: every
 // component must be a single safe path element, and repo must be in the configured
 // allowlist when one is set. Otherwise the raw repo/arch/name concatenation would
 // let "../" or absolute components write outside the intended prefix.
 func (s *S3) validatedKey(repo, arch, name string) (string, error) {
-	if err := validatePathComponent(repo); err != nil {
+	if err := blob.ValidatePathComponent(repo); err != nil {
 		return "", err
 	}
 	if len(s.repoNames) > 0 && !lo.Contains(s.repoNames, repo) {
 		return "", fmt.Errorf("repo %s not found", repo)
 	}
-	if err := validatePathComponent(arch); err != nil {
+	if err := blob.ValidatePathComponent(arch); err != nil {
 		return "", err
 	}
-	if err := validatePathComponent(name); err != nil {
+	if err := blob.ValidatePathComponent(name); err != nil {
 		return "", err
 	}
 	return key(repo, arch, name), nil

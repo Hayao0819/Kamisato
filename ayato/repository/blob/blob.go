@@ -5,6 +5,8 @@ package blob
 
 import (
 	"errors"
+	"os"
+	"strings"
 	"time"
 
 	"github.com/Hayao0819/Kamisato/ayato/stream"
@@ -22,6 +24,17 @@ var ErrPreconditionFailed = errors.New("blob: precondition failed (object change
 // tell a true miss from a transient backend error and never mistake a fetch
 // failure for an empty database.
 var ErrNotFound = errors.New("blob: not found")
+
+// ValidatePathComponent rejects a repo/arch/name element that could escape its
+// intended directory or key prefix. Backends compose keys by concatenating these
+// components, so a "..", a "/", or an empty/"." element must be refused before it
+// reaches the filesystem or object store.
+func ValidatePathComponent(c string) error {
+	if c == "" || c == "." || strings.ContainsRune(c, '/') || strings.ContainsRune(c, os.PathSeparator) || strings.Contains(c, "..") {
+		return os.ErrNotExist
+	}
+	return nil
+}
 
 // FileMeta carries the validators the HTTP layer uses for a conditional GET: an
 // opaque strong ETag (empty when the backend has no object versioning) and the
