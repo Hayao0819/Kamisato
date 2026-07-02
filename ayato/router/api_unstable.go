@@ -139,6 +139,9 @@ func SetRoute(e *gin.Engine, h *handler.Handler, m *middleware.Middleware) error
 	}
 	{
 		repo := e.Group("/repo")
+		if err := view.SetRepoAssets(repo); err != nil {
+			return utils.WrapErr(err, "failed to register repo index assets")
+		}
 		repo.GET("/:repo/:arch", h.RepoFileListHandler)
 		repo.GET("/:repo/:arch/:file", h.RepoFileHandler)
 	}

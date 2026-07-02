@@ -3,41 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Repository</title>
-    <style>
-body {
-    font-family: sans-serif;
-    margin: 20px;
-    line-height: 1.6;
-}
-
-h1 {
-    color: #333;
-}
-
-ul {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-}
-
-li {
-    background-color: #f4f4f4;
-    border: 1px solid #ddd;
-    margin-bottom: 10px;
-    padding: 10px;
-    border-radius: 4px;
-}
-
-li a {
-    text-decoration: none;
-    color: #007bff;
-    display: block; /* Make the whole list item clickable */
-}
-
-li a:hover {
-    text-decoration: underline;
-}
-    </style>
+    <link rel="stylesheet" href="/repo/_assets/index.css">
 </head>
 <body>
     <ul>
@@ -45,35 +11,6 @@ li a:hover {
             <li><a href="{{.}}">{{.}}</a></li>
         {{- end}}
     </ul>
-    <script>
-document.addEventListener('DOMContentLoaded', function() {
-    const listItems = document.querySelectorAll('li a');
-    listItems.forEach(function(item) {
-        let relativePath = item.getAttribute('href');
-        if (relativePath && !relativePath.startsWith('http://') && !relativePath.startsWith('https://') && !relativePath.startsWith('/')) {
-            let baseUrl = window.location.href;
-            // Remove filename from URL if present
-            if (baseUrl.includes('/')) {
-                baseUrl = baseUrl.substring(0, baseUrl.lastIndexOf('/') + 1);
-            }
-            item.href = baseUrl + relativePath;
-        }
-
-        // Extract filename and update link text
-        try {
-            const url = new URL(item.href);
-            const pathSegments = url.pathname.split('/');
-            const filename = pathSegments[pathSegments.length - 1];
-            item.textContent = filename;
-            item.setAttribute('download', filename); // Add this line
-        } catch (e) {
-            console.error("Invalid URL for filename extraction:", item.href, e);
-            // Fallback to using the original relative path as text and download if URL is invalid
-            item.textContent = relativePath;
-            item.setAttribute('download', relativePath); // Add this line for fallback
-        }
-    });
-});
-</script>
+    <script src="/repo/_assets/index.js"></script>
 </body>
 </html>

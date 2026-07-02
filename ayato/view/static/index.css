@@ -1,0 +1,33 @@
+body {
+    font-family: sans-serif;
+    margin: 20px;
+    line-height: 1.6;
+}
+
+h1 {
+    color: #333;
+}
+
+ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+li {
+    background-color: #f4f4f4;
+    border: 1px solid #ddd;
+    margin-bottom: 10px;
+    padding: 10px;
+    border-radius: 4px;
+}
+
+li a {
+    text-decoration: none;
+    color: #007bff;
+    display: block; /* Make the whole list item clickable */
+}
+
+li a:hover {
+    text-decoration: underline;
+}
