@@ -2,6 +2,23 @@ package s3
 
 import "testing"
 
+func TestKeyConstruction(t *testing.T) {
+	if got := key("core", "x86_64", "p.pkg.tar.zst"); got != "core/x86_64/p.pkg.tar.zst" {
+		t.Errorf("key = %q, want core/x86_64/p.pkg.tar.zst", got)
+	}
+}
+
+func TestS3ObjectStreamContentTypeDefault(t *testing.T) {
+	s := &s3ObjectStream{}
+	if got := s.ContentType(); got != "application/octet-stream" {
+		t.Errorf("empty ContentType = %q, want application/octet-stream", got)
+	}
+	s.contentType = "text/plain"
+	if got := s.ContentType(); got != "text/plain" {
+		t.Errorf("ContentType = %q, want text/plain", got)
+	}
+}
+
 func TestValidatedKey(t *testing.T) {
 	s := &S3{repoNames: []string{"core", "extra"}}
 
