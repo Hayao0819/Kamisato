@@ -69,9 +69,11 @@ func Cmd() *cobra.Command {
 			}
 
 			ayakarc := conf.AyakaConfig{
-				LegacyRepoDir: relRepoDirFromAyakarc,
-				LegacyDestDir: relOutDirFromAyakarc,
-				Debug:         false,
+				Repos: []conf.RepoEntry{{
+					Dir:     relRepoDirFromAyakarc,
+					DestDir: relOutDirFromAyakarc,
+				}},
+				Debug: false,
 			}
 
 			ayakarcBytes, err := ayakarc.Marshal()
