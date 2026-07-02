@@ -96,6 +96,10 @@ type AURConfig struct {
 	// CatalogTTLMinutes bounds how long kayo treats a signed catalog as fresh; 0 uses
 	// a default. The signing seed comes ONLY from AYATO_AUR_SIGNING_SEED, never config.
 	CatalogTTLMinutes int `koanf:"catalog_ttl_minutes,omitempty"`
+	// RateLimitPerDay caps aurweb /rpc requests per client per day (aurweb's own
+	// limit). Unset applies the default; an explicit 0 disables throttling. It is a
+	// pointer so unset and an intentional 0 are distinguishable, like RedirectDownloads.
+	RateLimitPerDay *int `koanf:"rate_limit_per_day,omitempty"`
 }
 
 // VerifyConfig is the trust root for package-signature verification. Keyring is a

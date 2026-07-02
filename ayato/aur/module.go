@@ -20,8 +20,8 @@ type Module struct {
 }
 
 // New builds the AUR module from config and the shared KV store: the backend, the
-// aurweb Server (with optional upstream fallback), the catalog TTL, and the catalog
-// signer loaded from AYATO_AUR_SIGNING_SEED.
+// aurweb Server (optional upstream fallback and per-client /rpc rate limiting), the
+// catalog TTL, and the catalog signer loaded from AYATO_AUR_SIGNING_SEED.
 func New(cfg *conf.AyatoConfig, store kv.Store) (*Module, error) {
 	backend := NewBackend(store, cfg.AUR.Maintainer)
 
@@ -32,6 +32,15 @@ func New(cfg *conf.AyatoConfig, store kv.Store) (*Module, error) {
 			aurweb.WithUserAgent(cfg.AUR.Upstream.UserAgent),
 		)
 		opts = append(opts, aurweb.WithUpstream(up))
+	}
+	// The limiter keys on the request's real peer: the aurweb Server is mounted as a
+	// raw handler, so gin's trusted-proxy ClientIP() resolution does not reach it.
+	rateLimit := aurweb.DefaultRateLimit
+	if cfg.AUR.RateLimitPerDay != nil {
+		rateLimit = *cfg.AUR.RateLimitPerDay
+	}
+	if rateLimit > 0 {
+		opts = append(opts, aurweb.WithRateLimit(rateLimit, aurweb.DefaultRateWindow, nil))
 	}
 
 	// TTL bounds both the signed envelope's freshness and how long the public
@@ -54,6 +63,7 @@ func New(cfg *conf.AyatoConfig, store kv.Store) (*Module, error) {
 	srv := aurweb.New(backend, opts...)
 	handler := NewHandler(backend, ttl).WithSigner(signer)
 
-	slog.Info("aurweb-compatible API enabled", "upstream", cfg.AUR.Upstream.Enabled, "signed", signer != nil)
+	slog.Info("aurweb-compatible API enabled",
+		"upstream", cfg.AUR.Upstream.Enabled, "signed", signer != nil, "rate_limit_per_day", rateLimit)
 	return &Module{Server: srv, Handler: handler}, nil
 }
