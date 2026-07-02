@@ -16,7 +16,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/Hayao0819/Kamisato/internal/ayatoclient"
+	"github.com/Hayao0819/Kamisato/internal/buildclient"
 	"github.com/Hayao0819/Kamisato/internal/errwrap"
 	"golang.org/x/oauth2"
 )
@@ -60,7 +60,7 @@ func WithOutput(w io.Writer) Option { return func(o *options) { o.out = w } }
 func WithTimeout(d time.Duration) Option { return func(o *options) { o.timeout = d } }
 
 func defaultExchange(ctx context.Context, serverURL, code, verifier string) (string, string, error) {
-	token, login, _, err := ayatoclient.ExchangeCLICode(ctx, serverURL, code, verifier)
+	token, login, _, err := buildclient.ExchangeCLICode(ctx, serverURL, code, verifier)
 	return token, login, err
 }
 

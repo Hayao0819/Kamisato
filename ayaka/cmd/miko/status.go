@@ -2,7 +2,7 @@ package mikocmd
 
 import (
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
-	"github.com/Hayao0819/Kamisato/internal/ayatoclient"
+	"github.com/Hayao0819/Kamisato/internal/buildclient"
 	"github.com/Hayao0819/Kamisato/internal/errwrap"
 	"github.com/spf13/cobra"
 )
@@ -18,7 +18,7 @@ func mikoStatusCmd() *cobra.Command {
 				return err
 			}
 
-			job, err := ayatoclient.JobStatus(cmd.Context(), srv.URL, srv.Password, args[0])
+			job, err := buildclient.JobStatus(cmd.Context(), srv.URL, srv.Password, args[0])
 			if err != nil {
 				return errwrap.WrapErr(err, "failed to get job status")
 			}
@@ -29,7 +29,7 @@ func mikoStatusCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return shared.RenderList(cmd.OutOrStdout(), format, jobHeader, []ayatoclient.Job{*job})
+			return shared.RenderList(cmd.OutOrStdout(), format, jobHeader, []buildclient.Job{*job})
 		},
 	}
 	shared.AddFormatFlags(cmd)

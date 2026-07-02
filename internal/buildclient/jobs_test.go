@@ -1,4 +1,4 @@
-package ayatoclient
+package buildclient
 
 import (
 	"context"

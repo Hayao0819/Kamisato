@@ -11,8 +11,8 @@ import (
 	"time"
 
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
-	"github.com/Hayao0819/Kamisato/internal/ayatoclient"
 	"github.com/Hayao0819/Kamisato/internal/blinkyutils"
+	"github.com/Hayao0819/Kamisato/internal/buildclient"
 	"github.com/Hayao0819/Kamisato/internal/errwrap"
 	pkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
@@ -44,7 +44,7 @@ func RunRemoteBuild(ctx context.Context, o RemoteBuildOpts) error {
 	}
 
 	slog.Info("submitting remote build", "server", srv.URL, "repo", o.Repo)
-	jobID, err := ayatoclient.SubmitBuild(ctx, srv.URL, srv.Password, req)
+	jobID, err := buildclient.SubmitBuild(ctx, srv.URL, srv.Password, req)
 	if err != nil {
 		return errwrap.WrapErr(err, "failed to submit build")
 	}
@@ -55,19 +55,19 @@ func RunRemoteBuild(ctx context.Context, o RemoteBuildOpts) error {
 
 // buildRequest assembles the build request from opts: a git source, else the
 // local PKGBUILD of the named source package.
-func buildRequest(ctx context.Context, o RemoteBuildOpts) (*ayatoclient.BuildRequest, error) {
+func buildRequest(ctx context.Context, o RemoteBuildOpts) (*buildclient.BuildRequest, error) {
 	arch := o.Arch
 	if arch == "" {
 		arch = "x86_64"
 	}
-	req := &ayatoclient.BuildRequest{
+	req := &buildclient.BuildRequest{
 		Repo:        o.Repo,
 		Arch:        arch,
 		InstallPkgs: o.Pkgs,
 		Timeout:     o.Timeout,
 	}
 	if o.GitURL != "" {
-		req.Git = &ayatoclient.GitSource{URL: o.GitURL, Ref: o.GitRef, Subdir: o.GitSubdir}
+		req.Git = &buildclient.GitSource{URL: o.GitURL, Ref: o.GitRef, Subdir: o.GitSubdir}
 		return req, nil
 	}
 	pkgbuild, files, err := readLocalSource(ctx, o.Repo, o.Pkgs)
@@ -99,7 +99,7 @@ func RunRemoteBuildLocalSign(ctx context.Context, o RemoteBuildOpts, keyPath, pa
 	}
 	req.SignMode = "client"
 
-	jobID, err := ayatoclient.SubmitBuild(ctx, srv.URL, srv.Password, req)
+	jobID, err := buildclient.SubmitBuild(ctx, srv.URL, srv.Password, req)
 	if err != nil {
 		return errwrap.WrapErr(err, "failed to submit build")
 	}
@@ -108,7 +108,7 @@ func RunRemoteBuildLocalSign(ctx context.Context, o RemoteBuildOpts, keyPath, pa
 	// Bound the wait so a stuck queued/running job cannot hang the CLI forever.
 	waitCtx, cancel := context.WithTimeout(ctx, clientBuildTimeout)
 	defer cancel()
-	job, err := ayatoclient.WaitJob(waitCtx, srv.URL, srv.Password, jobID, nil)
+	job, err := buildclient.WaitJob(waitCtx, srv.URL, srv.Password, jobID, nil)
 	if err != nil {
 		return err
 	}
@@ -119,7 +119,7 @@ func RunRemoteBuildLocalSign(ctx context.Context, o RemoteBuildOpts, keyPath, pa
 		return errwrap.NewErr("build cancelled")
 	}
 
-	names, err := ayatoclient.ListArtifacts(ctx, srv.URL, srv.Password, jobID)
+	names, err := buildclient.ListArtifacts(ctx, srv.URL, srv.Password, jobID)
 	if err != nil {
 		return err
 	}
@@ -148,7 +148,7 @@ func RunRemoteBuildLocalSign(ctx context.Context, o RemoteBuildOpts, keyPath, pa
 		if err != nil {
 			return err
 		}
-		if derr := ayatoclient.DownloadArtifact(ctx, srv.URL, srv.Password, jobID, name, f); derr != nil {
+		if derr := buildclient.DownloadArtifact(ctx, srv.URL, srv.Password, jobID, name, f); derr != nil {
 			_ = f.Close()
 			return derr
 		}

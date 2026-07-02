@@ -11,8 +11,8 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/Hayao0819/Kamisato/internal/ayatoclient"
 	"github.com/Hayao0819/Kamisato/internal/blinkyutils"
+	"github.com/Hayao0819/Kamisato/internal/buildclient"
 	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/internal/errwrap"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/srcpkg"
@@ -89,7 +89,7 @@ func remoteBuild(args []string) error {
 		return err
 	}
 
-	req := &ayatoclient.BuildRequest{
+	req := &buildclient.BuildRequest{
 		Repo:     cfg.Repo,
 		Arch:     cfg.Arch,
 		Pkgbuild: pkgbuild,
@@ -113,13 +113,13 @@ func remoteBuild(args []string) error {
 		mode = conf.ThomaModeAyato
 	}
 	fmt.Fprintf(os.Stderr, "thoma: delegating build to %s (mode %s, repo %s, arch %s)\n", base, mode, cfg.Repo, cfg.Arch)
-	jobID, err := ayatoclient.SubmitBuild(ctx, base, token, req)
+	jobID, err := buildclient.SubmitBuild(ctx, base, token, req)
 	if err != nil {
 		return errwrap.WrapErr(err, "failed to submit build")
 	}
 	fmt.Fprintf(os.Stderr, "thoma: build job %s\n", jobID)
 
-	job, err := ayatoclient.WaitJob(ctx, base, token, jobID, os.Stdout)
+	job, err := buildclient.WaitJob(ctx, base, token, jobID, os.Stdout)
 	if err != nil {
 		return errwrap.WrapErr(err, "failed while waiting for build")
 	}
@@ -204,13 +204,13 @@ func placePackages(ctx context.Context, cfg *conf.ThomaConfig, base, token, jobI
 // unsigned artifact retained on the miko job.
 func downloadBuilt(ctx context.Context, cfg *conf.ThomaConfig, base, token, jobID, name, dest string) error {
 	if !cfg.Direct() {
-		return ayatoclient.DownloadPackage(ctx, base, cfg.Repo, cfg.Arch, name, dest)
+		return buildclient.DownloadPackage(ctx, base, cfg.Repo, cfg.Arch, name, dest)
 	}
 	f, err := os.Create(dest)
 	if err != nil {
 		return errwrap.WrapErr(err, "failed to create "+dest)
 	}
-	if err := ayatoclient.DownloadArtifact(ctx, base, token, jobID, name, f); err != nil {
+	if err := buildclient.DownloadArtifact(ctx, base, token, jobID, name, f); err != nil {
 		_ = f.Close()
 		return err
 	}

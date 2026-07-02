@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
-	"github.com/Hayao0819/Kamisato/internal/ayatoclient"
+	"github.com/Hayao0819/Kamisato/internal/buildclient"
 	"github.com/Hayao0819/Kamisato/internal/errwrap"
 	"github.com/spf13/cobra"
 )
@@ -23,7 +23,7 @@ func mikoStatsCmd() *cobra.Command {
 				return err
 			}
 
-			stats, err := ayatoclient.FetchStats(cmd.Context(), srv.URL, srv.Password)
+			stats, err := buildclient.FetchStats(cmd.Context(), srv.URL, srv.Password)
 			if err != nil {
 				return errwrap.WrapErr(err, "failed to get stats")
 			}
@@ -44,7 +44,7 @@ func mikoStatsCmd() *cobra.Command {
 				fmt.Fprintln(out, string(b))
 				return nil
 			case format != "":
-				return shared.RenderList(out, format, ayatoclient.Stats{}, []ayatoclient.Stats{*stats})
+				return shared.RenderList(out, format, buildclient.Stats{}, []buildclient.Stats{*stats})
 			}
 
 			w := tabwriter.NewWriter(out, 0, 4, 2, ' ', 0)

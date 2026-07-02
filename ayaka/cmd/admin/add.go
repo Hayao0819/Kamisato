@@ -5,7 +5,7 @@ import (
 	"strconv"
 
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
-	"github.com/Hayao0819/Kamisato/internal/ayatoclient"
+	"github.com/Hayao0819/Kamisato/internal/buildclient"
 	"github.com/Hayao0819/Kamisato/internal/errwrap"
 	"github.com/spf13/cobra"
 )
@@ -27,7 +27,7 @@ func adminAddCmd() *cobra.Command {
 			} else {
 				login = args[0]
 			}
-			admin, err := ayatoclient.AddAdmin(cmd.Context(), srv.URL, srv.Password, id, login)
+			admin, err := buildclient.AddAdmin(cmd.Context(), srv.URL, srv.Password, id, login)
 			if err != nil {
 				return errwrap.WrapErr(err, "failed to add admin")
 			}

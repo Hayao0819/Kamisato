@@ -1,10 +1,10 @@
-// Package ayatoclient is a thin HTTP client for the ayato-exposed build/jobs
-// API. Clients (lumine, ayaka) normally talk to ayato, which proxies build and
-// job requests to the internal miko build server. miko exposes the same
-// /api/unstable build/jobs endpoints and accepts the same Bearer token, so
-// pointing the base URL straight at miko (thoma's direct mode) reuses these
-// calls unchanged.
-package ayatoclient
+// Package buildclient is a thin HTTP client for the build/jobs API, speaking
+// either to ayato or directly to miko. Clients (lumine, ayaka) normally talk to
+// ayato, which proxies build and job requests to the internal miko build
+// server. miko exposes the same /api/unstable build/jobs endpoints and accepts
+// the same Bearer token, so pointing the base URL straight at miko (thoma's
+// direct mode) reuses these calls unchanged.
+package buildclient
 
 import (
 	"bytes"

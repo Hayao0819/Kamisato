@@ -1,4 +1,4 @@
-package ayatoclient
+package buildclient
 
 // BuildRequest mirrors the miko build request that ayato proxies unchanged.
 type BuildRequest struct {
