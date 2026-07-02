@@ -3,7 +3,7 @@ module github.com/Hayao0819/Kamisato
 go 1.25.8
 
 require (
-	github.com/BrenekH/blinky v0.0.0-20250521044104-66006d341e49
+	github.com/BrenekH/blinky v0.0.0-20260701031321-fd31e83d792e
 	github.com/Hayao0819/nahi v0.0.3
 	github.com/Morganamilo/go-srcinfo v1.0.0
 	github.com/aws/aws-sdk-go-v2 v1.42.1
@@ -11,7 +11,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/credentials v1.19.26
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.104.2
 	github.com/cenkalti/backoff/v5 v5.0.3
-	github.com/cloudflare/cloudflare-go v0.115.0
+	github.com/cloudflare/cloudflare-go v0.117.0
 	github.com/cockroachdb/errors v1.14.0
 	github.com/coreos/go-oidc/v3 v3.19.0
 	github.com/dgraph-io/badger/v3 v3.2103.5
@@ -113,7 +113,7 @@ require (
 	github.com/cockroachdb/redact v1.1.6 // indirect
 	github.com/dgraph-io/ristretto v0.2.0 // indirect
 	github.com/distribution/reference v0.6.0 // indirect
-	github.com/docker/docker v28.2.2+incompatible
+	github.com/docker/docker v28.5.2+incompatible
 	github.com/docker/go-connections v0.6.0 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
