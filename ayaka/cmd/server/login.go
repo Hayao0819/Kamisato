@@ -39,13 +39,15 @@ func LoginCmd() *cobra.Command {
 			}
 
 			if tokenFlag != "" {
-				return saveLogin(serverURL, "token", tokenFlag, setDefault)
+				// A directly supplied token has no refresh companion; it lives its full
+				// TTL like a pre-refresh login.
+				return saveLogin(serverURL, "token", tokenFlag, "", setDefault)
 			}
 
 			ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt)
 			defer stop()
 
-			login := func() (string, string, error) {
+			login := func() (string, string, string, error) {
 				// Device flow: no loopback listener, so it works over SSH/CI where the
 				// browser is on another machine.
 				if device {
@@ -57,11 +59,11 @@ func LoginCmd() *cobra.Command {
 					oauth.WithOutput(cmd.OutOrStdout()),
 				)
 			}
-			token, loginName, err := login()
+			token, refresh, loginName, err := login()
 			if err != nil {
 				return err
 			}
-			if err := saveLogin(serverURL, loginName, token, setDefault); err != nil {
+			if err := saveLogin(serverURL, loginName, token, refresh, setDefault); err != nil {
 				return err
 			}
 			fmt.Fprintf(cmd.OutOrStdout(), "%s として %s にログインしました\n", loginName, serverURL)
@@ -77,8 +79,10 @@ func LoginCmd() *cobra.Command {
 	return cmd
 }
 
-// The single token serves both blinky Basic and Bearer paths.
-func saveLogin(server, login, token string, setDefault bool) error {
+// saveLogin persists the access token (which serves both blinky Basic and Bearer
+// paths) and, when present, the refresh token. An empty refresh clears any stale
+// one, so re-logging in with --token drops a previous session's refresh token.
+func saveLogin(server, login, token, refresh string, setDefault bool) error {
 	db, err := blinkyutils.ReadServerDB()
 	if err != nil {
 		return err
@@ -92,6 +96,7 @@ func saveLogin(server, login, token string, setDefault bool) error {
 	} else {
 		entry.Password = token
 	}
+	blinkyutils.StoreRefreshSecret(server, refresh)
 	db.Servers[server] = entry
 	if setDefault {
 		db.DefaultServer = server

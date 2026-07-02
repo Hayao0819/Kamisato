@@ -111,6 +111,50 @@ func TestKeyringTakesPrecedenceOverFile(t *testing.T) {
 	}
 }
 
+// The refresh token round-trips through its own keyring key, separate from the
+// access token, and forgetting it leaves the access token untouched.
+func TestRefreshSecretRoundTrip(t *testing.T) {
+	fake := newFakeKeyring()
+	useKeyring(t, fake)
+
+	if stored := StoreSecret("repo.example.com", "access"); !stored {
+		t.Fatal("StoreSecret should accept the access token")
+	}
+	if stored := StoreRefreshSecret("repo.example.com", "refresh"); !stored {
+		t.Fatal("StoreRefreshSecret should accept the refresh token")
+	}
+	if got := LoadRefreshSecret("repo.example.com"); got != "refresh" {
+		t.Fatalf("LoadRefreshSecret = %q, want the refresh token", got)
+	}
+	// The two tokens live under distinct keys and do not collide.
+	if got := LoadSecret("repo.example.com", ""); got != "access" {
+		t.Fatalf("LoadSecret = %q, want the access token unaffected", got)
+	}
+
+	ForgetRefreshSecret("repo.example.com")
+	if got := LoadRefreshSecret("repo.example.com"); got != "" {
+		t.Fatalf("LoadRefreshSecret after forget = %q, want empty", got)
+	}
+	if got := LoadSecret("repo.example.com", ""); got != "access" {
+		t.Fatal("forgetting the refresh token must not drop the access token")
+	}
+}
+
+// Without a keyring the refresh token cannot be persisted (no file-DB slot), so
+// StoreRefreshSecret reports failure and LoadRefreshSecret finds nothing.
+func TestRefreshSecretNoKeyring(t *testing.T) {
+	fake := newFakeKeyring()
+	fake.unavailable = true
+	useKeyring(t, fake)
+
+	if stored := StoreRefreshSecret("repo.example.com", "refresh"); stored {
+		t.Fatal("StoreRefreshSecret must report failure when the keyring is unavailable")
+	}
+	if got := LoadRefreshSecret("repo.example.com"); got != "" {
+		t.Fatalf("LoadRefreshSecret = %q, want empty without a keyring", got)
+	}
+}
+
 // ForgetSecret drops the keyring entry and tolerates a missing one.
 func TestForgetSecret(t *testing.T) {
 	fake := newFakeKeyring()

@@ -107,17 +107,17 @@ func TestLoopbackLogin(t *testing.T) {
 		}
 		return resp.Body.Close()
 	}
-	exchange := func(_ context.Context, serverURL, code, verifier string) (string, string, error) {
+	exchange := func(_ context.Context, serverURL, code, verifier string) (string, string, string, error) {
 		if code != "the-code" {
-			return "", "", fmt.Errorf("unexpected code %q", code)
+			return "", "", "", fmt.Errorf("unexpected code %q", code)
 		}
 		if verifier == "" {
-			return "", "", fmt.Errorf("empty verifier")
+			return "", "", "", fmt.Errorf("empty verifier")
 		}
-		return "the-token", "octocat", nil
+		return "the-token", "the-refresh", "octocat", nil
 	}
 
-	token, login, err := LoopbackLogin(context.Background(), "http://ayato.example",
+	token, refresh, login, err := LoopbackLogin(context.Background(), "http://ayato.example",
 		WithBrowserOpener(opener),
 		WithExchanger(exchange),
 		WithOutput(io.Discard),
@@ -125,7 +125,7 @@ func TestLoopbackLogin(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if token != "the-token" || login != "octocat" {
-		t.Fatalf("got token=%q login=%q", token, login)
+	if token != "the-token" || refresh != "the-refresh" || login != "octocat" {
+		t.Fatalf("got token=%q refresh=%q login=%q", token, refresh, login)
 	}
 }

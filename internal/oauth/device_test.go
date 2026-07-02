@@ -35,11 +35,11 @@ func TestDeviceLoginApproved(t *testing.T) {
 	poll, calls := scriptedPoller(
 		buildclient.DeviceTokenResult{Status: "authorization_pending"},
 		buildclient.DeviceTokenResult{Status: "authorization_pending"},
-		buildclient.DeviceTokenResult{Token: "the-token", Login: "octocat", ID: 7},
+		buildclient.DeviceTokenResult{Token: "the-token", Refresh: "the-refresh", Login: "octocat", ID: 7},
 	)
 
 	var out strings.Builder
-	token, login, err := DeviceLogin(context.Background(), "https://ayato.example",
+	token, refresh, login, err := DeviceLogin(context.Background(), "https://ayato.example",
 		WithDeviceOutput(&out),
 		WithDeviceRequester(fixedRequester(dc)),
 		WithDevicePoller(poll),
@@ -48,8 +48,8 @@ func TestDeviceLoginApproved(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if token != "the-token" || login != "octocat" {
-		t.Fatalf("got token=%q login=%q", token, login)
+	if token != "the-token" || refresh != "the-refresh" || login != "octocat" {
+		t.Fatalf("got token=%q refresh=%q login=%q", token, refresh, login)
 	}
 	if *calls != 3 {
 		t.Fatalf("polled %d times, want 3 (two pending, one success)", *calls)
@@ -65,7 +65,7 @@ func TestDeviceLoginSlowDownThenApproved(t *testing.T) {
 		buildclient.DeviceTokenResult{Status: "slow_down"},
 		buildclient.DeviceTokenResult{Token: "t", Login: "u"},
 	)
-	token, _, err := DeviceLogin(context.Background(), "https://x",
+	token, _, _, err := DeviceLogin(context.Background(), "https://x",
 		WithDeviceOutput(io.Discard),
 		WithDeviceRequester(fixedRequester(buildclient.DeviceCodeResponse{DeviceCode: "dc", Interval: 1, ExpiresIn: 600})),
 		WithDevicePoller(poll),
@@ -86,7 +86,7 @@ func TestDeviceLoginDeniedAndExpired(t *testing.T) {
 	}
 	for status, want := range cases {
 		poll, _ := scriptedPoller(buildclient.DeviceTokenResult{Status: status})
-		_, _, err := DeviceLogin(context.Background(), "https://x",
+		_, _, _, err := DeviceLogin(context.Background(), "https://x",
 			WithDeviceOutput(io.Discard),
 			WithDeviceRequester(fixedRequester(buildclient.DeviceCodeResponse{DeviceCode: "dc", Interval: 1, ExpiresIn: 600})),
 			WithDevicePoller(poll),

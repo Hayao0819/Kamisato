@@ -21,14 +21,15 @@ type DeviceCodeResponse struct {
 	Interval                int    `json:"interval"`
 }
 
-// DeviceTokenResult is one polling outcome. On approval Token (plus Login/ID) is
-// set and Status is empty; otherwise Status carries the RFC 8628 error the caller
-// acts on (authorization_pending, slow_down, access_denied, expired_token).
+// DeviceTokenResult is one polling outcome. On approval Token (plus Refresh, Login,
+// ID) is set and Status is empty; otherwise Status carries the RFC 8628 error the
+// caller acts on (authorization_pending, slow_down, access_denied, expired_token).
 type DeviceTokenResult struct {
-	Token  string
-	Login  string
-	ID     int64
-	Status string
+	Token   string
+	Refresh string
+	Login   string
+	ID      int64
+	Status  string
 }
 
 // RequestDeviceCode starts a device authorization, returning the codes to display
@@ -66,16 +67,17 @@ func PollDeviceToken(ctx context.Context, base, deviceCode string) (DeviceTokenR
 
 	body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
 	var out struct {
-		Token string `json:"token"`
-		Login string `json:"login"`
-		ID    int64  `json:"id"`
-		Error string `json:"error"`
+		Token        string `json:"token"`
+		RefreshToken string `json:"refresh_token"`
+		Login        string `json:"login"`
+		ID           int64  `json:"id"`
+		Error        string `json:"error"`
 	}
 	_ = json.Unmarshal(body, &out)
 
 	switch {
 	case resp.StatusCode == http.StatusOK && out.Token != "":
-		return DeviceTokenResult{Token: out.Token, Login: out.Login, ID: out.ID}, nil
+		return DeviceTokenResult{Token: out.Token, Refresh: out.RefreshToken, Login: out.Login, ID: out.ID}, nil
 	case resp.StatusCode == http.StatusBadRequest && out.Error != "":
 		return DeviceTokenResult{Status: out.Error}, nil
 	default:

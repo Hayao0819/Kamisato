@@ -212,6 +212,31 @@ func TestRequireAdminRevokedTokenRejected(t *testing.T) {
 	}
 }
 
+// An access token past its exp is rejected (401), and the response carries the
+// refresh hint header so the CLI knows to refresh instead of prompting a re-login.
+// A garbage token gets a plain 401 with no hint.
+func TestRequireAdminExpiredAccessTokenHint(t *testing.T) {
+	m, signer := testMiddleware(t, 42)
+	expired, err := signer.Sign(auth.Claims{Typ: auth.TypCLI, GitHubID: 42, Login: "alice", Name: "cli", JTI: "a-old", Exp: time.Now().Add(-time.Minute)})
+	if err != nil {
+		t.Fatalf("sign expired: %v", err)
+	}
+
+	w := run(m, false, func(req *http.Request) { req.Header.Set("Authorization", "Bearer "+expired) })
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("expired access: status = %d, want 401", w.Code)
+	}
+	if w.Header().Get("X-Access-Token-Expired") != "1" {
+		t.Fatal("an expired access token must set the refresh hint header")
+	}
+
+	// A malformed token is a plain 401 without the refresh hint.
+	w = run(m, false, func(req *http.Request) { req.Header.Set("Authorization", "Bearer not-a-token") })
+	if w.Code != http.StatusUnauthorized || w.Header().Get("X-Access-Token-Expired") == "1" {
+		t.Fatalf("garbage token: status = %d hint = %q, want 401 with no hint", w.Code, w.Header().Get("X-Access-Token-Expired"))
+	}
+}
+
 func TestRequireAdminBasicTokenBlinkyOnly(t *testing.T) {
 	m, signer := testMiddleware(t, 42)
 	tok := cliToken(t, signer, 42, "alice")

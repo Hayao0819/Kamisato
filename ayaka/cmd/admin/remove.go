@@ -1,6 +1,7 @@
 package admincmd
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 
@@ -24,7 +25,10 @@ func adminRemoveCmd() *cobra.Command {
 			if perr != nil || id <= 0 {
 				return errwrap.NewErrf("invalid id: %s", args[0])
 			}
-			if err := buildclient.RemoveAdmin(cmd.Context(), srv.URL, srv.Password, id); err != nil {
+			err = shared.WithServerAuth(cmd.Context(), srv, func(ctx context.Context, token string) error {
+				return buildclient.RemoveAdmin(ctx, srv.URL, token, id)
+			})
+			if err != nil {
 				return errwrap.WrapErr(err, "failed to remove admin")
 			}
 			fmt.Fprintf(cmd.OutOrStdout(), "removed admin %d\n", id)

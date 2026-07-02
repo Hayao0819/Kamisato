@@ -76,24 +76,21 @@ func (h *Handler) CLIExchangeHandler(c *gin.Context) {
 		return
 	}
 
-	jti, err := auth.NewJTI()
+	// A new login gets a short-lived access token plus a refresh token; the client
+	// silently refreshes when the access token expires. Older long-lived tokens keep
+	// working until their own expiry (backward compatible).
+	access, refresh, expiresIn, err := h.issueAccessRefresh(rec.GitHubID, rec.Login, "cli")
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "token"})
 		return
 	}
-	token, err := h.signer.Sign(auth.Claims{
-		Typ:      auth.TypCLI,
-		GitHubID: rec.GitHubID,
-		Login:    rec.Login,
-		Name:     "cli",
-		JTI:      jti,
-		Exp:      time.Now().Add(tokenTTL),
+	c.JSON(http.StatusOK, gin.H{
+		"token":         access,
+		"refresh_token": refresh,
+		"expires_in":    expiresIn,
+		"login":         rec.Login,
+		"id":            rec.GitHubID,
 	})
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "token"})
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{"token": token, "login": rec.Login, "id": rec.GitHubID})
 }
 
 // Web-bearer PKCE exchange. Pinning TypCodeWeb means a CLI/cookie code can never

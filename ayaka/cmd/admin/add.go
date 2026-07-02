@@ -1,6 +1,7 @@
 package admincmd
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 
@@ -27,7 +28,12 @@ func adminAddCmd() *cobra.Command {
 			} else {
 				login = args[0]
 			}
-			admin, err := buildclient.AddAdmin(cmd.Context(), srv.URL, srv.Password, id, login)
+			var admin buildclient.Admin
+			err = shared.WithServerAuth(cmd.Context(), srv, func(ctx context.Context, token string) error {
+				var aerr error
+				admin, aerr = buildclient.AddAdmin(ctx, srv.URL, token, id, login)
+				return aerr
+			})
 			if err != nil {
 				return errwrap.WrapErr(err, "failed to add admin")
 			}

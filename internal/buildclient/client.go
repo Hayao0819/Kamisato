@@ -18,6 +18,14 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/httpx"
 )
 
+// accessTokenExpiredHeader is ayato's hint (on a 401) that the presented access
+// token is merely expired, so a refresh — not a full re-login — will recover.
+const accessTokenExpiredHeader = "X-Access-Token-Expired" //nolint:gosec // G101: an HTTP header name, not a credential
+
+// ErrAccessTokenExpired is returned by an authenticated call when ayato reports the
+// access token expired. Callers wrap the call with WithRefresh to recover from it.
+var ErrAccessTokenExpired = errwrap.NewErr("access token expired")
+
 // apiClient handles regular JSON API calls; httpx.Default gives it a per-attempt
 // timeout and bounded retries so a hung or flaky ayato cannot hang the CLI.
 // Streaming and download requests use streamClient instead — a total timeout
@@ -101,6 +109,9 @@ func doJSON(ctx context.Context, method, url, token string, body, out any, want 
 	defer resp.Body.Close()
 
 	if resp.StatusCode != want {
+		if resp.StatusCode == http.StatusUnauthorized && resp.Header.Get(accessTokenExpiredHeader) == "1" {
+			return errwrap.WrapErr(ErrAccessTokenExpired, op)
+		}
 		return responseErr(resp, op)
 	}
 	if out != nil {

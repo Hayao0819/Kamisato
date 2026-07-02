@@ -5,6 +5,7 @@ import (
 	"net"
 	"net/url"
 	"path"
+	"time"
 
 	"github.com/Hayao0819/Kamisato/internal/confloader"
 	"github.com/spf13/pflag"
@@ -207,6 +208,14 @@ type AuthConfig struct {
 	// CI holds non-interactive publish credentials (API key / GitHub OIDC) for CI
 	// pipelines on the upload route, separate from the user admin allowlist.
 	CI CIAuthConfig `koanf:"ci,omitempty"`
+	// AccessTokenTTLMinutes bounds a freshly issued CLI access token's lifetime.
+	// Short by default (1h) so a leaked access token is a small window; the client
+	// silently trades a refresh token for a new one. Unset/<=0 uses the default. A
+	// pre-existing long-lived token (no refresh) keeps working until its own expiry.
+	AccessTokenTTLMinutes int `koanf:"access_token_ttl_minutes,omitempty"`
+	// RefreshTokenTTLDays bounds the refresh token's lifetime, i.e. how long a CLI
+	// session survives without a re-login. Unset/<=0 uses the default (30 days).
+	RefreshTokenTTLDays int `koanf:"refresh_token_ttl_days,omitempty"`
 }
 
 func (a AuthConfig) CookieName() string {
@@ -214,6 +223,22 @@ func (a AuthConfig) CookieName() string {
 		return a.SessionCookieName
 	}
 	return "__Host-ayato_session"
+}
+
+// AccessTokenTTL is the lifetime of a newly minted CLI access token (default 1h).
+func (a AuthConfig) AccessTokenTTL() time.Duration {
+	if a.AccessTokenTTLMinutes > 0 {
+		return time.Duration(a.AccessTokenTTLMinutes) * time.Minute
+	}
+	return time.Hour
+}
+
+// RefreshTokenTTL is the lifetime of a newly minted refresh token (default 30d).
+func (a AuthConfig) RefreshTokenTTL() time.Duration {
+	if a.RefreshTokenTTLDays > 0 {
+		return time.Duration(a.RefreshTokenTTLDays) * 24 * time.Hour
+	}
+	return 30 * 24 * time.Hour
 }
 
 type BinRepoConfig struct {

@@ -22,11 +22,11 @@ const (
 	oauthStateCookieName = "ayato_oauth_state"
 )
 
-// Token lifetimes. Sessions and CLI tokens are revoked by de-allowlisting the id
-// or rotating the signer secret; the short-lived code/state windows bound replay.
+// Token lifetimes. Sessions and tokens are revoked by de-allowlisting the id or
+// rotating the signer secret; the short-lived code/state windows bound replay. CLI
+// access-token and refresh-token lifetimes are configurable (see AuthConfig).
 const (
 	sessionTTL = 7 * 24 * time.Hour
-	tokenTTL   = 90 * 24 * time.Hour
 	bearerTTL  = 7 * 24 * time.Hour
 	codeTTL    = 60 * time.Second
 	stateTTL   = 10 * time.Minute

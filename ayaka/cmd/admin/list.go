@@ -1,6 +1,7 @@
 package admincmd
 
 import (
+	"context"
 	"fmt"
 	"text/tabwriter"
 
@@ -20,7 +21,12 @@ func adminListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			admins, err := buildclient.ListAdmins(cmd.Context(), srv.URL, srv.Password)
+			var admins []buildclient.Admin
+			err = shared.WithServerAuth(cmd.Context(), srv, func(ctx context.Context, token string) error {
+				var lerr error
+				admins, lerr = buildclient.ListAdmins(ctx, srv.URL, token)
+				return lerr
+			})
 			if err != nil {
 				return errwrap.WrapErr(err, "failed to list admins")
 			}

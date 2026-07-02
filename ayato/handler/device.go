@@ -235,19 +235,7 @@ func (h *Handler) issueDeviceToken(c *gin.Context, deviceCode string, githubID i
 		c.JSON(http.StatusBadRequest, gin.H{"error": "access_denied"})
 		return
 	}
-	jti, err := auth.NewJTI()
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "token"})
-		return
-	}
-	token, err := h.signer.Sign(auth.Claims{
-		Typ:      auth.TypCLI,
-		GitHubID: githubID,
-		Login:    login,
-		Name:     "cli",
-		JTI:      jti,
-		Exp:      time.Now().Add(tokenTTL),
-	})
+	access, refresh, expiresIn, err := h.issueAccessRefresh(githubID, login, "cli")
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "token"})
 		return
@@ -255,5 +243,11 @@ func (h *Handler) issueDeviceToken(c *gin.Context, deviceCode string, githubID i
 	// Best-effort: the token is already minted, so a delete miss must not fail the
 	// login. A replay is still blocked because a consumed record polls as expired.
 	_ = h.device.ConsumeDevice(deviceCode)
-	c.JSON(http.StatusOK, gin.H{"token": token, "login": login, "id": githubID})
+	c.JSON(http.StatusOK, gin.H{
+		"token":         access,
+		"refresh_token": refresh,
+		"expires_in":    expiresIn,
+		"login":         login,
+		"id":            githubID,
+	})
 }

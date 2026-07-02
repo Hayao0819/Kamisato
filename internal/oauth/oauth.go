@@ -23,9 +23,9 @@ import (
 
 const defaultTimeout = 3 * time.Minute
 
-// Exchanger trades the one-time callback code plus its PKCE verifier for a CLI
-// token and the authenticated login name.
-type Exchanger func(ctx context.Context, serverURL, code, verifier string) (token, login string, err error)
+// Exchanger trades the one-time callback code plus its PKCE verifier for an access
+// token, its paired refresh token, and the authenticated login name.
+type Exchanger func(ctx context.Context, serverURL, code, verifier string) (token, refresh, login string, err error)
 
 // BrowserOpener opens rawURL in the user's browser. A non-nil error tells
 // LoopbackLogin to fall back to printing the URL.
@@ -59,9 +59,9 @@ func WithOutput(w io.Writer) Option { return func(o *options) { o.out = w } }
 // WithTimeout bounds the wait for the browser callback (default 3m).
 func WithTimeout(d time.Duration) Option { return func(o *options) { o.timeout = d } }
 
-func defaultExchange(ctx context.Context, serverURL, code, verifier string) (string, string, error) {
-	token, login, _, err := buildclient.ExchangeCLICode(ctx, serverURL, code, verifier)
-	return token, login, err
+func defaultExchange(ctx context.Context, serverURL, code, verifier string) (token, refresh, login string, err error) {
+	token, refresh, login, _, err = buildclient.ExchangeCLICode(ctx, serverURL, code, verifier)
+	return token, refresh, login, err
 }
 
 type pkce struct {
@@ -111,9 +111,9 @@ func writeHTML(w http.ResponseWriter, status int, body string) {
 }
 
 // LoopbackLogin runs the loopback + PKCE login against serverURL and returns the
-// issued CLI token and the authenticated login name. It honors ctx and applies
-// its own timeout on top.
-func LoopbackLogin(ctx context.Context, serverURL string, opts ...Option) (token, login string, err error) {
+// issued access token, its refresh token, and the authenticated login name. It
+// honors ctx and applies its own timeout on top.
+func LoopbackLogin(ctx context.Context, serverURL string, opts ...Option) (token, refresh, login string, err error) {
 	o := options{exchange: defaultExchange, out: os.Stdout, timeout: defaultTimeout}
 	for _, apply := range opts {
 		apply(&o)
@@ -121,12 +121,12 @@ func LoopbackLogin(ctx context.Context, serverURL string, opts ...Option) (token
 
 	p, err := newPKCE()
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
-		return "", "", errwrap.WrapErr(err, "failed to open loopback listener")
+		return "", "", "", errwrap.WrapErr(err, "failed to open loopback listener")
 	}
 	port := ln.Addr().(*net.TCPAddr).Port
 
@@ -159,14 +159,14 @@ func LoopbackLogin(ctx context.Context, serverURL string, opts ...Option) (token
 	select {
 	case code = <-codeCh:
 	case err = <-errCh:
-		return "", "", err
+		return "", "", "", err
 	case <-ctx.Done():
-		return "", "", errwrap.WrapErr(ctx.Err(), "login timed out or was cancelled")
+		return "", "", "", errwrap.WrapErr(ctx.Err(), "login timed out or was cancelled")
 	}
 
-	token, login, err = o.exchange(ctx, serverURL, code, p.verifier)
+	token, refresh, login, err = o.exchange(ctx, serverURL, code, p.verifier)
 	if err != nil {
-		return "", "", errwrap.WrapErr(err, "failed to exchange login code")
+		return "", "", "", errwrap.WrapErr(err, "failed to exchange login code")
 	}
-	return token, login, nil
+	return token, refresh, login, nil
 }

@@ -30,17 +30,24 @@ func RevokeCmd() *cobra.Command {
 			if !ok {
 				return errwrap.WrapErr(shared.ErrServerNotFound, server)
 			}
-			if entry.Password == "" {
+			access := blinkyutils.LoadSecret(server, entry.Password)
+			refresh := blinkyutils.LoadRefreshSecret(server)
+			if access == "" && refresh == "" {
 				return errwrap.NewErr("no stored token to revoke for " + server)
 			}
 
-			if err := buildclient.RevokeCLIToken(cmd.Context(), server, entry.Password); err != nil {
+			// Revoke both halves server-side: the access token authorizes via Bearer,
+			// the refresh token via the body (and suffices once the access token has
+			// already expired).
+			if err := buildclient.RevokeCLIToken(cmd.Context(), server, access, refresh); err != nil {
 				return errwrap.WrapErr(err, "failed to revoke token")
 			}
 
 			entry.Username = ""
 			entry.Password = ""
 			db.Servers[server] = entry
+			blinkyutils.ForgetSecret(server)
+			blinkyutils.ForgetRefreshSecret(server)
 			if err := blinkyutils.SaveServerDB(db); err != nil {
 				return err
 			}

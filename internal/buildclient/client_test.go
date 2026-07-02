@@ -66,16 +66,16 @@ func TestExchangeCLICodeRoundTrip(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		raw, _ := io.ReadAll(r.Body)
 		_ = json.Unmarshal(raw, &body)
-		_ = json.NewEncoder(w).Encode(map[string]any{"token": "T", "login": "octocat", "id": 42})
+		_ = json.NewEncoder(w).Encode(map[string]any{"token": "T", "refresh_token": "R", "login": "octocat", "id": 42})
 	}))
 	defer srv.Close()
 
-	token, login, id, err := ExchangeCLICode(context.Background(), srv.URL, "the-code", "the-verifier")
+	token, refresh, login, id, err := ExchangeCLICode(context.Background(), srv.URL, "the-code", "the-verifier")
 	if err != nil {
 		t.Fatalf("ExchangeCLICode: %v", err)
 	}
-	if token != "T" || login != "octocat" || id != 42 {
-		t.Fatalf("got token=%q login=%q id=%d", token, login, id)
+	if token != "T" || refresh != "R" || login != "octocat" || id != 42 {
+		t.Fatalf("got token=%q refresh=%q login=%q id=%d", token, refresh, login, id)
 	}
 	if body.Code != "the-code" || body.CodeVerifier != "the-verifier" {
 		t.Fatalf("sent body = %+v", body)

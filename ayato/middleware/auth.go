@@ -91,6 +91,11 @@ func (m *Middleware) RequireAdmin(allowBasic bool) gin.HandlerFunc {
 
 		id, login, via, ok := m.resolve(c, allowBasic)
 		if !ok {
+			// Hint the client that a refresh (not a full re-login) is enough when the
+			// only problem is an expired-but-valid access token.
+			if m.expiredAccessToken(c, allowBasic) {
+				c.Header(accessTokenExpiredHeader, "1")
+			}
 			c.Header("WWW-Authenticate", `Bearer realm="ayato"`)
 			c.AbortWithStatus(http.StatusUnauthorized)
 			return
@@ -126,6 +131,39 @@ const (
 // logTokenHeader carries the one-time SSE log token when a caller cannot put it in
 // the query string; the query param is the primary path for an EventSource URL.
 const logTokenHeader = "X-Log-Token" //nolint:gosec // G101: an HTTP header name, not a credential
+
+// accessTokenExpiredHeader flags a 401 caused solely by an expired (but validly
+// signed, non-revoked) access token, so the CLI knows to refresh and retry rather
+// than prompt for a full re-login.
+const accessTokenExpiredHeader = "X-Access-Token-Expired" //nolint:gosec // G101: an HTTP header name, not a credential
+
+// expiredAccessToken reports whether the request carries a Bearer (or Basic
+// password, when allowed) access token that is validly signed and non-revoked but
+// has expired — the one 401 case a refresh can recover from.
+func (m *Middleware) expiredAccessToken(c *gin.Context, allowBasic bool) bool {
+	if m.signer == nil {
+		return false
+	}
+	authz := c.GetHeader("Authorization")
+	tok := ""
+	switch {
+	case strings.HasPrefix(authz, "Bearer "):
+		tok = strings.TrimPrefix(authz, "Bearer ")
+	case allowBasic && strings.HasPrefix(authz, "Basic "):
+		if _, pass, err := decodeBasic(authz); err == nil {
+			tok = pass
+		}
+	}
+	if tok == "" {
+		return false
+	}
+	for _, typ := range []string{auth.TypCLI, auth.TypBearer} {
+		if claims, expired, err := m.signer.VerifyTypAllowExpired(tok, typ); err == nil {
+			return expired && !m.revoked(claims)
+		}
+	}
+	return false
+}
 
 // RequireLogAccess gates the SSE build-log stream. A browser EventSource cannot
 // send a bearer, so it presents a one-time token (query "token" or X-Log-Token)

@@ -12,6 +12,13 @@ import (
 // server DB is the point of this indirection.
 const keyringService = "kamisato-ayato"
 
+// refreshKeySuffix distinguishes a server's refresh-token keyring entry from its
+// access-token entry (the plain server name). The refresh token has no slot in the
+// blinky server DB (only username/password), so the keyring is its only home; on a
+// box without a keyring it is simply not persisted and the short-lived access token
+// is re-obtained by a fresh login when it expires.
+const refreshKeySuffix = "\x00refresh"
+
 // Keyring is the slice of the OS secret store blinkyutils needs. It is an
 // interface so tests can inject a fake instead of standing up a real Secret
 // Service / Keychain / Credential Manager.
@@ -73,5 +80,42 @@ func LoadSecret(server, fileSecret string) string {
 func ForgetSecret(server string) {
 	if err := secretKeyring.Delete(keyringService, server); err != nil && !errors.Is(err, errKeyringNotFound) {
 		slog.Debug("failed to remove server secret from the OS keyring", "server", server, "err", err)
+	}
+}
+
+// StoreRefreshSecret saves a server's refresh token in the OS keyring, returning
+// whether the keyring accepted it. An empty token clears any stale entry. Unlike
+// the access token there is no file-DB fallback, so false means the refresh token
+// is not persisted on this box.
+func StoreRefreshSecret(server, secret string) bool {
+	if secret == "" {
+		ForgetRefreshSecret(server)
+		return false
+	}
+	if err := secretKeyring.Set(keyringService, server+refreshKeySuffix, secret); err != nil {
+		slog.Debug("OS keyring unavailable; refresh token not persisted", "server", server, "err", err)
+		return false
+	}
+	return true
+}
+
+// LoadRefreshSecret returns a server's stored refresh token, or "" when none is
+// stored (or the keyring is unavailable).
+func LoadRefreshSecret(server string) string {
+	secret, err := secretKeyring.Get(keyringService, server+refreshKeySuffix)
+	if err != nil {
+		if !errors.Is(err, errKeyringNotFound) {
+			slog.Debug("OS keyring read failed for refresh token", "server", server, "err", err)
+		}
+		return ""
+	}
+	return secret
+}
+
+// ForgetRefreshSecret removes a server's keyring-stored refresh token. A miss is
+// not an error.
+func ForgetRefreshSecret(server string) {
+	if err := secretKeyring.Delete(keyringService, server+refreshKeySuffix); err != nil && !errors.Is(err, errKeyringNotFound) {
+		slog.Debug("failed to remove refresh token from the OS keyring", "server", server, "err", err)
 	}
 }

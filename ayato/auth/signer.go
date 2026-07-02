@@ -26,7 +26,16 @@ const (
 	// TypBearer is the web SPA session token, distinct from TypCLI so the two
 	// delivery paths can carry different lifetimes.
 	TypBearer = "bearer"
+	// TypRefresh is the long-lived CLI refresh token traded at /auth/refresh for a
+	// fresh short-lived access token. It carries a jti so a refresh can be revoked
+	// (stopping further refreshes) via the same denylist as access tokens.
+	TypRefresh = "refresh"
 )
+
+// ErrExpired is returned by verification when a token's signature and type are
+// valid but its Exp has elapsed. Exposed as a sentinel so the middleware can tell
+// an expired access token (client should refresh) apart from an invalid one.
+var ErrExpired = errwrap.NewErr("auth: token expired")
 
 // minSecretBytes (32) matches the SHA-256 output so the key isn't the weak point.
 const minSecretBytes = 32
@@ -94,9 +103,11 @@ func (s *Signer) Sign(c Claims) (string, error) {
 	return payloadB64 + "." + sigB64, nil
 }
 
-// verify checks the signature against every secret (constant-time) and rejects an
-// expired token. It does NOT check Typ — callers use VerifyTyp for that.
-func (s *Signer) verify(token string) (*Claims, error) {
+// parse checks the signature against every secret (constant-time) and unmarshals
+// the claims. It does NOT check expiry or Typ, so an expired-but-valid token can
+// still be inspected (the middleware uses this to detect a refreshable access
+// token).
+func (s *Signer) parse(token string) (*Claims, error) {
 	payloadB64, sigB64, ok := strings.Cut(token, ".")
 	if !ok || payloadB64 == "" || sigB64 == "" {
 		return nil, errwrap.NewErr("auth: malformed token")
@@ -123,10 +134,20 @@ func (s *Signer) verify(token string) (*Claims, error) {
 	if err := json.Unmarshal(payload, &c); err != nil {
 		return nil, errwrap.NewErr("auth: malformed token claims")
 	}
-	if time.Now().After(c.Exp) {
-		return nil, errwrap.NewErr("auth: token expired")
-	}
 	return &c, nil
+}
+
+// verify checks the signature and rejects an expired token (with ErrExpired). It
+// does NOT check Typ — callers use VerifyTyp for that.
+func (s *Signer) verify(token string) (*Claims, error) {
+	c, err := s.parse(token)
+	if err != nil {
+		return nil, err
+	}
+	if time.Now().After(c.Exp) {
+		return nil, ErrExpired
+	}
+	return c, nil
 }
 
 // VerifyTyp verifies token and additionally requires Typ == typ, rejecting a token
@@ -140,4 +161,18 @@ func (s *Signer) VerifyTyp(token, typ string) (*Claims, error) {
 		return nil, errwrap.NewErrf("auth: token type %q, want %q", c.Typ, typ)
 	}
 	return c, nil
+}
+
+// VerifyTypAllowExpired verifies signature and type but tolerates expiry, returning
+// whether the token has expired. It lets the middleware distinguish an expired
+// access token (answer 401 with a refresh hint) from a malformed or wrong-type one.
+func (s *Signer) VerifyTypAllowExpired(token, typ string) (claims *Claims, expired bool, err error) {
+	c, err := s.parse(token)
+	if err != nil {
+		return nil, false, err
+	}
+	if c.Typ != typ {
+		return nil, false, errwrap.NewErrf("auth: token type %q, want %q", c.Typ, typ)
+	}
+	return c, time.Now().After(c.Exp), nil
 }

@@ -2,27 +2,72 @@ package buildclient
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"strconv"
+
+	"github.com/Hayao0819/Kamisato/internal/errwrap"
 )
 
-// ExchangeCLICode trades a one-time CLI code plus its PKCE verifier for a CLI
-// token over ayaka's direct ayato connection.
-func ExchangeCLICode(ctx context.Context, base, code, verifier string) (token, login string, id int64, err error) {
+// ExchangeCLICode trades a one-time CLI code plus its PKCE verifier for an access
+// token and its paired refresh token over ayaka's direct ayato connection.
+func ExchangeCLICode(ctx context.Context, base, code, verifier string) (token, refresh, login string, id int64, err error) {
 	reqBody := struct {
 		Code         string `json:"code"`
 		CodeVerifier string `json:"code_verifier"`
 	}{Code: code, CodeVerifier: verifier}
 
 	var out struct {
-		Token string `json:"token"`
-		Login string `json:"login"`
-		ID    int64  `json:"id"`
+		Token        string `json:"token"`
+		RefreshToken string `json:"refresh_token"`
+		Login        string `json:"login"`
+		ID           int64  `json:"id"`
 	}
 	if err := doJSON(ctx, http.MethodPost, endpoint(base, "/api/unstable/auth/cli/exchange"), "", reqBody, &out, http.StatusOK, "cli exchange"); err != nil {
-		return "", "", 0, err
+		return "", "", "", 0, err
 	}
-	return out.Token, out.Login, out.ID, nil
+	return out.Token, out.RefreshToken, out.Login, out.ID, nil
+}
+
+// RefreshAccessToken trades a refresh token for a fresh access token (and a
+// rotated refresh token) at ayato's refresh endpoint. It needs no bearer — the
+// refresh token in the body is the credential.
+func RefreshAccessToken(ctx context.Context, base, refresh string) (token, newRefresh, login string, id int64, err error) {
+	reqBody := struct {
+		RefreshToken string `json:"refresh_token"`
+	}{RefreshToken: refresh}
+
+	var out struct {
+		Token        string `json:"token"`
+		RefreshToken string `json:"refresh_token"`
+		Login        string `json:"login"`
+		ID           int64  `json:"id"`
+	}
+	if err := doJSON(ctx, http.MethodPost, endpoint(base, "/api/unstable/auth/refresh"), "", reqBody, &out, http.StatusOK, "token refresh"); err != nil {
+		return "", "", "", 0, err
+	}
+	return out.Token, out.RefreshToken, out.Login, out.ID, nil
+}
+
+// WithRefresh runs op with the current access token and, if op fails only because
+// the access token expired, transparently trades the refresh token for a new pair,
+// persists it, and retries op exactly once. A failed refresh surfaces a clear
+// re-login error. With no refresh token available it just runs op once.
+func WithRefresh(ctx context.Context, base, access, refresh string, persist func(access, refresh string) error, op func(ctx context.Context, token string) error) error {
+	err := op(ctx, access)
+	if !errors.Is(err, ErrAccessTokenExpired) || refresh == "" {
+		return err
+	}
+	newAccess, newRefresh, _, _, rerr := RefreshAccessToken(ctx, base, refresh)
+	if rerr != nil {
+		return errwrap.WrapErr(rerr, "session expired; please run 'ayaka server login' again")
+	}
+	if persist != nil {
+		if perr := persist(newAccess, newRefresh); perr != nil {
+			return errwrap.WrapErr(perr, "failed to save refreshed tokens")
+		}
+	}
+	return op(ctx, newAccess)
 }
 
 // ListAdmins fetches the ayato admin allowlist with a Bearer CLI token.
@@ -56,10 +101,18 @@ func AddAdmin(ctx context.Context, base, token string, id int64, login string) (
 	return admin, nil
 }
 
-// RevokeCLIToken denylists the given CLI token server-side by its jti. The token
-// authorizes its own revocation, so it is sent as the Bearer credential.
-func RevokeCLIToken(ctx context.Context, base, token string) error {
-	return doJSON(ctx, http.MethodPost, endpoint(base, "/api/unstable/auth/cli/revoke"), token, nil, nil, http.StatusOK, "revoke token")
+// RevokeCLIToken denylists the given access token server-side by its jti and, when
+// a refresh token is supplied, that too, so a logout kills both halves of the
+// session. The tokens authorize their own revocation: the access token rides as the
+// Bearer credential and the refresh token in the body.
+func RevokeCLIToken(ctx context.Context, base, token, refresh string) error {
+	var body any
+	if refresh != "" {
+		body = struct {
+			RefreshToken string `json:"refresh_token"`
+		}{RefreshToken: refresh}
+	}
+	return doJSON(ctx, http.MethodPost, endpoint(base, "/api/unstable/auth/cli/revoke"), token, body, nil, http.StatusOK, "revoke token")
 }
 
 // RemoveAdmin removes an admin by numeric id.
