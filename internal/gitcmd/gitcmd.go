@@ -87,6 +87,10 @@ func Clone(ctx context.Context, o CloneOptions) error {
 			return err
 		}
 		extra = append(extra, "-c", "protocol.file.allow=never")
+		// The caller controls the registered server, so a 3xx redirect to an
+		// internal host would bypass ValidateRemote, which only inspects the
+		// initial URL.
+		extra = append(extra, "-c", "http.followRedirects=false")
 	}
 
 	args := []string{"clone", "--quiet"}
@@ -110,8 +114,9 @@ func Clone(ctx context.Context, o CloneOptions) error {
 // ValidateRemote rejects remotes that an untrusted caller could abuse: only
 // https, git, and ssh are allowed; plaintext http, file paths, and ext:: are
 // refused, and a host resolving to a private, loopback, or link-local address
-// is rejected to block SSRF. The host check covers https, git, ssh, and the
-// scp-like "user@host:path" form alike.
+// is rejected to narrow SSRF. The host check covers https, git, ssh, and the
+// scp-like "user@host:path" form alike. It inspects only the initial URL and its
+// first resolution, so it does not fully close SSRF (see rejectInternalHost).
 func ValidateRemote(raw string) error {
 	// "<helper>::<addr>" is git's transport-helper syntax; ext:: runs an
 	// arbitrary command. Reject it before any scp-like heuristic can match it.
@@ -156,6 +161,10 @@ func scpLikeSSH(raw string) (host string, ok bool) {
 	return host, true
 }
 
+// rejectInternalHost is best-effort: git re-resolves the hostname at clone time,
+// so a DNS-controlling caller can pass this check then rebind to an internal IP
+// (TOCTOU / DNS rebinding). Fully closing it needs network egress restriction —
+// git exposes no libcurl resolve-pin for https, and git/ssh resolve directly.
 func rejectInternalHost(host string) error {
 	if host == "" {
 		return utils.NewErr("remote URL has no host")
