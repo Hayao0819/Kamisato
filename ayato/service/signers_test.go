@@ -41,7 +41,7 @@ func newServiceWithMaster(t *testing.T, ks *sign.Keystore) (*Service, *memSigner
 	repo := newMemSignerRepo()
 	cfg := &conf.AyatoConfig{}
 	cfg.Verify.MasterKeys = []string{master}
-	return New(nil, nil, nil, repo, cfg).(*Service), repo
+	return New(nil, nil, nil, repo, cfg), repo
 }
 
 func TestRegisterSignerAcceptsCertifiedWorker(t *testing.T) {
@@ -122,7 +122,7 @@ func TestRegisteredWorkerBypassesAllowlist(t *testing.T) {
 	cfg := &conf.AyatoConfig{}
 	cfg.Verify.MasterKeys = []string{master}
 	cfg.Verify.TrustedKeys = []string{"0000000000000000000000000000000000000000"}
-	svc := New(nil, nil, nil, newMemSignerRepo(), cfg).(*Service)
+	svc := New(nil, nil, nil, newMemSignerRepo(), cfg)
 
 	cert, _ := ks.WorkerCertArmored()
 	if _, err := svc.RegisterSigner([]byte(cert)); err != nil {

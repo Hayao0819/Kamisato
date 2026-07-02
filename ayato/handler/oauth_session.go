@@ -126,7 +126,7 @@ func (h *Handler) MeHandler(c *gin.Context) {
 		tok := strings.TrimPrefix(authz, "Bearer ")
 		for _, typ := range []string{auth.TypBearer, auth.TypCLI} {
 			if claims, verr := h.signer.VerifyTyp(tok, typ); verr == nil && h.s.IsAdmin(claims.GitHubID) {
-				if h.denylist != nil && claims.JTI != "" && h.denylist.IsRevoked(claims.JTI) {
+				if claims.JTI != "" && h.s.IsRevoked(claims.JTI) {
 					continue
 				}
 				c.JSON(http.StatusOK, gin.H{"authenticated": true, "id": claims.GitHubID, "login": claims.Login})

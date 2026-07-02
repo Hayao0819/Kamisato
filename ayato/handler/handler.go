@@ -6,7 +6,6 @@ import (
 	"github.com/Hayao0819/Kamisato/ayato/auth"
 	"github.com/Hayao0819/Kamisato/ayato/bugreport"
 	"github.com/Hayao0819/Kamisato/ayato/recaptcha"
-	"github.com/Hayao0819/Kamisato/ayato/repository"
 	"github.com/Hayao0819/Kamisato/ayato/service"
 	"github.com/Hayao0819/Kamisato/internal/conf"
 )
@@ -14,10 +13,9 @@ import (
 type Handler struct {
 	cfg       *conf.AyatoConfig
 	s         service.Servicer
-	signer    *auth.Signer                  // nil when auth is not wired (tests)
-	reporter  bugreport.Reporter            // nil when bug reporting is not configured
-	recaptcha recaptcha.Verifier            // nil when reCAPTCHA is not configured
-	denylist  repository.DenylistRepository // nil when per-token revocation is not wired
+	signer    *auth.Signer       // nil when auth is not wired (tests)
+	reporter  bugreport.Reporter // nil when bug reporting is not configured
+	recaptcha recaptcha.Verifier // nil when reCAPTCHA is not configured
 }
 
 func New(service service.Servicer, cfg *conf.AyatoConfig) *Handler {
@@ -59,12 +57,5 @@ func bugReportConfig(c conf.BugReportConfig) bugreport.Config {
 // WithAuth attaches the stateless signer; set at startup, tests omit it (signer stays nil).
 func (h *Handler) WithAuth(signer *auth.Signer) *Handler {
 	h.signer = signer
-	return h
-}
-
-// WithDenylist attaches the per-token revocation store used by the revoke
-// endpoint and the MeHandler check.
-func (h *Handler) WithDenylist(dl repository.DenylistRepository) *Handler {
-	h.denylist = dl
 	return h
 }

@@ -73,7 +73,8 @@ func RootCmd() *cobra.Command {
 				if serr != nil {
 					return utils.WrapErr(serr, "failed to build session signer")
 				}
-				h.WithAuth(signer).WithDenylist(denylistRepo)
+				h.WithAuth(signer)
+				s.WithDenylist(denylistRepo)
 				m.WithAuth(s, signer).WithDenylist(denylistRepo)
 			} else {
 				// No signer: mutating and admin routes fail closed (503) rather than

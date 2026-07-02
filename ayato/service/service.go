@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"slices"
+	"time"
 
 	"github.com/ProtonMail/go-crypto/openpgp"
 
@@ -23,6 +24,7 @@ type Service struct {
 	pkgBinaryRepo repository.BinaryRepository
 	authRepo      repository.AuthRepository
 	signerRepo    repository.SignerRepository
+	denylistRepo  repository.DenylistRepository // nil when per-token revocation is not wired
 	cfg           *conf.AyatoConfig
 
 	// Signature trust roots: baseEntities from verify.keyring, trustedFprs from
@@ -70,6 +72,14 @@ type AdminService interface {
 	ResolveGitHubLogin(ctx context.Context, login string) (int64, string, error)
 }
 
+// Revoker manages per-token revocation via the denylist. IsRevoked reports
+// whether a token id (jti) was individually revoked; Revoke denylists one for
+// ttl. Both are no-ops (false / configuration error) when no denylist is wired.
+type Revoker interface {
+	IsRevoked(jti string) bool
+	Revoke(jti string, ttl time.Duration) error
+}
+
 // SignerRegistry manages worker signing keys. RegisterSigner accepts a worker
 // public key certified by a configured master and persists it; ListSigners
 // returns their fingerprints; UnregisterSigner revokes one by fingerprint.
@@ -91,10 +101,11 @@ type Servicer interface {
 	Uploader
 	AdminService
 	SignerRegistry
+	Revoker
 	Lifecycle
 }
 
-func New(pkgNameRepo repository.NameStore, pkgBinaryRepo repository.BinaryRepository, authRepo repository.AuthRepository, signerRepo repository.SignerRepository, config *conf.AyatoConfig) Servicer {
+func New(pkgNameRepo repository.NameStore, pkgBinaryRepo repository.BinaryRepository, authRepo repository.AuthRepository, signerRepo repository.SignerRepository, config *conf.AyatoConfig) *Service {
 	s := &Service{
 		pkgNameRepo:   pkgNameRepo,
 		pkgBinaryRepo: pkgBinaryRepo,

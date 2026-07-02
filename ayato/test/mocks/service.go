@@ -12,6 +12,7 @@ package mocks
 import (
 	context "context"
 	reflect "reflect"
+	time "time"
 
 	domain "github.com/Hayao0819/Kamisato/ayato/domain"
 	stream "github.com/Hayao0819/Kamisato/ayato/stream"
@@ -356,6 +357,58 @@ func (mr *MockAdminServiceMockRecorder) SeedBootstrapAdmin(id any) *gomock.Call 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SeedBootstrapAdmin", reflect.TypeOf((*MockAdminService)(nil).SeedBootstrapAdmin), id)
 }
 
+// MockRevoker is a mock of Revoker interface.
+type MockRevoker struct {
+	ctrl     *gomock.Controller
+	recorder *MockRevokerMockRecorder
+	isgomock struct{}
+}
+
+// MockRevokerMockRecorder is the mock recorder for MockRevoker.
+type MockRevokerMockRecorder struct {
+	mock *MockRevoker
+}
+
+// NewMockRevoker creates a new mock instance.
+func NewMockRevoker(ctrl *gomock.Controller) *MockRevoker {
+	mock := &MockRevoker{ctrl: ctrl}
+	mock.recorder = &MockRevokerMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockRevoker) EXPECT() *MockRevokerMockRecorder {
+	return m.recorder
+}
+
+// IsRevoked mocks base method.
+func (m *MockRevoker) IsRevoked(jti string) bool {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IsRevoked", jti)
+	ret0, _ := ret[0].(bool)
+	return ret0
+}
+
+// IsRevoked indicates an expected call of IsRevoked.
+func (mr *MockRevokerMockRecorder) IsRevoked(jti any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsRevoked", reflect.TypeOf((*MockRevoker)(nil).IsRevoked), jti)
+}
+
+// Revoke mocks base method.
+func (m *MockRevoker) Revoke(jti string, ttl time.Duration) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Revoke", jti, ttl)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Revoke indicates an expected call of Revoke.
+func (mr *MockRevokerMockRecorder) Revoke(jti, ttl any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Revoke", reflect.TypeOf((*MockRevoker)(nil).Revoke), jti, ttl)
+}
+
 // MockSignerRegistry is a mock of SignerRegistry interface.
 type MockSignerRegistry struct {
 	ctrl     *gomock.Controller
@@ -559,6 +612,20 @@ func (mr *MockServicerMockRecorder) IsAdmin(id any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsAdmin", reflect.TypeOf((*MockServicer)(nil).IsAdmin), id)
 }
 
+// IsRevoked mocks base method.
+func (m *MockServicer) IsRevoked(jti string) bool {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IsRevoked", jti)
+	ret0, _ := ret[0].(bool)
+	return ret0
+}
+
+// IsRevoked indicates an expected call of IsRevoked.
+func (mr *MockServicerMockRecorder) IsRevoked(jti any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsRevoked", reflect.TypeOf((*MockServicer)(nil).IsRevoked), jti)
+}
+
 // ListAdmins mocks base method.
 func (m *MockServicer) ListAdmins() ([]domain.AllowedAdmin, error) {
 	m.ctrl.T.Helper()
@@ -736,6 +803,20 @@ func (m *MockServicer) ResolveGitHubLogin(ctx context.Context, login string) (in
 func (mr *MockServicerMockRecorder) ResolveGitHubLogin(ctx, login any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResolveGitHubLogin", reflect.TypeOf((*MockServicer)(nil).ResolveGitHubLogin), ctx, login)
+}
+
+// Revoke mocks base method.
+func (m *MockServicer) Revoke(jti string, ttl time.Duration) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Revoke", jti, ttl)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Revoke indicates an expected call of Revoke.
+func (mr *MockServicerMockRecorder) Revoke(jti, ttl any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Revoke", reflect.TypeOf((*MockServicer)(nil).Revoke), jti, ttl)
 }
 
 // SeedBootstrapAdmin mocks base method.

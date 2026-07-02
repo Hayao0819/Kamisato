@@ -14,7 +14,7 @@ import (
 // is the authorization (as with logout), and the signature check stops a caller
 // from denylisting arbitrary jtis, so no admin middleware guards this route.
 func (h *Handler) RevokeCLIHandler(c *gin.Context) {
-	if h.signer == nil || h.denylist == nil {
+	if h.signer == nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "revocation not configured"})
 		return
 	}
@@ -32,7 +32,7 @@ func (h *Handler) RevokeCLIHandler(c *gin.Context) {
 		c.JSON(http.StatusConflict, gin.H{"error": "token has no jti; re-login to mint a revocable token"})
 		return
 	}
-	if err := h.denylist.Revoke(claims.JTI, time.Until(claims.Exp)); err != nil {
+	if err := h.s.Revoke(claims.JTI, time.Until(claims.Exp)); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "revoke failed"})
 		return
 	}

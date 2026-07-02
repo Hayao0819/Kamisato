@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/Hayao0819/Kamisato/ayato/auth"
+	"github.com/Hayao0819/Kamisato/ayato/service"
 	"github.com/gin-gonic/gin"
 )
 
@@ -48,7 +49,8 @@ func TestRevokeCLIHandler(t *testing.T) {
 	}
 
 	dl := &fakeDenylistRepo{}
-	h := &Handler{signer: signer, denylist: dl}
+	svc := service.New(nil, nil, nil, nil, nil).WithDenylist(dl)
+	h := New(svc, nil).WithAuth(signer)
 
 	if w := call(h, ""); w.Code != http.StatusUnauthorized {
 		t.Fatalf("no bearer: status = %d, want 401", w.Code)
