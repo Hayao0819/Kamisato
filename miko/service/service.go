@@ -9,6 +9,7 @@ import (
 
 	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/miko/domain"
+	"github.com/Hayao0819/Kamisato/miko/joblog"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/sign"
 )
 
@@ -32,6 +33,9 @@ type Servicer interface {
 	Stats() domain.BuildStats
 	// ArtifactDir returns the retained artifact directory of a client-signed job.
 	ArtifactDir(id string) (string, error)
+	// LogBuffer returns the live log buffer of an in-flight job, or nil when the
+	// job has no live buffer (finalized, restored from disk, or unknown).
+	LogBuffer(id string) *joblog.Buffer
 	// Run is the worker loop. It blocks until ctx is cancelled.
 	Run(ctx context.Context)
 }
@@ -52,6 +56,14 @@ type Service struct {
 	store map[string]*domain.BuildJob
 	// running maps in-flight job IDs to their cancel func (guarded by mu).
 	running map[string]context.CancelFunc
+
+	// logs holds the live, streaming log buffer of each in-flight job, keyed by
+	// job ID and guarded by logsMu. This operational state is deliberately kept
+	// out of the domain job (which stays pure data) so status snapshots never
+	// share a live buffer; it is created on Submit and dropped once the job
+	// reaches a terminal state, its text having been snapshotted into job.Logs.
+	logsMu sync.Mutex
+	logs   map[string]*joblog.Buffer
 }
 
 func New(cfg *conf.MikoConfig, signer sign.Signer) Servicer {
@@ -61,6 +73,7 @@ func New(cfg *conf.MikoConfig, signer sign.Signer) Servicer {
 		queue:     newQueue(),
 		store:     make(map[string]*domain.BuildJob),
 		running:   make(map[string]context.CancelFunc),
+		logs:      make(map[string]*joblog.Buffer),
 		startedAt: time.Now(),
 	}
 	if cfg.DataDir != "" {
@@ -113,4 +126,36 @@ func (s *Service) persistRemove(id string) {
 	if err := s.persist.remove(id); err != nil {
 		slog.Warn("failed to remove persisted job", "id", id, "error", err)
 	}
+}
+
+// newLogBuffer creates a job's live log buffer and registers it under id.
+func (s *Service) newLogBuffer(id string) *joblog.Buffer {
+	b := joblog.New(s.cfg.MaxLogBytes)
+	s.logsMu.Lock()
+	s.logs[id] = b
+	s.logsMu.Unlock()
+	return b
+}
+
+// LogBuffer returns the live log buffer for id, or nil once the job is finalized.
+func (s *Service) LogBuffer(id string) *joblog.Buffer {
+	s.logsMu.Lock()
+	defer s.logsMu.Unlock()
+	return s.logs[id]
+}
+
+// finalizeLog closes a job's live buffer, snapshots its text into the durable
+// job record so later reads still see the logs, then drops the live buffer.
+// Closing lets SSE readers finish. It is a no-op when there is no live buffer.
+func (s *Service) finalizeLog(id string) {
+	s.logsMu.Lock()
+	b := s.logs[id]
+	delete(s.logs, id)
+	s.logsMu.Unlock()
+	if b == nil {
+		return
+	}
+	b.Close()
+	text := b.String()
+	s.update(id, func(j *domain.BuildJob) { j.Logs = text })
 }

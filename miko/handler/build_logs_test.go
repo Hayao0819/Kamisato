@@ -25,8 +25,8 @@ func TestJobLogsHandlerEmitsLinesOnce(t *testing.T) {
 	buf := joblog.New(0)
 	buf.Write([]byte("line1\nline2\nline3\n"))
 	buf.Close()
-	job := &domain.BuildJob{ID: "job1", Log: buf}
-	mockSvc.EXPECT().Status("job1").Return(job, nil)
+	mockSvc.EXPECT().Status("job1").Return(&domain.BuildJob{ID: "job1"}, nil)
+	mockSvc.EXPECT().LogBuffer("job1").Return(buf)
 
 	r := gin.New()
 	r.GET("/jobs/:id/logs", h.JobLogsHandler)
@@ -58,8 +58,8 @@ func TestJobLogsHandlerHoldsPartialLine(t *testing.T) {
 	// A chunk that does not end in a newline must be held, not framed on its own.
 	buf := joblog.New(0)
 	buf.Write([]byte("hello, "))
-	job := &domain.BuildJob{ID: "job1", Log: buf}
-	mockSvc.EXPECT().Status("job1").Return(job, nil)
+	mockSvc.EXPECT().Status("job1").Return(&domain.BuildJob{ID: "job1"}, nil)
+	mockSvc.EXPECT().LogBuffer("job1").Return(buf)
 
 	r := gin.New()
 	r.GET("/jobs/:id/logs", h.JobLogsHandler)
@@ -95,8 +95,8 @@ func TestJobLogsHandlerReaderCap(t *testing.T) {
 	const cap = 3
 	h := New(mockSvc, &conf.MikoConfig{MaxLogReaders: cap})
 
-	job := &domain.BuildJob{ID: "job1", Log: joblog.New(0)}
-	mockSvc.EXPECT().Status("job1").Return(job, nil)
+	// The reader cap rejects with 429 before the live buffer is ever consulted.
+	mockSvc.EXPECT().Status("job1").Return(&domain.BuildJob{ID: "job1"}, nil)
 
 	// Simulate cap readers already streaming this job.
 	h.logReadersMu.Lock()

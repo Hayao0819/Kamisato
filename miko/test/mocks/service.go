@@ -14,6 +14,7 @@ import (
 	reflect "reflect"
 
 	domain "github.com/Hayao0819/Kamisato/miko/domain"
+	joblog "github.com/Hayao0819/Kamisato/miko/joblog"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -41,20 +42,6 @@ func (m *MockServicer) EXPECT() *MockServicerMockRecorder {
 	return m.recorder
 }
 
-// Cancel mocks base method.
-func (m *MockServicer) Cancel(id string) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Cancel", id)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// Cancel indicates an expected call of Cancel.
-func (mr *MockServicerMockRecorder) Cancel(id any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Cancel", reflect.TypeOf((*MockServicer)(nil).Cancel), id)
-}
-
 // ArtifactDir mocks base method.
 func (m *MockServicer) ArtifactDir(id string) (string, error) {
 	m.ctrl.T.Helper()
@@ -70,6 +57,20 @@ func (mr *MockServicerMockRecorder) ArtifactDir(id any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ArtifactDir", reflect.TypeOf((*MockServicer)(nil).ArtifactDir), id)
 }
 
+// Cancel mocks base method.
+func (m *MockServicer) Cancel(id string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Cancel", id)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Cancel indicates an expected call of Cancel.
+func (mr *MockServicerMockRecorder) Cancel(id any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Cancel", reflect.TypeOf((*MockServicer)(nil).Cancel), id)
+}
+
 // List mocks base method.
 func (m *MockServicer) List() []*domain.BuildJob {
 	m.ctrl.T.Helper()
@@ -82,6 +83,20 @@ func (m *MockServicer) List() []*domain.BuildJob {
 func (mr *MockServicerMockRecorder) List() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MockServicer)(nil).List))
+}
+
+// LogBuffer mocks base method.
+func (m *MockServicer) LogBuffer(id string) *joblog.Buffer {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "LogBuffer", id)
+	ret0, _ := ret[0].(*joblog.Buffer)
+	return ret0
+}
+
+// LogBuffer indicates an expected call of LogBuffer.
+func (mr *MockServicerMockRecorder) LogBuffer(id any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LogBuffer", reflect.TypeOf((*MockServicer)(nil).LogBuffer), id)
 }
 
 // Run mocks base method.

@@ -2,8 +2,6 @@ package domain
 
 import (
 	"time"
-
-	"github.com/Hayao0819/Kamisato/miko/joblog"
 )
 
 type JobStatus string
@@ -64,9 +62,6 @@ type BuildJob struct {
 	CreatedAt   time.Time  `json:"created_at"`
 	StartedAt   *time.Time `json:"started_at,omitempty"`
 	EndedAt     *time.Time `json:"ended_at,omitempty"`
-
-	// Log is the live build-log buffer, set by the service on Submit.
-	Log *joblog.Buffer `json:"-"`
 }
 
 type BuildStats struct {

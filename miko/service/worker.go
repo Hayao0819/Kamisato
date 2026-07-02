@@ -22,13 +22,7 @@ func (s *Service) process(ctx context.Context, job *domain.BuildJob) {
 	if cur, ok := s.store[job.ID]; ok && cur.Status == domain.JobStatusCancelled {
 		s.mu.Unlock()
 		cancel()
-		if job.Log != nil {
-			job.Log.Close()
-			s.update(job.ID, func(j *domain.BuildJob) {
-				j.Logs = job.Log.String()
-				j.Log = nil
-			})
-		}
+		s.finalizeLog(job.ID)
 		slog.Info("Skipping cancelled job", "id", job.ID)
 		return
 	}
@@ -56,16 +50,8 @@ func (s *Service) process(ctx context.Context, job *domain.BuildJob) {
 		defer func() { _ = os.RemoveAll(outDir) }()
 	}
 
-	// On terminal state, close the log buffer so SSE readers finish.
-	defer func() {
-		if job.Log != nil {
-			job.Log.Close()
-			s.update(job.ID, func(j *domain.BuildJob) {
-				j.Logs = job.Log.String()
-				j.Log = nil
-			})
-		}
-	}()
+	// On terminal state, finalize the log buffer so SSE readers finish.
+	defer s.finalizeLog(job.ID)
 
 	if err == nil && res != nil && job.Request.SignMode != domain.SignClient {
 		if uerr := s.signAndUpload(jobCtx, job.Repo, res.Packages); uerr != nil {
@@ -191,8 +177,8 @@ func (s *Service) buildWithRetry(ctx context.Context, job *domain.BuildJob) (*bu
 	attempt := 0
 	notify := func(err error, _ time.Duration) {
 		attempt++
-		if job.Log != nil {
-			_, _ = job.Log.Write([]byte(fmt.Sprintf("retry %d/%d after error: %v\n", attempt, maxRetries, err)))
+		if buf := s.LogBuffer(job.ID); buf != nil {
+			_, _ = buf.Write([]byte(fmt.Sprintf("retry %d/%d after error: %v\n", attempt, maxRetries, err)))
 		}
 		s.update(job.ID, func(j *domain.BuildJob) { j.Retries = attempt })
 	}

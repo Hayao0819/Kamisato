@@ -9,7 +9,7 @@ import (
 )
 
 // jobPersist stores each job as one JSON file under <dataDir>/jobs. BuildJob's
-// Log and Request are json:"-", so only durable state is written.
+// Request is json:"-", so only durable state is written.
 type jobPersist struct {
 	dir string
 }

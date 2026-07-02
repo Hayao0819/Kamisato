@@ -105,7 +105,8 @@ func (h *Handler) JobLogsHandler(c *gin.Context) {
 	}()
 
 	// Fallback: no live buffer, return whatever text we have.
-	if job.Log == nil {
+	buf := h.s.LogBuffer(id)
+	if buf == nil {
 		c.String(http.StatusOK, job.Logs)
 		return
 	}
@@ -128,7 +129,7 @@ func (h *Handler) JobLogsHandler(c *gin.Context) {
 	offset := 0
 	emit := func() bool {
 		// BytesFrom reads closed atomically with the bytes, so the final write isn't missed.
-		chunk, _, closed := job.Log.BytesFrom(offset)
+		chunk, _, closed := buf.BytesFrom(offset)
 		// Hold a trailing partial line until its newline arrives, so one log line
 		// is never split across two SSE frames. Once closed, flush the remainder.
 		data := chunk

@@ -83,7 +83,7 @@ func (s *Service) buildAndPublishDep(ctx context.Context, job *domain.BuildJob, 
 		OutDir:    depOut,
 		Arch:      job.Request.Arch,
 		ArchBuild: s.archBuildFor(job.Request.Arch),
-		LogWriter: job.Log,
+		LogWriter: s.LogBuffer(job.ID),
 	}
 	res, err := backend.Build(ctx, spec)
 	if err != nil {

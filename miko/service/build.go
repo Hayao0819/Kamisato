@@ -82,7 +82,7 @@ func (s *Service) runBuild(ctx context.Context, job *domain.BuildJob) (*builder.
 		Arch:        req.Arch,
 		ArchBuild:   s.archBuildFor(req.Arch),
 		InstallPkgs: req.InstallPkgs,
-		LogWriter:   job.Log,
+		LogWriter:   s.LogBuffer(job.ID),
 	}
 
 	res, err := backend.Build(ctx, spec)

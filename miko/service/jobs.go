@@ -13,7 +13,6 @@ import (
 
 	"github.com/Hayao0819/Kamisato/internal/utils"
 	"github.com/Hayao0819/Kamisato/miko/domain"
-	"github.com/Hayao0819/Kamisato/miko/joblog"
 )
 
 // allowedArches are the architectures a build may target. Arch flows into shell
@@ -72,8 +71,8 @@ func (s *Service) Submit(req *domain.BuildRequest) (string, error) {
 		Status:    domain.JobStatusQueued,
 		Request:   req,
 		CreatedAt: time.Now(),
-		Log:       joblog.New(s.cfg.MaxLogBytes),
 	}
+	s.newLogBuffer(job.ID)
 
 	s.mu.Lock()
 	s.store[job.ID] = job
@@ -86,9 +85,9 @@ func (s *Service) Submit(req *domain.BuildRequest) (string, error) {
 	}
 
 	if err := s.queue.push(job); err != nil {
-		// process() never runs for a rejected job, so close the log buffer here
+		// process() never runs for a rejected job, so finalize the log buffer here
 		// or SSE readers of this job would block forever.
-		job.Log.Close()
+		s.finalizeLog(job.ID)
 		s.setStatus(job.ID, domain.JobStatusFailed, err)
 		return "", utils.WrapErr(err, "failed to enqueue build job")
 	}
