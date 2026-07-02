@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-// Implements: https://pkg.go.dev/github.com/dgraph-io/badger/v3#Logger
+// Implements: https://pkg.go.dev/github.com/dgraph-io/badger/v4#Logger
 type BadgerSlog struct {
 	logger *slog.Logger
 }

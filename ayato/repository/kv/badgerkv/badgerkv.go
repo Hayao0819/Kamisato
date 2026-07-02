@@ -16,7 +16,7 @@ import (
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv/badgerkv/logger"
 	"github.com/Hayao0819/Kamisato/internal/errwrap"
-	"github.com/dgraph-io/badger/v3"
+	"github.com/dgraph-io/badger/v4"
 )
 
 // sep separates the namespace from the key. NUL cannot appear in the namespaces
