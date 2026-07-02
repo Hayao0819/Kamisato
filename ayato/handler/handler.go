@@ -32,7 +32,7 @@ func New(service service.Servicer, cfg *conf.AyatoConfig) *Handler {
 			slog.Error("bug reporting disabled: invalid config", "error", err)
 		}
 		h.reporter = reporter
-		h.recaptcha = recaptcha.New(cfg.Recaptcha.Secret)
+		h.recaptcha = recaptcha.New(cfg.Recaptcha.Provider, cfg.Recaptcha.Secret)
 	}
 	return h
 }

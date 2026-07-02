@@ -1,5 +1,8 @@
-// Package recaptcha verifies Google reCAPTCHA v2 tokens. An empty secret yields a
-// nil Verifier, so verification is simply off and callers treat it as disabled.
+// Package recaptcha verifies CAPTCHA response tokens against a provider's
+// siteverify endpoint. Google reCAPTCHA v2 and Cloudflare Turnstile share the same
+// POST contract (secret+response+remoteip in, {success, error-codes} out), so one
+// verifier serves both. An empty secret yields a nil Verifier, so verification is
+// off and callers treat it as disabled.
 package recaptcha
 
 import (
@@ -13,33 +16,41 @@ import (
 	"time"
 )
 
-const verifyURL = "https://www.google.com/recaptcha/api/siteverify"
+const (
+	recaptchaVerifyURL = "https://www.google.com/recaptcha/api/siteverify"
+	turnstileVerifyURL = "https://challenges.cloudflare.com/turnstile/v0/siteverify"
+)
 
-// Verifier checks a reCAPTCHA response token submitted by a client.
+// Verifier checks a CAPTCHA response token submitted by a client.
 type Verifier interface {
 	Verify(ctx context.Context, token, remoteIP string) error
 }
 
-// New returns a Verifier for the given secret, or nil when secret is empty
-// (reCAPTCHA disabled).
-func New(secret string) Verifier {
+// New returns a Verifier for the given provider and secret, or nil when secret is
+// empty (verification disabled). Provider "turnstile" targets Cloudflare Turnstile;
+// any other value (including "recaptcha" and empty) targets Google reCAPTCHA.
+func New(provider, secret string) Verifier {
 	if secret == "" {
 		return nil
 	}
-	return &googleVerifier{
+	endpoint := recaptchaVerifyURL
+	if provider == "turnstile" {
+		endpoint = turnstileVerifyURL
+	}
+	return &verifier{
 		secret:   secret,
-		endpoint: verifyURL,
+		endpoint: endpoint,
 		client:   &http.Client{Timeout: 10 * time.Second},
 	}
 }
 
-type googleVerifier struct {
+type verifier struct {
 	secret   string
 	endpoint string
 	client   *http.Client
 }
 
-func (v *googleVerifier) Verify(ctx context.Context, token, remoteIP string) error {
+func (v *verifier) Verify(ctx context.Context, token, remoteIP string) error {
 	if token == "" {
 		return fmt.Errorf("recaptcha: missing response token")
 	}

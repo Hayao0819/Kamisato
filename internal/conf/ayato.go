@@ -73,11 +73,14 @@ type BugReportConfig struct {
 	} `koanf:"webhook"`
 }
 
-// RecaptchaConfig enables Google reCAPTCHA v2 on the bug-report form. SiteKey is
-// public (handed to the browser); an empty Secret disables verification.
+// RecaptchaConfig enables a CAPTCHA on the bug-report form. SiteKey is public
+// (handed to the browser); an empty Secret disables verification. Provider selects
+// the backend: "recaptcha" (Google reCAPTCHA v2, the default) or "turnstile"
+// (Cloudflare Turnstile), which share the same siteverify contract.
 type RecaptchaConfig struct {
-	SiteKey string `koanf:"site_key"`
-	Secret  string `koanf:"secret"`
+	Provider string `koanf:"provider"` // "recaptcha" (default) or "turnstile"
+	SiteKey  string `koanf:"site_key"`
+	Secret   string `koanf:"secret"`
 }
 
 // AURConfig makes ayato an aurweb-compatible host: when Enabled it serves /rpc and
