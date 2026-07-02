@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/Hayao0819/Kamisato/ayato/repository"
+	"github.com/Hayao0819/Kamisato/ayato/domain"
 	"github.com/gin-gonic/gin"
 )
 
@@ -20,7 +20,7 @@ func (h *Handler) AdminsListHandler(c *gin.Context) {
 		return
 	}
 	if admins == nil {
-		admins = []repository.AllowedAdmin{}
+		admins = []domain.AllowedAdmin{}
 	}
 	c.JSON(http.StatusOK, gin.H{"admins": admins})
 }

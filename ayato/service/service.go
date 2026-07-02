@@ -63,7 +63,7 @@ type AdminService interface {
 	IsAdmin(id int64) bool
 	AddAdmin(id int64, login string) error
 	RemoveAdmin(id int64) error
-	ListAdmins() ([]repository.AllowedAdmin, error)
+	ListAdmins() ([]domain.AllowedAdmin, error)
 	SeedBootstrapAdmin(id int64) error
 }
 

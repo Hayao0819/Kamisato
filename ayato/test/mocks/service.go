@@ -13,7 +13,6 @@ import (
 	reflect "reflect"
 
 	domain "github.com/Hayao0819/Kamisato/ayato/domain"
-	repository "github.com/Hayao0819/Kamisato/ayato/repository"
 	stream "github.com/Hayao0819/Kamisato/ayato/stream"
 	raiou "github.com/Hayao0819/Kamisato/pkg/raiou"
 	gomock "go.uber.org/mock/gomock"
@@ -298,10 +297,10 @@ func (mr *MockAdminServiceMockRecorder) IsAdmin(id any) *gomock.Call {
 }
 
 // ListAdmins mocks base method.
-func (m *MockAdminService) ListAdmins() ([]repository.AllowedAdmin, error) {
+func (m *MockAdminService) ListAdmins() ([]domain.AllowedAdmin, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListAdmins")
-	ret0, _ := ret[0].([]repository.AllowedAdmin)
+	ret0, _ := ret[0].([]domain.AllowedAdmin)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -544,10 +543,10 @@ func (mr *MockServicerMockRecorder) IsAdmin(id any) *gomock.Call {
 }
 
 // ListAdmins mocks base method.
-func (m *MockServicer) ListAdmins() ([]repository.AllowedAdmin, error) {
+func (m *MockServicer) ListAdmins() ([]domain.AllowedAdmin, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListAdmins")
-	ret0, _ := ret[0].([]repository.AllowedAdmin)
+	ret0, _ := ret[0].([]domain.AllowedAdmin)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

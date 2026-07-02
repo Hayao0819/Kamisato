@@ -5,7 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/Hayao0819/Kamisato/ayato/repository"
+	"github.com/Hayao0819/Kamisato/ayato/domain"
 	"github.com/gin-gonic/gin"
 )
 
@@ -15,7 +15,7 @@ func TestAdminsRemoveHandlerRejectsLastAdmin(t *testing.T) {
 
 	// Only one admin left, and it is the one being removed: refuse so the
 	// allowlist never empties and locks everyone out.
-	mockSvc.EXPECT().ListAdmins().Return([]repository.AllowedAdmin{{ID: 42}}, nil)
+	mockSvc.EXPECT().ListAdmins().Return([]domain.AllowedAdmin{{ID: 42}}, nil)
 
 	r := gin.New()
 	r.DELETE("/auth/admins/:id", h.AdminsRemoveHandler)
@@ -32,7 +32,7 @@ func TestAdminsRemoveHandlerAllowsWhenOthersRemain(t *testing.T) {
 	ctrl, mockSvc, h := setup(t)
 	defer ctrl.Finish()
 
-	mockSvc.EXPECT().ListAdmins().Return([]repository.AllowedAdmin{{ID: 42}, {ID: 7}}, nil)
+	mockSvc.EXPECT().ListAdmins().Return([]domain.AllowedAdmin{{ID: 42}, {ID: 7}}, nil)
 	mockSvc.EXPECT().RemoveAdmin(int64(42)).Return(nil)
 
 	r := gin.New()
@@ -52,7 +52,7 @@ func TestAdminsRemoveHandlerAllowsRemovingNonAdmin(t *testing.T) {
 	ctrl, mockSvc, h := setup(t)
 	defer ctrl.Finish()
 
-	mockSvc.EXPECT().ListAdmins().Return([]repository.AllowedAdmin{{ID: 42}}, nil)
+	mockSvc.EXPECT().ListAdmins().Return([]domain.AllowedAdmin{{ID: 42}}, nil)
 	mockSvc.EXPECT().RemoveAdmin(int64(7)).Return(nil)
 
 	r := gin.New()

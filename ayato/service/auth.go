@@ -1,7 +1,7 @@
 package service
 
 import (
-	"github.com/Hayao0819/Kamisato/ayato/repository"
+	"github.com/Hayao0819/Kamisato/ayato/domain"
 	"github.com/Hayao0819/Kamisato/internal/utils"
 )
 
@@ -19,8 +19,16 @@ func (s *Service) RemoveAdmin(id int64) error {
 	return s.authRepo.RemoveAdmin(id)
 }
 
-func (s *Service) ListAdmins() ([]repository.AllowedAdmin, error) {
-	return s.authRepo.ListAdmins()
+func (s *Service) ListAdmins() ([]domain.AllowedAdmin, error) {
+	entries, err := s.authRepo.ListAdmins()
+	if err != nil {
+		return nil, err
+	}
+	admins := make([]domain.AllowedAdmin, 0, len(entries))
+	for _, e := range entries {
+		admins = append(admins, domain.AllowedAdmin{ID: e.ID, Login: e.Login})
+	}
+	return admins, nil
 }
 
 // SeedBootstrapAdmin seeds id only when the allowlist is empty; id <= 0 is
