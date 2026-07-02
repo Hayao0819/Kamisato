@@ -40,12 +40,39 @@ type AyatoConfig struct {
 	BugReport      BugReportConfig `koanf:"bug_report"`
 	Recaptcha      RecaptchaConfig `koanf:"recaptcha"`
 	Sign           SignConfig      `koanf:"sign"`
+	Pool           PoolConfig      `koanf:"pool"`
 	// RedirectDownloads, unset by default, answers a file download with a 302 to a
 	// presigned object URL whenever the blob backend can presign (S3), so the bytes
 	// go client<->object-store directly and skip ayato's egress (Cloud Run bills it).
 	// Set it to false to force every download to stream through ayato; a backend that
 	// cannot presign (localfs) always streams regardless.
 	RedirectDownloads *bool `koanf:"redirect_downloads"`
+}
+
+// PoolConfig governs the content-addressed package pool: uploaded package bytes
+// are stored once under pool/<sha256> and the repo path becomes a pointer, so
+// identical content is deduplicated and old versions can be retained/collected.
+type PoolConfig struct {
+	// Enabled routes new package uploads through the pool. A pointer is nil-by-
+	// default true, so pooling is on unless explicitly disabled; already-published
+	// packages stored directly keep serving regardless.
+	Enabled *bool `koanf:"enabled"`
+	// KeepUnreferenced retains this many newest versions per pkgbase even once no
+	// repo references them, so a rollback can re-point at a recent build.
+	KeepUnreferenced int `koanf:"keep_unreferenced,omitempty"`
+	// RetentionWindowHours keeps an unreferenced object at least this long after
+	// its last pointer dropped, a grace window before the GC may reclaim it.
+	RetentionWindowHours int `koanf:"retention_window_hours,omitempty"`
+}
+
+// PoolEnabled reports whether new uploads are pooled (default true).
+func (c *AyatoConfig) PoolEnabled() bool {
+	return c.Pool.Enabled == nil || *c.Pool.Enabled
+}
+
+// RetentionWindow is the GC grace window derived from the configured hours.
+func (c PoolConfig) RetentionWindow() time.Duration {
+	return time.Duration(c.RetentionWindowHours) * time.Hour
 }
 
 // SignConfig toggles optional signing features. Only the toggle lives in config;
