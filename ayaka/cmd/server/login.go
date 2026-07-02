@@ -72,7 +72,13 @@ func saveLogin(server, login, token string, setDefault bool) error {
 	}
 	entry := db.Servers[server]
 	entry.Username = login
-	entry.Password = token
+	// Prefer the OS keyring; only when it is unavailable does the token stay in the
+	// file DB. Storing to the keyring also migrates a previously file-stored token.
+	if blinkyutils.StoreSecret(server, token) {
+		entry.Password = ""
+	} else {
+		entry.Password = token
+	}
 	db.Servers[server] = entry
 	if setDefault {
 		db.DefaultServer = server

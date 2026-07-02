@@ -63,7 +63,7 @@ func ResolveServer(name string) (*ServerInfo, error) {
 		return nil, errwrap.WrapErr(ErrServerNotFound,
 			"server "+name+" is not registered; log in first with 'ayaka server login "+name+"'")
 	}
-	return &ServerInfo{URL: name, Username: entry.Username, Password: entry.Password}, nil
+	return &ServerInfo{URL: name, Username: entry.Username, Password: LoadSecret(name, entry.Password)}, nil
 }
 
 // Client builds a blinky client for the resolved endpoint.

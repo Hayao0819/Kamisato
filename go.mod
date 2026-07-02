@@ -41,6 +41,7 @@ require (
 	github.com/tmc/langchaingo v0.1.14
 	github.com/ulikunitz/xz v0.5.15
 	github.com/wneessen/go-mail v0.7.3
+	github.com/zalando/go-keyring v0.2.8
 	go.uber.org/mock v0.6.0
 	golang.org/x/oauth2 v0.36.0
 	gorm.io/driver/mysql v1.6.0
@@ -57,6 +58,7 @@ require (
 	github.com/containerd/errdefs v1.0.0 // indirect
 	github.com/containerd/errdefs/pkg v0.3.0 // indirect
 	github.com/cyphar/filepath-securejoin v0.6.1 // indirect
+	github.com/danieljoos/wincred v1.2.3 // indirect
 	github.com/dgraph-io/ristretto/v2 v2.2.0 // indirect
 	github.com/dlclark/regexp2 v1.10.0 // indirect
 	github.com/emirpasic/gods v1.18.1 // indirect
@@ -64,6 +66,7 @@ require (
 	github.com/go-git/go-billy/v5 v5.9.0 // indirect
 	github.com/go-jose/go-jose/v4 v4.1.4 // indirect
 	github.com/goccy/go-yaml v1.19.2 // indirect
+	github.com/godbus/dbus/v5 v5.2.2 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
 	github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99 // indirect
 	github.com/kevinburke/ssh_config v1.2.0 // indirect

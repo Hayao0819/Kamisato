@@ -16,7 +16,13 @@ func AddCmd() *cobra.Command {
 				return err
 			}
 			name, user, pass := args[0], args[1], args[2]
-			db.Servers[name] = blinkyutils.Server{Username: user, Password: pass}
+			entry := blinkyutils.Server{Username: user}
+			// Keep the secret in the OS keyring when available; otherwise fall back
+			// to the file DB so a headless box still works.
+			if !blinkyutils.StoreSecret(name, pass) {
+				entry.Password = pass
+			}
+			db.Servers[name] = entry
 			return blinkyutils.SaveServerDB(db)
 		},
 	}

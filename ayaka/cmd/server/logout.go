@@ -34,6 +34,7 @@ func LogoutCmd() *cobra.Command {
 			entry.Username = ""
 			entry.Password = ""
 			db.Servers[server] = entry
+			blinkyutils.ForgetSecret(server)
 
 			if err := blinkyutils.SaveServerDB(db); err != nil {
 				return err

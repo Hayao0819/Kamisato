@@ -19,6 +19,7 @@ func RemoveCmd() *cobra.Command {
 				return err
 			}
 			delete(db.Servers, args[0])
+			blinkyutils.ForgetSecret(args[0])
 			if db.DefaultServer == args[0] {
 				db.DefaultServer = ""
 			}

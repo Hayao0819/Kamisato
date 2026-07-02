@@ -55,9 +55,12 @@ func ListCmd() *cobra.Command {
 				}
 				if showRaw || format == "json" {
 					// The password stays behind --show-secret in every format, so
-					// piping list output to a file or a script never leaks it.
+					// piping list output to a file or a script never leaks it. The
+					// live secret may live in the OS keyring, so resolve it there.
 					out := server
-					if !showSecret {
+					if showSecret {
+						out.Password = blinkyutils.LoadSecret(name, server.Password)
+					} else {
 						out.Password = ""
 					}
 					var b []byte
@@ -74,8 +77,8 @@ func ListCmd() *cobra.Command {
 					if server.Username != "" {
 						line.WriteString(" (")
 						line.WriteString(server.Username)
-						if showSecret && server.Password != "" {
-							line.WriteString(":" + server.Password)
+						if secret := blinkyutils.LoadSecret(name, server.Password); showSecret && secret != "" {
+							line.WriteString(":" + secret)
 						}
 						line.WriteString(")")
 					}
