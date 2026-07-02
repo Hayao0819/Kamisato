@@ -53,11 +53,19 @@ func ListCmd() *cobra.Command {
 				if db.DefaultServer == name {
 					prefix = "* "
 				}
-				if showRaw {
-					b, _ := json.MarshalIndent(server, "", "  ") //nolint:gosec // dumps the user's own saved server config on explicit --raw
-					fmt.Printf("%s%s: %s\n", prefix, name, string(b))
-				} else if format == "json" {
-					b, _ := json.Marshal(server) //nolint:gosec // dumps the user's own saved server config on explicit --format json
+				if showRaw || format == "json" {
+					// The password stays behind --show-secret in every format, so
+					// piping list output to a file or a script never leaks it.
+					out := server
+					if !showSecret {
+						out.Password = ""
+					}
+					var b []byte
+					if showRaw {
+						b, _ = json.MarshalIndent(out, "", "  ") //nolint:gosec // G117: Password is redacted above unless --show-secret is explicit
+					} else {
+						b, _ = json.Marshal(out) //nolint:gosec // G117: Password is redacted above unless --show-secret is explicit
+					}
 					fmt.Printf("%s%s: %s\n", prefix, name, string(b))
 				} else {
 					var line strings.Builder
