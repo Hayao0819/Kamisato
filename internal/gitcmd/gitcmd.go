@@ -157,10 +157,14 @@ func scpLikeSSH(raw string) (host string, ok bool) {
 	return host, true
 }
 
-// rejectInternalHost is best-effort: git re-resolves the hostname at clone time,
-// so a DNS-controlling caller can pass this check then rebind to an internal IP
-// (TOCTOU / DNS rebinding). Fully closing it needs network egress restriction —
-// git exposes no libcurl resolve-pin for https, and git/ssh resolve directly.
+// rejectInternalHost checks the host's resolution now, but the check and the
+// clone resolve the name separately, so on its own it leaves a DNS-rebinding
+// TOCTOU. For strict https that window is closed downstream: Clone routes https
+// through go-git, whose dialer re-validates and pins the connection to the
+// checked public IP (see gogit.go). ssh and git:// stay on the CLI, which
+// re-resolves the host at connect time outside that pin — a DNS-controlling
+// caller can pass this check and then rebind to an internal IP, and only network
+// egress restriction fully closes that.
 func rejectInternalHost(host string) error {
 	if host == "" {
 		return errwrap.NewErr("remote URL has no host")
