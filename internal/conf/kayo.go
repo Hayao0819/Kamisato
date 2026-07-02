@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"os"
 
+	"github.com/Hayao0819/Kamisato/internal/confloader"
 	"github.com/spf13/pflag"
 )
 
@@ -81,29 +82,18 @@ type OverlayConfig struct {
 }
 
 func LoadKayoConfig(flags *pflag.FlagSet, configFile string) (*KayoConfig, error) {
-	if err := LoadEnv(); err != nil {
-		slog.Error("Failed to load env", "error", err)
-	}
-
-	dirs := commonConfigDirs()
-	files := []string{}
-	if configFile != "" {
-		files = append(files, configFile)
-	} else {
-		files = []string{"kayo_config.json", "kayo_config.toml", "kayo_config.yaml"}
-	}
-
-	cfg, err := loadConfig[KayoConfig](dirs, files, flags, "KAYO")
-	if err != nil {
-		return nil, err
-	}
-	if cfg.Port == 0 {
-		cfg.Port = 10713
-	}
-	if err := cfg.Validate(); err != nil {
-		return nil, err
-	}
-	return cfg, nil
+	loadDotEnv()
+	return confloader.LoadTyped[KayoConfig](
+		commonConfigDirs(),
+		configFileNames(configFile, "kayo_config"),
+		flags,
+		"KAYO",
+		func(c *KayoConfig) {
+			if c.Port == 0 {
+				c.Port = 10713
+			}
+		},
+	)
 }
 
 // Validate rejects overlays missing a name or URL and warns (does not fail) on

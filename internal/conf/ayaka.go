@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/Hayao0819/Kamisato/internal/confloader"
 	"github.com/spf13/pflag"
 )
 
@@ -25,20 +26,15 @@ func (c *AyakaConfig) Marshal() ([]byte, error) {
 }
 
 func LoadAyakaConfig(flags *pflag.FlagSet) (*AyakaConfig, error) {
-	cfg, err := loadConfig[AyakaConfig](
+	// migrateLegacy runs as the post-load hook so the deprecated repodir/destdir
+	// are folded into Repos before Validate checks the shape.
+	return confloader.LoadTyped[AyakaConfig](
 		commonConfigDirs(),
 		[]string{".ayakarc.json", ".ayakarc.toml", ".ayakarc.yaml"},
 		flags,
 		"AYAKA",
+		(*AyakaConfig).migrateLegacy,
 	)
-	if err != nil {
-		return nil, err
-	}
-	cfg.migrateLegacy()
-	if err := cfg.Validate(); err != nil {
-		return nil, err
-	}
-	return cfg, nil
 }
 
 // migrateLegacy folds the deprecated top-level repodir/destdir into the repos
@@ -78,10 +74,20 @@ func (c *SrcRepoConfig) Marshal() ([]byte, error) {
 }
 
 func LoadSrcRepoConfig(repodir string) (*SrcRepoConfig, error) {
-	return loadConfig[SrcRepoConfig](
+	return confloader.LoadTyped[SrcRepoConfig](
 		[]string{repodir},
 		[]string{"repo.json"},
 		nil,
 		"REPO",
+		nil,
 	)
+}
+
+// Validate requires a name, the key every source repo is looked up by; an
+// unnamed repo can never be resolved by the commands that address it by name.
+func (c *SrcRepoConfig) Validate() error {
+	if c.Name == "" {
+		return fmt.Errorf("name is required")
+	}
+	return nil
 }

@@ -2,11 +2,11 @@ package conf
 
 import (
 	"fmt"
-	"log/slog"
 	"net"
 	"net/url"
 	"path"
 
+	"github.com/Hayao0819/Kamisato/internal/confloader"
 	"github.com/spf13/pflag"
 )
 
@@ -202,31 +202,14 @@ type BinRepoConfig struct {
 }
 
 func LoadAyatoConfig(flags *pflag.FlagSet, configFile string) (*AyatoConfig, error) {
-	if err := LoadEnv(); err != nil {
-		slog.Error("Failed to load env", "error", err)
-	}
-
-	dirs := commonConfigDirs()
-	files := []string{}
-	if configFile != "" {
-		files = append(files, configFile)
-	} else {
-		files = []string{"ayato_config.json", "ayato_config.toml", "ayato_config.yaml"}
-	}
-
-	cfg, err := loadConfig[AyatoConfig](
-		dirs,
-		files,
+	loadDotEnv()
+	return confloader.LoadTyped[AyatoConfig](
+		commonConfigDirs(),
+		configFileNames(configFile, "ayato_config"),
 		flags,
 		"AYATO",
+		nil,
 	)
-	if err != nil {
-		return nil, err
-	}
-	if err := cfg.Validate(); err != nil {
-		return nil, err
-	}
-	return cfg, nil
 }
 
 // Validate rejects an OAuth config whose redirect_uri or session-cookie Secure flag

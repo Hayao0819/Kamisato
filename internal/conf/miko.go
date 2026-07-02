@@ -2,9 +2,9 @@ package conf
 
 import (
 	"fmt"
-	"log/slog"
 	"slices"
 
+	"github.com/Hayao0819/Kamisato/internal/confloader"
 	"github.com/spf13/pflag"
 )
 
@@ -55,31 +55,14 @@ type MikoConfig struct {
 }
 
 func LoadMikoConfig(flags *pflag.FlagSet, configFile string) (*MikoConfig, error) {
-	if err := LoadEnv(); err != nil {
-		slog.Error("Failed to load env", "error", err)
-	}
-
-	dirs := commonConfigDirs()
-	files := []string{}
-	if configFile != "" {
-		files = append(files, configFile)
-	} else {
-		files = []string{"miko_config.json", "miko_config.toml", "miko_config.yaml"}
-	}
-
-	cfg, err := loadConfig[MikoConfig](
-		dirs,
-		files,
+	loadDotEnv()
+	return confloader.LoadTyped[MikoConfig](
+		commonConfigDirs(),
+		configFileNames(configFile, "miko_config"),
 		flags,
 		"MIKO",
+		nil,
 	)
-	if err != nil {
-		return nil, err
-	}
-	if err := cfg.Validate(); err != nil {
-		return nil, err
-	}
-	return cfg, nil
 }
 
 // Validate rejects an unknown build executor so a typo fails loudly instead of
