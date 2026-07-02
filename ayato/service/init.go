@@ -12,7 +12,9 @@ func (s *Service) InitAll() error {
 	if s.verifierErr != nil {
 		return s.verifierErr
 	}
-	repos := s.cfg.RepoNames()
+	// Initialize every physical repo, so each tier of a tiered repo gets its own
+	// database seeded.
+	repos := s.cfg.PhysicalRepoNames()
 	if len(repos) == 0 {
 		slog.Warn("no repositories found in config, skipping initialization")
 		return nil

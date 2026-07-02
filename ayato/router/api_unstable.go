@@ -97,6 +97,9 @@ func SetRoute(e *gin.Engine, h *handler.Handler, m *middleware.Middleware) error
 			blinky.Use(m.RateLimit(rate.Every(time.Second/10), 30), m.RequireAdmin(true))
 			blinky.DELETE("/:repo/package/:name", h.BlinkyRemoveHandler)       // Blinky compatible (arch defaults to x86_64)
 			blinky.DELETE("/:repo/:arch/package/:name", h.BlinkyRemoveHandler) // explicit architecture
+			// Tier promotion advances a package through a tiered repo's
+			// staging -> testing -> stable flow; a release action, so admin-gated.
+			blinky.POST("/:repo/promote", h.PromoteHandler)
 		}
 
 		// miko proxy reads and mutations require a session or Bearer CLI token (no

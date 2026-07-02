@@ -274,6 +274,48 @@ type BinRepoConfig struct {
 	// TrustedKeys optionally layers per-repo fingerprint pinning on top of the
 	// global Verify.TrustedKeys allowlist. The global keyring is the baseline.
 	TrustedKeys []string `koanf:"trusted_keys,omitempty"`
+	// Tiered exposes three pacman repos for this logical repo — <name>-staging,
+	// <name>-testing and <name> (stable) — that a built package flows through by
+	// explicit promotion. Off by default, so the repo stays a single <name> repo
+	// and behaves exactly as before.
+	Tiered bool `koanf:"tiered,omitempty"`
+	// PromotionKeepInSource keeps a promoted package published in its source tier
+	// instead of moving it to the next one. Default (false) is a move.
+	PromotionKeepInSource bool `koanf:"promotion_keep_in_source,omitempty"`
+}
+
+// Tier names a stage in a tiered repo's staging -> testing -> stable flow.
+type Tier string
+
+const (
+	TierStaging Tier = "staging"
+	TierTesting Tier = "testing"
+	TierStable  Tier = "stable"
+)
+
+// IsTierPromotion reports whether from -> to is a legal single promotion step
+// (staging->testing or testing->stable). A package advances one tier at a time.
+func IsTierPromotion(from, to Tier) bool {
+	return (from == TierStaging && to == TierTesting) || (from == TierTesting && to == TierStable)
+}
+
+// TierRepo returns the physical pacman repo name serving a tier: stable is the
+// bare name (so a client points at <name> as usual), staging and testing get the
+// matching suffix, mirroring Arch's own core-staging/core-testing naming.
+func (c *BinRepoConfig) TierRepo(t Tier) string {
+	if t == TierStable {
+		return c.Name
+	}
+	return c.Name + "-" + string(t)
+}
+
+// PhysicalRepos returns the pacman repo names this logical repo actually serves:
+// its three tiers when tiered, otherwise just the bare name.
+func (c *BinRepoConfig) PhysicalRepos() []string {
+	if !c.Tiered {
+		return []string{c.Name}
+	}
+	return []string{c.TierRepo(TierStaging), c.TierRepo(TierTesting), c.TierRepo(TierStable)}
 }
 
 func LoadAyatoConfig(flags *pflag.FlagSet, configFile string) (*AyatoConfig, error) {
@@ -373,10 +415,34 @@ func (c *AyatoConfig) RepoNames() []string {
 	return repoNames
 }
 
+// PhysicalRepoNames is the servable pacman repo set: every configured repo
+// expanded into the repos it actually serves (a tiered repo becomes its three
+// tiers). Initialization and repo-name validation run over this set.
+func (c *AyatoConfig) PhysicalRepoNames() []string {
+	var out []string
+	for i := range c.Repos {
+		out = append(out, c.Repos[i].PhysicalRepos()...)
+	}
+	return out
+}
+
 func (c *AyatoConfig) Repo(name string) *BinRepoConfig {
 	for _, repo := range c.Repos {
 		if repo.Name == name {
 			return &repo
+		}
+	}
+	return nil
+}
+
+// ResolveRepo returns the logical BinRepoConfig backing a physical pacman repo
+// name — a tier of a tiered repo maps to its logical config — or nil if unknown.
+func (c *AyatoConfig) ResolveRepo(physical string) *BinRepoConfig {
+	for i := range c.Repos {
+		for _, p := range c.Repos[i].PhysicalRepos() {
+			if p == physical {
+				return &c.Repos[i]
+			}
 		}
 	}
 	return nil

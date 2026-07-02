@@ -98,7 +98,7 @@ func (s *Service) ValidateRepoName(repo string) error {
 	if slices.Contains(configuredRepos, repo) {
 		return nil
 	}
-	if slices.Contains(s.cfg.RepoNames(), repo) {
+	if slices.Contains(s.cfg.PhysicalRepoNames(), repo) {
 		slog.Warn("repository found but failed to initialize", "repo", repo)
 		return errors.New(repo + " found but failed to initialize")
 	}

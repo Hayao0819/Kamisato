@@ -20,10 +20,11 @@ import (
 
 // initBinaryStore keeps the IO layer conf-free by unpacking conf into the plain values the backends take.
 func initBinaryStore(cfg *conf.AyatoConfig) (blob.Store, error) {
-	repoNames := make([]string, 0, len(cfg.Repos)+1)
-	for _, r := range cfg.Repos {
-		repoNames = append(repoNames, r.Name)
-	}
+	// A tiered repo serves three pacman repos (its tiers), so the store must accept
+	// every physical repo name, not just the logical one.
+	physical := cfg.PhysicalRepoNames()
+	repoNames := make([]string, 0, len(physical)+1)
+	repoNames = append(repoNames, physical...)
 	// The pool's reserved repo must be an accepted key so package bytes can be
 	// content-addressed under it; poolStore filters it from the servable repo set.
 	repoNames = append(repoNames, poolRepo)

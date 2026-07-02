@@ -12,6 +12,7 @@ import (
 	"github.com/Hayao0819/Kamisato/ayato/repository"
 	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
 	"github.com/Hayao0819/Kamisato/ayato/stream"
+	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/internal/errwrap"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/alpm"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/gpg"
@@ -203,6 +204,9 @@ func (s *Service) UploadFiles(repo string, files []*domain.UploadFiles) error {
 	if len(files) == 0 {
 		return nil
 	}
+	// A tiered repo publishes into its staging tier; testing and stable are reached
+	// only by an explicit promotion, keeping building and publishing separate.
+	repo = s.publishTarget(repo)
 	useSignedDB := s.signedDB()
 	// gnupgDir is only the CLI tool's GNUPGHOME; native signing takes its key from
 	// the environment (AYATO_DB_SIGNING_KEY), wired into the repository layer at
@@ -328,7 +332,7 @@ func (s *Service) UploadFiles(repo string, files []*domain.UploadFiles) error {
 // (pacman has no os/any database; an arch=any package is registered in each
 // concrete arch instead).
 func (s *Service) configuredArches(repo string) []string {
-	rc := s.cfg.Repo(repo)
+	rc := s.cfg.ResolveRepo(repo)
 	if rc == nil {
 		return nil
 	}
@@ -345,6 +349,19 @@ func (s *Service) configuredArches(repo string) []string {
 // signing key itself is wired into the repository layer at startup.
 func (s *Service) signedDB() bool {
 	return s.cfg != nil && s.cfg.Sign.DB
+}
+
+// publishTarget maps a publish addressed at a tiered repo's logical name to its
+// staging tier, so a build always lands in staging. A non-tiered repo, or a name
+// already addressing a specific tier, is returned unchanged.
+func (s *Service) publishTarget(repo string) string {
+	if s.cfg == nil {
+		return repo
+	}
+	if rc := s.cfg.Repo(repo); rc != nil && rc.Tiered {
+		return rc.TierRepo(conf.TierStaging)
+	}
+	return repo
 }
 
 // publishedVersion returns the version of pkgname currently published in

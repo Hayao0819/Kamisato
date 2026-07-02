@@ -100,6 +100,7 @@ type Lifecycle interface {
 type Servicer interface {
 	RepoReader
 	Uploader
+	Promoter
 	AdminService
 	SignerRegistry
 	Revoker

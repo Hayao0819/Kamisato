@@ -16,6 +16,7 @@ import (
 
 	domain "github.com/Hayao0819/Kamisato/ayato/domain"
 	stream "github.com/Hayao0819/Kamisato/ayato/stream"
+	conf "github.com/Hayao0819/Kamisato/internal/conf"
 	raiou "github.com/Hayao0819/Kamisato/pkg/raiou"
 	gomock "go.uber.org/mock/gomock"
 )
@@ -699,6 +700,20 @@ func (m *MockServicer) Pkgs(repo, arch string) (*domain.PacmanPkgs, error) {
 func (mr *MockServicerMockRecorder) Pkgs(repo, arch any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Pkgs", reflect.TypeOf((*MockServicer)(nil).Pkgs), repo, arch)
+}
+
+// PromotePackage mocks base method.
+func (m *MockServicer) PromotePackage(ctx context.Context, repo string, from, to conf.Tier, pkgname, version string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "PromotePackage", ctx, repo, from, to, pkgname, version)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// PromotePackage indicates an expected call of PromotePackage.
+func (mr *MockServicerMockRecorder) PromotePackage(ctx, repo, from, to, pkgname, version any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PromotePackage", reflect.TypeOf((*MockServicer)(nil).PromotePackage), ctx, repo, from, to, pkgname, version)
 }
 
 // RegisterSigner mocks base method.
