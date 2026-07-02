@@ -18,12 +18,18 @@ type Handler struct {
 	reporter  bugreport.Reporter // nil when bug reporting is not configured
 	recaptcha recaptcha.Verifier // nil when reCAPTCHA is not configured
 	replay    replayGuard        // nil when the one-time code guard is not wired
+	logTokens logTokenMinter     // nil when SSE log tokens are not wired
 }
 
 // replayGuard records a one-time PKCE code id at redemption so a replayed code is
 // rejected. A narrow local interface keeps the handler off the repository package.
 type replayGuard interface {
 	Consume(id string, ttl time.Duration) (firstUse bool, err error)
+}
+
+// logTokenMinter issues one-time SSE log-stream tokens bound to a job id.
+type logTokenMinter interface {
+	Mint(jobID string, ttl time.Duration) (string, error)
 }
 
 func New(service service.Servicer, cfg *conf.AyatoConfig) *Handler {
@@ -72,5 +78,12 @@ func (h *Handler) WithAuth(signer *auth.Signer) *Handler {
 // codes are replay-limited only by their TTL, as before this feature.
 func (h *Handler) WithReplayGuard(g replayGuard) *Handler {
 	h.replay = g
+	return h
+}
+
+// WithLogTokens attaches the one-time SSE log-token minter. Unwired (nil) means the
+// mint endpoint reports unavailable and only bearer/session access to /logs works.
+func (h *Handler) WithLogTokens(m logTokenMinter) *Handler {
+	h.logTokens = m
 	return h
 }

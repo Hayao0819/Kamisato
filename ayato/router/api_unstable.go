@@ -65,14 +65,14 @@ func SetRoute(e *gin.Engine, h *handler.Handler, m *middleware.Middleware) error
 		}
 
 		if mikoProxy != nil {
-			// The job metadata/artifacts/stats reads are gated below (admin-only,
-			// matching the build mutation). Live build-log streaming is the one
-			// exception left public: the browser reads it over EventSource, which
-			// cannot attach a Bearer token, so gating it would break bearer-mode
-			// streaming. This is an accepted residual — a build log can echo
-			// credentials from a user-supplied git URL — to be closed with a
-			// query-param one-time token for SSE (follow-up).
-			api.GET("/jobs/:id/logs", mikoProxy.HandlerFunc(func(c *gin.Context) string {
+			// The job metadata/artifacts/stats reads are admin-gated below. Live
+			// build-log streaming is browser-facing over EventSource, which cannot
+			// attach a Bearer token; RequireLogAccess therefore accepts a one-time
+			// token (query "token", minted at .../logs/token and bound to this job)
+			// as an alternative to an admin session/bearer, spent on first use. This
+			// closes the formerly-public hole — a build log can echo credentials from
+			// a user-supplied git URL.
+			api.GET("/jobs/:id/logs", m.RequireLogAccess(), mikoProxy.HandlerFunc(func(c *gin.Context) string {
 				return "/api/unstable/jobs/" + c.Param("id") + "/logs"
 			}))
 		}
@@ -94,10 +94,13 @@ func SetRoute(e *gin.Engine, h *handler.Handler, m *middleware.Middleware) error
 
 		// miko proxy reads and mutations require a session or Bearer CLI token (no
 		// Basic). Job metadata, artifacts, and stats are admin-only, matching the
-		// build mutation; only /jobs/:id/logs stays public (see above).
+		// build mutation; /jobs/:id/logs takes a one-time token or admin (see above).
 		if mikoProxy != nil {
 			authed := api.Group("")
 			authed.Use(m.RateLimit(rate.Every(time.Second/10), 30), m.RequireAdmin(false))
+			// Mints a one-time token bound to the job so a browser EventSource can
+			// open /jobs/:id/logs without a long-lived bearer.
+			authed.POST("/jobs/:id/logs/token", h.MintLogTokenHandler)
 			// Static /jobs coexists with the /:repo param route (ayato already uses
 			// both /repos and /:repo).
 			authed.GET("/jobs", mikoProxy.Handler("/api/unstable/jobs"))

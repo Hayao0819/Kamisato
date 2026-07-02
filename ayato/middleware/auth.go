@@ -23,12 +23,20 @@ type denylistChecker interface {
 	IsRevoked(jti string) bool
 }
 
+// logTokenConsumer redeems a one-time SSE log token, returning the job id it was
+// bound to and spending it. A false ok means the token is absent, unknown, or
+// already used.
+type logTokenConsumer interface {
+	ConsumeLogToken(token string) (jobID string, ok bool)
+}
+
 type Middleware struct {
-	cfg      *conf.AyatoConfig
-	checker  adminChecker // nil = auth unconfigured; RequireAdmin fails closed (503)
-	signer   *auth.Signer
-	ci       *ciauth.Authorizer // nil = no CI auth
-	denylist denylistChecker    // nil = per-token revocation not wired
+	cfg       *conf.AyatoConfig
+	checker   adminChecker // nil = auth unconfigured; RequireAdmin fails closed (503)
+	signer    *auth.Signer
+	ci        *ciauth.Authorizer // nil = no CI auth
+	denylist  denylistChecker    // nil = per-token revocation not wired
+	logTokens logTokenConsumer   // nil = one-time SSE log tokens not wired
 }
 
 func New(cfg *conf.AyatoConfig) *Middleware {
@@ -47,6 +55,13 @@ func (m *Middleware) WithAuth(checker adminChecker, signer *auth.Signer) *Middle
 // per-token revocation, same as before this feature.
 func (m *Middleware) WithDenylist(dl denylistChecker) *Middleware {
 	m.denylist = dl
+	return m
+}
+
+// WithLogTokens attaches the one-time SSE log-token consumer used by
+// RequireLogAccess. Unwired (nil) means only bearer/session access to /logs works.
+func (m *Middleware) WithLogTokens(c logTokenConsumer) *Middleware {
+	m.logTokens = c
 	return m
 }
 
@@ -107,6 +122,65 @@ const (
 	ctxViaBearer  = "bearer"
 	ctxViaBasic   = "basic"
 )
+
+// logTokenHeader carries the one-time SSE log token when a caller cannot put it in
+// the query string; the query param is the primary path for an EventSource URL.
+const logTokenHeader = "X-Log-Token" //nolint:gosec // G101: an HTTP header name, not a credential
+
+// RequireLogAccess gates the SSE build-log stream. A browser EventSource cannot
+// send a bearer, so it presents a one-time token (query "token" or X-Log-Token)
+// that an authenticated caller minted and bound to this job id; the token is spent
+// on first use. A CLI or same-origin session admin may instead authenticate the
+// normal way. A presented-but-invalid token fails closed rather than falling
+// through to the admin path, so a burned token cannot probe for an open door.
+func (m *Middleware) RequireLogAccess() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if tok := logTokenFromRequest(c); tok != "" {
+			if m.logTokens != nil {
+				if jobID, ok := m.logTokens.ConsumeLogToken(tok); ok && jobID == c.Param("id") {
+					c.Next()
+					return
+				}
+			}
+			c.Header("WWW-Authenticate", `Bearer realm="ayato"`)
+			c.AbortWithStatus(http.StatusUnauthorized)
+			return
+		}
+
+		// No one-time token: fall back to admin session/bearer, same as RequireAdmin.
+		if m.checker == nil || m.signer == nil {
+			c.AbortWithStatus(http.StatusServiceUnavailable)
+			return
+		}
+		id, login, via, ok := m.resolve(c, false)
+		if !ok {
+			c.Header("WWW-Authenticate", `Bearer realm="ayato"`)
+			c.AbortWithStatus(http.StatusUnauthorized)
+			return
+		}
+		if via == ctxViaSession && !m.sameOriginRequest(c) {
+			c.AbortWithStatus(http.StatusForbidden)
+			return
+		}
+		if !m.checker.IsAdmin(id) {
+			c.AbortWithStatus(http.StatusForbidden)
+			return
+		}
+		c.Set(ctxGitHubID, id)
+		c.Set(ctxLogin, login)
+		c.Set(ctxVia, via)
+		c.Next()
+	}
+}
+
+// logTokenFromRequest reads the one-time log token from the query string (the path
+// an EventSource URL uses) or the X-Log-Token header.
+func logTokenFromRequest(c *gin.Context) string {
+	if tok := c.Query("token"); tok != "" {
+		return tok
+	}
+	return c.GetHeader(logTokenHeader)
+}
 
 // sameOriginRequest is the CSRF gate for the cookie path. Sec-Fetch-Site, when
 // the browser sends it, is authoritative. When it is absent, fall back to an
