@@ -3,6 +3,7 @@ package mikocmd
 import (
 	"slices"
 
+	"github.com/Hayao0819/Kamisato/ayaka/build"
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
 	"github.com/Hayao0819/Kamisato/internal/utils"
 	"github.com/spf13/cobra"
@@ -45,7 +46,7 @@ func mikoBuildCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			opts := shared.RemoteBuildOpts{
+			opts := build.RemoteBuildOpts{
 				Repo:      args[0],
 				Server:    server,
 				GitURL:    gitURL,
@@ -59,9 +60,9 @@ func mikoBuildCmd() *cobra.Command {
 				if localKey == "" {
 					return utils.NewErr("--sign-local requires --local-key")
 				}
-				return shared.RunRemoteBuildLocalSign(cmd.Context(), opts, localKey, localPass)
+				return build.RunRemoteBuildLocalSign(cmd.Context(), opts, localKey, localPass)
 			}
-			return shared.RunRemoteBuild(cmd.Context(), opts)
+			return build.RunRemoteBuild(cmd.Context(), opts)
 		},
 	}
 	cmd.Flags().BoolVar(&signLocal, "sign-local", false, "Download the build and sign it locally instead of on miko")

@@ -1,4 +1,4 @@
-package shared
+package build
 
 import (
 	"context"
@@ -10,11 +10,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
 	"github.com/Hayao0819/Kamisato/internal/ayatoclient"
 	"github.com/Hayao0819/Kamisato/internal/blinkyutils"
 	"github.com/Hayao0819/Kamisato/internal/utils"
 	pkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
-	pacmanrepo "github.com/Hayao0819/Kamisato/pkg/pacman/repo"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/sign"
 	srcpkg "github.com/Hayao0819/Kamisato/pkg/pacman/srcpkg"
 )
@@ -33,7 +34,7 @@ type RemoteBuildOpts struct {
 // RunRemoteBuild submits a build to ayato and prints the job id. The source is
 // --git, else the local PKGBUILD of the named source package.
 func RunRemoteBuild(ctx context.Context, o RemoteBuildOpts) error {
-	srv, err := ResolveAyatoServer(o.Server)
+	srv, err := shared.ResolveAyatoServer(o.Server)
 	if err != nil {
 		return err
 	}
@@ -84,7 +85,7 @@ func buildRequest(ctx context.Context, o RemoteBuildOpts) (*ayatoclient.BuildReq
 // RunRemoteBuildLocalSign builds on miko without server-side signing, downloads
 // the artifacts, signs them locally with keyPath, and uploads them to ayato.
 func RunRemoteBuildLocalSign(ctx context.Context, o RemoteBuildOpts, keyPath, passphrase string) error {
-	srv, err := ResolveAyatoServer(o.Server)
+	srv, err := shared.ResolveAyatoServer(o.Server)
 	if err != nil {
 		return err
 	}
@@ -172,10 +173,10 @@ const clientBuildTimeout = 2 * time.Hour
 
 // readLocalSource reads the PKGBUILD and files of a source package in the repo.
 // With one named package that one is used, else the repo must hold exactly one.
-func readLocalSource(ctx context.Context, repo string, pkgs []string) (string, map[string]string, error) {
-	srcrepo := AppFromContext(ctx).GetSrcRepo(repo)
+func readLocalSource(ctx context.Context, repoName string, pkgs []string) (string, map[string]string, error) {
+	srcrepo := shared.AppFromContext(ctx).GetSrcRepo(repoName)
 	if srcrepo == nil {
-		return "", nil, utils.WrapErr(ErrSourceRepoNotFound, repo)
+		return "", nil, utils.WrapErr(shared.ErrSourceRepoNotFound, repoName)
 	}
 
 	sp, err := selectSourcePkg(srcrepo, pkgs)
@@ -190,7 +191,7 @@ func readLocalSource(ctx context.Context, repo string, pkgs []string) (string, m
 
 // selectSourcePkg picks the source package to submit: with none named the repo
 // must hold exactly one, else it matches one by pkgbase or package name.
-func selectSourcePkg(srcrepo *pacmanrepo.SourceRepo, pkgs []string) (*pkg.SourcePackage, error) {
+func selectSourcePkg(srcrepo *repo.SourceRepo, pkgs []string) (*pkg.SourcePackage, error) {
 	if len(pkgs) == 0 {
 		switch len(srcrepo.Pkgs) {
 		case 0:

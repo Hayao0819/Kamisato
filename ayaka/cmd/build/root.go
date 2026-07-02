@@ -91,7 +91,7 @@ func Cmd() *cobra.Command {
 			}
 
 			if remote {
-				return shared.RunRemoteBuild(cmd.Context(), shared.RemoteBuildOpts{
+				return build.RunRemoteBuild(cmd.Context(), build.RemoteBuildOpts{
 					Repo:   repo,
 					Server: server,
 					Pkgs:   buildPkgs,
