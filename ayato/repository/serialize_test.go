@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sync"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
@@ -91,18 +92,37 @@ func TestSerializingStoreSameKey(t *testing.T) {
 }
 
 func TestSerializingStoreDifferentKeys(t *testing.T) {
-	probe := &concurrencyProbe{}
-	s := newSerializingStore(probe)
+	synctest.Test(t, func(t *testing.T) {
+		probe := &concurrencyProbe{}
+		s := newSerializingStore(probe)
 
-	arches := make([]string, 8)
-	for i := range arches {
-		arches[i] = fmt.Sprintf("arch%d", i)
-	}
-	runConcurrentStore(s, "myrepo", arches)
+		arches := make([]string, 8)
+		for i := range arches {
+			arches[i] = fmt.Sprintf("arch%d", i)
+		}
 
-	if probe.maxSeen < 2 {
-		t.Errorf("different (repo,arch) StoreFile did not run in parallel: peak inflight = %d, want >= 2", probe.maxSeen)
-	}
+		start := make(chan struct{})
+		var wg sync.WaitGroup
+		for _, arch := range arches {
+			wg.Add(1)
+			go func(arch string) {
+				defer wg.Done()
+				<-start
+				_ = s.StoreFile("myrepo", arch, nil)
+			}(arch)
+		}
+		close(start)
+
+		// Distinct keys mean uncontended mutexes, so every goroutine reaches the
+		// probe's sleep and durably blocks; once Wait returns, peak in-flight is
+		// deterministic rather than a scheduling race.
+		synctest.Wait()
+		if probe.maxSeen != len(arches) {
+			t.Errorf("different (repo,arch) StoreFile did not run in parallel: peak inflight = %d, want %d", probe.maxSeen, len(arches))
+		}
+
+		wg.Wait()
+	})
 }
 
 // repoAddProbe is a blob.Store whose StoreFile records peak in-flight calls, used
