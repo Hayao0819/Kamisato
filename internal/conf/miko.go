@@ -61,8 +61,35 @@ func LoadMikoConfig(flags *pflag.FlagSet, configFile string) (*MikoConfig, error
 		configFileNames(configFile, "miko_config"),
 		flags,
 		"MIKO",
-		nil,
+		(*MikoConfig).applyDefaults,
 	)
+}
+
+// applyDefaults fills unset fields and clamps out-of-range ones so every
+// consumer reads a normalized config instead of re-deriving these at each use
+// site. Run once, right after loading and before Validate.
+func (c *MikoConfig) applyDefaults() {
+	if c.Executor == "" {
+		c.Executor = "container"
+	}
+	if c.Port == 0 {
+		c.Port = 8081
+	}
+	if c.Concurrency < 1 {
+		c.Concurrency = 1
+	}
+	if c.MaxRetries < 0 {
+		c.MaxRetries = 0
+	}
+	if c.RetryBackoff == 0 {
+		c.RetryBackoff = 5
+	}
+	if c.MaxLogBytes == 0 {
+		c.MaxLogBytes = 16 << 20
+	}
+	if c.MaxLogReaders == 0 {
+		c.MaxLogReaders = 8
+	}
 }
 
 // Validate rejects an unknown build executor so a typo fails loudly instead of

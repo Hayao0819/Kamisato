@@ -85,10 +85,7 @@ func (h *Handler) JobLogsHandler(c *gin.Context) {
 	}
 
 	// Cap concurrent SSE readers per job to bound long-lived streaming goroutines.
-	maxReaders := 8
-	if h.cfg != nil && h.cfg.MaxLogReaders > 0 {
-		maxReaders = h.cfg.MaxLogReaders
-	}
+	maxReaders := h.cfg.MaxLogReaders
 	h.logReadersMu.Lock()
 	if h.logReaders[id] >= maxReaders {
 		h.logReadersMu.Unlock()

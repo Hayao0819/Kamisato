@@ -170,9 +170,6 @@ func (s *Service) Stats() domain.BuildStats {
 	s.mu.Unlock()
 
 	workers := s.cfg.Concurrency
-	if workers < 1 {
-		workers = 1
-	}
 	success := counts[domain.JobStatusSuccess]
 	failed := counts[domain.JobStatusFailed]
 	var rate float64

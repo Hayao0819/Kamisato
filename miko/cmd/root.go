@@ -115,28 +115,6 @@ func RootCmd() *cobra.Command {
 				slog.Info("Loaded from config file", "path", configFile)
 			}
 
-			if cfg.Executor == "" {
-				cfg.Executor = "container"
-			}
-			if cfg.Port == 0 {
-				cfg.Port = 8081
-			}
-			if cfg.Concurrency < 1 {
-				cfg.Concurrency = 1
-			}
-			if cfg.MaxRetries < 0 {
-				cfg.MaxRetries = 0
-			}
-			if cfg.RetryBackoff == 0 {
-				cfg.RetryBackoff = 5
-			}
-			if cfg.MaxLogBytes == 0 {
-				cfg.MaxLogBytes = 16 << 20
-			}
-			if cfg.MaxLogReaders == 0 {
-				cfg.MaxLogReaders = 8
-			}
-
 			if cfg.Debug {
 				utils.UseColorLog(slog.LevelDebug)
 				slog.Debug("Debug mode enabled")
