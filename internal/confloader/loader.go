@@ -100,7 +100,13 @@ func (l *Loader[T]) Load() error {
 	}
 
 	if l.pflags != nil {
-		if err := l.k.Load(posflag.Provider(l.pflags, ".", nil), nil); err != nil {
+		// Flag names use hyphens (CLI convention) but koanf keys use underscores,
+		// so normalize the key (e.g. --ayato-url -> ayato_url). FlagVal keeps the
+		// flag's typed value; the nil koanf means only user-set flags are merged.
+		provider := posflag.ProviderWithFlag(l.pflags, ".", nil, func(f *pflag.Flag) (string, any) {
+			return strings.ReplaceAll(f.Name, "-", "_"), posflag.FlagVal(l.pflags, f)
+		})
+		if err := l.k.Load(provider, nil); err != nil {
 			return fmt.Errorf("failed to load pflags: %w", err)
 		}
 	}

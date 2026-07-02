@@ -4,11 +4,38 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/spf13/pflag"
 )
 
 type testCfg struct {
 	Port int    `koanf:"port"`
 	Name string `koanf:"name"`
+}
+
+// TestFlagKeyHyphenNormalizedToKoanf checks that a hyphenated flag name maps to
+// the underscore koanf key, so --ayato-url reaches a koanf:"ayato_url" field.
+func TestFlagKeyHyphenNormalizedToKoanf(t *testing.T) {
+	type cfg struct {
+		AyatoURL string `koanf:"ayato_url"`
+	}
+	fs := pflag.NewFlagSet("t", pflag.ContinueOnError)
+	fs.String("ayato-url", "", "")
+	if err := fs.Parse([]string{"--ayato-url", "http://ayato:8080"}); err != nil {
+		t.Fatal(err)
+	}
+
+	l := New[cfg](".").PFlags(fs)
+	if err := l.Load(); err != nil {
+		t.Fatal(err)
+	}
+	c, err := l.Get()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.AyatoURL != "http://ayato:8080" {
+		t.Errorf("AyatoURL = %q, want the flag value", c.AyatoURL)
+	}
 }
 
 // TestLoadAbsoluteFile checks that an absolute config path is read as-is rather
