@@ -8,46 +8,15 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"syscall"
 
 	"github.com/Hayao0819/Kamisato/internal/ayatoclient"
 	"github.com/Hayao0819/Kamisato/internal/blinkyutils"
+	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/internal/utils"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/srcpkg"
 )
-
-type config struct {
-	serverURL string
-	token     string
-	repo      string
-	arch      string
-	timeout   int
-}
-
-func loadConfig() (*config, error) {
-	repo := os.Getenv("THOMA_REPO")
-	if repo == "" {
-		return nil, utils.NewErr("THOMA_REPO is not set; thoma needs the ayato repo to build into")
-	}
-	url, token, err := resolveServer(os.Getenv("THOMA_SERVER"))
-	if err != nil {
-		return nil, err
-	}
-	arch := os.Getenv("THOMA_ARCH")
-	if arch == "" {
-		arch = detectArch()
-	}
-	timeout, _ := strconv.Atoi(os.Getenv("THOMA_TIMEOUT"))
-	return &config{
-		serverURL: url,
-		token:     token,
-		repo:      repo,
-		arch:      arch,
-		timeout:   timeout,
-	}, nil
-}
 
 // resolveServer reads the ayato URL and CLI token from the same server database
 // `ayaka server login` writes, selecting the default server when name is empty.
@@ -72,7 +41,15 @@ func detectArch() string {
 }
 
 func remoteBuild(args []string) error {
-	cfg, err := loadConfig()
+	cfg, err := conf.LoadThomaConfig(nil)
+	if err != nil {
+		return err
+	}
+	if cfg.Arch == "" {
+		cfg.Arch = detectArch()
+	}
+
+	base, token, err := resolveServer(cfg.Server)
 	if err != nil {
 		return err
 	}
@@ -89,11 +66,11 @@ func remoteBuild(args []string) error {
 	}
 
 	req := &ayatoclient.BuildRequest{
-		Repo:     cfg.repo,
-		Arch:     cfg.arch,
+		Repo:     cfg.Repo,
+		Arch:     cfg.Arch,
 		Pkgbuild: pkgbuild,
 		Files:    files,
-		Timeout:  cfg.timeout,
+		Timeout:  cfg.Timeout,
 	}
 
 	// Cancel the submit and wait on Ctrl-C/SIGTERM so a job stuck in queued does
@@ -101,14 +78,14 @@ func remoteBuild(args []string) error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	fmt.Fprintf(os.Stderr, "thoma: delegating build to %s (repo %s, arch %s)\n", cfg.serverURL, cfg.repo, cfg.arch)
-	jobID, err := ayatoclient.SubmitBuild(ctx, cfg.serverURL, cfg.token, req)
+	fmt.Fprintf(os.Stderr, "thoma: delegating build to %s (repo %s, arch %s)\n", base, cfg.Repo, cfg.Arch)
+	jobID, err := ayatoclient.SubmitBuild(ctx, base, token, req)
 	if err != nil {
 		return utils.WrapErr(err, "failed to submit build")
 	}
 	fmt.Fprintf(os.Stderr, "thoma: build job %s\n", jobID)
 
-	job, err := ayatoclient.WaitJob(ctx, cfg.serverURL, jobID, os.Stdout)
+	job, err := ayatoclient.WaitJob(ctx, base, jobID, os.Stdout)
 	if err != nil {
 		return utils.WrapErr(err, "failed while waiting for build")
 	}
@@ -123,7 +100,7 @@ func remoteBuild(args []string) error {
 	if err != nil {
 		return err
 	}
-	return placePackages(ctx, cfg, dests, job.Packages)
+	return placePackages(ctx, cfg, base, dests, job.Packages)
 }
 
 // packageDests asks the real makepkg where the output packages belong, so the
@@ -167,7 +144,7 @@ func configArg(args []string) string {
 // expected path. Packages are matched by pkgname (stable across pkgver drift on
 // VCS packages), and the file is written under the name yay expects so its
 // post-build os.Stat and pacman -U succeed.
-func placePackages(ctx context.Context, cfg *config, dests, built []string) error {
+func placePackages(ctx context.Context, cfg *conf.ThomaConfig, base string, dests, built []string) error {
 	for _, dest := range dests {
 		want := pkgName(filepath.Base(dest))
 		match := ""
@@ -180,7 +157,7 @@ func placePackages(ctx context.Context, cfg *config, dests, built []string) erro
 		if match == "" {
 			return utils.NewErrf("no built package matches %q (built: %s)", filepath.Base(dest), strings.Join(built, ", "))
 		}
-		if err := ayatoclient.DownloadPackage(ctx, cfg.serverURL, cfg.repo, cfg.arch, match, dest); err != nil {
+		if err := ayatoclient.DownloadPackage(ctx, base, cfg.Repo, cfg.Arch, match, dest); err != nil {
 			return err
 		}
 		fmt.Fprintf(os.Stderr, "thoma: placed %s -> %s\n", match, dest)
