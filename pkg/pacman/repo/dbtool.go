@@ -31,6 +31,11 @@ var (
 	_ Tool = CLITool{}
 )
 
+// ErrPackageNotFound is returned by RepoRemove when the named package has no
+// entry in the database. A caller that wants idempotent removal (retry safety)
+// treats it as a no-op success.
+var ErrPackageNotFound = errors.New("package not found in database")
+
 // NativeTool reads, mutates, and writes the pacman repo-DB archives directly,
 // with no repo-add/repo-remove binary, so a server can produce pacman databases
 // on any distribution. It operates on the .db archive at dbPath and its siblings
@@ -101,7 +106,7 @@ func (t NativeTool) RepoRemove(dbPath, pkgName string, useSignedDB bool, _ *stri
 		return err
 	}
 	if !b.Remove(pkgName) {
-		return fmt.Errorf("package matching %q not found", pkgName)
+		return fmt.Errorf("package matching %q: %w", pkgName, ErrPackageNotFound)
 	}
 	if err := writeToolBuilder(b, paths); err != nil {
 		return err

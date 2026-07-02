@@ -463,6 +463,31 @@ func TestInitArchPreservesPopulatedDB(t *testing.T) {
 	}
 }
 
+// TestRepoRemoveIdempotent proves removing an already-absent package is a no-op
+// success, so a retried remove after a partial failure does not error.
+func TestRepoRemoveIdempotent(t *testing.T) {
+	mem := newMemStore()
+	r := &binaryRepository{Store: mem}
+	if err := r.InitArch("r", "x86_64", false, nil); err != nil {
+		t.Fatalf("InitArch: %v", err)
+	}
+	dir := t.TempDir()
+	if err := r.RepoAdd("r", "x86_64", openSeek(t, makePkg(t, dir, "foo", "1.0-1", "x86_64")), nil, false, nil); err != nil {
+		t.Fatalf("RepoAdd: %v", err)
+	}
+	if err := r.RepoRemove("r", "x86_64", "foo", false, nil); err != nil {
+		t.Fatalf("RepoRemove: %v", err)
+	}
+	// A second remove of the same (now absent) package, and one that never existed,
+	// must both succeed.
+	if err := r.RepoRemove("r", "x86_64", "foo", false, nil); err != nil {
+		t.Fatalf("idempotent re-remove: %v", err)
+	}
+	if err := r.RepoRemove("r", "x86_64", "ghost", false, nil); err != nil {
+		t.Fatalf("remove of never-present package: %v", err)
+	}
+}
+
 // TestRepoAddSurfacesTransientFetchError proves a transient backend error on the
 // DB fetch is surfaced, not mistaken for "absent" — which would seed an empty base
 // and overwrite the live db with a truncated rebuild.

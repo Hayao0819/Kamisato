@@ -175,6 +175,12 @@ func (r *binaryRepository) RepoAddBatch(repo, arch string, items []RepoAddItem, 
 	})
 }
 
+// isPkgNotFound reports whether err is the tool's "no such package" sentinel. It
+// lives at package scope because RepoRemove shadows the repo import with a param.
+func isPkgNotFound(err error) bool {
+	return errors.Is(err, repo.ErrPackageNotFound)
+}
+
 // RepoRemove removes a package from the (repo, arch) database via the same
 // compare-and-swap read-modify-write as RepoAddBatch.
 func (r *binaryRepository) RepoRemove(repo, arch, pkg string, useSignedDB bool, gnupgDir *string) error {
@@ -191,6 +197,11 @@ func (r *binaryRepository) RepoRemove(repo, arch, pkg string, useSignedDB bool, 
 			return errors.New("repository database not found")
 		}
 		if err := r.repoTool().RepoRemove(dbPath, pkg, useSignedDB, gnupgDir); err != nil {
+			// Idempotent removal: an already-absent package is a no-op success, so a
+			// retried remove after a partial failure does not error.
+			if isPkgNotFound(err) {
+				return nil
+			}
 			slog.Error("repo db remove", "err", err)
 			return utils.WrapErr(err, "repo db remove failed")
 		}
