@@ -12,9 +12,9 @@ import (
 	"os/signal"
 	"time"
 
-	blinky_util "github.com/BrenekH/blinky/cmd/blinky/util"
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
 	"github.com/Hayao0819/Kamisato/internal/ayatoclient"
+	"github.com/Hayao0819/Kamisato/internal/blinkyutils"
 	"github.com/Hayao0819/Kamisato/internal/utils"
 	"github.com/spf13/cobra"
 	"golang.org/x/oauth2"
@@ -70,9 +70,9 @@ func LoginCmd() *cobra.Command {
 
 // The single token serves both blinky Basic and Bearer paths.
 func saveLogin(cmd *cobra.Command, server, login, token string, setDefault bool) error {
-	db, err := blinky_util.ReadServerDB()
+	db, err := blinkyutils.ReadServerDB()
 	if err != nil {
-		return utils.WrapErr(err, "failed to read server database")
+		return err
 	}
 	entry := db.Servers[server]
 	entry.Username = login
@@ -81,7 +81,7 @@ func saveLogin(cmd *cobra.Command, server, login, token string, setDefault bool)
 	if setDefault {
 		db.DefaultServer = server
 	}
-	return utils.WrapErr(blinky_util.SaveServerDB(db), "failed to save server database")
+	return blinkyutils.SaveServerDB(db)
 }
 
 // browserLogin runs the loopback OAuth+PKCE flow.

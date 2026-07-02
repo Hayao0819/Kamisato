@@ -7,8 +7,7 @@ import (
 	"sort"
 	"strings"
 
-	blinky_utils "github.com/BrenekH/blinky/cmd/blinky/util"
-	"github.com/Hayao0819/Kamisato/internal/utils"
+	"github.com/Hayao0819/Kamisato/internal/blinkyutils"
 	"github.com/spf13/cobra"
 )
 
@@ -25,23 +24,12 @@ func ListCmd() *cobra.Command {
 		Short: "List ayato servers",
 		Args:  cobra.ArbitraryArgs,
 		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-			db, err := blinky_utils.ReadServerDB()
-			if err != nil {
-				return nil, cobra.ShellCompDirectiveNoFileComp
-			}
-			var completions []string
-			for name := range db.Servers {
-				if strings.HasPrefix(name, toComplete) {
-					completions = append(completions, name)
-				}
-			}
-			sort.Strings(completions)
-			return completions, cobra.ShellCompDirectiveNoFileComp
+			return blinkyutils.ServerNames(toComplete), cobra.ShellCompDirectiveNoFileComp
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			db, err := blinky_utils.ReadServerDB()
+			db, err := blinkyutils.ReadServerDB()
 			if err != nil {
-				return utils.WrapErr(err, "failed to read server database")
+				return err
 			}
 
 			serverNames := make([]string, 0, len(db.Servers))

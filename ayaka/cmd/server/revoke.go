@@ -3,9 +3,9 @@ package servercmd
 import (
 	"fmt"
 
-	blinky_util "github.com/BrenekH/blinky/cmd/blinky/util"
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
 	"github.com/Hayao0819/Kamisato/internal/ayatoclient"
+	"github.com/Hayao0819/Kamisato/internal/blinkyutils"
 	"github.com/Hayao0819/Kamisato/internal/utils"
 	"github.com/spf13/cobra"
 )
@@ -21,9 +21,9 @@ func RevokeCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			server := args[0]
 
-			db, err := blinky_util.ReadServerDB()
+			db, err := blinkyutils.ReadServerDB()
 			if err != nil {
-				return utils.WrapErr(err, "failed to read server database")
+				return err
 			}
 
 			entry, ok := db.Servers[server]
@@ -41,8 +41,8 @@ func RevokeCmd() *cobra.Command {
 			entry.Username = ""
 			entry.Password = ""
 			db.Servers[server] = entry
-			if err := blinky_util.SaveServerDB(db); err != nil {
-				return utils.WrapErr(err, "failed to save server database")
+			if err := blinkyutils.SaveServerDB(db); err != nil {
+				return err
 			}
 
 			fmt.Fprintln(cmd.OutOrStdout(), "トークンを失効しました")
