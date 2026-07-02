@@ -36,6 +36,8 @@ type Job struct {
 	Packages  []string `json:"packages,omitempty"`
 	CreatedAt string   `json:"created_at"`
 	Retries   int      `json:"retries,omitempty"`
+	// Reason records why the build was triggered (manual, dependency, retry, ...).
+	Reason string `json:"reason,omitempty"`
 }
 
 // Stats mirrors miko's build statistics.

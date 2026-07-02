@@ -14,6 +14,23 @@ const (
 	JobStatusCancelled JobStatus = "cancelled"
 )
 
+// BuildReason records why a build was triggered so a job's origin is visible in
+// its status and logs.
+type BuildReason string
+
+const (
+	// ReasonManual is a build a user explicitly submitted.
+	ReasonManual BuildReason = "manual"
+	// ReasonDependency is an AUR dependency built to satisfy another build.
+	ReasonDependency BuildReason = "dependency"
+	// ReasonVersionUpdate is a rebuild triggered by a newer upstream version.
+	ReasonVersionUpdate BuildReason = "version_update"
+	// ReasonSonameRebuild is a rebuild triggered by a soname bump in a dependency.
+	ReasonSonameRebuild BuildReason = "soname_rebuild"
+	// ReasonRetry is a re-attempt of a build that failed transiently.
+	ReasonRetry BuildReason = "retry"
+)
+
 type BuildRequest struct {
 	Repo string `json:"repo"`
 	Arch string `json:"arch"`
@@ -54,6 +71,9 @@ type BuildJob struct {
 	Err      string    `json:"err,omitempty"`
 	Packages []string  `json:"packages,omitempty"`
 	Retries  int       `json:"retries,omitempty"`
+	// Reason records why this build was triggered (manual submit, dependency,
+	// retry, ...).
+	Reason BuildReason `json:"reason,omitempty"`
 
 	Request *BuildRequest `json:"-"`
 	// ArtifactDir is the retained build-output dir for a client-signed job, served

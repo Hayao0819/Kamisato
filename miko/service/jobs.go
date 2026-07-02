@@ -69,6 +69,7 @@ func (s *Service) Submit(req *domain.BuildRequest) (string, error) {
 		Repo:      req.Repo,
 		Arch:      req.Arch,
 		Status:    domain.JobStatusQueued,
+		Reason:    domain.ReasonManual,
 		Request:   req,
 		CreatedAt: time.Now(),
 	}

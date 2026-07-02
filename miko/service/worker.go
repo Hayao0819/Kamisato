@@ -178,17 +178,26 @@ func (s *Service) buildWithRetry(ctx context.Context, job *domain.BuildJob) (*bu
 	exp.InitialInterval = time.Duration(s.cfg.RetryBackoff) * time.Second
 
 	attempt := 0
+	// notify only fires before a genuine retry (a terminal failure returns a
+	// Permanent error, which backoff does not notify on), so tagging the job here
+	// records that its current attempt is a retry of a transient failure.
 	notify := func(err error, _ time.Duration) {
 		attempt++
 		if buf := s.LogBuffer(job.ID); buf != nil {
-			_, _ = buf.Write([]byte(fmt.Sprintf("retry %d/%d after error: %v\n", attempt, maxRetries, err)))
+			_, _ = buf.Write([]byte(fmt.Sprintf("retry %d/%d after retriable error: %v\n", attempt, maxRetries, err)))
 		}
-		s.update(job.ID, func(j *domain.BuildJob) { j.Retries = attempt })
+		s.update(job.ID, func(j *domain.BuildJob) {
+			j.Retries = attempt
+			j.Reason = domain.ReasonRetry
+		})
 	}
 
 	op := func() (buildOutcome, error) {
 		res, outDir, err := s.runBuild(ctx, job)
-		if err != nil && isCancelled(ctx, err) {
+		// Cancellation and deterministic build failures (a compile/PKGBUILD error)
+		// gain nothing from a retry, so stop immediately; only transient failures
+		// (clone, image pull, network, a build timeout) fall through to backoff.
+		if err != nil && (isCancelled(ctx, err) || !isRetriable(err)) {
 			return buildOutcome{res, outDir}, backoff.Permanent(err)
 		}
 		return buildOutcome{res, outDir}, err
@@ -205,4 +214,17 @@ func (s *Service) buildWithRetry(ctx context.Context, job *domain.BuildJob) (*bu
 
 func isCancelled(ctx context.Context, err error) bool {
 	return errors.Is(err, context.Canceled) || ctx.Err() == context.Canceled
+}
+
+// isRetriable reports whether a build failure is worth another attempt. A build
+// that ran to a deterministic failure (builder.ErrBuildFailed: a PKGBUILD or
+// compile error, or no package produced) will fail identically on a retry, so it
+// is terminal; every other failure (clone, image pull, network, a build timeout)
+// is treated as transient and retried. Cancellation is handled by the caller and
+// never classified here.
+func isRetriable(err error) bool {
+	if err == nil {
+		return false
+	}
+	return !errors.Is(err, builder.ErrBuildFailed)
 }

@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -74,6 +75,10 @@ func (s *Service) buildAndPublishDep(ctx context.Context, job *domain.BuildJob, 
 		return errwrap.WrapErr(err, "failed to create dependency source dir")
 	}
 	defer func() { _ = os.RemoveAll(depSrc) }()
+
+	if buf := s.LogBuffer(job.ID); buf != nil {
+		fmt.Fprintf(buf, "building AUR dependency %s (reason: %s)\n", dep.PackageBase, domain.ReasonDependency)
+	}
 
 	gitURL := strings.TrimRight(up.GitBase(), "/") + "/" + dep.PackageBase + ".git"
 	if err := materializeGit(&domain.GitSource{URL: gitURL}, depSrc); err != nil {

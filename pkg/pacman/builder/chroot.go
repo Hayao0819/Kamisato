@@ -3,6 +3,7 @@ package builder
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"os"
@@ -69,7 +70,7 @@ func (b *chrootBackend) Build(ctx context.Context, spec Spec) (*Result, error) {
 		return nil, err
 	}
 	if len(built) == 0 {
-		return nil, errors.New("no package files (*.pkg.tar.*) were produced")
+		return nil, fmt.Errorf("%w: no package files (*.pkg.tar.*) were produced", ErrBuildFailed)
 	}
 
 	return moveToOutDir(built, spec.SrcDir, spec.OutDir)

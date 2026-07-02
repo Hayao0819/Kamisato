@@ -250,7 +250,7 @@ func (b *containerBackend) Build(ctx context.Context, spec Spec) (*Result, error
 		case <-time.After(2 * time.Second):
 		}
 		if status.StatusCode != 0 {
-			return nil, fmt.Errorf("build failed with exit code %d:\n%s", status.StatusCode, capture.String())
+			return nil, fmt.Errorf("%w with exit code %d:\n%s", ErrBuildFailed, status.StatusCode, capture.String())
 		}
 	}
 
