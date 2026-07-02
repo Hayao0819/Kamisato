@@ -3,6 +3,7 @@ package hookcmd
 import (
 	_ "embed"
 
+	sharedhook "github.com/Hayao0819/Kamisato/internal/hookcmd"
 	"github.com/spf13/cobra"
 )
 
@@ -16,6 +17,6 @@ func Cmd() *cobra.Command {
 		Use:   "hook",
 		Short: "Manage the pacman PreTransaction hook that runs 'kayo verify'",
 	}
-	cmd.AddCommand(hookInstallCmd(), hookUninstallCmd())
+	cmd.AddCommand(hookInstallCmd(), sharedhook.NewUninstallCmd(hookFileName))
 	return cmd
 }

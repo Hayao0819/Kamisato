@@ -3,6 +3,7 @@ package hookcmd
 import (
 	_ "embed"
 
+	sharedhook "github.com/Hayao0819/Kamisato/internal/hookcmd"
 	"github.com/spf13/cobra"
 )
 
@@ -18,6 +19,6 @@ func Cmd() *cobra.Command {
 		Use:   "hook",
 		Short: "Manage the pacman hook that uploads installed packages to ayato",
 	}
-	cmd.AddCommand(hookInstallCmd(), hookUninstallCmd(), hookUploadCmd())
+	cmd.AddCommand(hookInstallCmd(), sharedhook.NewUninstallCmd(uploadHookFileName), hookUploadCmd())
 	return cmd
 }
