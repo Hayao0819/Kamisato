@@ -91,7 +91,7 @@ func (b *containerBackend) Build(ctx context.Context, spec Spec) (*Result, error
 	if err != nil {
 		return nil, wrapErr(err, "failed to resolve out dir")
 	}
-	if err := os.MkdirAll(absOut, 0o755); err != nil {
+	if err := os.MkdirAll(absOut, 0o755); err != nil { //nolint:gosec // build output dir, read by the build user and downstream consumers
 		return nil, wrapErr(err, "failed to create out dir")
 	}
 
@@ -292,7 +292,7 @@ func (b *containerBackend) cacheMounts() ([]mount.Mount, error) {
 		if err != nil {
 			return wrapErr(err, "failed to resolve cache dir")
 		}
-		if err := os.MkdirAll(abs, 0o755); err != nil {
+		if err := os.MkdirAll(abs, 0o755); err != nil { //nolint:gosec // cache dir shared with the build container
 			return wrapErr(err, "failed to create cache dir")
 		}
 		mounts = append(mounts, mount.Mount{

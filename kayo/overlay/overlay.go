@@ -42,7 +42,7 @@ func New(cacheDir string, overlays []conf.OverlayConfig) *Registry {
 // Sync clones or updates every overlay, re-parses their .SRCINFO, and atomically
 // swaps in a fresh index. A single failing overlay is logged and skipped.
 func (r *Registry) Sync(ctx context.Context) error {
-	if err := os.MkdirAll(r.cacheDir, 0o755); err != nil {
+	if err := os.MkdirAll(r.cacheDir, 0o750); err != nil {
 		return errwrap.WrapErr(err, "failed to create overlay cache dir")
 	}
 

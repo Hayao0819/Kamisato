@@ -30,7 +30,7 @@ func DownloadPackage(ctx context.Context, base, repo, arch, file, dest string) e
 		return errwrap.WrapErr(err, "failed to create "+dest)
 	}
 	if _, err := io.Copy(f, resp.Body); err != nil {
-		f.Close()
+		_ = f.Close()
 		return errwrap.WrapErr(err, "failed to write "+dest)
 	}
 	return f.Close()

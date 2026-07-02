@@ -70,7 +70,7 @@ func writeSeekFileTo(dir string, f stream.SeekFile) (string, error) {
 		return "", errwrap.WrapErr(err, "failed to create temp file")
 	}
 	if _, err := io.Copy(out, f); err != nil {
-		out.Close()
+		_ = out.Close()
 		return "", errwrap.WrapErr(err, "failed to copy stream to temp file")
 	}
 	if err := out.Close(); err != nil {
@@ -109,10 +109,10 @@ func (r *binaryRepository) storeArtifacts(repo, arch, dir string, skip map[strin
 		// bare name so both localfs and s3 store it as <repo>/<arch>/<name>.
 		named := stream.NewFileStream(name, obj.ContentType(), obj)
 		if err := r.Store.StoreFile(repo, arch, named); err != nil {
-			obj.Close()
+			_ = obj.Close()
 			return errwrap.WrapErr(err, "failed to store artifact "+name)
 		}
-		obj.Close()
+		_ = obj.Close()
 	}
 	return nil
 }
@@ -219,7 +219,7 @@ func (r *binaryRepository) InitArch(repo, arch string, useSignedDB bool, gnupgDi
 	dbName := repo + ".db.tar.gz"
 
 	if f, _, err := r.Store.FetchFileWithETag(repo, arch, dbName); err == nil {
-		f.Close()
+		_ = f.Close()
 		return nil // already initialized
 	} else if !errors.Is(err, blob.ErrNotFound) {
 		return errwrap.WrapErr(err, "repo db init: probe existing db")
@@ -311,7 +311,7 @@ func (r *binaryRepository) commitDB(repo, arch, dir string, skip map[string]stru
 	}
 	named := stream.NewFileStream(dbName, obj.ContentType(), obj)
 	err = r.Store.StoreFileIfMatch(repo, arch, named, etag)
-	obj.Close()
+	_ = obj.Close()
 	if err != nil {
 		return err
 	}
@@ -341,7 +341,7 @@ func dbConflictBackoff(attempt int) {
 	if d > dbConflictBackoffCap {
 		d = dbConflictBackoffCap
 	}
-	time.Sleep(rand.N(d)) // full jitter in [0, d)
+	time.Sleep(rand.N(d)) //nolint:gosec // non-crypto retry jitter, full jitter in [0, d)
 }
 
 // fetchDBArtifacts seeds dir with the live DB archives (and their .sig when
@@ -383,16 +383,16 @@ func (r *binaryRepository) fetchDBArtifacts(repo, arch, dir string, useSignedDB 
 		dst := path.Join(dir, name)
 		out, cerr := os.Create(dst)
 		if cerr != nil {
-			f.Close()
+			_ = f.Close()
 			return "", errwrap.WrapErr(cerr, "failed to create temp db artifact")
 		}
 		if _, cerr := io.Copy(out, f); cerr != nil {
-			out.Close()
-			f.Close()
+			_ = out.Close()
+			_ = f.Close()
 			return "", errwrap.WrapErr(cerr, "failed to copy db artifact")
 		}
-		out.Close()
-		f.Close()
+		_ = out.Close()
+		_ = f.Close()
 	}
 	return dbETag, nil
 }

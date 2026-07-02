@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
-	"crypto/md5"
+	"crypto/md5" //nolint:gosec // md5 is a non-crypto ETag/cache hash, not a security primitive
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -82,7 +82,7 @@ func (c *dumpCache) getOrBuild(key string, now time.Time, build func() ([]byte, 
 	if err != nil {
 		return dumpEntry{}, err
 	}
-	sum := md5.Sum(body)
+	sum := md5.Sum(body) //nolint:gosec // ETag over the response body, not a security hash
 	e := dumpEntry{body: body, etag: `"` + hex.EncodeToString(sum[:]) + `"`, expires: now.Add(dumpTTL)}
 	c.put(key, e)
 	return e, nil

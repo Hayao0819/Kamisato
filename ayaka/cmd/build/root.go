@@ -72,7 +72,7 @@ func Cmd() *cobra.Command {
 			}
 			defer os.RemoveAll(tmpDir)
 			dummyFile := path.Join(tmpDir, "dummy.txt")
-			if err := os.WriteFile(dummyFile, []byte("dummy"), 0644); err != nil {
+			if err := os.WriteFile(dummyFile, []byte("dummy"), 0o600); err != nil {
 				return errwrap.WrapErr(err, "failed to create dummy file")
 			}
 			if err := gpg.SignFile(gpgkey, "", dummyFile); err != nil {

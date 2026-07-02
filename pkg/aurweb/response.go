@@ -1,7 +1,7 @@
 package aurweb
 
 import (
-	"crypto/md5"
+	"crypto/md5" //nolint:gosec // md5 is a non-crypto ETag/cache hash, not a security primitive
 	"encoding/hex"
 	"encoding/json"
 	"net/http"
@@ -47,7 +47,7 @@ func (s *Server) writeJSON(w http.ResponseWriter, r *http.Request, callback stri
 		return
 	}
 
-	sum := md5.Sum(body)
+	sum := md5.Sum(body) //nolint:gosec // ETag over the response body, not a security hash
 	etag := `"` + hex.EncodeToString(sum[:]) + `"`
 	w.Header().Set("ETag", etag)
 	if match := r.Header.Get("If-None-Match"); match == etag {

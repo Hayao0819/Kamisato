@@ -15,7 +15,7 @@ func SignFile(key string, gpgDir string, file string) error {
 		}
 	}
 
-	cmd := exec.Command("gpg", "--detach-sign", "--use-agent", "-u", key, "--no-armor", "--homedir", homeDir, file)
+	cmd := exec.Command("gpg", "--detach-sign", "--use-agent", "-u", key, "--no-armor", "--homedir", homeDir, file) //nolint:gosec // fixed program gpg, argv passed as separate args (no shell)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	return cmd.Run()

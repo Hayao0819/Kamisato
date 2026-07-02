@@ -170,6 +170,9 @@ type buildOutcome struct {
 // not consume a retry.
 func (s *Service) buildWithRetry(ctx context.Context, job *domain.BuildJob) (*builder.Result, string, error) {
 	maxRetries := s.cfg.MaxRetries
+	if maxRetries < 0 {
+		maxRetries = 0
+	}
 
 	exp := backoff.NewExponentialBackOff()
 	exp.InitialInterval = time.Duration(s.cfg.RetryBackoff) * time.Second
@@ -193,8 +196,8 @@ func (s *Service) buildWithRetry(ctx context.Context, job *domain.BuildJob) (*bu
 
 	out, err := backoff.Retry(ctx, op,
 		backoff.WithBackOff(exp),
-		backoff.WithMaxTries(uint(maxRetries)+1),
-		backoff.WithMaxElapsedTime(0), // no total-time cap: honor the configured retry count
+		backoff.WithMaxTries(uint(maxRetries)+1), //nolint:gosec // maxRetries is clamped to >= 0 above
+		backoff.WithMaxElapsedTime(0),            // no total-time cap: honor the configured retry count
 		backoff.WithNotify(notify),
 	)
 	return out.res, out.outDir, err

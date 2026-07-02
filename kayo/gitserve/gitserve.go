@@ -25,7 +25,7 @@ func Materialize(ctx context.Context, root, pkgbase, sourceDir, commit string) e
 	if commit == "" {
 		return errwrap.NewErr("cannot materialize without a pinned commit")
 	}
-	if err := os.MkdirAll(root, 0o755); err != nil {
+	if err := os.MkdirAll(root, 0o755); err != nil { //nolint:gosec // served git root is exposed over dumb-HTTP and is world-readable by design
 		return errwrap.WrapErr(err, "failed to create served root")
 	}
 	repo := filepath.Join(root, pkgbase+".git")
@@ -65,6 +65,7 @@ func NewHandler(root string, fallback http.Handler) *Handler {
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if base := aurweb.PkgbaseFromGitPath(r.URL.Path); base != "" {
+		//nolint:gosec // base is one path segment from PkgbaseFromGitPath (no separators); FileServer(http.Dir) also confines traversal
 		if st, err := os.Stat(filepath.Join(h.root, base+".git")); err == nil && st.IsDir() {
 			h.files.ServeHTTP(w, r)
 			return

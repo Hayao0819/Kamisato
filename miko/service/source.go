@@ -87,7 +87,7 @@ func materializeGit(git *domain.GitSource, srcDir string) error {
 // Extra file keys are sanitized with filepath.Base; keys that resolve to ".",
 // "..", "" or that contain a path separator are skipped.
 func materializePkgbuild(req *domain.BuildRequest, srcDir string) error {
-	if err := os.WriteFile(filepath.Join(srcDir, "PKGBUILD"), []byte(req.Pkgbuild), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(srcDir, "PKGBUILD"), []byte(req.Pkgbuild), 0o644); err != nil { //nolint:gosec // build input read by makepkg, potentially as a different build user
 		return errwrap.WrapErr(err, "failed to write PKGBUILD")
 	}
 
@@ -99,7 +99,7 @@ func materializePkgbuild(req *domain.BuildRequest, srcDir string) error {
 		if base == "." || base == ".." || base == "" {
 			continue
 		}
-		if err := os.WriteFile(filepath.Join(srcDir, base), []byte(contents), 0o644); err != nil {
+		if err := os.WriteFile(filepath.Join(srcDir, base), []byte(contents), 0o644); err != nil { //nolint:gosec // build input read by makepkg, potentially as a different build user
 			return errwrap.WrapErr(err, "failed to write file: "+base)
 		}
 	}

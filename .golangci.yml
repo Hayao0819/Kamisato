@@ -23,30 +23,18 @@ linters:
         - (*github.com/Hayao0819/Kamisato/ayato/stream.FileStream).Close
         - (*github.com/docker/docker/client.Client).Close
     gosec:
+      # G304 (file inclusion via variable) is not taint-aware and fires on every
+      # non-constant path. This build/distribution tool composes every path itself
+      # (validated repo components, config, build artifacts, resolved binaries) and
+      # has no request-parameter-to-open sink. Real traversal is caught by the
+      # taint-aware G703 (kept on) and by the tested blob.ValidatePathComponent.
       excludes:
-        - G104
-        - G107
-        - G112
-        - G117
-        - G120
-        - G122
-        - G204
-        - G301
-        - G302
         - G304
-        - G306
-        - G401
-        - G404
-        - G501
-        - G505
-        - G507
-        - G702
-        - G703
-        - G704
-        - G706
   exclusions:
     rules:
+      # gosec guards the shipping binary; the test suite deliberately uses weak
+      # crypto (forgery-rejection tests), subprocess oracles, and lax fixture
+      # perms, which are not deployment risks. errcheck still runs on tests.
       - path: _test\.go
         linters:
-          - errcheck
           - gosec

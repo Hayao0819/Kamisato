@@ -110,7 +110,7 @@ func (s *PinStore) Entries() []PinInfo {
 }
 
 func (s *PinStore) saveLocked() error {
-	if err := os.MkdirAll(filepath.Dir(s.path), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(s.path), 0o750); err != nil {
 		return errwrap.WrapErr(err, "failed to create pin store dir")
 	}
 	raw, err := json.MarshalIndent(s.data, "", "  ")

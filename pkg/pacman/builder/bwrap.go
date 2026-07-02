@@ -93,7 +93,7 @@ func (b *bwrapBackend) Build(ctx context.Context, spec Spec) (*Result, error) {
 	work1 := filepath.Join(scratch, "work1")
 	work2 := filepath.Join(scratch, "work2")
 	for _, d := range []string{upper, work1, work2} {
-		if err := os.Mkdir(d, 0o755); err != nil {
+		if err := os.Mkdir(d, 0o755); err != nil { //nolint:gosec // build overlay dirs accessed by the build sandbox/overlayfs
 			return nil, wrapErr(err, "failed to create overlay dir")
 		}
 	}
@@ -180,7 +180,7 @@ func bwrapArgs(rootfs, upper, work, srcAbs, uid, script string, installBinds [][
 }
 
 func runBwrap(ctx context.Context, args []string, out io.Writer) error {
-	cmd := exec.CommandContext(ctx, "bwrap", args...)
+	cmd := exec.CommandContext(ctx, "bwrap", args...) //nolint:gosec // fixed program bwrap, argv passed as separate args (no shell)
 	cmd.Stdout = out
 	cmd.Stderr = out
 	cmd.Env = os.Environ()

@@ -154,14 +154,14 @@ func (u *AURUpstream) do(ctx context.Context, v url.Values) ([]Pkg, error) {
 }
 
 func (u *AURUpstream) get(ctx context.Context, v url.Values) ([]byte, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.rpcURL+"?"+v.Encode(), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.rpcURL+"?"+v.Encode(), nil) //nolint:gosec // upstream RPC host is operator-configured; only query params vary
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Set("User-Agent", u.userAgent)
 	req.Header.Set("Accept", "application/json")
 
-	resp, err := u.client.Do(req)
+	resp, err := u.client.Do(req) //nolint:gosec // upstream RPC host is operator-configured; only query params vary
 	if err != nil {
 		return nil, fmt.Errorf("aurweb: upstream request: %w", err)
 	}

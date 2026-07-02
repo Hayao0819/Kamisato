@@ -17,7 +17,7 @@ func Deptest(deps []string) ([]string, error) {
 	if len(deps) == 0 {
 		return nil, nil
 	}
-	out, err := exec.Command("pacman", append([]string{"-T"}, deps...)...).Output()
+	out, err := exec.Command("pacman", append([]string{"-T"}, deps...)...).Output() //nolint:gosec // fixed program, argv passed as separate args (no shell)
 	if err != nil {
 		var ee *exec.ExitError
 		if errors.As(err, &ee) && ee.ExitCode() == 127 {

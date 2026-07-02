@@ -41,7 +41,7 @@ func dockerHostFromContext() string {
 
 	name := os.Getenv("DOCKER_CONTEXT")
 	if name == "" {
-		data, err := os.ReadFile(filepath.Join(dir, "config.json"))
+		data, err := os.ReadFile(filepath.Join(dir, "config.json")) //nolint:gosec // dir is the operator's own DOCKER_CONFIG/~/.docker, mirroring the docker CLI
 		if err != nil {
 			return ""
 		}
@@ -59,7 +59,7 @@ func dockerHostFromContext() string {
 
 	// The context store keys each context by the hex sha256 of its name.
 	id := fmt.Sprintf("%x", sha256.Sum256([]byte(name)))
-	data, err := os.ReadFile(filepath.Join(dir, "contexts", "meta", id, "meta.json"))
+	data, err := os.ReadFile(filepath.Join(dir, "contexts", "meta", id, "meta.json")) //nolint:gosec // dir is the operator's own DOCKER_CONFIG/~/.docker, mirroring the docker CLI
 	if err != nil {
 		return ""
 	}

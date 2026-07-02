@@ -151,7 +151,7 @@ func (h *Handler) BatchUploadHandler(ctx *gin.Context) {
 	var closers []io.Closer
 	defer func() {
 		for _, c := range closers {
-			c.Close()
+			_ = c.Close()
 		}
 	}()
 

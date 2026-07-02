@@ -33,7 +33,7 @@ func command(ctx context.Context, dir string, args, extraConfig []string) *exec.
 	full = append(full, hardenedConfig...)
 	full = append(full, extraConfig...)
 	full = append(full, args...)
-	cmd := exec.CommandContext(ctx, "git", full...)
+	cmd := exec.CommandContext(ctx, "git", full...) //nolint:gosec // fixed program git, argv passed as separate args (no shell)
 	cmd.Dir = dir
 	cmd.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0")
 	return cmd

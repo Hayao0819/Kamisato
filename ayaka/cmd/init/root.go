@@ -29,7 +29,7 @@ func Cmd() *cobra.Command {
 
 			if contents, err := os.ReadDir(targetDir); err != nil {
 				if os.IsNotExist(err) {
-					if err := os.MkdirAll(targetDir, 0755); err != nil {
+					if err := os.MkdirAll(targetDir, 0755); err != nil { //nolint:gosec // ayaka init scaffolds a publishable pacman repo workspace (world-readable by convention)
 						return errwrap.WrapErr(err, "failed to create target directory")
 					}
 				} else {
@@ -81,15 +81,15 @@ func Cmd() *cobra.Command {
 				return errwrap.WrapErr(err, "failed to marshal ayaka config")
 			}
 
-			if err := os.WriteFile(ayakarcPath, ayakarcBytes, 0644); err != nil {
+			if err := os.WriteFile(ayakarcPath, ayakarcBytes, 0644); err != nil { //nolint:gosec // ayaka init scaffolds a publishable pacman repo workspace (world-readable by convention)
 				return errwrap.WrapErr(err, "failed to write ayaka config")
 			}
 
-			if err := os.MkdirAll(repoDir, 0755); err != nil {
+			if err := os.MkdirAll(repoDir, 0755); err != nil { //nolint:gosec // ayaka init scaffolds a publishable pacman repo workspace (world-readable by convention)
 				return errwrap.WrapErr(err, "failed to create repository directory")
 			}
 
-			if err := os.MkdirAll(outDir, 0755); err != nil {
+			if err := os.MkdirAll(outDir, 0755); err != nil { //nolint:gosec // ayaka init scaffolds a publishable pacman repo workspace (world-readable by convention)
 				return errwrap.WrapErr(err, "failed to create output directory")
 			}
 
@@ -104,7 +104,7 @@ func Cmd() *cobra.Command {
 			}
 
 			repoconfPath := path.Join(repoDir, "repo.json")
-			if err := os.WriteFile(repoconfPath, repoconfBytes, 0644); err != nil {
+			if err := os.WriteFile(repoconfPath, repoconfBytes, 0644); err != nil { //nolint:gosec // ayaka init scaffolds a publishable pacman repo workspace (world-readable by convention)
 				return errwrap.WrapErr(err, "failed to write repo config")
 			}
 

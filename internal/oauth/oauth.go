@@ -138,7 +138,7 @@ func LoopbackLogin(ctx context.Context, serverURL string, opts ...Option) (token
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", callbackHandler(p.state, codeCh, errCh))
 
-	srv := &http.Server{Handler: mux}
+	srv := &http.Server{Handler: mux, ReadHeaderTimeout: 10 * time.Second}
 	go func() { _ = srv.Serve(ln) }()
 	defer func() {
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

@@ -70,7 +70,7 @@ func realMakepkg(configured string) string {
 // symlinks — so a /usr/bin/makepkg symlink pointing back at the thoma binary is
 // caught even though the two paths differ.
 func sameFile(a, b string) bool {
-	fa, err := os.Stat(a)
+	fa, err := os.Stat(a) //nolint:gosec // a is a resolved makepkg binary path (LookPath/hardcoded), not attacker input
 	if err != nil {
 		return false
 	}
@@ -86,7 +86,7 @@ func sameFile(a, b string) bool {
 // heavy compile (source download, --nobuild, --packagelist, --printsrcinfo, …).
 func passthrough(args []string) error {
 	bin := realMakepkg("")
-	return syscall.Exec(bin, append([]string{bin}, args...), os.Environ())
+	return syscall.Exec(bin, append([]string{bin}, args...), os.Environ()) //nolint:gosec // bin is a resolved makepkg path, not attacker input
 }
 
 // nonBuildFlags mark a makepkg invocation that does something other than the

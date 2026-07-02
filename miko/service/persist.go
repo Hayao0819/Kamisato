@@ -27,7 +27,7 @@ type jobPersist struct {
 
 func newJobPersist(dataDir string) (*jobPersist, error) {
 	dir := filepath.Join(dataDir, "jobs")
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return nil, err
 	}
 	return &jobPersist{dir: dir}, nil
@@ -55,7 +55,7 @@ func (p *jobPersist) save(job *domain.BuildJob) error {
 		return err
 	}
 	tmp := p.path(job.ID) + ".tmp"
-	if err := os.WriteFile(tmp, data, 0o644); err != nil {
+	if err := os.WriteFile(tmp, data, 0o600); err != nil {
 		return err
 	}
 	return os.Rename(tmp, p.path(job.ID))

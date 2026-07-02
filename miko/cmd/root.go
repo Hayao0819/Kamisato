@@ -53,7 +53,7 @@ func buildHostSigner(ctx context.Context, cfg *conf.MikoConfig) (sign.Signer, er
 	if err != nil {
 		return nil, err
 	}
-	slog.Info("host signing enabled", "key_dir", dir,
+	slog.Info("host signing enabled", "key_dir", dir, //nolint:gosec // slog escapes structured values; dir is operator-provided config
 		"master_fpr", fmt.Sprintf("%X", ks.MasterEntity().PrimaryKey.Fingerprint),
 		"worker_fpr", fmt.Sprintf("%X", ks.WorkerEntity().PrimaryKey.Fingerprint))
 

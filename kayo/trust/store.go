@@ -156,7 +156,7 @@ func (s *Store) Save() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if err := os.MkdirAll(filepath.Dir(s.path), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(s.path), 0o750); err != nil {
 		return errwrap.WrapErr(err, "failed to create trust store dir")
 	}
 	raw, err := json.MarshalIndent(s.data, "", "  ")

@@ -54,10 +54,10 @@ func ListCmd() *cobra.Command {
 					prefix = "* "
 				}
 				if showRaw {
-					b, _ := json.MarshalIndent(server, "", "  ")
+					b, _ := json.MarshalIndent(server, "", "  ") //nolint:gosec // dumps the user's own saved server config on explicit --raw
 					fmt.Printf("%s%s: %s\n", prefix, name, string(b))
 				} else if format == "json" {
-					b, _ := json.Marshal(server)
+					b, _ := json.Marshal(server) //nolint:gosec // dumps the user's own saved server config on explicit --format json
 					fmt.Printf("%s%s: %s\n", prefix, name, string(b))
 				} else {
 					var line strings.Builder

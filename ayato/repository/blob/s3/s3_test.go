@@ -33,7 +33,7 @@ func TestUploadFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
-	defer os.Remove(filePath)
+	defer func() { _ = os.Remove(filePath) }()
 	_, err = file.WriteString("This is a test file.")
 	if err != nil {
 		t.Fatalf("Failed to write to test file: %v", err)

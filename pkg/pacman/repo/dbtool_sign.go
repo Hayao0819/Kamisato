@@ -46,7 +46,7 @@ func detachSignFile(entity *openpgp.Entity, srcPath, sigPath string) error {
 		return fmt.Errorf("failed to create %s: %w", sigPath, err)
 	}
 	if err := openpgp.DetachSign(out, entity, in, &packet.Config{Algorithm: packet.PubKeyAlgoEdDSA, DefaultHash: crypto.SHA256}); err != nil {
-		out.Close()
+		_ = out.Close()
 		return fmt.Errorf("failed to sign %s: %w", srcPath, err)
 	}
 	return out.Close()

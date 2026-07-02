@@ -81,7 +81,7 @@ func readMemberSuffix(t *testing.T, archivePath, suffix string) ([]byte, bool) {
 	if err != nil {
 		t.Fatalf("gzip %s: %v", archivePath, err)
 	}
-	defer gz.Close()
+	defer func() { _ = gz.Close() }()
 	tr := tar.NewReader(gz)
 	for {
 		hdr, err := tr.Next()
@@ -386,7 +386,7 @@ func readArchiveMembers(t *testing.T, archivePath string) map[string]string {
 	if err != nil {
 		t.Fatalf("gzip %s: %v", archivePath, err)
 	}
-	defer gz.Close()
+	defer func() { _ = gz.Close() }()
 	members := map[string]string{}
 	tr := tar.NewReader(gz)
 	for {

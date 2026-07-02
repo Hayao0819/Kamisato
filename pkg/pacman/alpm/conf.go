@@ -21,7 +21,7 @@ func ConfValues(pacmanConf, option string) ([]string, error) {
 		args = append(args, "--config", pacmanConf)
 	}
 	args = append(args, option)
-	out, err := exec.Command("pacman-conf", args...).Output()
+	out, err := exec.Command("pacman-conf", args...).Output() //nolint:gosec // fixed program, argv passed as separate args (no shell)
 	if err != nil {
 		return nil, err
 	}

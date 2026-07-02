@@ -13,11 +13,11 @@ func OpenBrowser(url string) error {
 	var cmd *exec.Cmd
 	switch runtime.GOOS {
 	case "darwin":
-		cmd = exec.Command("open", url)
+		cmd = exec.Command("open", url) //nolint:gosec // fixed program, url passed as a separate arg (no shell)
 	case "windows":
-		cmd = exec.Command("cmd", "/c", "start", "", url)
+		cmd = exec.Command("cmd", "/c", "start", "", url) //nolint:gosec // fixed program, url passed as a separate arg (no shell)
 	default:
-		cmd = exec.Command("xdg-open", url)
+		cmd = exec.Command("xdg-open", url) //nolint:gosec // fixed program, url passed as a separate arg (no shell)
 	}
 	if err := cmd.Start(); err != nil {
 		return errwrap.WrapErr(err, "failed to open browser")

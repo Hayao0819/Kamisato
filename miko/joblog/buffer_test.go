@@ -57,14 +57,14 @@ func TestBufferCapEnforced(t *testing.T) {
 
 func TestBufferBytesFromDelta(t *testing.T) {
 	b := New(0)
-	b.Write([]byte("aaa"))
+	_, _ = b.Write([]byte("aaa"))
 
 	chunk, total, closed := b.BytesFrom(0)
 	if string(chunk) != "aaa" || total != 3 || closed {
 		t.Fatalf("BytesFrom(0) = (%q,%d,%v), want (aaa,3,false)", chunk, total, closed)
 	}
 
-	b.Write([]byte("bbbb"))
+	_, _ = b.Write([]byte("bbbb"))
 	chunk, total, closed = b.BytesFrom(total)
 	if string(chunk) != "bbbb" || total != 7 || closed {
 		t.Fatalf("BytesFrom(3) = (%q,%d,%v), want (bbbb,7,false)", chunk, total, closed)
@@ -79,7 +79,7 @@ func TestBufferBytesFromDelta(t *testing.T) {
 
 func TestBufferBytesFromOffsetClamping(t *testing.T) {
 	b := New(0)
-	b.Write([]byte("data"))
+	_, _ = b.Write([]byte("data"))
 
 	// Negative offset clamps to 0.
 	chunk, total, _ := b.BytesFrom(-5)
@@ -96,7 +96,7 @@ func TestBufferBytesFromOffsetClamping(t *testing.T) {
 
 func TestBufferBytesFromClosed(t *testing.T) {
 	b := New(0)
-	b.Write([]byte("x"))
+	_, _ = b.Write([]byte("x"))
 	b.Close()
 	_, _, closed := b.BytesFrom(0)
 	if !closed {
@@ -113,7 +113,7 @@ func TestBufferConcurrentReadWrite(t *testing.T) {
 	go func() {
 		defer wg.Done()
 		for i := 0; i < 1000; i++ {
-			b.Write([]byte("line\n"))
+			_, _ = b.Write([]byte("line\n"))
 		}
 		b.Close()
 	}()

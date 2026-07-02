@@ -32,7 +32,7 @@ func ValidateExecArg(name, v string) error {
 func Install(dir, fileName, template, exec string) (string, error) {
 	content := strings.ReplaceAll(template, ExecPlaceholder, exec)
 	path := filepath.Join(dir, fileName)
-	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil { //nolint:gosec // pacman hooks must be world-readable (0644 matches the libalpm hook-dir convention)
 		return "", fmt.Errorf("failed to write pacman hook (root needed for %s?): %w", dir, err)
 	}
 	return path, nil

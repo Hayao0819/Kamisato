@@ -10,7 +10,7 @@ import (
 // InstalledVersion returns the version pacman records for an installed package
 // (pacman -Q <name>).
 func InstalledVersion(name string) (string, error) {
-	out, err := exec.Command("pacman", "-Q", name).Output()
+	out, err := exec.Command("pacman", "-Q", name).Output() //nolint:gosec // fixed program, argv passed as separate args (no shell)
 	if err != nil {
 		return "", fmt.Errorf("pacman -Q %s: %w", name, err)
 	}

@@ -33,7 +33,7 @@ func readMember(t *testing.T, archive []byte, name string) ([]byte, bool) {
 	if err != nil {
 		t.Fatalf("gzip: %v", err)
 	}
-	defer gz.Close()
+	defer func() { _ = gz.Close() }()
 	tr := tar.NewReader(gz)
 	for {
 		hdr, err := tr.Next()

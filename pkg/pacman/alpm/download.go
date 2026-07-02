@@ -42,12 +42,12 @@ func GetCleanPkgBinary(names ...string) ([]string, *CleanPkgBinary, error) {
 	cleanup := &CleanPkgBinary{dir: tmp}
 
 	dbpath := path.Join(tmp, "db")
-	if err := os.MkdirAll(dbpath, 0755); err != nil {
+	if err := os.MkdirAll(dbpath, 0o750); err != nil {
 		_ = cleanup.Close()
 		return nil, nil, fmt.Errorf("failed to create db directory: %w", err)
 	}
 	cachepath := path.Join(tmp, "cache")
-	if err := os.MkdirAll(cachepath, 0755); err != nil {
+	if err := os.MkdirAll(cachepath, 0o750); err != nil {
 		_ = cleanup.Close()
 		return nil, nil, fmt.Errorf("failed to create cache directory: %w", err)
 	}

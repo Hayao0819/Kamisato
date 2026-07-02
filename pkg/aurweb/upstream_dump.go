@@ -44,13 +44,13 @@ func (u *AURUpstream) FetchNames(ctx context.Context) ([]string, error) {
 // gzipStream GETs a .gz URL and returns its decompressed body; closing the
 // result closes the underlying response.
 func (u *AURUpstream) gzipStream(ctx context.Context, rawURL string) (io.ReadCloser, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil) //nolint:gosec // rawURL derives from the operator-configured upstream base
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Set("User-Agent", u.userAgent)
 
-	resp, err := u.dumpClient.Do(req)
+	resp, err := u.dumpClient.Do(req) //nolint:gosec // upstream host is operator-configured; only query params vary
 	if err != nil {
 		return nil, fmt.Errorf("aurweb: upstream dump request: %w", err)
 	}

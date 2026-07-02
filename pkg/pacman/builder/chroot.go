@@ -96,7 +96,7 @@ func runChrootBuild(ctx context.Context, dir, archBuild string, installPkgs []st
 }
 
 func cmdContext(ctx context.Context, dir string, out io.Writer, args ...string) *exec.Cmd {
-	cmd := exec.CommandContext(ctx, args[0], args[1:]...)
+	cmd := exec.CommandContext(ctx, args[0], args[1:]...) //nolint:gosec // args are the internally-assembled builder command, not user input
 	cmd.Dir = dir
 	if out == nil {
 		out = os.Stdout
@@ -125,7 +125,7 @@ func moveToOutDir(built []string, srcDir, outDir string) (*Result, error) {
 	if absOut == absSrc {
 		return &Result{Packages: built}, nil
 	}
-	if err := os.MkdirAll(absOut, 0o755); err != nil {
+	if err := os.MkdirAll(absOut, 0o755); err != nil { //nolint:gosec // build output dir, read by the build user and downstream consumers
 		return nil, wrapErr(err, "failed to create output directory")
 	}
 	packages := make([]string, 0, len(built))

@@ -114,7 +114,7 @@ func diffPackages(src []*pkg.SourcePackage, rr *repo.RemoteRepo) ([]*pkg.SourceP
 func Repo(r *repo.SourceRepo, t *builder.Target, dest string, pkgs ...string) error {
 	fulldstdir := path.Join(dest, t.Arch)
 	var errs []error
-	if err := os.MkdirAll(fulldstdir, 0755); err != nil {
+	if err := os.MkdirAll(fulldstdir, 0755); err != nil { //nolint:gosec // published pacman repo output dir is world-readable by design
 		return err
 	}
 

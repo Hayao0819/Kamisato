@@ -43,7 +43,7 @@ func Cmd() *cobra.Command {
 					gitArgs = append(gitArgs, "--remote")
 				}
 
-				gitcmd := exec.Command("git", gitArgs...)
+				gitcmd := exec.Command("git", gitArgs...) //nolint:gosec // fixed program git, argv passed as separate args (no shell)
 				gitcmd.Stdout = cmd.OutOrStdout()
 				gitcmd.Stderr = cmd.ErrOrStderr()
 

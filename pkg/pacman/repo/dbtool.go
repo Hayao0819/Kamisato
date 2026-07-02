@@ -187,7 +187,7 @@ func writeToolArchive(path string, write func(io.Writer) error) error {
 		return fmt.Errorf("failed to create %s: %w", path, err)
 	}
 	if err := write(f); err != nil {
-		f.Close()
+		_ = f.Close()
 		return err
 	}
 	return f.Close()
@@ -204,7 +204,7 @@ func copyToolFile(src, dst string) error {
 		return fmt.Errorf("failed to create %s: %w", dst, err)
 	}
 	if _, err := io.Copy(out, in); err != nil {
-		out.Close()
+		_ = out.Close()
 		return fmt.Errorf("failed to copy to %s: %w", dst, err)
 	}
 	return out.Close()
