@@ -20,6 +20,9 @@ builds:
       - arm64
     ldflags:
       - -s -w
+      - -X github.com/Hayao0819/Kamisato/internal/version.Version={{.Version}}
+      - -X github.com/Hayao0819/Kamisato/internal/version.Commit={{.Commit}}
+      - -X github.com/Hayao0819/Kamisato/internal/version.Date={{.Date}}
 
   - id: ayato
     main: ./ayato
@@ -33,6 +36,9 @@ builds:
       - arm64
     ldflags:
       - -s -w
+      - -X github.com/Hayao0819/Kamisato/internal/version.Version={{.Version}}
+      - -X github.com/Hayao0819/Kamisato/internal/version.Commit={{.Commit}}
+      - -X github.com/Hayao0819/Kamisato/internal/version.Date={{.Date}}
 
   - id: lumine
     main: ./lumine
@@ -48,6 +54,9 @@ builds:
       - arm64
     ldflags:
       - -s -w
+      - -X github.com/Hayao0819/Kamisato/internal/version.Version={{.Version}}
+      - -X github.com/Hayao0819/Kamisato/internal/version.Commit={{.Commit}}
+      - -X github.com/Hayao0819/Kamisato/internal/version.Date={{.Date}}
 
   - id: thoma
     main: ./thoma
@@ -61,6 +70,9 @@ builds:
       - arm64
     ldflags:
       - -s -w
+      - -X github.com/Hayao0819/Kamisato/internal/version.Version={{.Version}}
+      - -X github.com/Hayao0819/Kamisato/internal/version.Commit={{.Commit}}
+      - -X github.com/Hayao0819/Kamisato/internal/version.Date={{.Date}}
 
 archives:
   - id: default

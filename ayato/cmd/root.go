@@ -18,6 +18,7 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/internal/errwrap"
 	"github.com/Hayao0819/Kamisato/internal/logging"
+	"github.com/Hayao0819/Kamisato/internal/version"
 	"github.com/Hayao0819/Kamisato/internal/weblog"
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/cobra"
@@ -158,6 +159,7 @@ func RootCmd() *cobra.Command {
 	cmd.SilenceErrors = true
 	cmd.SilenceUsage = true
 	cmd.AddCommand(aurCmd())
+	cmd.AddCommand(version.Command())
 
 	return &cmd
 }

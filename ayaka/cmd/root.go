@@ -18,6 +18,7 @@ import (
 	submodulescmd "github.com/Hayao0819/Kamisato/ayaka/cmd/submodules"
 	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/internal/logging"
+	"github.com/Hayao0819/Kamisato/internal/version"
 	"github.com/Hayao0819/nahi/cobrautils"
 	"github.com/spf13/cobra"
 )
@@ -68,6 +69,7 @@ func RootCmd() *cobra.Command {
 		initcmd.Cmd(),
 		submodulescmd.Cmd(),
 		servercmd.Cmd(),
+		version.Command(),
 	)
 	subCmds.Bind(&cmd)
 

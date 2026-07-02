@@ -11,6 +11,7 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/internal/errwrap"
 	"github.com/Hayao0819/Kamisato/internal/logging"
+	"github.com/Hayao0819/Kamisato/internal/version"
 	"github.com/Hayao0819/Kamisato/internal/weblog"
 	"github.com/Hayao0819/Kamisato/lumine/embed"
 	"github.com/gin-gonic/gin"
@@ -131,6 +132,8 @@ func RootCmd() *cobra.Command {
 	cmd.Flags().String("auth-mode", "cookie", "auth delivery mode: cookie (same-origin BFF proxy) or bearer (SPA calls ayato cross-origin with a token)")
 	cmd.Flags().BoolP("debug", "d", false, "Enable debug mode")
 	cmd.Flags().StringP("config", "c", "", "Config file")
+
+	cmd.AddCommand(version.Command())
 
 	return cmd
 }

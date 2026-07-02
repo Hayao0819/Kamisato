@@ -13,6 +13,7 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/internal/errwrap"
 	"github.com/Hayao0819/Kamisato/internal/logging"
+	"github.com/Hayao0819/Kamisato/internal/version"
 	"github.com/Hayao0819/Kamisato/internal/weblog"
 	ayatocmd "github.com/Hayao0819/Kamisato/kayo/cmd/ayato"
 	hookcmd "github.com/Hayao0819/Kamisato/kayo/cmd/hook"
@@ -37,7 +38,7 @@ func RootCmd() *cobra.Command {
 	cmd.Flags().IntP("port", "p", 0, "Listen port (default 10713)")
 	cmd.SilenceErrors = true
 	cmd.SilenceUsage = true
-	cmd.AddCommand(auditCmd(), trustcmd.Cmd(), updateCmd(), verifyCmd(), hookcmd.Cmd(), ayatocmd.Cmd())
+	cmd.AddCommand(auditCmd(), trustcmd.Cmd(), updateCmd(), verifyCmd(), hookcmd.Cmd(), ayatocmd.Cmd(), version.Command())
 	return &cmd
 }
 

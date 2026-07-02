@@ -16,6 +16,7 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/internal/errwrap"
 	"github.com/Hayao0819/Kamisato/internal/logging"
+	"github.com/Hayao0819/Kamisato/internal/version"
 	"github.com/Hayao0819/Kamisato/internal/weblog"
 	"github.com/Hayao0819/Kamisato/miko/handler"
 	"github.com/Hayao0819/Kamisato/miko/router"
@@ -165,6 +166,7 @@ func RootCmd() *cobra.Command {
 
 	cmd.AddCommand(apikeyCmd())
 	cmd.AddCommand(nvcheckCmd())
+	cmd.AddCommand(version.Command())
 
 	return &cmd
 }

@@ -7,10 +7,12 @@
 package cmd
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"syscall"
 
+	"github.com/Hayao0819/Kamisato/internal/version"
 	"github.com/spf13/cobra"
 )
 
@@ -32,6 +34,12 @@ func RootCmd() *cobra.Command {
 }
 
 func run(args []string) error {
+	// DisableFlagParsing rules out a cobra `version` subcommand, so intercept the
+	// bare verb here; makepkg never takes a "version" positional.
+	if len(args) == 1 && args[0] == "version" {
+		fmt.Printf("thoma version %s\n", version.String())
+		return nil
+	}
 	if isRemoteBuild(args) {
 		return remoteBuild(args)
 	}
