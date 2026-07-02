@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	utils "github.com/Hayao0819/Kamisato/internal/utils"
+	"github.com/otiai10/copy"
 )
 
 // chrootBackend builds packages using the devtools clean-chroot flow
@@ -131,12 +132,24 @@ func moveToOutDir(built []string, srcDir, outDir string) (*Result, error) {
 	packages := make([]string, 0, len(built))
 	for _, p := range built {
 		dst := filepath.Join(absOut, filepath.Base(p))
-		if err := utils.MoveFile(p, dst); err != nil {
+		if err := moveFile(p, dst); err != nil {
 			return nil, utils.WrapErr(err, "failed to move package to output directory")
 		}
 		packages = append(packages, dst)
 	}
 	return &Result{Packages: packages}, nil
+}
+
+// moveFile renames src to dst, falling back to a mode-preserving copy+remove
+// when the two live on different filesystems (os.Rename is single-device only).
+func moveFile(src, dst string) error {
+	if err := os.Rename(src, dst); err == nil {
+		return nil
+	}
+	if err := copy.Copy(src, dst); err != nil {
+		return err
+	}
+	return os.Remove(src)
 }
 
 // snapshotPackages returns the set of package file names (*.pkg.tar.*)

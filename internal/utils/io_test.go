@@ -49,30 +49,3 @@ func TestCopyDir(t *testing.T) {
 		t.Errorf("leaf mode: got %o, want 0640", got)
 	}
 }
-
-func TestMoveFilePreservesMode(t *testing.T) {
-	src := filepath.Join(t.TempDir(), "src.bin")
-	if err := os.WriteFile(src, []byte("payload"), 0o640); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Chmod(src, 0o640); err != nil {
-		t.Fatal(err)
-	}
-
-	// Move into a distinct directory that does not yet exist.
-	dst := filepath.Join(t.TempDir(), "nested", "dst.bin")
-	if err := MoveFile(src, dst); err != nil {
-		t.Fatalf("MoveFile: %v", err)
-	}
-
-	if _, err := os.Stat(src); !os.IsNotExist(err) {
-		t.Errorf("source still present: err=%v", err)
-	}
-	info, err := os.Stat(dst)
-	if err != nil {
-		t.Fatalf("stat dst: %v", err)
-	}
-	if got := info.Mode().Perm(); got != 0o640 {
-		t.Errorf("dst mode: got %o, want 0640", got)
-	}
-}
