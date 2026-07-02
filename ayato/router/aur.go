@@ -1,6 +1,7 @@
 package router
 
 import (
+	"net"
 	"net/http"
 	"time"
 
@@ -28,5 +29,12 @@ func SetAUR(e *gin.Engine, m *middleware.Middleware, srv http.Handler, h *aur.Ha
 	sources.POST("", h.RegisterHandler)
 	sources.DELETE("/:pkgbase", h.RemoveHandler)
 
-	e.NoRoute(gin.WrapH(srv))
+	// The aurweb /rpc limiter keys on Request.RemoteAddr; rewrite it to gin's
+	// trusted-proxy-aware ClientIP so the limiter counts the real client (not the
+	// fronting proxy that all requests would otherwise share) while still ignoring
+	// a spoofable X-Forwarded-For when no trusted_proxies are configured.
+	e.NoRoute(func(c *gin.Context) {
+		c.Request.RemoteAddr = net.JoinHostPort(c.ClientIP(), "0")
+		srv.ServeHTTP(c.Writer, c.Request)
+	})
 }
