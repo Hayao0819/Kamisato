@@ -38,6 +38,19 @@ func (c *KayoConfig) AyatoPinStorePath() string {
 	return filepath.Join(filepath.Dir(c.ResolvedTrustStore()), "known_ayato.json")
 }
 
+// ResolvedYayCacheDir is yay's clone-cache root, holding one checked-out PKGBUILD
+// repo per pkgbase. Empty means it could not be resolved, and the clone-cache pin
+// check is skipped.
+func (c *KayoConfig) ResolvedYayCacheDir() string {
+	if c.YayCacheDir != "" {
+		return c.YayCacheDir
+	}
+	if dir, err := os.UserCacheDir(); err == nil {
+		return filepath.Join(dir, "yay")
+	}
+	return ""
+}
+
 func (c *KayoConfig) ResolvedTrustStore() string {
 	if c.TrustStore != "" {
 		return c.TrustStore

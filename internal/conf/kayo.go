@@ -26,6 +26,10 @@ type KayoConfig struct {
 	// TrustStore is the path to the local trust store. Defaults to
 	// $XDG_CONFIG_HOME/kayo/trust.json.
 	TrustStore string `koanf:"trust_store"`
+	// YayCacheDir is yay's clone-cache root (defaults to $XDG_CACHE_HOME/yay). The
+	// build-time pin check reads each pkgbase's checked-out commit from here and
+	// flags a checkout that drifted off the approved commit.
+	YayCacheDir string `koanf:"yay_cache_dir"`
 	// EnforceMode gates resolution by trust: "warn" (default) annotates a
 	// package whose approval is violated (e.g. maintainer changed); "enforce"
 	// omits any package that is not approved, forcing `kayo trust add` first.

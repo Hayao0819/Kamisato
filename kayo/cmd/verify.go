@@ -1,12 +1,14 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"log/slog"
 	"strings"
 
 	"github.com/Hayao0819/Kamisato/internal/errwrap"
+	"github.com/Hayao0819/Kamisato/kayo/clonecache"
 	"github.com/Hayao0819/Kamisato/kayo/cmd/shared"
 	"github.com/Hayao0819/Kamisato/kayo/trust"
 	"github.com/Hayao0819/Kamisato/pkg/aurweb"
@@ -42,6 +44,35 @@ func reportTrust(w io.Writer, store *trust.Store, order []string, found map[stri
 		needsReview = true
 	}
 	return needsReview
+}
+
+// reportCloneDrift verifies each target's local clone-cache checkout against its
+// approved commit and reports whether any drifted off the pin. A target with no
+// pinned approval, or one the helper has not cloned yet, is skipped: the check
+// only guards packages kayo has actually pinned. A git error is logged, not fatal
+// — a build backstop must not fail on an unreadable local repo.
+func reportCloneDrift(ctx context.Context, w io.Writer, store *trust.Store, root string, order []string, found map[string]verifyTarget) (drifted bool) {
+	for _, name := range order {
+		t, ok := found[name]
+		if !ok {
+			continue
+		}
+		base := t.pkg.PackageBase
+		ap, ok := store.Approval(base)
+		if !ok || ap.Commit == "" {
+			continue
+		}
+		res, err := clonecache.Check(ctx, root, base, ap.Commit)
+		if err != nil {
+			slog.Warn("could not read clone cache; skipping pin check", "pkgbase", base, "error", err)
+			continue
+		}
+		if res.Drifted() {
+			fmt.Fprintf(w, "  DRIFT   %s (%s) — clone cache at %s, approved %s\n", name, base, shared.Short(res.Head), shared.Short(ap.Commit))
+			drifted = true
+		}
+	}
+	return drifted
 }
 
 // verifyCmd is the install-time backstop the pacman PreTransaction hook calls.
@@ -118,7 +149,15 @@ func verifyCmd() *cobra.Command {
 				}
 			}
 
-			if reportTrust(cmd.OutOrStdout(), store, names, found) && enforce {
+			out := cmd.OutOrStdout()
+			needsReview := reportTrust(out, store, names, found)
+			// A pinned package whose local clone drifted off the approved commit is
+			// as much a build-time concern as an untrusted maintainer, so it gates
+			// the transaction the same way.
+			if reportCloneDrift(ctx, out, store, cfg.ResolvedYayCacheDir(), names, found) {
+				needsReview = true
+			}
+			if needsReview && enforce {
 				return errwrap.NewErr("untrusted packages in transaction; review with 'kayo update' or 'kayo trust add'")
 			}
 			return nil
