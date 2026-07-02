@@ -24,7 +24,7 @@ func (h *Handler) BlinkyRemoveHandler(ctx *gin.Context) {
 		return
 	}
 	if err := h.s.RemovePkg(repoName, archName, packageName); err != nil {
-		ctx.JSON(http.StatusInternalServerError, domain.APIError{
+		ctx.JSON(errToStatus(err), domain.APIError{
 			Message: "Remove package file err",
 			Reason:  err.Error(),
 		})

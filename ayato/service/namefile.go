@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"path"
 
+	"github.com/Hayao0819/Kamisato/ayato/domain"
 	"github.com/Hayao0819/Kamisato/internal/utils"
 )
 
@@ -39,7 +40,7 @@ func (s *Service) resolvePackage(repo, reqArch, pkgname string) (filename, store
 		}
 		return fn, sa, nil
 	}
-	return "", "", fmt.Errorf("package %q not found in %s", pkgname, repo)
+	return "", "", fmt.Errorf("%w: package %q not found in %s", domain.ErrNotFound, pkgname, repo)
 }
 
 func (s *Service) packageEntryFromDB(repo, arch, pkgname string) (filename, pkgArch string, err error) {
