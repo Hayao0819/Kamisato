@@ -94,17 +94,28 @@ func installSafeHTTPSClient() {
 func cloneGoGit(ctx context.Context, o CloneOptions) error {
 	installSafeHTTPSClient()
 
-	opts := &git.CloneOptions{
-		URL:          o.URL,
-		Depth:        o.Depth,
-		SingleBranch: true,
-		Tags:         git.NoTags,
-	}
-	if o.Ref != "" {
-		opts.ReferenceName = plumbing.NewBranchReferenceName(o.Ref)
-	}
-	if _, err := git.PlainCloneContext(ctx, o.Dir, o.Bare, opts); err != nil {
+	// Clone the default branch (with its tags) at the requested depth, then check
+	// out Ref by resolving it — a branch, tag, or commit — so this matches the
+	// git CLI's `clone --depth N` + `checkout <ref>` semantics rather than
+	// accepting only branch names. An off-history ref has the same shallow-clone
+	// limitation the CLI path had.
+	repo, err := git.PlainCloneContext(ctx, o.Dir, o.Bare, &git.CloneOptions{URL: o.URL, Depth: o.Depth})
+	if err != nil {
 		return utils.WrapErr(err, "git clone: "+o.URL)
+	}
+	if o.Ref == "" || o.Bare {
+		return nil
+	}
+	wt, err := repo.Worktree()
+	if err != nil {
+		return utils.WrapErr(err, "open worktree")
+	}
+	hash, err := repo.ResolveRevision(plumbing.Revision(o.Ref))
+	if err != nil {
+		return utils.WrapErr(err, "resolve ref "+o.Ref)
+	}
+	if err := wt.Checkout(&git.CheckoutOptions{Hash: *hash}); err != nil {
+		return utils.WrapErr(err, "checkout "+o.Ref)
 	}
 	return nil
 }
