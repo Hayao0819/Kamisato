@@ -11,10 +11,10 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/Hayao0819/Kamisato/internal/gitcmd"
 	"github.com/Hayao0819/Kamisato/internal/utils"
+	"github.com/Hayao0819/Kamisato/pkg/aurweb"
 )
 
 const pinnedBranch = "kayo-pinned"
@@ -64,21 +64,11 @@ func NewHandler(root string, fallback http.Handler) *Handler {
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if base := pkgbaseFromGitPath(r.URL.Path); base != "" {
+	if base := aurweb.PkgbaseFromGitPath(r.URL.Path); base != "" {
 		if st, err := os.Stat(filepath.Join(h.root, base+".git")); err == nil && st.IsDir() {
 			h.files.ServeHTTP(w, r)
 			return
 		}
 	}
 	h.fallback.ServeHTTP(w, r)
-}
-
-// pkgbaseFromGitPath returns the pkgbase when the first path segment ends in
-// ".git" (a clone request), else "".
-func pkgbaseFromGitPath(p string) string {
-	seg, _, _ := strings.Cut(strings.TrimPrefix(p, "/"), "/")
-	if seg != ".git" && strings.HasSuffix(seg, ".git") {
-		return strings.TrimSuffix(seg, ".git")
-	}
-	return ""
 }

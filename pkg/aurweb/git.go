@@ -9,7 +9,7 @@ import (
 // the Backend's SourceURL for managed packages, the Upstream's git base
 // otherwise. The host never proxies pack data.
 func (s *Server) GitClone(w http.ResponseWriter, r *http.Request) {
-	base := pkgbaseFromGitPath(r.URL.Path)
+	base := PkgbaseFromGitPath(r.URL.Path)
 	if base == "" {
 		http.NotFound(w, r)
 		return
@@ -71,9 +71,9 @@ func (s *Server) PlainPKGBUILD(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, s.upstream.PlainURL(h), http.StatusFound)
 }
 
-// pkgbaseFromGitPath returns the pkgbase when the first path segment ends in
-// ".git" (a smart-HTTP clone request), or "" otherwise.
-func pkgbaseFromGitPath(p string) string {
+// PkgbaseFromGitPath returns the pkgbase when the first path segment ends in
+// ".git" (a clone request), or "" otherwise.
+func PkgbaseFromGitPath(p string) string {
 	seg, _, _ := strings.Cut(strings.TrimPrefix(p, "/"), "/")
 	if seg != ".git" && strings.HasSuffix(seg, ".git") {
 		return strings.TrimSuffix(seg, ".git")

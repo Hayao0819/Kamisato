@@ -56,7 +56,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		s.serveMetaDump(w, r, false)
 	case p == "/packages.gz":
 		s.serveNamesDump(w, r)
-	case pkgbaseFromGitPath(p) != "":
+	case PkgbaseFromGitPath(p) != "":
 		s.GitClone(w, r)
 	default:
 		http.NotFound(w, r)
