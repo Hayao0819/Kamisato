@@ -37,15 +37,9 @@ type Service struct {
 }
 
 //go:generate mockgen -source=service.go -destination=../test/mocks/service.go -package=mocks
-type Servicer interface {
-	InitAll() error
 
-	GetFileWithMeta(repoName, archName, name string) (stream.File, blob.FileMeta, error)
-	UploadFile(repo string, files *domain.UploadFiles) error
-	UploadFiles(repo string, files []*domain.UploadFiles) error
-	RemovePkg(rname string, arch string, pkgname string) error
-	SignedURL(repo string, arch string, name string) (string, error)
-
+// RepoReader exposes read-only queries over repos, arches, packages, and files.
+type RepoReader interface {
 	RepoNames() ([]string, error)
 	Arches(repo string) ([]string, error)
 	Repo(repo string) (*domain.PacmanRepo, error)
@@ -53,21 +47,49 @@ type Servicer interface {
 	PkgDetail(repo, arch, pkg string) (*raiou.PKGINFO, error)
 	PkgFiles(repo, arch, pkg string) ([]string, error)
 	RepoFileList(repo, arch string) ([]string, error)
+	GetFileWithMeta(repoName, archName, name string) (stream.File, blob.FileMeta, error)
+	SignedURL(repo string, arch string, name string) (string, error)
+}
 
-	// Auth/allowlist use cases. GitHub login->id resolution stays in the handler,
-	// so these take a resolved id.
+// Uploader mutates repo contents by publishing or removing package artifacts.
+type Uploader interface {
+	UploadFile(repo string, files *domain.UploadFiles) error
+	UploadFiles(repo string, files []*domain.UploadFiles) error
+	RemovePkg(rname string, arch string, pkgname string) error
+}
+
+// AdminService manages the admin allowlist. GitHub login->id resolution stays in
+// the handler, so these take a resolved id.
+type AdminService interface {
 	IsAdmin(id int64) bool
 	AddAdmin(id int64, login string) error
 	RemoveAdmin(id int64) error
 	ListAdmins() ([]repository.AllowedAdmin, error)
 	SeedBootstrapAdmin(id int64) error
+}
 
-	// Worker signing keys. RegisterSigner accepts a worker public key certified by
-	// a configured master and persists it; ListSigners returns their fingerprints;
-	// UnregisterSigner revokes one by fingerprint.
+// SignerRegistry manages worker signing keys. RegisterSigner accepts a worker
+// public key certified by a configured master and persists it; ListSigners
+// returns their fingerprints; UnregisterSigner revokes one by fingerprint.
+type SignerRegistry interface {
 	RegisterSigner(armoredPub []byte) (string, error)
 	ListSigners() ([]string, error)
 	UnregisterSigner(fingerprint string) error
+}
+
+// Lifecycle covers one-shot startup wiring that runs before serving.
+type Lifecycle interface {
+	InitAll() error
+}
+
+// Servicer is the composite the handler depends on today; the role interfaces
+// above are the ISP seams that narrower handlers can adopt.
+type Servicer interface {
+	RepoReader
+	Uploader
+	AdminService
+	SignerRegistry
+	Lifecycle
 }
 
 func New(pkgNameRepo repository.NameStore, pkgBinaryRepo repository.BinaryRepository, authRepo repository.AuthRepository, signerRepo repository.SignerRepository, config *conf.AyatoConfig) Servicer {

@@ -20,6 +20,433 @@ import (
 	gomock "go.uber.org/mock/gomock"
 )
 
+// MockRepoReader is a mock of RepoReader interface.
+type MockRepoReader struct {
+	ctrl     *gomock.Controller
+	recorder *MockRepoReaderMockRecorder
+	isgomock struct{}
+}
+
+// MockRepoReaderMockRecorder is the mock recorder for MockRepoReader.
+type MockRepoReaderMockRecorder struct {
+	mock *MockRepoReader
+}
+
+// NewMockRepoReader creates a new mock instance.
+func NewMockRepoReader(ctrl *gomock.Controller) *MockRepoReader {
+	mock := &MockRepoReader{ctrl: ctrl}
+	mock.recorder = &MockRepoReaderMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockRepoReader) EXPECT() *MockRepoReaderMockRecorder {
+	return m.recorder
+}
+
+// Arches mocks base method.
+func (m *MockRepoReader) Arches(repo string) ([]string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Arches", repo)
+	ret0, _ := ret[0].([]string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Arches indicates an expected call of Arches.
+func (mr *MockRepoReaderMockRecorder) Arches(repo any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Arches", reflect.TypeOf((*MockRepoReader)(nil).Arches), repo)
+}
+
+// GetFileWithMeta mocks base method.
+func (m *MockRepoReader) GetFileWithMeta(repoName, archName, name string) (stream.File, blob.FileMeta, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetFileWithMeta", repoName, archName, name)
+	ret0, _ := ret[0].(stream.File)
+	ret1, _ := ret[1].(blob.FileMeta)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// GetFileWithMeta indicates an expected call of GetFileWithMeta.
+func (mr *MockRepoReaderMockRecorder) GetFileWithMeta(repoName, archName, name any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetFileWithMeta", reflect.TypeOf((*MockRepoReader)(nil).GetFileWithMeta), repoName, archName, name)
+}
+
+// PkgDetail mocks base method.
+func (m *MockRepoReader) PkgDetail(repo, arch, pkg string) (*raiou.PKGINFO, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "PkgDetail", repo, arch, pkg)
+	ret0, _ := ret[0].(*raiou.PKGINFO)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// PkgDetail indicates an expected call of PkgDetail.
+func (mr *MockRepoReaderMockRecorder) PkgDetail(repo, arch, pkg any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PkgDetail", reflect.TypeOf((*MockRepoReader)(nil).PkgDetail), repo, arch, pkg)
+}
+
+// PkgFiles mocks base method.
+func (m *MockRepoReader) PkgFiles(repo, arch, pkg string) ([]string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "PkgFiles", repo, arch, pkg)
+	ret0, _ := ret[0].([]string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// PkgFiles indicates an expected call of PkgFiles.
+func (mr *MockRepoReaderMockRecorder) PkgFiles(repo, arch, pkg any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PkgFiles", reflect.TypeOf((*MockRepoReader)(nil).PkgFiles), repo, arch, pkg)
+}
+
+// Pkgs mocks base method.
+func (m *MockRepoReader) Pkgs(repo, arch string) (*domain.PacmanPkgs, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Pkgs", repo, arch)
+	ret0, _ := ret[0].(*domain.PacmanPkgs)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Pkgs indicates an expected call of Pkgs.
+func (mr *MockRepoReaderMockRecorder) Pkgs(repo, arch any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Pkgs", reflect.TypeOf((*MockRepoReader)(nil).Pkgs), repo, arch)
+}
+
+// Repo mocks base method.
+func (m *MockRepoReader) Repo(repo string) (*domain.PacmanRepo, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Repo", repo)
+	ret0, _ := ret[0].(*domain.PacmanRepo)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Repo indicates an expected call of Repo.
+func (mr *MockRepoReaderMockRecorder) Repo(repo any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Repo", reflect.TypeOf((*MockRepoReader)(nil).Repo), repo)
+}
+
+// RepoFileList mocks base method.
+func (m *MockRepoReader) RepoFileList(repo, arch string) ([]string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RepoFileList", repo, arch)
+	ret0, _ := ret[0].([]string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// RepoFileList indicates an expected call of RepoFileList.
+func (mr *MockRepoReaderMockRecorder) RepoFileList(repo, arch any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RepoFileList", reflect.TypeOf((*MockRepoReader)(nil).RepoFileList), repo, arch)
+}
+
+// RepoNames mocks base method.
+func (m *MockRepoReader) RepoNames() ([]string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RepoNames")
+	ret0, _ := ret[0].([]string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// RepoNames indicates an expected call of RepoNames.
+func (mr *MockRepoReaderMockRecorder) RepoNames() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RepoNames", reflect.TypeOf((*MockRepoReader)(nil).RepoNames))
+}
+
+// SignedURL mocks base method.
+func (m *MockRepoReader) SignedURL(repo, arch, name string) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SignedURL", repo, arch, name)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// SignedURL indicates an expected call of SignedURL.
+func (mr *MockRepoReaderMockRecorder) SignedURL(repo, arch, name any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SignedURL", reflect.TypeOf((*MockRepoReader)(nil).SignedURL), repo, arch, name)
+}
+
+// MockUploader is a mock of Uploader interface.
+type MockUploader struct {
+	ctrl     *gomock.Controller
+	recorder *MockUploaderMockRecorder
+	isgomock struct{}
+}
+
+// MockUploaderMockRecorder is the mock recorder for MockUploader.
+type MockUploaderMockRecorder struct {
+	mock *MockUploader
+}
+
+// NewMockUploader creates a new mock instance.
+func NewMockUploader(ctrl *gomock.Controller) *MockUploader {
+	mock := &MockUploader{ctrl: ctrl}
+	mock.recorder = &MockUploaderMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockUploader) EXPECT() *MockUploaderMockRecorder {
+	return m.recorder
+}
+
+// RemovePkg mocks base method.
+func (m *MockUploader) RemovePkg(rname, arch, pkgname string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RemovePkg", rname, arch, pkgname)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// RemovePkg indicates an expected call of RemovePkg.
+func (mr *MockUploaderMockRecorder) RemovePkg(rname, arch, pkgname any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RemovePkg", reflect.TypeOf((*MockUploader)(nil).RemovePkg), rname, arch, pkgname)
+}
+
+// UploadFile mocks base method.
+func (m *MockUploader) UploadFile(repo string, files *domain.UploadFiles) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UploadFile", repo, files)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UploadFile indicates an expected call of UploadFile.
+func (mr *MockUploaderMockRecorder) UploadFile(repo, files any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UploadFile", reflect.TypeOf((*MockUploader)(nil).UploadFile), repo, files)
+}
+
+// UploadFiles mocks base method.
+func (m *MockUploader) UploadFiles(repo string, files []*domain.UploadFiles) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UploadFiles", repo, files)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UploadFiles indicates an expected call of UploadFiles.
+func (mr *MockUploaderMockRecorder) UploadFiles(repo, files any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UploadFiles", reflect.TypeOf((*MockUploader)(nil).UploadFiles), repo, files)
+}
+
+// MockAdminService is a mock of AdminService interface.
+type MockAdminService struct {
+	ctrl     *gomock.Controller
+	recorder *MockAdminServiceMockRecorder
+	isgomock struct{}
+}
+
+// MockAdminServiceMockRecorder is the mock recorder for MockAdminService.
+type MockAdminServiceMockRecorder struct {
+	mock *MockAdminService
+}
+
+// NewMockAdminService creates a new mock instance.
+func NewMockAdminService(ctrl *gomock.Controller) *MockAdminService {
+	mock := &MockAdminService{ctrl: ctrl}
+	mock.recorder = &MockAdminServiceMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockAdminService) EXPECT() *MockAdminServiceMockRecorder {
+	return m.recorder
+}
+
+// AddAdmin mocks base method.
+func (m *MockAdminService) AddAdmin(id int64, login string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AddAdmin", id, login)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// AddAdmin indicates an expected call of AddAdmin.
+func (mr *MockAdminServiceMockRecorder) AddAdmin(id, login any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddAdmin", reflect.TypeOf((*MockAdminService)(nil).AddAdmin), id, login)
+}
+
+// IsAdmin mocks base method.
+func (m *MockAdminService) IsAdmin(id int64) bool {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IsAdmin", id)
+	ret0, _ := ret[0].(bool)
+	return ret0
+}
+
+// IsAdmin indicates an expected call of IsAdmin.
+func (mr *MockAdminServiceMockRecorder) IsAdmin(id any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsAdmin", reflect.TypeOf((*MockAdminService)(nil).IsAdmin), id)
+}
+
+// ListAdmins mocks base method.
+func (m *MockAdminService) ListAdmins() ([]repository.AllowedAdmin, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListAdmins")
+	ret0, _ := ret[0].([]repository.AllowedAdmin)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListAdmins indicates an expected call of ListAdmins.
+func (mr *MockAdminServiceMockRecorder) ListAdmins() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListAdmins", reflect.TypeOf((*MockAdminService)(nil).ListAdmins))
+}
+
+// RemoveAdmin mocks base method.
+func (m *MockAdminService) RemoveAdmin(id int64) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RemoveAdmin", id)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// RemoveAdmin indicates an expected call of RemoveAdmin.
+func (mr *MockAdminServiceMockRecorder) RemoveAdmin(id any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RemoveAdmin", reflect.TypeOf((*MockAdminService)(nil).RemoveAdmin), id)
+}
+
+// SeedBootstrapAdmin mocks base method.
+func (m *MockAdminService) SeedBootstrapAdmin(id int64) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SeedBootstrapAdmin", id)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SeedBootstrapAdmin indicates an expected call of SeedBootstrapAdmin.
+func (mr *MockAdminServiceMockRecorder) SeedBootstrapAdmin(id any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SeedBootstrapAdmin", reflect.TypeOf((*MockAdminService)(nil).SeedBootstrapAdmin), id)
+}
+
+// MockSignerRegistry is a mock of SignerRegistry interface.
+type MockSignerRegistry struct {
+	ctrl     *gomock.Controller
+	recorder *MockSignerRegistryMockRecorder
+	isgomock struct{}
+}
+
+// MockSignerRegistryMockRecorder is the mock recorder for MockSignerRegistry.
+type MockSignerRegistryMockRecorder struct {
+	mock *MockSignerRegistry
+}
+
+// NewMockSignerRegistry creates a new mock instance.
+func NewMockSignerRegistry(ctrl *gomock.Controller) *MockSignerRegistry {
+	mock := &MockSignerRegistry{ctrl: ctrl}
+	mock.recorder = &MockSignerRegistryMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockSignerRegistry) EXPECT() *MockSignerRegistryMockRecorder {
+	return m.recorder
+}
+
+// ListSigners mocks base method.
+func (m *MockSignerRegistry) ListSigners() ([]string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListSigners")
+	ret0, _ := ret[0].([]string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListSigners indicates an expected call of ListSigners.
+func (mr *MockSignerRegistryMockRecorder) ListSigners() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListSigners", reflect.TypeOf((*MockSignerRegistry)(nil).ListSigners))
+}
+
+// RegisterSigner mocks base method.
+func (m *MockSignerRegistry) RegisterSigner(armoredPub []byte) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RegisterSigner", armoredPub)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// RegisterSigner indicates an expected call of RegisterSigner.
+func (mr *MockSignerRegistryMockRecorder) RegisterSigner(armoredPub any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegisterSigner", reflect.TypeOf((*MockSignerRegistry)(nil).RegisterSigner), armoredPub)
+}
+
+// UnregisterSigner mocks base method.
+func (m *MockSignerRegistry) UnregisterSigner(fingerprint string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UnregisterSigner", fingerprint)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UnregisterSigner indicates an expected call of UnregisterSigner.
+func (mr *MockSignerRegistryMockRecorder) UnregisterSigner(fingerprint any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UnregisterSigner", reflect.TypeOf((*MockSignerRegistry)(nil).UnregisterSigner), fingerprint)
+}
+
+// MockLifecycle is a mock of Lifecycle interface.
+type MockLifecycle struct {
+	ctrl     *gomock.Controller
+	recorder *MockLifecycleMockRecorder
+	isgomock struct{}
+}
+
+// MockLifecycleMockRecorder is the mock recorder for MockLifecycle.
+type MockLifecycleMockRecorder struct {
+	mock *MockLifecycle
+}
+
+// NewMockLifecycle creates a new mock instance.
+func NewMockLifecycle(ctrl *gomock.Controller) *MockLifecycle {
+	mock := &MockLifecycle{ctrl: ctrl}
+	mock.recorder = &MockLifecycleMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockLifecycle) EXPECT() *MockLifecycleMockRecorder {
+	return m.recorder
+}
+
+// InitAll mocks base method.
+func (m *MockLifecycle) InitAll() error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "InitAll")
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// InitAll indicates an expected call of InitAll.
+func (mr *MockLifecycleMockRecorder) InitAll() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "InitAll", reflect.TypeOf((*MockLifecycle)(nil).InitAll))
+}
+
 // MockServicer is a mock of Servicer interface.
 type MockServicer struct {
 	ctrl     *gomock.Controller
