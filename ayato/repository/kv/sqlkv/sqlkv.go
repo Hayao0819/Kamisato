@@ -1,6 +1,6 @@
 //go:build !js
 
-// The sqlite driver needs cgo, which js/wasm cannot use.
+// The pure-Go sqlite driver (modernc.org/sqlite) has no js/wasm port.
 
 // Package sqlkv implements kv.Store on top of a SQL database via GORM. It stores
 // every entry in one generic table keyed by (namespace, key); expiry is enforced
@@ -16,10 +16,10 @@ import (
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
 	"github.com/Hayao0819/Kamisato/internal/errwrap"
 	"github.com/Hayao0819/Kamisato/internal/weblog"
+	"github.com/glebarez/sqlite"
 	_ "github.com/lib/pq"
 	"gorm.io/driver/mysql"
 	"gorm.io/driver/postgres"
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )

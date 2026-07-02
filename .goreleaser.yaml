@@ -4,10 +4,15 @@ project_name: ayaka-project
 
 dist: dist
 
+# Build contract: every binary is pure Go (the sqlite KV backend uses the
+# cgo-free glebarez/modernc driver), so CGO_ENABLED=0 is pinned to keep the
+# linux amd64+arm64 cross-compile self-contained — no cross C toolchain needed.
 builds:
   - id: ayaka
     main: ./ayaka
     binary: ayaka
+    env:
+      - CGO_ENABLED=0
     goos:
       - linux
     goarch:
@@ -19,6 +24,8 @@ builds:
   - id: ayato
     main: ./ayato
     binary: ayato
+    env:
+      - CGO_ENABLED=0
     goos:
       - linux
     goarch:
@@ -30,6 +37,8 @@ builds:
   - id: lumine
     main: ./lumine
     binary: lumine
+    env:
+      - CGO_ENABLED=0
     goos:
       - linux
       - darwin
@@ -43,6 +52,8 @@ builds:
   - id: thoma
     main: ./thoma
     binary: thoma
+    env:
+      - CGO_ENABLED=0
     goos:
       - linux
     goarch:
