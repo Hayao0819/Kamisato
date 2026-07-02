@@ -31,7 +31,7 @@ type Registry struct {
 	overlays []conf.OverlayConfig
 
 	mu    sync.RWMutex
-	index map[string]aurweb.Pkg // pkgname -> record
+	index map[string]aurweb.Pkg // keyed by pkgname
 	prio  map[string]int        // pkgname -> winning overlay priority
 	bases map[string]string     // pkgbase -> git clone URL (redirect target)
 	names []string              // sorted pkgnames, for suggest
