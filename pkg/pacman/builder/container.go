@@ -12,7 +12,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Hayao0819/Kamisato/internal/utils"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/mount"
@@ -76,13 +75,13 @@ func (b *containerBackend) Build(ctx context.Context, spec Spec) (*Result, error
 
 	platform, err := archToPlatform(spec.Arch)
 	if err != nil {
-		return nil, utils.WrapErr(err, "failed to resolve platform")
+		return nil, wrapErr(err, "failed to resolve platform")
 	}
 	platformStr := platformString(platform)
 
 	absSrc, err := filepath.Abs(spec.SrcDir)
 	if err != nil {
-		return nil, utils.WrapErr(err, "failed to resolve src dir")
+		return nil, wrapErr(err, "failed to resolve src dir")
 	}
 	outDir := spec.OutDir
 	if outDir == "" {
@@ -90,10 +89,10 @@ func (b *containerBackend) Build(ctx context.Context, spec Spec) (*Result, error
 	}
 	absOut, err := filepath.Abs(outDir)
 	if err != nil {
-		return nil, utils.WrapErr(err, "failed to resolve out dir")
+		return nil, wrapErr(err, "failed to resolve out dir")
 	}
 	if err := os.MkdirAll(absOut, 0o755); err != nil {
-		return nil, utils.WrapErr(err, "failed to create out dir")
+		return nil, wrapErr(err, "failed to create out dir")
 	}
 
 	// Record pre-existing packages so a build into a non-empty OutDir (including
@@ -108,17 +107,17 @@ func (b *containerBackend) Build(ctx context.Context, spec Spec) (*Result, error
 
 	cli, err := newDockerClient(b.host)
 	if err != nil {
-		return nil, utils.WrapErr(err, "failed to create docker client")
+		return nil, wrapErr(err, "failed to create docker client")
 	}
 	defer cli.Close()
 
 	slog.Info("pulling container image", "image", b.image, "platform", platformStr)
 	reader, err := cli.ImagePull(ctx, b.image, image.PullOptions{Platform: platformStr})
 	if err != nil {
-		return nil, utils.WrapErr(err, "failed to pull image")
+		return nil, wrapErr(err, "failed to pull image")
 	}
 	if err := drainPullStream(reader); err != nil {
-		return nil, utils.WrapErr(err, "failed to pull image")
+		return nil, wrapErr(err, "failed to pull image")
 	}
 
 	// Mount each install package at a unique path; shell-quote the install
@@ -128,7 +127,7 @@ func (b *containerBackend) Build(ctx context.Context, spec Spec) (*Result, error
 	for i, pkg := range spec.InstallPkgs {
 		absPkg, err := filepath.Abs(pkg)
 		if err != nil {
-			return nil, utils.WrapErr(err, "failed to resolve install package path")
+			return nil, wrapErr(err, "failed to resolve install package path")
 		}
 		target := fmt.Sprintf("/build/install/%d/%s", i, filepath.Base(pkg))
 		installMounts = append(installMounts, mount.Mount{
@@ -197,7 +196,7 @@ func (b *containerBackend) Build(ctx context.Context, spec Spec) (*Result, error
 
 	resp, err := cli.ContainerCreate(ctx, containerConfig, hostConfig, nil, platform, "")
 	if err != nil {
-		return nil, utils.WrapErr(err, "failed to create container")
+		return nil, wrapErr(err, "failed to create container")
 	}
 	containerID := resp.ID
 	defer func() {
@@ -210,7 +209,7 @@ func (b *containerBackend) Build(ctx context.Context, spec Spec) (*Result, error
 	}()
 
 	if err := cli.ContainerStart(ctx, containerID, container.StartOptions{}); err != nil {
-		return nil, utils.WrapErr(err, "failed to start container")
+		return nil, wrapErr(err, "failed to start container")
 	}
 
 	// Stream container output live: stdcopy demuxes the multiplexed log stream
@@ -257,7 +256,7 @@ func (b *containerBackend) Build(ctx context.Context, spec Spec) (*Result, error
 
 	pkgs, err := collectNewPackages(absOut, baseline)
 	if err != nil {
-		return nil, utils.WrapErr(err, "failed to collect built packages")
+		return nil, wrapErr(err, "failed to collect built packages")
 	}
 	slog.Info("container build completed", "packages", len(pkgs))
 	return &Result{Packages: pkgs}, nil
@@ -268,16 +267,16 @@ func (b *containerBackend) Build(ctx context.Context, spec Spec) (*Result, error
 func stageOverrideConf() (string, func(), error) {
 	f, err := os.CreateTemp("", "makepkg-override-*.conf")
 	if err != nil {
-		return "", nil, utils.WrapErr(err, "failed to stage makepkg override")
+		return "", nil, wrapErr(err, "failed to stage makepkg override")
 	}
 	if _, err := f.WriteString(makepkgOverrideConf); err != nil {
 		_ = f.Close()
 		_ = os.Remove(f.Name())
-		return "", nil, utils.WrapErr(err, "failed to write makepkg override")
+		return "", nil, wrapErr(err, "failed to write makepkg override")
 	}
 	if err := f.Close(); err != nil {
 		_ = os.Remove(f.Name())
-		return "", nil, utils.WrapErr(err, "failed to write makepkg override")
+		return "", nil, wrapErr(err, "failed to write makepkg override")
 	}
 	return f.Name(), func() { _ = os.Remove(f.Name()) }, nil
 }
@@ -291,10 +290,10 @@ func (b *containerBackend) cacheMounts() ([]mount.Mount, error) {
 		}
 		abs, err := filepath.Abs(hostDir)
 		if err != nil {
-			return utils.WrapErr(err, "failed to resolve cache dir")
+			return wrapErr(err, "failed to resolve cache dir")
 		}
 		if err := os.MkdirAll(abs, 0o755); err != nil {
-			return utils.WrapErr(err, "failed to create cache dir")
+			return wrapErr(err, "failed to create cache dir")
 		}
 		mounts = append(mounts, mount.Mount{
 			Type:   mount.TypeBind,

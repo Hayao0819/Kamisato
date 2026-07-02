@@ -12,8 +12,6 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
-
-	utils "github.com/Hayao0819/Kamisato/internal/utils"
 )
 
 // bwrapDepsScript is the phase-1 (root-in-userns) entrypoint: it installs the
@@ -80,7 +78,7 @@ func (b *bwrapBackend) Build(ctx context.Context, spec Spec) (*Result, error) {
 
 	srcAbs, err := filepath.Abs(spec.SrcDir)
 	if err != nil {
-		return nil, utils.WrapErr(err, "failed to resolve src dir")
+		return nil, wrapErr(err, "failed to resolve src dir")
 	}
 
 	// Overlay scratch (upper + per-phase work dirs) must live on a real fs that
@@ -88,7 +86,7 @@ func (b *bwrapBackend) Build(ctx context.Context, spec Spec) (*Result, error) {
 	// a possibly-tmpfs TMPDIR.
 	scratch, err := os.MkdirTemp(filepath.Dir(b.rootfs), "bwrap-build-")
 	if err != nil {
-		return nil, utils.WrapErr(err, "failed to create overlay scratch dir")
+		return nil, wrapErr(err, "failed to create overlay scratch dir")
 	}
 	defer func() { _ = os.RemoveAll(scratch) }()
 	upper := filepath.Join(scratch, "upper")
@@ -96,7 +94,7 @@ func (b *bwrapBackend) Build(ctx context.Context, spec Spec) (*Result, error) {
 	work2 := filepath.Join(scratch, "work2")
 	for _, d := range []string{upper, work1, work2} {
 		if err := os.Mkdir(d, 0o755); err != nil {
-			return nil, utils.WrapErr(err, "failed to create overlay dir")
+			return nil, wrapErr(err, "failed to create overlay dir")
 		}
 	}
 
@@ -116,14 +114,14 @@ func (b *bwrapBackend) Build(ctx context.Context, spec Spec) (*Result, error) {
 	slog.Info("bwrap phase 1: installing dependencies", "dir", srcAbs, "rootfs", b.rootfs)
 	p1 := bwrapArgs(b.rootfs, upper, work1, srcAbs, "0", depsScript, installBinds)
 	if err := runBwrap(ctx, p1, out); err != nil {
-		return nil, utils.WrapErr(err, "bwrap dependency phase failed (ensure unprivileged user namespaces and bwrap >= 0.11 with overlay support)")
+		return nil, wrapErr(err, "bwrap dependency phase failed (ensure unprivileged user namespaces and bwrap >= 0.11 with overlay support)")
 	}
 
 	// Phase 2: build as the unprivileged user over the same overlay (deps present).
 	slog.Info("bwrap phase 2: building package", "dir", srcAbs, "arch", spec.Arch)
 	p2 := bwrapArgs(b.rootfs, upper, work2, srcAbs, bwrapBuildUID, bwrapBuildScript, nil)
 	if err := runBwrap(ctx, p2, out); err != nil {
-		return nil, utils.WrapErr(err, "bwrap build phase failed")
+		return nil, wrapErr(err, "bwrap build phase failed")
 	}
 
 	built, err := collectNewPackages(srcAbs, baseline)

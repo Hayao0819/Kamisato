@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	utils "github.com/Hayao0819/Kamisato/internal/utils"
 	"github.com/otiai10/copy"
 )
 
@@ -62,7 +61,7 @@ func (b *chrootBackend) Build(ctx context.Context, spec Spec) (*Result, error) {
 
 	slog.Info("building package in clean chroot", "dir", spec.SrcDir, "archbuild", spec.ArchBuild, "arch", spec.Arch)
 	if err := runChrootBuild(ctx, spec.SrcDir, spec.ArchBuild, spec.InstallPkgs, out); err != nil {
-		return nil, utils.WrapErr(err, "failed to build package in chroot")
+		return nil, wrapErr(err, "failed to build package in chroot")
 	}
 
 	built, err := collectNewPackages(spec.SrcDir, baseline)
@@ -117,23 +116,23 @@ func moveToOutDir(built []string, srcDir, outDir string) (*Result, error) {
 	}
 	absSrc, err := filepath.Abs(srcDir)
 	if err != nil {
-		return nil, utils.WrapErr(err, "failed to resolve src dir")
+		return nil, wrapErr(err, "failed to resolve src dir")
 	}
 	absOut, err := filepath.Abs(outDir)
 	if err != nil {
-		return nil, utils.WrapErr(err, "failed to resolve out dir")
+		return nil, wrapErr(err, "failed to resolve out dir")
 	}
 	if absOut == absSrc {
 		return &Result{Packages: built}, nil
 	}
 	if err := os.MkdirAll(absOut, 0o755); err != nil {
-		return nil, utils.WrapErr(err, "failed to create output directory")
+		return nil, wrapErr(err, "failed to create output directory")
 	}
 	packages := make([]string, 0, len(built))
 	for _, p := range built {
 		dst := filepath.Join(absOut, filepath.Base(p))
 		if err := moveFile(p, dst); err != nil {
-			return nil, utils.WrapErr(err, "failed to move package to output directory")
+			return nil, wrapErr(err, "failed to move package to output directory")
 		}
 		packages = append(packages, dst)
 	}
@@ -161,7 +160,7 @@ func snapshotPackages(dir string) (map[string]struct{}, error) {
 		if os.IsNotExist(err) {
 			return set, nil
 		}
-		return nil, utils.WrapErr(err, "failed to snapshot package dir")
+		return nil, wrapErr(err, "failed to snapshot package dir")
 	}
 	for _, entry := range entries {
 		if entry.IsDir() || !isPackageFile(entry.Name()) {
@@ -178,7 +177,7 @@ func snapshotPackages(dir string) (map[string]struct{}, error) {
 func collectNewPackages(dir string, baseline map[string]struct{}) ([]string, error) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
-		return nil, utils.WrapErr(err, "failed to read package dir")
+		return nil, wrapErr(err, "failed to read package dir")
 	}
 	var pkgs []string
 	for _, entry := range entries {
@@ -190,7 +189,7 @@ func collectNewPackages(dir string, baseline map[string]struct{}) ([]string, err
 		}
 		abs, err := filepath.Abs(filepath.Join(dir, entry.Name()))
 		if err != nil {
-			return nil, utils.WrapErr(err, "failed to resolve package path")
+			return nil, wrapErr(err, "failed to resolve package path")
 		}
 		pkgs = append(pkgs, abs)
 	}
