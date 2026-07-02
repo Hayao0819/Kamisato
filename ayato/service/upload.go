@@ -39,14 +39,14 @@ func (s *Service) prepareUpload(repo string, files *domain.UploadFiles, kr *gpg.
 	pkgFileStream := files.PkgFile
 	p, err := pkg.ReadBinaryPackage(pkgFileStream.FileName(), pkgFileStream)
 	if err != nil {
-		return preparedUpload{}, utils.WrapErr(err, "failed to read package from binary")
+		return preparedUpload{}, fmt.Errorf("%w: failed to read package from binary: %w", domain.ErrInvalidUpload, err)
 	}
 	pi := p.PKGINFO()
 	slog.Info("get pkg from bin", "pkgname", pi.PkgName, "pkgver", pi.PkgVer)
 
 	hasSig := files.SigFile != nil
 	if s.cfg != nil && s.cfg.RequireSign && !hasSig {
-		return preparedUpload{}, fmt.Errorf("package signature is required but none was provided")
+		return preparedUpload{}, fmt.Errorf("%w: package signature is required but none was provided", domain.ErrInvalidUpload)
 	}
 	if hasSig {
 		if kr == nil {
@@ -62,7 +62,7 @@ func (s *Service) prepareUpload(repo string, files *domain.UploadFiles, kr *gpg.
 		}
 		fpr, verr := kr.VerifyDetached(pkgFileStream, files.SigFile)
 		if verr != nil {
-			return preparedUpload{}, fmt.Errorf("package signature verification failed: %s", verr.Error())
+			return preparedUpload{}, fmt.Errorf("%w: package signature verification failed: %s", domain.ErrInvalidUpload, verr.Error())
 		}
 		slog.Info("package signature verified", "pkgname", pi.PkgName, "fingerprint", fpr)
 	}
@@ -71,7 +71,7 @@ func (s *Service) prepareUpload(repo string, files *domain.UploadFiles, kr *gpg.
 	// a single safe path component so it cannot escape the repo dir as a storage
 	// subdirectory.
 	if pi.Arch == "" || strings.ContainsRune(pi.Arch, '/') || strings.Contains(pi.Arch, "..") {
-		return preparedUpload{}, fmt.Errorf("invalid package arch %q", pi.Arch)
+		return preparedUpload{}, fmt.Errorf("%w: invalid package arch %q", domain.ErrInvalidUpload, pi.Arch)
 	}
 	dbArches, err := s.targetArches(repo, pi.Arch)
 	if err != nil {

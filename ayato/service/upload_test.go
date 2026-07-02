@@ -117,8 +117,12 @@ func TestUploadFile_RequireSignNoSig(t *testing.T) {
 
 	svc := service.New(name, bin, nil, nil, baseConfig(true, keyring))
 	files := &domain.UploadFiles{PkgFile: pkgStream(uploadName, buildPkgArchive(t))}
-	if err := svc.UploadFile("myrepo", files); err == nil {
+	err := svc.UploadFile("myrepo", files)
+	if err == nil {
 		t.Fatal("expected error when RequireSign and no signature, got nil")
+	}
+	if !errors.Is(err, domain.ErrInvalidUpload) {
+		t.Fatalf("missing signature must be a client error (ErrInvalidUpload), got %v", err)
 	}
 }
 
@@ -145,8 +149,12 @@ func TestUploadFile_BadSigRejected(t *testing.T) {
 				PkgFile: pkgStream(uploadName, payload),
 				SigFile: pkgStream(uploadName+".sig", badSig),
 			}
-			if err := svc.UploadFile("myrepo", files); err == nil {
+			err := svc.UploadFile("myrepo", files)
+			if err == nil {
 				t.Fatal("expected error for untrusted signature, got nil")
+			}
+			if !errors.Is(err, domain.ErrInvalidUpload) {
+				t.Fatalf("untrusted signature must be a client error (ErrInvalidUpload), got %v", err)
 			}
 		})
 	}

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -12,6 +13,15 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/samber/lo"
 )
+
+// uploadErrStatus maps an upload error to its HTTP status: a client-side rejection
+// (domain.ErrInvalidUpload) is 400, anything else is a 500 server fault.
+func uploadErrStatus(err error) int {
+	if errors.Is(err, domain.ErrInvalidUpload) {
+		return http.StatusBadRequest
+	}
+	return http.StatusInternalServerError
+}
 
 // defaultMaxUploadBytes caps an upload body when cfg.MaxSize is unset, so a
 // single authenticated request cannot spool an unbounded body into memory or the
@@ -112,7 +122,7 @@ func (h *Handler) BlinkyUploadHandler(ctx *gin.Context) {
 		files.SigFile = sigStream
 	}
 	if err := h.s.UploadFile(repoName, &files); err != nil {
-		ctx.JSON(http.StatusInternalServerError, domain.APIError{Message: fmt.Sprintf("upload file err: %s", err.Error())})
+		ctx.JSON(uploadErrStatus(err), domain.APIError{Message: fmt.Sprintf("upload file err: %s", err.Error())})
 		return
 	}
 	ctx.String(http.StatusOK, fmt.Sprintf("'%s' uploaded!", pkgHeader.Filename))
@@ -184,7 +194,7 @@ func (h *Handler) BatchUploadHandler(ctx *gin.Context) {
 	}
 
 	if err := h.s.UploadFiles(repoName, files); err != nil {
-		ctx.JSON(http.StatusInternalServerError, domain.APIError{Message: fmt.Sprintf("upload err: %s", err.Error())})
+		ctx.JSON(uploadErrStatus(err), domain.APIError{Message: fmt.Sprintf("upload err: %s", err.Error())})
 		return
 	}
 	ctx.String(http.StatusOK, fmt.Sprintf("%d package(s) uploaded!", len(files)))
