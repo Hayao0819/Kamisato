@@ -4,11 +4,49 @@ run:
   timeout: 5m
 
 linters:
-  disable:
+  enable:
     - errcheck
+    - gosec
   settings:
     staticcheck:
       checks:
         - -QF1001
-
-
+    errcheck:
+      exclude-functions:
+        - (io.Closer).Close
+        - (io.ReadCloser).Close
+        - (*os.File).Close
+        - fmt.Fprint
+        - fmt.Fprintf
+        - fmt.Fprintln
+        - os.RemoveAll
+        - (*github.com/Hayao0819/Kamisato/ayato/stream.FileStream).Close
+        - (*github.com/docker/docker/client.Client).Close
+    gosec:
+      excludes:
+        - G104
+        - G107
+        - G112
+        - G117
+        - G120
+        - G122
+        - G204
+        - G301
+        - G302
+        - G304
+        - G306
+        - G401
+        - G404
+        - G501
+        - G505
+        - G507
+        - G702
+        - G703
+        - G704
+        - G706
+  exclusions:
+    rules:
+      - path: _test\.go
+        linters:
+          - errcheck
+          - gosec
