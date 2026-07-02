@@ -44,8 +44,9 @@ type Service struct {
 	cfg      *conf.MikoConfig
 	signer   sign.Signer // host signing key; nil disables signing
 	queue    *queue
-	persist  Persister // durable job store; nil disables persistence
-	uploader Uploader  // publishes built packages to ayato
+	persist  Persister   // durable job store; nil disables persistence
+	uploader Uploader    // publishes built packages to ayato
+	sonames  sonameStore // per-pkgbase soname history; nil disables bump detection
 
 	startedAt time.Time
 
@@ -86,6 +87,15 @@ func New(cfg *conf.MikoConfig, signer sign.Signer, persister Persister, uploader
 	}
 	if persister != nil {
 		s.restore()
+	}
+	// Soname history is small per-pkgbase state; persist it under the data dir so
+	// a bump is detected across restarts. Disabled (nil) without a data dir.
+	if cfg.DataDir != "" {
+		if st, err := newFileSonameStore(cfg.DataDir); err != nil {
+			slog.Warn("soname history disabled", "error", err)
+		} else {
+			s.sonames = st
+		}
 	}
 	return s
 }

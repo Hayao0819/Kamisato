@@ -92,6 +92,13 @@ func (s *Service) process(ctx context.Context, job *domain.BuildJob) {
 		slog.Info("Build job succeeded", "id", job.ID, "packages", len(res.Packages))
 	}
 
+	// Best-effort soname-bump detection after a host-signed build was published.
+	// Client-signed jobs are not uploaded here, so their reverse deps would
+	// rebuild against packages absent from the repo; skip them.
+	if err == nil && res != nil && !cancelled && job.Request.SignMode != domain.SignClient {
+		s.maybeRebuildOnSonameBump(jobCtx, job, res.Packages)
+	}
+
 	s.sweepArtifacts(artifactRetention)
 }
 
