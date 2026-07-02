@@ -65,22 +65,15 @@ func SetRoute(e *gin.Engine, h *handler.Handler, m *middleware.Middleware) error
 		}
 
 		if mikoProxy != nil {
-			// Static /jobs coexists with the /:repo param route (ayato already uses
-			// both /repos and /:repo).
-			api.GET("/jobs", mikoProxy.Handler("/api/unstable/jobs"))
-			api.GET("/jobs/:id", mikoProxy.HandlerFunc(func(c *gin.Context) string {
-				return "/api/unstable/jobs/" + c.Param("id")
-			}))
+			// Live build-log streaming stays public: the browser reads it over
+			// EventSource, which cannot attach a Bearer token, so gating it would
+			// break bearer-mode streaming. The job metadata/artifacts/stats reads
+			// are gated below because build logs can echo credentials from a
+			// user-supplied git URL; closing this /logs gap needs a query-param
+			// one-time token for SSE (follow-up).
 			api.GET("/jobs/:id/logs", mikoProxy.HandlerFunc(func(c *gin.Context) string {
 				return "/api/unstable/jobs/" + c.Param("id") + "/logs"
 			}))
-			api.GET("/jobs/:id/artifacts", mikoProxy.HandlerFunc(func(c *gin.Context) string {
-				return "/api/unstable/jobs/" + c.Param("id") + "/artifacts"
-			}))
-			api.GET("/jobs/:id/artifacts/:name", mikoProxy.HandlerFunc(func(c *gin.Context) string {
-				return "/api/unstable/jobs/" + c.Param("id") + "/artifacts/" + c.Param("name")
-			}))
-			api.GET("/stats", mikoProxy.Handler("/api/unstable/stats"))
 		}
 
 		// Upload accepts an admin user (Basic password = CLI token) or a CI
@@ -98,10 +91,25 @@ func SetRoute(e *gin.Engine, h *handler.Handler, m *middleware.Middleware) error
 			blinky.DELETE("/:repo/:arch/package/:name", h.BlinkyRemoveHandler) // explicit architecture
 		}
 
-		// miko proxy mutations require a session or Bearer CLI token (no Basic).
+		// miko proxy reads and mutations require a session or Bearer CLI token (no
+		// Basic). Job metadata, artifacts, and stats are admin-only, matching the
+		// build mutation; only /jobs/:id/logs stays public (see above).
 		if mikoProxy != nil {
 			authed := api.Group("")
 			authed.Use(m.RateLimit(rate.Every(time.Second/10), 30), m.RequireAdmin(false))
+			// Static /jobs coexists with the /:repo param route (ayato already uses
+			// both /repos and /:repo).
+			authed.GET("/jobs", mikoProxy.Handler("/api/unstable/jobs"))
+			authed.GET("/jobs/:id", mikoProxy.HandlerFunc(func(c *gin.Context) string {
+				return "/api/unstable/jobs/" + c.Param("id")
+			}))
+			authed.GET("/jobs/:id/artifacts", mikoProxy.HandlerFunc(func(c *gin.Context) string {
+				return "/api/unstable/jobs/" + c.Param("id") + "/artifacts"
+			}))
+			authed.GET("/jobs/:id/artifacts/:name", mikoProxy.HandlerFunc(func(c *gin.Context) string {
+				return "/api/unstable/jobs/" + c.Param("id") + "/artifacts/" + c.Param("name")
+			}))
+			authed.GET("/stats", mikoProxy.Handler("/api/unstable/stats"))
 			authed.POST("/build", mikoProxy.Handler("/api/unstable/build"))
 			authed.DELETE("/jobs/:id", mikoProxy.HandlerFunc(func(c *gin.Context) string {
 				return "/api/unstable/jobs/" + c.Param("id")
