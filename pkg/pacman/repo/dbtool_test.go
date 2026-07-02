@@ -7,6 +7,7 @@ import (
 	"crypto"
 	"errors"
 	"io"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -101,8 +102,10 @@ func readMemberSuffix(t *testing.T, archivePath, suffix string) ([]byte, bool) {
 	return nil, false
 }
 
-func pkginfoFull(name, base, ver string, size int) string {
-	return strings.Join([]string{
+// pkginfoBuild renders a .PKGINFO with the common baseline fields, an explicit
+// arch, and any extra "key = value" lines inserted before the pkgtype xdata.
+func pkginfoBuild(name, base, ver, arch string, size int, extra ...string) string {
+	lines := []string{
 		"pkgname = " + name,
 		"pkgbase = " + base,
 		"pkgver = " + ver,
@@ -111,7 +114,7 @@ func pkginfoFull(name, base, ver string, size int) string {
 		"builddate = 1700000000",
 		"packager = Dev <dev@example.com>",
 		"size = " + strconv.Itoa(size),
-		"arch = x86_64",
+		"arch = " + arch,
 		"license = MIT",
 		"license = GPL2",
 		"depend = glibc",
@@ -119,9 +122,14 @@ func pkginfoFull(name, base, ver string, size int) string {
 		"optdepend = bash: scripts",
 		"provides = libsample",
 		"conflict = oldsample",
-		"xdata = pkgtype=pkg",
-		"",
-	}, "\n")
+	}
+	lines = append(lines, extra...)
+	lines = append(lines, "xdata = pkgtype=pkg", "")
+	return strings.Join(lines, "\n")
+}
+
+func pkginfoFull(name, base, ver string, size int) string {
+	return pkginfoBuild(name, base, ver, "x86_64", size)
 }
 
 func pkginfoSample(name, base, ver string) string {
@@ -362,58 +370,247 @@ func TestNativeRepoRemoveMissing(t *testing.T) {
 	}
 }
 
-// TestNativeMatchesRepoAdd is the differential check: given the same package, the
-// native writer's desc and files members must byte-match what the real repo-add
-// produces. It is the strongest fidelity guarantee and skips where repo-add is
-// absent. The zero-isize case locks the metapackage (%ISIZE%\n0) behavior.
+// readArchiveMembers reads every member of a gzipped tar into a name->content
+// map, so two archives can be compared as a set regardless of member order:
+// repo-add writes each .files package as <dir>/, <dir>/files, <dir>/desc while
+// the native writer emits desc before files, and package dirs come out in
+// different orders — only the set of names and their contents must match.
+func readArchiveMembers(t *testing.T, archivePath string) map[string]string {
+	t.Helper()
+	f, err := os.Open(archivePath)
+	if err != nil {
+		t.Fatalf("open %s: %v", archivePath, err)
+	}
+	defer f.Close()
+	gz, err := gzip.NewReader(f)
+	if err != nil {
+		t.Fatalf("gzip %s: %v", archivePath, err)
+	}
+	defer gz.Close()
+	members := map[string]string{}
+	tr := tar.NewReader(gz)
+	for {
+		hdr, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			t.Fatalf("tar %s: %v", archivePath, err)
+		}
+		b, err := io.ReadAll(tr)
+		if err != nil {
+			t.Fatalf("read %s in %s: %v", hdr.Name, archivePath, err)
+		}
+		members[hdr.Name] = string(b)
+	}
+	return members
+}
+
+func assertSameMembers(t *testing.T, kind string, ref, ours map[string]string) {
+	t.Helper()
+	for name, refContent := range ref {
+		ourContent, ok := ours[name]
+		if !ok {
+			t.Errorf("%s: native missing member %q", kind, name)
+			continue
+		}
+		if refContent != ourContent {
+			t.Errorf("%s member %q differs:\n--- repo-add ---\n%s\n--- native ---\n%s", kind, name, refContent, ourContent)
+		}
+	}
+	for name := range ours {
+		if _, ok := ref[name]; !ok {
+			t.Errorf("%s: native has extra member %q not produced by repo-add", kind, name)
+		}
+	}
+}
+
+func assertArtifactQuartet(t *testing.T, dir string) {
+	t.Helper()
+	for _, name := range []string{"r.db", "r.db.tar.gz", "r.files", "r.files.tar.gz"} {
+		if _, err := os.Stat(filepath.Join(dir, name)); err != nil {
+			t.Errorf("artifact %s missing in %s: %v", name, dir, err)
+		}
+	}
+}
+
+// assertNativeByteCopies checks the bare <repo>.db / <repo>.files are byte copies
+// of their archives. repo-add makes them symlinks instead, so the reference dir is
+// intentionally not byte-compared this way.
+func assertNativeByteCopies(t *testing.T, dir string) {
+	t.Helper()
+	for _, pair := range [][2]string{{"r.db.tar.gz", "r.db"}, {"r.files.tar.gz", "r.files"}} {
+		archive, err := os.ReadFile(filepath.Join(dir, pair[0]))
+		if err != nil {
+			t.Fatal(err)
+		}
+		copyBytes, err := os.ReadFile(filepath.Join(dir, pair[1]))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !bytes.Equal(archive, copyBytes) {
+			t.Errorf("%s is not a byte copy of %s", pair[1], pair[0])
+		}
+	}
+}
+
+// TestNativeMatchesRepoAdd is the differential check: given the same package set,
+// the native writer's .db and .files archives must be structurally identical to
+// what real repo-add produces — the same set of tar members with byte-identical
+// contents (order normalized). It skips where repo-add is absent. The table
+// exercises the field shapes repo-add's desc writer has to reproduce exactly.
 func TestNativeMatchesRepoAdd(t *testing.T) {
 	requireRepoAdd(t)
 
+	type diffPkg struct {
+		fname   string
+		pkginfo string
+		members []member
+	}
 	cases := []struct {
-		label, fname, pkginfo string
-		members               []member
+		label string
+		pkgs  []diffPkg
 	}{
-		{"plain", "sample-1.0-1-x86_64.pkg.tar.zst", pkginfoSample("sample", "sample", "1.0-1"), sampleMembers()},
-		{"epoch-and-split-base", "sample-lib-2_3.4-5-x86_64.pkg.tar.zst", pkginfoSample("sample-lib", "sample", "2:3.4-5"), sampleMembers()},
-		{"no-files", "empty-1-1-x86_64.pkg.tar.zst", pkginfoSample("empty", "empty", "1-1"), nil},
-		{"zero-isize", "meta-1-1-x86_64.pkg.tar.zst", pkginfoFull("meta", "meta", "1-1", 0), nil},
+		{"plain", []diffPkg{{"sample-1.0-1-x86_64.pkg.tar.zst", pkginfoSample("sample", "sample", "1.0-1"), sampleMembers()}}},
+		{"epoch-and-split-base", []diffPkg{{"sample-lib-2_3.4-5-x86_64.pkg.tar.zst", pkginfoSample("sample-lib", "sample", "2:3.4-5"), sampleMembers()}}},
+		{"no-files", []diffPkg{{"empty-1-1-x86_64.pkg.tar.zst", pkginfoSample("empty", "empty", "1-1"), nil}}},
+		{"zero-isize", []diffPkg{{"meta-1-1-x86_64.pkg.tar.zst", pkginfoFull("meta", "meta", "1-1", 0), nil}}},
+		{"arch-any", []diffPkg{{"anypkg-1.0-1-any.pkg.tar.zst", pkginfoBuild("anypkg", "anypkg", "1.0-1", "any", 8192), sampleMembers()}}},
+		{"groups", []diffPkg{{"grouped-1.0-1-x86_64.pkg.tar.zst", pkginfoBuild("grouped", "grouped", "1.0-1", "x86_64", 8192, "group = devel", "group = utils"), sampleMembers()}}},
+		{"replaces-make-check", []diffPkg{{"repl-1.0-1-x86_64.pkg.tar.zst", pkginfoBuild("repl", "repl", "1.0-1", "x86_64", 8192, "replaces = oldrepl", "replaces = ancientrepl", "makedepend = cmake", "makedepend = ninja", "checkdepend = python-pytest"), sampleMembers()}}},
+		{"split-package", []diffPkg{
+			{"split-bin-1.0-1-x86_64.pkg.tar.zst", pkginfoBuild("split-bin", "split", "1.0-1", "x86_64", 8192), sampleMembers()},
+			{"split-lib-1.0-1-x86_64.pkg.tar.zst", pkginfoBuild("split-lib", "split", "1.0-1", "x86_64", 4096), sampleMembers()},
+		}},
+		{"batch", []diffPkg{
+			{"alpha-1.0-1-x86_64.pkg.tar.zst", pkginfoSample("alpha", "alpha", "1.0-1"), sampleMembers()},
+			{"bravo-2.0-1-x86_64.pkg.tar.zst", pkginfoSample("bravo", "bravo", "2.0-1"), sampleMembers()},
+			{"charlie-3.0-1-x86_64.pkg.tar.zst", pkginfoSample("charlie", "charlie", "3.0-1"), sampleMembers()},
+		}},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.label, func(t *testing.T) {
 			src := t.TempDir()
-			pkgPath := filepath.Join(src, tc.fname)
-			buildPkg(t, pkgPath, tc.pkginfo, tc.members)
+			var pkgPaths []string
+			for _, p := range tc.pkgs {
+				pp := filepath.Join(src, p.fname)
+				buildPkg(t, pp, p.pkginfo, p.members)
+				pkgPaths = append(pkgPaths, pp)
+			}
 
-			// Reference: real repo-add.
+			// Reference: real repo-add (all packages in one invocation).
 			refDir := t.TempDir()
 			refDB := filepath.Join(refDir, "r.db.tar.gz")
-			cmd := exec.Command("repo-add", "-q", "-R", "--nocolor", refDB, pkgPath)
-			if out, err := cmd.CombinedOutput(); err != nil {
+			args := append([]string{"-q", "-R", "--nocolor", refDB}, pkgPaths...)
+			if out, err := exec.Command("repo-add", args...).CombinedOutput(); err != nil {
 				t.Fatalf("repo-add: %v: %s", err, out)
 			}
 
 			// Ours.
 			ourDir := t.TempDir()
 			ourDB := filepath.Join(ourDir, "r.db.tar.gz")
-			if err := (NativeTool{}).RepoAdd(ourDB, pkgPath, false, nil); err != nil {
-				t.Fatalf("native RepoAdd: %v", err)
+			if err := (NativeTool{}).RepoAddBatch(ourDB, pkgPaths, false, nil); err != nil {
+				t.Fatalf("native RepoAddBatch: %v", err)
 			}
 
-			refDesc, _ := readMemberSuffix(t, refDB, "/desc")
-			ourDesc, ok := readMemberSuffix(t, ourDB, "/desc")
-			if !ok {
-				t.Fatal("our desc missing")
-			}
-			if !bytes.Equal(refDesc, ourDesc) {
-				t.Errorf("desc differs from repo-add:\n--- repo-add ---\n%s\n--- native ---\n%s", refDesc, ourDesc)
-			}
+			assertSameMembers(t, "db", readArchiveMembers(t, refDB), readArchiveMembers(t, ourDB))
+			assertSameMembers(t, "files",
+				readArchiveMembers(t, filepath.Join(refDir, "r.files.tar.gz")),
+				readArchiveMembers(t, filepath.Join(ourDir, "r.files.tar.gz")))
 
-			refFiles, _ := readMemberSuffix(t, filepath.Join(refDir, "r.files.tar.gz"), "/files")
-			ourFiles, _ := readMemberSuffix(t, filepath.Join(ourDir, "r.files.tar.gz"), "/files")
-			if !bytes.Equal(refFiles, ourFiles) {
-				t.Errorf("files differs from repo-add:\n--- repo-add ---\n%s\n--- native ---\n%s", refFiles, ourFiles)
-			}
+			assertArtifactQuartet(t, refDir)
+			assertArtifactQuartet(t, ourDir)
+			assertNativeByteCopies(t, ourDir)
 		})
 	}
+}
+
+// sigSet returns the set of detached-signature file names in dir. repo-add makes
+// the bare <repo>.db.sig / <repo>.files.sig as symlinks while the native tool
+// writes byte copies, but both appear as directory entries, so the sets compare.
+func sigSet(t *testing.T, dir string) map[string]bool {
+	t.Helper()
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("read dir %s: %v", dir, err)
+	}
+	set := map[string]bool{}
+	for _, e := range entries {
+		if strings.HasSuffix(e.Name(), ".sig") {
+			set[e.Name()] = true
+		}
+	}
+	return set
+}
+
+// setupGPGKey provisions a throwaway ed25519 signing key in a private GNUPGHOME so
+// repo-add --sign can run, returning the homedir. It skips the caller when gpg is
+// absent or the key cannot be generated (e.g. no working gpg-agent).
+func setupGPGKey(t *testing.T) string {
+	t.Helper()
+	if _, err := exec.LookPath("gpg"); err != nil {
+		t.Skip("gpg not installed; skipping repo-add --sign structural parity")
+	}
+	home := t.TempDir()
+	if err := os.Chmod(home, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	gen := exec.Command("gpg", "--batch", "--pinentry-mode", "loopback", "--passphrase", "",
+		"--quick-generate-key", "Ayato Repo Test <repo@test.example>", "ed25519", "sign", "never")
+	gen.Env = append(os.Environ(), "GNUPGHOME="+home)
+	if out, err := gen.CombinedOutput(); err != nil {
+		t.Skipf("cannot provision gpg key for repo-add --sign: %v: %s", err, out)
+	}
+	t.Cleanup(func() {
+		kill := exec.Command("gpgconf", "--kill", "gpg-agent")
+		kill.Env = append(os.Environ(), "GNUPGHOME="+home)
+		_ = kill.Run()
+	})
+	return home
+}
+
+// TestNativeSignedMatchesRepoAdd proves the signed path produces the same SET of
+// .sig artifacts as repo-add --sign. Signatures are not byte-compared: EdDSA is
+// non-deterministic and the keys differ, so only the structure — which files gain
+// a detached signature — is asserted. The native half runs unconditionally; the
+// repo-add --sign parity is a subtest that skips unless a gpg key can be set up.
+func TestNativeSignedMatchesRepoAdd(t *testing.T) {
+	requireRepoAdd(t)
+
+	entity, err := openpgp.NewEntity("ayato db", "test", "db@example.com",
+		&packet.Config{Algorithm: packet.PubKeyAlgoEdDSA, DefaultHash: crypto.SHA256})
+	if err != nil {
+		t.Fatalf("NewEntity: %v", err)
+	}
+
+	src := t.TempDir()
+	pkgPath := filepath.Join(src, "sample-1.0-1-x86_64.pkg.tar.zst")
+	buildPkg(t, pkgPath, pkginfoSample("sample", "sample", "1.0-1"), sampleMembers())
+
+	ourDir := t.TempDir()
+	ourDB := filepath.Join(ourDir, "r.db.tar.gz")
+	if err := NewSigningNativeTool(entity).RepoAddBatch(ourDB, []string{pkgPath}, true, nil); err != nil {
+		t.Fatalf("signed native RepoAddBatch: %v", err)
+	}
+	for _, name := range []string{"r.db.tar.gz.sig", "r.db.sig", "r.files.tar.gz.sig", "r.files.sig"} {
+		if _, err := os.Stat(filepath.Join(ourDir, name)); err != nil {
+			t.Errorf("native signature %s missing: %v", name, err)
+		}
+	}
+	ourSet := sigSet(t, ourDir)
+
+	t.Run("repo-add-sign-parity", func(t *testing.T) {
+		gnupg := setupGPGKey(t)
+		refDir := t.TempDir()
+		refDB := filepath.Join(refDir, "r.db.tar.gz")
+		cmd := exec.Command("repo-add", "-q", "-R", "--nocolor", "--sign", refDB, pkgPath)
+		cmd.Env = append(os.Environ(), "GNUPGHOME="+gnupg)
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Skipf("repo-add --sign unavailable in this environment: %v: %s", err, out)
+		}
+		if refSet := sigSet(t, refDir); !maps.Equal(refSet, ourSet) {
+			t.Errorf("signature set mismatch:\nrepo-add: %v\nnative:   %v", refSet, ourSet)
+		}
+	})
 }
