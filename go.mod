@@ -29,14 +29,14 @@ require (
 	github.com/knadh/koanf/providers/env/v2 v2.0.0
 	github.com/knadh/koanf/providers/file v1.2.1
 	github.com/knadh/koanf/providers/posflag v1.0.1
-	github.com/knadh/koanf/v2 v2.2.2
+	github.com/knadh/koanf/v2 v2.3.5
 	github.com/lib/pq v1.12.3
 	github.com/m-mizutani/clog v0.2.1
 	github.com/orandin/slog-gorm v1.4.0
 	github.com/otiai10/copy v1.14.1
 	github.com/samber/lo v1.53.0
-	github.com/samber/slog-gin v1.16.1
-	github.com/spf13/cobra v1.9.1
+	github.com/samber/slog-gin v1.21.1
+	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
 	github.com/tmc/langchaingo v0.1.14
 	github.com/ulikunitz/xz v0.5.15
@@ -46,7 +46,7 @@ require (
 	gorm.io/driver/mysql v1.6.0
 	gorm.io/driver/postgres v1.6.0
 	gorm.io/driver/sqlite v1.6.0
-	gorm.io/gorm v1.30.1
+	gorm.io/gorm v1.31.2
 	mvdan.cc/sh/v3 v3.13.1
 )
 
