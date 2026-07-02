@@ -58,6 +58,20 @@ func (mr *MockBinaryRepositoryMockRecorder) Arches(arg0 any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Arches", reflect.TypeOf((*MockBinaryRepository)(nil).Arches), arg0)
 }
 
+// BackfillSignatures mocks base method.
+func (m *MockBinaryRepository) BackfillSignatures(name, arch string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "BackfillSignatures", name, arch)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// BackfillSignatures indicates an expected call of BackfillSignatures.
+func (mr *MockBinaryRepositoryMockRecorder) BackfillSignatures(name, arch any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BackfillSignatures", reflect.TypeOf((*MockBinaryRepository)(nil).BackfillSignatures), name, arch)
+}
+
 // DeleteFile mocks base method.
 func (m *MockBinaryRepository) DeleteFile(arg0, arch, file string) error {
 	m.ctrl.T.Helper()

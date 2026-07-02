@@ -29,6 +29,10 @@ type BinaryRepository interface {
 	RepoAddBatch(name, arch string, items []RepoAddItem, useSignedDB bool, gnupgDir *string) error
 	RepoRemove(name, arch, pkg string, useSignedDB bool, gnupgDir *string) error
 	InitArch(name, arch string, useSignedDB bool, gnupgDir *string) error
+	// BackfillSignatures regenerates the detached signatures for an existing
+	// (repo, arch) database that was published unsigned before DB signing was
+	// enabled. A no-op when the db is absent or already signed.
+	BackfillSignatures(name, arch string) error
 	FetchDB(repoName, archName string) (stream.File, error)
 	FetchFileWithMeta(repo, arch, file string) (stream.File, blob.FileMeta, error)
 	PkgNames(repoName, archName string) ([]string, error)
@@ -154,13 +158,18 @@ func (r *binaryRepository) FetchFileWithMeta(repo, arch, file string) (stream.Fi
 }
 
 // dbAliasTarget maps a bare DB name to the archive it aliases, or "" if file is
-// not an alias.
+// not an alias. The detached signatures alias the same way: <repo>.db.sig is
+// served from the single stored <repo>.db.tar.gz.sig, so no copy can trail it.
 func dbAliasTarget(repo, file string) string {
 	switch file {
 	case repo + ".db":
 		return repo + ".db.tar.gz"
 	case repo + ".files":
 		return repo + ".files.tar.gz"
+	case repo + ".db.sig":
+		return repo + ".db.tar.gz.sig"
+	case repo + ".files.sig":
+		return repo + ".files.tar.gz.sig"
 	}
 	return ""
 }

@@ -79,42 +79,31 @@ func writeSeekFileTo(dir string, f stream.SeekFile) (string, error) {
 	return dst, nil
 }
 
-// storeArtifacts writes every regular file in dir back through blob.StoreFile
-// under its bare name, skipping any path in skip. It stores the .tar.gz archives
-// (and any .sig) but NOT the bare <repo>.db / <repo>.files copies: those are
-// byte-identical to their archives and served as aliases at fetch time, so a
-// single archive stays the only source of truth and no copy can trail it.
-func (r *binaryRepository) storeArtifacts(repo, arch, dir string, skip map[string]struct{}) error {
-	entries, err := os.ReadDir(dir)
+// derivedArtifacts are the DB artifacts commitDB publishes alongside the canonical
+// <repo>.db.tar.gz: the file database and, when signing, the detached signatures.
+// The bare <repo>.db / <repo>.files (and their .sig) are NOT here — they are served
+// as aliases of their archives at fetch time, so a single archive stays the only
+// source of truth. Package files are the caller's StoreFile, never this path.
+func derivedArtifacts(repo string, useSignedDB bool) []string {
+	names := []string{repo + ".files.tar.gz"}
+	if useSignedDB {
+		names = append(names, repo+".db.tar.gz.sig", repo+".files.tar.gz.sig")
+	}
+	return names
+}
+
+// storeIfMatch commits one artifact from dir with compare-and-swap on etag,
+// re-wrapping it under its bare name so both localfs and s3 store it as
+// <repo>/<arch>/<name>.
+func (r *binaryRepository) storeIfMatch(repo, arch, dir, name, etag string) error {
+	obj, err := stream.OpenFileWithType(path.Join(dir, name))
 	if err != nil {
-		return errwrap.WrapErr(err, "failed to read temp dir")
+		return errwrap.WrapErr(err, "failed to open artifact "+name)
 	}
-	for _, entry := range entries {
-		if entry.IsDir() {
-			continue
-		}
-		name := entry.Name()
-		if _, ok := skip[name]; ok {
-			continue
-		}
-		if name == repo+".db" || name == repo+".files" {
-			continue
-		}
-		fp := path.Join(dir, name)
-		obj, err := stream.OpenFileWithType(fp)
-		if err != nil {
-			return errwrap.WrapErr(err, "failed to open artifact "+name)
-		}
-		// OpenFileWithType keys FileName() off the full path; re-wrap under the
-		// bare name so both localfs and s3 store it as <repo>/<arch>/<name>.
-		named := stream.NewFileStream(name, obj.ContentType(), obj)
-		if err := r.Store.StoreFile(repo, arch, named); err != nil {
-			_ = obj.Close()
-			return errwrap.WrapErr(err, "failed to store artifact "+name)
-		}
-		_ = obj.Close()
-	}
-	return nil
+	named := stream.NewFileStream(name, obj.ContentType(), obj)
+	err = r.Store.StoreFileIfMatch(repo, arch, named, etag)
+	_ = obj.Close()
+	return err
 }
 
 // RepoAddItem is one package — and its optional detached signature — to register
@@ -146,7 +135,6 @@ func (r *binaryRepository) RepoAddBatch(repo, arch string, items []RepoAddItem, 
 	}
 	defer os.RemoveAll(t)
 
-	skip := map[string]struct{}{}
 	pkgPaths := make([]string, 0, len(items))
 	for _, it := range items {
 		pkgPath, err := writeSeekFileTo(t, it.Pkg)
@@ -154,19 +142,14 @@ func (r *binaryRepository) RepoAddBatch(repo, arch string, items []RepoAddItem, 
 			return err
 		}
 		if pkgPath != "" {
-			skip[path.Base(pkgPath)] = struct{}{}
 			pkgPaths = append(pkgPaths, pkgPath)
 		}
-		sigPath, err := writeSeekFileTo(t, it.Sig)
-		if err != nil {
+		if _, err := writeSeekFileTo(t, it.Sig); err != nil {
 			return err
-		}
-		if sigPath != "" {
-			skip[path.Base(sigPath)] = struct{}{}
 		}
 	}
 
-	return r.mutateDB(repo, arch, t, skip, useSignedDB, func(dbPath string) error {
+	return r.mutateDB(repo, arch, t, useSignedDB, func(dbPath string) error {
 		if err := r.repoTool().RepoAddBatch(dbPath, pkgPaths, useSignedDB, gnupgDir); err != nil {
 			slog.Error("repo db add batch", "err", err, "count", len(pkgPaths))
 			return errwrap.WrapErr(err, "repo db add failed")
@@ -192,7 +175,7 @@ func (r *binaryRepository) RepoRemove(repo, arch, pkg string, useSignedDB bool, 
 	}
 	defer os.RemoveAll(t)
 
-	return r.mutateDB(repo, arch, t, map[string]struct{}{}, useSignedDB, func(dbPath string) error {
+	return r.mutateDB(repo, arch, t, useSignedDB, func(dbPath string) error {
 		if !exists(dbPath) {
 			return errors.New("repository database not found")
 		}
@@ -237,8 +220,9 @@ func (r *binaryRepository) InitArch(repo, arch string, useSignedDB bool, gnupgDi
 		return errwrap.WrapErr(err, "repo db init failed")
 	}
 	// Create-only commit: a concurrent instance may have created it between the
-	// probe and here; treat that as success rather than clobbering its data.
-	if err := r.commitDB(repo, arch, t, map[string]struct{}{dbName: {}}, dbName, ""); err != nil {
+	// probe and here; treat that as success rather than clobbering its data. An
+	// empty etag map makes every artifact create-only.
+	if err := r.commitDB(repo, arch, t, map[string]string{}, useSignedDB); err != nil {
 		if errors.Is(err, blob.ErrPreconditionFailed) {
 			return nil
 		}
@@ -247,32 +231,55 @@ func (r *binaryRepository) InitArch(repo, arch string, useSignedDB bool, gnupgDi
 	return nil
 }
 
+// BackfillSignatures regenerates the detached signatures for an existing
+// (repo, arch) database whose db is already published unsigned, for a repo that
+// had DB signing newly enabled. It is idempotent and a no-op when the db is absent
+// or already signed; otherwise it runs an empty mutate that reloads, rewrites, and
+// signs the db, committing the .sig artifacts through the same compare-and-swap
+// path as a normal publish. Requires a signing tool (a signed repo has one wired).
+func (r *binaryRepository) BackfillSignatures(repo, arch string) error {
+	dbName := repo + ".db.tar.gz"
+	if f, err := r.Store.FetchFile(repo, arch, dbName); err != nil {
+		if errors.Is(err, blob.ErrNotFound) {
+			return nil // nothing published yet
+		}
+		return errwrap.WrapErr(err, "backfill: probe db")
+	} else {
+		_ = f.Close()
+	}
+	if f, err := r.Store.FetchFile(repo, arch, dbName+".sig"); err == nil {
+		_ = f.Close()
+		return nil // already signed
+	} else if !errors.Is(err, blob.ErrNotFound) {
+		return errwrap.WrapErr(err, "backfill: probe db signature")
+	}
+	return r.RepoAddBatch(repo, arch, nil, true, nil)
+}
+
 // mutateDB runs a (repo, arch) database read-modify-write with optimistic
-// concurrency. Each attempt fetches the live DB (capturing the canonical
-// <repo>.db.tar.gz version), applies mutate to the local copy, and commits with
-// compare-and-swap. On a cross-writer conflict (another instance committed first)
+// concurrency. Each attempt fetches the live DB artifacts (capturing each one's
+// version), applies mutate to the local copy, and commits with compare-and-swap.
+// On a cross-writer conflict on the canonical db (another instance committed first)
 // it re-reads and re-applies, up to maxDBAttempts. dir already holds the package
 // files mutate needs (written by the caller and unchanged across attempts); only
 // the DB artifacts are refetched and recomputed each attempt.
 //
 // The compare-and-swap is anchored on <repo>.db.tar.gz, the archive a writer loads
 // to compute the next state, so the CANONICAL package set is never lost to a
-// concurrent writer. The bare <repo>.db / <repo>.files pacman fetches are served as
-// aliases of their archives (not stored), so they can never trail the canonical db.
+// concurrent writer. The bare <repo>.db / <repo>.files (and their .sig) pacman
+// fetches are served as aliases of their archives (not stored), so they can never
+// trail the canonical db.
 //
-// KNOWN LIMITATION: <repo>.files.tar.gz is still stored unconditionally after the
-// canonical commit, so under a rare interleaving where one winner's store lands
-// after a later winner's, the served file list can momentarily trail its db. The
-// canonical db.tar.gz stays correct and the next publish reconverges. A full fix
-// needs the file archive under the same atomic commit and is left as a follow-up.
-// The signed-db .sig artifacts (when useSignedDB) share this window, and there it
-// is stricter: a signature that trails its db.tar.gz will not verify, so pacman
-// with a required SigLevel rejects the db until the next publish reconverges. The
-// same atomic-commit follow-up covers it.
-func (r *binaryRepository) mutateDB(repo, arch, dir string, skip map[string]struct{}, useSignedDB bool, mutate func(dbPath string) error) error {
+// The derived artifacts — <repo>.files.tar.gz and, when signed, the detached
+// signatures — are each committed with compare-and-swap on their own fetched
+// version too (see commitDB), so a stale winner can no longer clobber a newer
+// winner's file list or signature: a signature therefore never PERSISTENTLY trails
+// the db it verifies. The only residual is the transient window inherent to two
+// independently fetched objects — a client that reads <repo>.db and then <repo>.db.sig
+// straddling a concurrent publish may see a mismatch and re-sync — which no plain
+// object store (single-object CAS, no cross-object transaction) can close.
+func (r *binaryRepository) mutateDB(repo, arch, dir string, useSignedDB bool, mutate func(dbPath string) error) error {
 	dbName := repo + ".db.tar.gz"
-	// db.tar.gz commits via compare-and-swap, never the unconditional pass.
-	skip[dbName] = struct{}{}
 	dbPath := path.Join(dir, dbName)
 
 	var lastErr error
@@ -280,14 +287,14 @@ func (r *binaryRepository) mutateDB(repo, arch, dir string, skip map[string]stru
 		if err := clearDBArtifacts(dir, repo, useSignedDB); err != nil {
 			return err
 		}
-		etag, err := r.fetchDBArtifacts(repo, arch, dir, useSignedDB)
+		etags, err := r.fetchDBArtifacts(repo, arch, dir, useSignedDB)
 		if err != nil {
 			return err
 		}
 		if err := mutate(dbPath); err != nil {
 			return err // a mutation error is not a conflict; surface it
 		}
-		err = r.commitDB(repo, arch, dir, skip, dbName, etag)
+		err = r.commitDB(repo, arch, dir, etags, useSignedDB)
 		if err == nil {
 			return nil
 		}
@@ -300,22 +307,31 @@ func (r *binaryRepository) mutateDB(repo, arch, dir string, skip map[string]stru
 	return errwrap.WrapErr(lastErr, fmt.Sprintf("repo db %s/%s: too many conflicting writers after %d attempts", repo, arch, maxDBAttempts))
 }
 
-// commitDB writes the canonical <repo>.db.tar.gz with compare-and-swap on etag
-// FIRST: a conflict returns blob.ErrPreconditionFailed before any derived
-// artifact is touched, so a losing writer never clobbers <repo>.files.tar.gz. On
-// success the derived artifacts are written unconditionally.
-func (r *binaryRepository) commitDB(repo, arch, dir string, skip map[string]struct{}, dbName, etag string) error {
-	obj, err := stream.OpenFileWithType(path.Join(dir, dbName))
-	if err != nil {
-		return errwrap.WrapErr(err, "failed to open db archive")
+// commitDB publishes the mutation. The canonical <repo>.db.tar.gz commits FIRST
+// with compare-and-swap on its fetched version: a conflict returns
+// blob.ErrPreconditionFailed before any derived artifact is touched, so a losing
+// writer never clobbers a newer winner's derived artifacts. Each derived artifact
+// (the file db and the detached signatures) then commits with compare-and-swap on
+// its OWN fetched version, and a precondition failure there is success: it means a
+// newer db winner already published a newer artifact, so the live set stays
+// consistent with the live db and a signature never persistently trails it.
+func (r *binaryRepository) commitDB(repo, arch, dir string, etags map[string]string, useSignedDB bool) error {
+	dbName := repo + ".db.tar.gz"
+	if err := r.storeIfMatch(repo, arch, dir, dbName, etags[dbName]); err != nil {
+		return err // a db conflict propagates so mutateDB retries
 	}
-	named := stream.NewFileStream(dbName, obj.ContentType(), obj)
-	err = r.Store.StoreFileIfMatch(repo, arch, named, etag)
-	_ = obj.Close()
-	if err != nil {
-		return err
+	for _, name := range derivedArtifacts(repo, useSignedDB) {
+		if !exists(path.Join(dir, name)) {
+			continue
+		}
+		if err := r.storeIfMatch(repo, arch, dir, name, etags[name]); err != nil {
+			if errors.Is(err, blob.ErrPreconditionFailed) {
+				continue // a newer winner already advanced this artifact
+			}
+			return err
+		}
 	}
-	return r.storeArtifacts(repo, arch, dir, skip)
+	return nil
 }
 
 // clearDBArtifacts removes the DB artifacts a previous attempt seeded, so the next
@@ -345,56 +361,45 @@ func dbConflictBackoff(attempt int) {
 }
 
 // fetchDBArtifacts seeds dir with the live DB archives (and their .sig when
-// signed) for (repo, arch), returning the canonical <repo>.db.tar.gz version
-// (ETag) for the compare-and-swap commit — "" when the database does not exist
-// yet. Missing artifacts are tolerated.
-func (r *binaryRepository) fetchDBArtifacts(repo, arch, dir string, useSignedDB bool) (string, error) {
-	dbName := repo + ".db.tar.gz"
+// signed) for (repo, arch), returning a name->version (ETag) map so commitDB can
+// compare-and-swap EACH artifact against the state it read. A missing artifact is
+// simply absent from the map, so it commits create-only ("" etag). Missing
+// artifacts are tolerated (a fresh repo, or no signatures yet).
+func (r *binaryRepository) fetchDBArtifacts(repo, arch, dir string, useSignedDB bool) (map[string]string, error) {
 	names := dbArtifactBases(repo)
 	if useSignedDB {
 		for _, b := range dbArtifactBases(repo) {
 			names = append(names, b+".sig")
 		}
 	}
-	var dbETag string
+	etags := make(map[string]string, len(names))
 	for _, name := range names {
-		var (
-			f    stream.File
-			etag string
-			err  error
-		)
-		if name == dbName {
-			f, etag, err = r.Store.FetchFileWithETag(repo, arch, name)
-		} else {
-			f, err = r.Store.FetchFile(repo, arch, name)
-		}
+		f, etag, err := r.Store.FetchFileWithETag(repo, arch, name)
 		if errors.Is(err, blob.ErrNotFound) {
-			continue // genuinely absent: a fresh repo, or no .files archive yet
+			continue // genuinely absent: a fresh repo, or no .files/.sig archive yet
 		}
 		if err != nil {
 			// A transient backend error must NOT be mistaken for "absent": that
 			// would seed an empty base and overwrite the live db with a truncated
 			// rebuild. Fail the attempt loudly instead.
-			return "", errwrap.WrapErr(err, "failed to fetch db artifact "+name)
+			return nil, errwrap.WrapErr(err, "failed to fetch db artifact "+name)
 		}
-		if name == dbName {
-			dbETag = etag
-		}
+		etags[name] = etag
 		dst := path.Join(dir, name)
 		out, cerr := os.Create(dst)
 		if cerr != nil {
 			_ = f.Close()
-			return "", errwrap.WrapErr(cerr, "failed to create temp db artifact")
+			return nil, errwrap.WrapErr(cerr, "failed to create temp db artifact")
 		}
 		if _, cerr := io.Copy(out, f); cerr != nil {
 			_ = out.Close()
 			_ = f.Close()
-			return "", errwrap.WrapErr(cerr, "failed to copy db artifact")
+			return nil, errwrap.WrapErr(cerr, "failed to copy db artifact")
 		}
 		_ = out.Close()
 		_ = f.Close()
 	}
-	return dbETag, nil
+	return etags, nil
 }
 
 func exists(p string) bool {

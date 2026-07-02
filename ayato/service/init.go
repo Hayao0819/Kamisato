@@ -53,6 +53,14 @@ func (s *Service) initRepo(repo string, useSignedDB bool, gnupgDir *string) erro
 		if err := s.pkgBinaryRepo.InitArch(repo, a, useSignedDB, gnupgDir); err != nil {
 			return err
 		}
+		// Backfill signatures for a db published before signing was enabled, so a
+		// repo does not serve an unsigned db (which a required SigLevel rejects) until
+		// its next mutate. Idempotent: a no-op once the db is signed.
+		if useSignedDB {
+			if err := s.pkgBinaryRepo.BackfillSignatures(repo, a); err != nil {
+				return err
+			}
+		}
 	}
 	return nil
 }
