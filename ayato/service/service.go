@@ -10,6 +10,7 @@ import (
 
 	"github.com/Hayao0819/Kamisato/ayato/domain"
 	"github.com/Hayao0819/Kamisato/ayato/repository"
+	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
 	"github.com/Hayao0819/Kamisato/ayato/stream"
 	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/gpg"
@@ -39,7 +40,7 @@ type Service struct {
 type Servicer interface {
 	InitAll() error
 
-	GetFile(repoName, archName, name string) (stream.File, error)
+	GetFileWithMeta(repoName, archName, name string) (stream.File, blob.FileMeta, error)
 	UploadFile(repo string, files *domain.UploadFiles) error
 	UploadFiles(repo string, files []*domain.UploadFiles) error
 	RemovePkg(rname string, arch string, pkgname string) error

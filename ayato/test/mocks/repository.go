@@ -13,6 +13,7 @@ import (
 	reflect "reflect"
 
 	repository "github.com/Hayao0819/Kamisato/ayato/repository"
+	blob "github.com/Hayao0819/Kamisato/ayato/repository/blob"
 	stream "github.com/Hayao0819/Kamisato/ayato/stream"
 	repo "github.com/Hayao0819/Kamisato/pkg/pacman/repo"
 	gomock "go.uber.org/mock/gomock"
@@ -115,6 +116,22 @@ func (m *MockBinaryRepository) FetchFileWithETag(arg0, arch, file string) (strea
 func (mr *MockBinaryRepositoryMockRecorder) FetchFileWithETag(arg0, arch, file any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FetchFileWithETag", reflect.TypeOf((*MockBinaryRepository)(nil).FetchFileWithETag), arg0, arch, file)
+}
+
+// FetchFileWithMeta mocks base method.
+func (m *MockBinaryRepository) FetchFileWithMeta(arg0, arch, file string) (stream.File, blob.FileMeta, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FetchFileWithMeta", arg0, arch, file)
+	ret0, _ := ret[0].(stream.File)
+	ret1, _ := ret[1].(blob.FileMeta)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// FetchFileWithMeta indicates an expected call of FetchFileWithMeta.
+func (mr *MockBinaryRepositoryMockRecorder) FetchFileWithMeta(arg0, arch, file any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FetchFileWithMeta", reflect.TypeOf((*MockBinaryRepository)(nil).FetchFileWithMeta), arg0, arch, file)
 }
 
 // Files mocks base method.

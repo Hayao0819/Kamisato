@@ -27,6 +27,7 @@ type BinaryRepository interface {
 	RepoRemove(name, arch, pkg string, useSignedDB bool, gnupgDir *string) error
 	InitArch(name, arch string, useSignedDB bool, gnupgDir *string) error
 	FetchDB(repoName, archName string) (stream.File, error)
+	FetchFileWithMeta(repo, arch, file string) (stream.File, blob.FileMeta, error)
 	PkgNames(repoName, archName string) ([]string, error)
 	RemoteRepo(name, arch string) (*repo.RemoteRepo, error)
 	PkgFiles(repoName, archName, pkgName string) ([]string, error)
@@ -87,6 +88,35 @@ func (r *binaryRepository) FetchFile(repo, arch, file string) (stream.File, erro
 		return af, nil
 	}
 	return f, err
+}
+
+// FetchFileWithMeta mirrors FetchFile's alias/any fallbacks and also returns the
+// backend's conditional-GET metadata (ETag + last-modified) so the HTTP layer can
+// answer If-None-Match and If-Modified-Since. The bare <repo>.db/<repo>.files
+// aliases carry their archive's metadata. A backend that cannot supply metadata
+// (a test store) is served without validators — a full body, never a 304.
+func (r *binaryRepository) FetchFileWithMeta(repo, arch, file string) (stream.File, blob.FileMeta, error) {
+	mf, ok := r.Store.(blob.MetaFetcher)
+	if !ok {
+		f, err := r.FetchFile(repo, arch, file)
+		return f, blob.FileMeta{}, err
+	}
+	f, meta, err := mf.FetchFileWithMeta(repo, arch, file)
+	if err == nil {
+		return f, meta, nil
+	}
+	if target := dbAliasTarget(repo, file); target != "" {
+		if af, ameta, aerr := mf.FetchFileWithMeta(repo, arch, target); aerr == nil {
+			return aliasFile{File: af, name: file}, ameta, nil
+		}
+	}
+	if arch == "any" || !strings.Contains(file, "-any.pkg.tar.") {
+		return f, meta, err
+	}
+	if af, ameta, aerr := mf.FetchFileWithMeta(repo, "any", file); aerr == nil {
+		return af, ameta, nil
+	}
+	return f, meta, err
 }
 
 // dbAliasTarget maps a bare DB name to the archive it aliases, or "" if file is

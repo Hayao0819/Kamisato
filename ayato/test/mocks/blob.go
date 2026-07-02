@@ -12,9 +12,50 @@ package mocks
 import (
 	reflect "reflect"
 
+	blob "github.com/Hayao0819/Kamisato/ayato/repository/blob"
 	stream "github.com/Hayao0819/Kamisato/ayato/stream"
 	gomock "go.uber.org/mock/gomock"
 )
+
+// MockMetaFetcher is a mock of MetaFetcher interface.
+type MockMetaFetcher struct {
+	ctrl     *gomock.Controller
+	recorder *MockMetaFetcherMockRecorder
+	isgomock struct{}
+}
+
+// MockMetaFetcherMockRecorder is the mock recorder for MockMetaFetcher.
+type MockMetaFetcherMockRecorder struct {
+	mock *MockMetaFetcher
+}
+
+// NewMockMetaFetcher creates a new mock instance.
+func NewMockMetaFetcher(ctrl *gomock.Controller) *MockMetaFetcher {
+	mock := &MockMetaFetcher{ctrl: ctrl}
+	mock.recorder = &MockMetaFetcherMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockMetaFetcher) EXPECT() *MockMetaFetcherMockRecorder {
+	return m.recorder
+}
+
+// FetchFileWithMeta mocks base method.
+func (m *MockMetaFetcher) FetchFileWithMeta(repo, arch, file string) (stream.File, blob.FileMeta, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FetchFileWithMeta", repo, arch, file)
+	ret0, _ := ret[0].(stream.File)
+	ret1, _ := ret[1].(blob.FileMeta)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// FetchFileWithMeta indicates an expected call of FetchFileWithMeta.
+func (mr *MockMetaFetcherMockRecorder) FetchFileWithMeta(repo, arch, file any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FetchFileWithMeta", reflect.TypeOf((*MockMetaFetcher)(nil).FetchFileWithMeta), repo, arch, file)
+}
 
 // MockBlobStore is a mock of Store interface.
 type MockBlobStore struct {

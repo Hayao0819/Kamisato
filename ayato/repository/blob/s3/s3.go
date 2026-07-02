@@ -252,21 +252,28 @@ func isNotFound(err error) bool {
 // getObjectWithETag fetches an object together with its ETag — the opaque version
 // token for a compare-and-swap write.
 func (s *S3) getObjectWithETag(key string) (stream.File, string, error) {
+	f, meta, err := s.getObjectWithMeta(key)
+	return f, meta.ETag, err
+}
+
+// getObjectWithMeta fetches an object together with its ETag and last-modified
+// time, the two validators the HTTP layer needs for a conditional GET.
+func (s *S3) getObjectWithMeta(key string) (stream.File, blob.FileMeta, error) {
 	output, err := s.storage.GetObject(s.ctx, &awss3.GetObjectInput{
 		Bucket: aws.String(s.bucket),
 		Key:    aws.String(key),
 	})
 	if err != nil {
 		if isNotFound(err) {
-			return nil, "", blob.ErrNotFound
+			return nil, blob.FileMeta{}, blob.ErrNotFound
 		}
-		return nil, "", err
+		return nil, blob.FileMeta{}, err
 	}
 	return &s3ObjectStream{
 		Body:        output.Body,
 		filename:    path.Base(key),
 		contentType: aws.ToString(output.ContentType),
-	}, aws.ToString(output.ETag), nil
+	}, blob.FileMeta{ETag: aws.ToString(output.ETag), LastModified: aws.ToTime(output.LastModified)}, nil
 }
 
 // putObjectIfMatch writes with compare-and-swap: If-Match when etag is non-empty,

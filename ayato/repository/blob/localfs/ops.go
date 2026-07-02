@@ -67,6 +67,25 @@ func (l *LocalStore) FetchFileWithETag(repo, arch, file string) (stream.File, st
 	return f, "", err
 }
 
+// FetchFileWithMeta returns the file with its on-disk modification time (the ETag
+// stays empty; localfs has no object versioning). The mtime lets a pacman client
+// answer its own If-Modified-Since and skip an unchanged .db. The path components
+// were already validated by FetchFile, so re-stat is safe; any stat error just
+// leaves LastModified zero (no conditional, full body).
+func (l *LocalStore) FetchFileWithMeta(repo, arch, file string) (stream.File, blob.FileMeta, error) {
+	f, err := l.FetchFile(repo, arch, file)
+	if err != nil {
+		return nil, blob.FileMeta{}, err
+	}
+	var meta blob.FileMeta
+	if repoDir, derr := l.getRepoDir(repo); derr == nil {
+		if fi, serr := os.Stat(path.Join(repoDir, arch, file)); serr == nil {
+			meta.LastModified = fi.ModTime()
+		}
+	}
+	return f, meta, nil
+}
+
 // StoreFileIfMatch ignores etag and stores: localfs is single-node with no object
 // versioning, and the repository's per-(repo, arch) lock already serializes its
 // writes within the one process that owns the directory.

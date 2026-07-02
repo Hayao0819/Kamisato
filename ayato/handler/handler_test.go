@@ -6,8 +6,10 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/Hayao0819/Kamisato/ayato/domain"
+	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
 	"github.com/Hayao0819/Kamisato/ayato/stream"
 	"github.com/Hayao0819/Kamisato/ayato/test/mocks"
 	"github.com/Hayao0819/Kamisato/internal/conf"
@@ -201,7 +203,7 @@ func TestRepoFileHandlerStreamsWhenPresignUnavailable(t *testing.T) {
 
 	// localfs cannot presign: SignedURL returns "", so the handler streams.
 	mockSvc.EXPECT().SignedURL("myrepo", "x86_64", "foo.pkg.tar.zst").Return("", nil)
-	mockSvc.EXPECT().GetFile("myrepo", "x86_64", "foo.pkg.tar.zst").Return(fs, nil)
+	mockSvc.EXPECT().GetFileWithMeta("myrepo", "x86_64", "foo.pkg.tar.zst").Return(fs, blob.FileMeta{}, nil)
 
 	r := gin.New()
 	r.GET("/repo/:repo/:arch/:file", h.RepoFileHandler)
@@ -214,6 +216,95 @@ func TestRepoFileHandlerStreamsWhenPresignUnavailable(t *testing.T) {
 	}
 	if w.Body.String() != body {
 		t.Errorf("body = %q, want %q", w.Body.String(), body)
+	}
+}
+
+// A backend that returns a version token surfaces it as a strong ETag; a matching
+// If-None-Match then yields a bodyless 304 so pacman skips the re-download.
+func TestRepoFileHandlerReturns304OnMatchingETag(t *testing.T) {
+	ctrl, mockSvc, h := setup(t)
+	defer ctrl.Finish()
+
+	const body, etag = "db-bytes", `"v1"`
+	mockSvc.EXPECT().SignedURL("myrepo", "x86_64", "myrepo.db").Return("", nil).Times(2)
+	mockSvc.EXPECT().GetFileWithMeta("myrepo", "x86_64", "myrepo.db").DoAndReturn(
+		func(_, _, _ string) (stream.File, blob.FileMeta, error) {
+			return stream.NewFileStream("myrepo.db", "application/octet-stream",
+				utils.BufferToReadSeekCloser(bytes.NewBufferString(body))), blob.FileMeta{ETag: etag}, nil
+		}).Times(2)
+
+	r := gin.New()
+	r.GET("/repo/:repo/:arch/:file", h.RepoFileHandler)
+
+	// First fetch: 200 with the ETag advertised.
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/repo/myrepo/x86_64/myrepo.db", nil))
+	if w.Code != http.StatusOK {
+		t.Fatalf("first status = %d, want 200", w.Code)
+	}
+	if got := w.Header().Get("ETag"); got != etag {
+		t.Fatalf("ETag = %q, want %q", got, etag)
+	}
+
+	// Conditional re-fetch with the same validator: 304, no body.
+	w = httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/repo/myrepo/x86_64/myrepo.db", nil)
+	req.Header.Set("If-None-Match", etag)
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusNotModified {
+		t.Fatalf("conditional status = %d, want 304", w.Code)
+	}
+	if w.Body.Len() != 0 {
+		t.Errorf("304 body = %q, want empty", w.Body.String())
+	}
+}
+
+// pacman drives conditional downloads off Last-Modified/If-Modified-Since (not
+// ETag), so a request whose If-Modified-Since is at or after the file's mtime
+// must get a bodyless 304, and an older one a full 200.
+func TestRepoFileHandlerReturns304OnIfModifiedSince(t *testing.T) {
+	ctrl, mockSvc, h := setup(t)
+	defer ctrl.Finish()
+
+	const body = "db-bytes"
+	modtime := time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC)
+	mockSvc.EXPECT().SignedURL("myrepo", "x86_64", "myrepo.db").Return("", nil).Times(3)
+	mockSvc.EXPECT().GetFileWithMeta("myrepo", "x86_64", "myrepo.db").DoAndReturn(
+		func(_, _, _ string) (stream.File, blob.FileMeta, error) {
+			return stream.NewFileStream("myrepo.db", "application/octet-stream",
+				utils.BufferToReadSeekCloser(bytes.NewBufferString(body))), blob.FileMeta{LastModified: modtime}, nil
+		}).Times(3)
+
+	r := gin.New()
+	r.GET("/repo/:repo/:arch/:file", h.RepoFileHandler)
+
+	do := func(ifModifiedSince string) *httptest.ResponseRecorder {
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/repo/myrepo/x86_64/myrepo.db", nil)
+		if ifModifiedSince != "" {
+			req.Header.Set("If-Modified-Since", ifModifiedSince)
+		}
+		r.ServeHTTP(w, req)
+		return w
+	}
+
+	// Unconditional: 200 with Last-Modified advertised.
+	w := do("")
+	if w.Code != http.StatusOK {
+		t.Fatalf("unconditional status = %d, want 200", w.Code)
+	}
+	if got := w.Header().Get("Last-Modified"); got != modtime.Format(http.TimeFormat) {
+		t.Fatalf("Last-Modified = %q, want %q", got, modtime.Format(http.TimeFormat))
+	}
+
+	// Client's copy is as new as the file: 304, no body.
+	if w := do(modtime.Format(http.TimeFormat)); w.Code != http.StatusNotModified || w.Body.Len() != 0 {
+		t.Fatalf("If-Modified-Since==mtime: status=%d body=%q, want 304 empty", w.Code, w.Body.String())
+	}
+
+	// Client's copy is older than the file: full 200.
+	if w := do(modtime.Add(-time.Hour).Format(http.TimeFormat)); w.Code != http.StatusOK || w.Body.String() != body {
+		t.Fatalf("older If-Modified-Since: status=%d, want 200 with body", w.Code)
 	}
 }
 
@@ -230,7 +321,7 @@ func TestRepoFileHandlerStreamsWhenRedirectDisabled(t *testing.T) {
 	// redirect_downloads=false forces streaming, so SignedURL is never consulted.
 	disabled := false
 	h := New(mockSvc, &conf.AyatoConfig{RedirectDownloads: &disabled})
-	mockSvc.EXPECT().GetFile("myrepo", "x86_64", "foo.pkg.tar.zst").Return(fs, nil)
+	mockSvc.EXPECT().GetFileWithMeta("myrepo", "x86_64", "foo.pkg.tar.zst").Return(fs, blob.FileMeta{}, nil)
 
 	r := gin.New()
 	r.GET("/repo/:repo/:arch/:file", h.RepoFileHandler)

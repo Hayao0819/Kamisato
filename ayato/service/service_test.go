@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/Hayao0819/Kamisato/ayato/repository"
+	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
 	"github.com/Hayao0819/Kamisato/ayato/repository/blob/localfs"
 	"github.com/Hayao0819/Kamisato/ayato/service"
 	"github.com/Hayao0819/Kamisato/ayato/stream"
@@ -63,19 +64,22 @@ func TestServiceGetFile(t *testing.T) {
 		utils.BufferToReadSeekCloser(bytes.NewBufferString(want)))
 
 	bin := mocks.NewMockBinaryRepository(ctrl)
-	bin.EXPECT().FetchFile("myrepo", "x86_64", "foo.pkg.tar.zst").Return(fs, nil)
+	bin.EXPECT().FetchFileWithMeta("myrepo", "x86_64", "foo.pkg.tar.zst").Return(fs, blob.FileMeta{ETag: `"etag1"`}, nil)
 
 	svc := service.New(mocks.NewMockNameStore(ctrl), bin, nil, nil, &conf.AyatoConfig{})
-	got, err := svc.GetFile("myrepo", "x86_64", "foo.pkg.tar.zst")
+	got, gotMeta, err := svc.GetFileWithMeta("myrepo", "x86_64", "foo.pkg.tar.zst")
 	if err != nil {
-		t.Fatalf("GetFile failed: %v", err)
+		t.Fatalf("GetFileWithMeta failed: %v", err)
+	}
+	if gotMeta.ETag != `"etag1"` {
+		t.Errorf("etag = %q, want %q", gotMeta.ETag, `"etag1"`)
 	}
 	buf := new(bytes.Buffer)
 	if _, err := buf.ReadFrom(got); err != nil {
 		t.Fatalf("read stream: %v", err)
 	}
 	if buf.String() != want {
-		t.Errorf("GetFile content = %q, want %q", buf.String(), want)
+		t.Errorf("GetFileWithMeta content = %q, want %q", buf.String(), want)
 	}
 }
 
@@ -227,9 +231,9 @@ func TestServiceLocalfsIntegration(t *testing.T) {
 	})
 
 	t.Run("GetFile", func(t *testing.T) {
-		f, err := svc.GetFile("myrepo", "x86_64", "foo.pkg.tar.zst")
+		f, _, err := svc.GetFileWithMeta("myrepo", "x86_64", "foo.pkg.tar.zst")
 		if err != nil {
-			t.Fatalf("GetFile failed: %v", err)
+			t.Fatalf("GetFileWithMeta failed: %v", err)
 		}
 		defer f.Close()
 		buf := new(bytes.Buffer)

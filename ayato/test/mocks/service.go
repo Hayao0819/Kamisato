@@ -14,6 +14,7 @@ import (
 
 	domain "github.com/Hayao0819/Kamisato/ayato/domain"
 	repository "github.com/Hayao0819/Kamisato/ayato/repository"
+	blob "github.com/Hayao0819/Kamisato/ayato/repository/blob"
 	stream "github.com/Hayao0819/Kamisato/ayato/stream"
 	raiou "github.com/Hayao0819/Kamisato/pkg/raiou"
 	gomock "go.uber.org/mock/gomock"
@@ -57,50 +58,6 @@ func (mr *MockServicerMockRecorder) AddAdmin(id, login any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddAdmin", reflect.TypeOf((*MockServicer)(nil).AddAdmin), id, login)
 }
 
-// RegisterSigner mocks base method.
-func (m *MockServicer) RegisterSigner(armoredPub []byte) (string, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "RegisterSigner", armoredPub)
-	ret0, _ := ret[0].(string)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// RegisterSigner indicates an expected call of RegisterSigner.
-func (mr *MockServicerMockRecorder) RegisterSigner(armoredPub any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegisterSigner", reflect.TypeOf((*MockServicer)(nil).RegisterSigner), armoredPub)
-}
-
-// ListSigners mocks base method.
-func (m *MockServicer) ListSigners() ([]string, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ListSigners")
-	ret0, _ := ret[0].([]string)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// ListSigners indicates an expected call of ListSigners.
-func (mr *MockServicerMockRecorder) ListSigners() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListSigners", reflect.TypeOf((*MockServicer)(nil).ListSigners))
-}
-
-// UnregisterSigner mocks base method.
-func (m *MockServicer) UnregisterSigner(fingerprint string) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "UnregisterSigner", fingerprint)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// UnregisterSigner indicates an expected call of UnregisterSigner.
-func (mr *MockServicerMockRecorder) UnregisterSigner(fingerprint any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UnregisterSigner", reflect.TypeOf((*MockServicer)(nil).UnregisterSigner), fingerprint)
-}
-
 // Arches mocks base method.
 func (m *MockServicer) Arches(repo string) ([]string, error) {
 	m.ctrl.T.Helper()
@@ -116,19 +73,20 @@ func (mr *MockServicerMockRecorder) Arches(repo any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Arches", reflect.TypeOf((*MockServicer)(nil).Arches), repo)
 }
 
-// GetFile mocks base method.
-func (m *MockServicer) GetFile(repoName, archName, name string) (stream.File, error) {
+// GetFileWithMeta mocks base method.
+func (m *MockServicer) GetFileWithMeta(repoName, archName, name string) (stream.File, blob.FileMeta, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetFile", repoName, archName, name)
+	ret := m.ctrl.Call(m, "GetFileWithMeta", repoName, archName, name)
 	ret0, _ := ret[0].(stream.File)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	ret1, _ := ret[1].(blob.FileMeta)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
 }
 
-// GetFile indicates an expected call of GetFile.
-func (mr *MockServicerMockRecorder) GetFile(repoName, archName, name any) *gomock.Call {
+// GetFileWithMeta indicates an expected call of GetFileWithMeta.
+func (mr *MockServicerMockRecorder) GetFileWithMeta(repoName, archName, name any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetFile", reflect.TypeOf((*MockServicer)(nil).GetFile), repoName, archName, name)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetFileWithMeta", reflect.TypeOf((*MockServicer)(nil).GetFileWithMeta), repoName, archName, name)
 }
 
 // InitAll mocks base method.
@@ -174,6 +132,21 @@ func (mr *MockServicerMockRecorder) ListAdmins() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListAdmins", reflect.TypeOf((*MockServicer)(nil).ListAdmins))
 }
 
+// ListSigners mocks base method.
+func (m *MockServicer) ListSigners() ([]string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListSigners")
+	ret0, _ := ret[0].([]string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListSigners indicates an expected call of ListSigners.
+func (mr *MockServicerMockRecorder) ListSigners() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListSigners", reflect.TypeOf((*MockServicer)(nil).ListSigners))
+}
+
 // PkgDetail mocks base method.
 func (m *MockServicer) PkgDetail(repo, arch, pkg string) (*raiou.PKGINFO, error) {
 	m.ctrl.T.Helper()
@@ -217,6 +190,21 @@ func (m *MockServicer) Pkgs(repo, arch string) (*domain.PacmanPkgs, error) {
 func (mr *MockServicerMockRecorder) Pkgs(repo, arch any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Pkgs", reflect.TypeOf((*MockServicer)(nil).Pkgs), repo, arch)
+}
+
+// RegisterSigner mocks base method.
+func (m *MockServicer) RegisterSigner(armoredPub []byte) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RegisterSigner", armoredPub)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// RegisterSigner indicates an expected call of RegisterSigner.
+func (mr *MockServicerMockRecorder) RegisterSigner(armoredPub any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RegisterSigner", reflect.TypeOf((*MockServicer)(nil).RegisterSigner), armoredPub)
 }
 
 // RemoveAdmin mocks base method.
@@ -319,6 +307,20 @@ func (m *MockServicer) SignedURL(repo, arch, name string) (string, error) {
 func (mr *MockServicerMockRecorder) SignedURL(repo, arch, name any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SignedURL", reflect.TypeOf((*MockServicer)(nil).SignedURL), repo, arch, name)
+}
+
+// UnregisterSigner mocks base method.
+func (m *MockServicer) UnregisterSigner(fingerprint string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UnregisterSigner", fingerprint)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UnregisterSigner indicates an expected call of UnregisterSigner.
+func (mr *MockServicerMockRecorder) UnregisterSigner(fingerprint any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UnregisterSigner", reflect.TypeOf((*MockServicer)(nil).UnregisterSigner), fingerprint)
 }
 
 // UploadFile mocks base method.

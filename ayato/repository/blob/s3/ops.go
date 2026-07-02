@@ -76,6 +76,16 @@ func (s *S3) FetchFileWithETag(repo, arch, name string) (stream.File, string, er
 	return s.getObjectWithETag(k)
 }
 
+// FetchFileWithMeta fetches an object with its ETag and last-modified time, so the
+// HTTP layer can answer both If-None-Match and (for pacman) If-Modified-Since.
+func (s *S3) FetchFileWithMeta(repo, arch, name string) (stream.File, blob.FileMeta, error) {
+	k, err := s.validatedKey(repo, arch, name)
+	if err != nil {
+		return nil, blob.FileMeta{}, err
+	}
+	return s.getObjectWithMeta(k)
+}
+
 // StoreFileIfMatch stores an object with compare-and-swap on its version, mapping
 // a conflict to blob.ErrPreconditionFailed.
 func (s *S3) StoreFileIfMatch(repo, arch string, file stream.SeekFile, etag string) error {
