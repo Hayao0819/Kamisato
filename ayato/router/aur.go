@@ -29,11 +29,21 @@ func SetAUR(e *gin.Engine, m *middleware.Middleware, srv http.Handler, h *handle
 	sources.POST("", h.RegisterHandler)
 	sources.DELETE("/:pkgbase", h.RemoveHandler)
 
-	// The aurweb /rpc limiter keys on Request.RemoteAddr; rewrite it to gin's
-	// trusted-proxy-aware ClientIP so the limiter counts the real client (not the
-	// fronting proxy that all requests would otherwise share) while still ignoring
-	// a spoofable X-Forwarded-For when no trusted_proxies are configured.
+	// The aurweb NoRoute surface (/rpc, /<pkgbase>.git, cgit) is unauthenticated
+	// and drives the same catalog/git machinery, so rate-limit it per client IP as
+	// well. A dedicated limiter (not the /api/unstable/aur group's) keeps the two
+	// from sharing buckets; the group's routes are matched, so they never fall
+	// through to NoRoute and are never double-limited.
+	aurLimit := m.RateLimit(rate.Every(time.Second/10), 30)
 	e.NoRoute(func(c *gin.Context) {
+		aurLimit(c)
+		if c.IsAborted() {
+			return
+		}
+		// The aurweb /rpc limiter keys on Request.RemoteAddr; rewrite it to gin's
+		// trusted-proxy-aware ClientIP so it counts the real client (not the
+		// fronting proxy that all requests would otherwise share) while still
+		// ignoring a spoofable X-Forwarded-For when no trusted_proxies are set.
 		c.Request.RemoteAddr = net.JoinHostPort(c.ClientIP(), "0")
 		srv.ServeHTTP(c.Writer, c.Request)
 	})
