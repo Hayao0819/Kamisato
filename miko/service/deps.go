@@ -48,6 +48,14 @@ func (s *Service) resolveAndBuildDeps(ctx context.Context, job *domain.BuildJob,
 		return nil
 	}
 
+	// Gate every dep against the trust policy before building any, so a single
+	// untrusted transitive dep stops the run before anything is published.
+	for _, dep := range order {
+		if err := s.checkDepTrust(ctx, up, dep); err != nil {
+			return err
+		}
+	}
+
 	slog.Info("building AUR dependencies before target", "count", len(order), "repo", job.Request.Repo)
 	for _, dep := range order {
 		if err := s.buildAndPublishDep(ctx, job, backend, up, dep); err != nil {
