@@ -2,9 +2,7 @@ package aur
 
 import (
 	"crypto/ed25519"
-	"crypto/sha256"
 	"encoding/base64"
-	"encoding/hex"
 	"encoding/json"
 	"os"
 	"time"
@@ -16,8 +14,7 @@ import (
 // KeyID is a human-comparable handle (first 16 hex of SHA-256) for logs and
 // out-of-band pin confirmation, never for crypto decisions.
 func KeyID(pub ed25519.PublicKey) string {
-	sum := sha256.Sum256(pub)
-	return hex.EncodeToString(sum[:])[:16]
+	return kayoproto.KeyID(pub)
 }
 
 // CatalogSigner is ayato's Ed25519 identity for the catalog: ayato alone holds the
