@@ -17,6 +17,33 @@ func TestStoreValidate(t *testing.T) {
 	}
 }
 
+func TestStoreCheckStateless(t *testing.T) {
+	// Not under Cloud Run: a local-disk backend is fine.
+	if err := (StoreConfig{}).checkStateless(false); err != nil {
+		t.Errorf("local backend off Cloud Run rejected: %v", err)
+	}
+	// Under Cloud Run: local disk on either axis must be rejected.
+	if err := (StoreConfig{StorageType: "s3"}).checkStateless(true); err == nil {
+		t.Error("expected rejection of the default (badgerdb) db_type under Cloud Run")
+	}
+	if err := (StoreConfig{DBType: "badgerdb", StorageType: "s3"}).checkStateless(true); err == nil {
+		t.Error("expected rejection of badgerdb under Cloud Run")
+	}
+	if err := (StoreConfig{DBType: "cfkv", StorageType: "localfs"}).checkStateless(true); err == nil {
+		t.Error("expected rejection of localfs under Cloud Run")
+	}
+	if err := (StoreConfig{DBType: "cfkv"}).checkStateless(true); err == nil {
+		t.Error("expected rejection of the default (localfs) storage_type under Cloud Run")
+	}
+	// Under Cloud Run with remote backends on both axes: accepted.
+	if err := (StoreConfig{DBType: "cfkv", StorageType: "s3"}).checkStateless(true); err != nil {
+		t.Errorf("cfkv+s3 under Cloud Run rejected: %v", err)
+	}
+	if err := (StoreConfig{DBType: "sql", StorageType: "s3"}).checkStateless(true); err != nil {
+		t.Errorf("sql+s3 under Cloud Run rejected: %v", err)
+	}
+}
+
 func TestMikoValidate(t *testing.T) {
 	for _, ok := range []string{"", "container", "chroot", "bwrap"} {
 		if err := (&MikoConfig{Executor: ok}).Validate(); err != nil {

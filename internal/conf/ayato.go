@@ -214,6 +214,9 @@ func (c *AyatoConfig) Validate() error {
 	if err := c.Store.Validate(); err != nil {
 		return err
 	}
+	if err := c.Store.checkStateless(UnderCloudRun()); err != nil {
+		return err
+	}
 	if err := c.Auth.CI.validate(); err != nil {
 		return err
 	}

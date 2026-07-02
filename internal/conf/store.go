@@ -2,6 +2,7 @@ package conf
 
 import (
 	"fmt"
+	"os"
 	"slices"
 )
 
@@ -17,18 +18,44 @@ func (c StoreConfig) Validate() error {
 	return nil
 }
 
+// UnderCloudRun reports whether the process runs on Cloud Run, which injects
+// K_SERVICE and K_REVISION into every container.
+func UnderCloudRun() bool {
+	return os.Getenv("K_SERVICE") != "" || os.Getenv("K_REVISION") != ""
+}
+
+// checkStateless rejects a local-disk backend when running under Cloud Run,
+// where the container filesystem is ephemeral and anything written to it is lost
+// on the next revision — a silent violation of ayato's stateless invariant.
+// underCloudRun is a parameter so the check stays pure and testable.
+func (c StoreConfig) checkStateless(underCloudRun bool) error {
+	if !underCloudRun {
+		return nil
+	}
+	if c.DBType == "" || c.DBType == "badgerdb" {
+		return fmt.Errorf("store.db_type %q is a local disk backend and is ephemeral under Cloud Run: set it to cfkv or sql", c.DBType)
+	}
+	if c.StorageType == "" || c.StorageType == "localfs" {
+		return fmt.Errorf("store.storage_type %q is a local disk backend and is ephemeral under Cloud Run: set it to s3", c.StorageType)
+	}
+	return nil
+}
+
 // StoreConfig describes how application data and binaries are stored.
 type StoreConfig struct {
 	// DBType selects the shared generic key-value store backend
 	// ("badgerdb" | "cfkv" | "sql"). That one store holds package metadata and
 	// other app data, namespaced per consumer — it is not package-specific.
+	// Under Cloud Run the local "badgerdb" backend is ephemeral, so cfkv or sql
+	// is required there (enforced by checkStateless).
 	DBType       string     `koanf:"db_type"`
 	CloudflareKV CFKVConfig `koanf:"cfkv"`
 	SQL          SqlConfig  `koanf:"sql"`      // config for the SQL key-value backend
 	BadgerDB     string     `koanf:"badgerdb"` // base dir for the embedded BadgerDB
 
 	// StorageType selects how binaries (package files and DBs) are stored; this
-	// is independent of DBType.
+	// is independent of DBType. Under Cloud Run "localfs" is ephemeral, so s3 is
+	// required there (enforced by checkStateless).
 	StorageType  string   `koanf:"storage_type"` // "localfs" or "s3"
 	AWSS3        S3Config `koanf:"awss3"`
 	LocalRepoDir string   `koanf:"local_repo_dir"`
