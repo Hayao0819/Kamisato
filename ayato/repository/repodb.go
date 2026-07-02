@@ -254,6 +254,10 @@ func (r *binaryRepository) InitArch(repo, arch string, useSignedDB bool, gnupgDi
 // after a later winner's, the served file list can momentarily trail its db. The
 // canonical db.tar.gz stays correct and the next publish reconverges. A full fix
 // needs the file archive under the same atomic commit and is left as a follow-up.
+// The signed-db .sig artifacts (when useSignedDB) share this window, and there it
+// is stricter: a signature that trails its db.tar.gz will not verify, so pacman
+// with a required SigLevel rejects the db until the next publish reconverges. The
+// same atomic-commit follow-up covers it.
 func (r *binaryRepository) mutateDB(repo, arch, dir string, skip map[string]struct{}, useSignedDB bool, mutate func(dbPath string) error) error {
 	dbName := repo + ".db.tar.gz"
 	// db.tar.gz commits via compare-and-swap, never the unconditional pass.

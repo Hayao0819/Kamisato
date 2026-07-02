@@ -65,12 +65,13 @@ func SetRoute(e *gin.Engine, h *handler.Handler, m *middleware.Middleware) error
 		}
 
 		if mikoProxy != nil {
-			// Live build-log streaming stays public: the browser reads it over
-			// EventSource, which cannot attach a Bearer token, so gating it would
-			// break bearer-mode streaming. The job metadata/artifacts/stats reads
-			// are gated below because build logs can echo credentials from a
-			// user-supplied git URL; closing this /logs gap needs a query-param
-			// one-time token for SSE (follow-up).
+			// The job metadata/artifacts/stats reads are gated below (admin-only,
+			// matching the build mutation). Live build-log streaming is the one
+			// exception left public: the browser reads it over EventSource, which
+			// cannot attach a Bearer token, so gating it would break bearer-mode
+			// streaming. This is an accepted residual — a build log can echo
+			// credentials from a user-supplied git URL — to be closed with a
+			// query-param one-time token for SSE (follow-up).
 			api.GET("/jobs/:id/logs", mikoProxy.HandlerFunc(func(c *gin.Context) string {
 				return "/api/unstable/jobs/" + c.Param("id") + "/logs"
 			}))

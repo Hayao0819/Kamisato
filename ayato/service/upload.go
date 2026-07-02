@@ -133,8 +133,9 @@ func (s *Service) UploadFiles(repo string, files []*domain.UploadFiles) error {
 		return nil
 	}
 	useSignedDB := s.signedDB()
-	// gnupgDir is only for the CLI tool's GNUPGHOME; native signing takes its key
-	// from the config, so it stays nil.
+	// gnupgDir is only the CLI tool's GNUPGHOME; native signing takes its key from
+	// the environment (AYATO_DB_SIGNING_KEY), wired into the repository layer at
+	// startup, so it stays nil.
 	var gnupgDir *string
 
 	if s.pkgBinaryRepo.VerifyPkgRepo(repo) != nil {
