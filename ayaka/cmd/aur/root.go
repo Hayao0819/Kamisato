@@ -25,6 +25,9 @@ func validateAurPkgName(name string) error {
 	return nil
 }
 
+// aurBase is the AUR git host that pkgbase clones are pulled from.
+const aurBase = "https://aur.archlinux.org"
+
 // Cmd groups the commands that pull PKGBUILDs from the AUR into a source repository.
 func Cmd() *cobra.Command {
 	cmd := &cobra.Command{
@@ -39,9 +42,31 @@ func Cmd() *cobra.Command {
 	return cmd
 }
 
+// aurFetchCmd builds the add/update command: both clone a missing pkgbase and
+// pull an existing one, differing only in wording, so they share one builder.
+func aurFetchCmd(use, short string) *cobra.Command {
+	var force bool
+	cmd := &cobra.Command{
+		Use:   use,
+		Short: short,
+		Args:  cobra.MinimumNArgs(2),
+		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+			if len(args) == 0 {
+				return shared.AppFrom(cmd).GetSrcRepoNames(), cobra.ShellCompDirectiveNoFileComp
+			}
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runAurFetch(cmd, args[0], args[1:], force)
+		},
+	}
+	cmd.Flags().BoolVarP(&force, "force", "f", false, "Re-clone repositories even if they already exist")
+	return cmd
+}
+
 // runAurFetch is the shared add/update path: a missing package is cloned, an
 // existing one is pulled.
-func runAurFetch(cmd *cobra.Command, repoName string, pkgs []string, aurBase string, force bool) error {
+func runAurFetch(cmd *cobra.Command, repoName string, pkgs []string, force bool) error {
 	app := shared.AppFrom(cmd)
 	if app.GetSrcRepo(repoName) == nil {
 		return utils.WrapErr(shared.ErrInvalidRepoName, repoName)
@@ -55,7 +80,7 @@ func runAurFetch(cmd *cobra.Command, repoName string, pkgs []string, aurBase str
 	var errs []string
 	for i, name := range pkgs {
 		slog.Info("AUR PKGBUILD fetch", "index", i+1, "total", len(pkgs), "name", name)
-		if err := updateAurPkg(cmd, repoDir, aurBase, name, force); err != nil {
+		if err := updateAurPkg(cmd, repoDir, name, force); err != nil {
 			slog.Error("failed to fetch AUR package", "name", name, "error", err)
 			errs = append(errs, err.Error())
 		}
@@ -67,7 +92,7 @@ func runAurFetch(cmd *cobra.Command, repoName string, pkgs []string, aurBase str
 	return nil
 }
 
-func updateAurPkg(cobraCmd *cobra.Command, repoDir, aurBase, name string, force bool) error {
+func updateAurPkg(cobraCmd *cobra.Command, repoDir, name string, force bool) error {
 	if err := validateAurPkgName(name); err != nil {
 		return err
 	}
