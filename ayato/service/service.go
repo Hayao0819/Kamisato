@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"os"
@@ -57,14 +58,16 @@ type Uploader interface {
 	RemovePkg(rname string, arch string, pkgname string) error
 }
 
-// AdminService manages the admin allowlist. GitHub login->id resolution stays in
-// the handler, so these take a resolved id.
+// AdminService manages the admin allowlist. Adds take a numeric id, resolving a
+// GitHub login to one via ResolveGitHubLogin so the outbound API call stays out
+// of the handler layer.
 type AdminService interface {
 	IsAdmin(id int64) bool
 	AddAdmin(id int64, login string) error
 	RemoveAdmin(id int64) error
 	ListAdmins() ([]domain.AllowedAdmin, error)
 	SeedBootstrapAdmin(id int64) error
+	ResolveGitHubLogin(ctx context.Context, login string) (int64, string, error)
 }
 
 // SignerRegistry manages worker signing keys. RegisterSigner accepts a worker

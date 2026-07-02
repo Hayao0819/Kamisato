@@ -10,6 +10,7 @@
 package mocks
 
 import (
+	context "context"
 	reflect "reflect"
 
 	domain "github.com/Hayao0819/Kamisato/ayato/domain"
@@ -323,6 +324,22 @@ func (m *MockAdminService) RemoveAdmin(id int64) error {
 func (mr *MockAdminServiceMockRecorder) RemoveAdmin(id any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RemoveAdmin", reflect.TypeOf((*MockAdminService)(nil).RemoveAdmin), id)
+}
+
+// ResolveGitHubLogin mocks base method.
+func (m *MockAdminService) ResolveGitHubLogin(ctx context.Context, login string) (int64, string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ResolveGitHubLogin", ctx, login)
+	ret0, _ := ret[0].(int64)
+	ret1, _ := ret[1].(string)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// ResolveGitHubLogin indicates an expected call of ResolveGitHubLogin.
+func (mr *MockAdminServiceMockRecorder) ResolveGitHubLogin(ctx, login any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResolveGitHubLogin", reflect.TypeOf((*MockAdminService)(nil).ResolveGitHubLogin), ctx, login)
 }
 
 // SeedBootstrapAdmin mocks base method.
@@ -703,6 +720,22 @@ func (m *MockServicer) RepoNames() ([]string, error) {
 func (mr *MockServicerMockRecorder) RepoNames() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RepoNames", reflect.TypeOf((*MockServicer)(nil).RepoNames))
+}
+
+// ResolveGitHubLogin mocks base method.
+func (m *MockServicer) ResolveGitHubLogin(ctx context.Context, login string) (int64, string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ResolveGitHubLogin", ctx, login)
+	ret0, _ := ret[0].(int64)
+	ret1, _ := ret[1].(string)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// ResolveGitHubLogin indicates an expected call of ResolveGitHubLogin.
+func (mr *MockServicerMockRecorder) ResolveGitHubLogin(ctx, login any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResolveGitHubLogin", reflect.TypeOf((*MockServicer)(nil).ResolveGitHubLogin), ctx, login)
 }
 
 // SeedBootstrapAdmin mocks base method.

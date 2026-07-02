@@ -1,13 +1,8 @@
 package handler
 
 import (
-	"context"
-	"encoding/json"
-	"errors"
 	"net/http"
-	"net/url"
 	"strconv"
-	"time"
 
 	"github.com/Hayao0819/Kamisato/ayato/domain"
 	"github.com/gin-gonic/gin"
@@ -41,12 +36,12 @@ func (h *Handler) AdminsAddHandler(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "id or login required"})
 			return
 		}
-		resolved, rerr := resolveGitHubLogin(c.Request.Context(), login)
+		resolvedID, resolvedLogin, rerr := h.s.ResolveGitHubLogin(c.Request.Context(), login)
 		if rerr != nil {
 			c.JSON(http.StatusBadGateway, gin.H{"error": "could not resolve login"})
 			return
 		}
-		id, login = resolved.ID, resolved.Login
+		id, login = resolvedID, resolvedLogin
 	}
 	if err := h.s.AddAdmin(id, login); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "add"})
@@ -78,29 +73,4 @@ func (h *Handler) AdminsRemoveHandler(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"ok": true})
-}
-
-// No auth needed: public GitHub profiles are world-readable.
-func resolveGitHubLogin(ctx context.Context, login string) (githubUser, error) {
-	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
-	defer cancel()
-	u := "https://api.github.com/users/" + url.PathEscape(login)
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
-	if err != nil {
-		return githubUser{}, err
-	}
-	req.Header.Set("Accept", "application/vnd.github+json")
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return githubUser{}, err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return githubUser{}, errors.New("github users lookup non-200")
-	}
-	var gu githubUser
-	if err := json.NewDecoder(resp.Body).Decode(&gu); err != nil || gu.ID == 0 {
-		return githubUser{}, errors.New("github users decode")
-	}
-	return gu, nil
 }
