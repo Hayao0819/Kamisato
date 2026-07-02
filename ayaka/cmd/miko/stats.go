@@ -1,8 +1,8 @@
 package mikocmd
 
 import (
+	"encoding/json"
 	"fmt"
-	"os"
 	"text/tabwriter"
 	"time"
 
@@ -13,7 +13,7 @@ import (
 )
 
 func mikoStatsCmd() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "stats",
 		Short: "Show build service statistics",
 		Args:  cobra.NoArgs,
@@ -28,7 +28,26 @@ func mikoStatsCmd() *cobra.Command {
 				return utils.WrapErr(err, "failed to get stats")
 			}
 
-			w := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
+			format, err := shared.ResolveFormat(cmd, "")
+			if err != nil {
+				return err
+			}
+			out := cmd.OutOrStdout()
+			// stats is a single aggregate record, so the default is a readable
+			// key/value layout; --json / --format keep it scriptable.
+			switch {
+			case format == "json":
+				b, err := json.MarshalIndent(stats, "", "  ")
+				if err != nil {
+					return utils.WrapErr(err, "failed to encode stats")
+				}
+				fmt.Fprintln(out, string(b))
+				return nil
+			case format != "":
+				return shared.RenderList(out, format, ayatoclient.Stats{}, []ayatoclient.Stats{*stats})
+			}
+
+			w := tabwriter.NewWriter(out, 0, 4, 2, ' ', 0)
 			fmt.Fprintf(w, "Workers:\t%d\n", stats.Workers)
 			fmt.Fprintf(w, "Queue:\t%d\n", stats.QueueLength)
 			fmt.Fprintf(w, "Running:\t%d\n", stats.Running)
@@ -38,4 +57,6 @@ func mikoStatsCmd() *cobra.Command {
 			return w.Flush()
 		},
 	}
+	shared.AddFormatFlags(cmd)
+	return cmd
 }

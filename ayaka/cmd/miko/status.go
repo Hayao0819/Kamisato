@@ -1,9 +1,6 @@
 package mikocmd
 
 import (
-	"encoding/json"
-	"fmt"
-
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
 	"github.com/Hayao0819/Kamisato/internal/ayatoclient"
 	"github.com/Hayao0819/Kamisato/internal/utils"
@@ -11,7 +8,7 @@ import (
 )
 
 func mikoStatusCmd() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "status <id>",
 		Short: "Show the status of a build job",
 		Args:  cobra.ExactArgs(1),
@@ -26,12 +23,15 @@ func mikoStatusCmd() *cobra.Command {
 				return utils.WrapErr(err, "failed to get job status")
 			}
 
-			out, err := json.MarshalIndent(job, "", "  ")
+			// status shows a single job as one row of the same table as `jobs`;
+			// --json / --format reach the full record for scripting.
+			format, err := shared.ResolveFormat(cmd, jobTableFormat)
 			if err != nil {
-				return utils.WrapErr(err, "failed to encode job")
+				return err
 			}
-			fmt.Println(string(out))
-			return nil
+			return shared.RenderList(cmd.OutOrStdout(), format, jobHeader, []ayatoclient.Job{*job})
 		},
 	}
+	shared.AddFormatFlags(cmd)
+	return cmd
 }

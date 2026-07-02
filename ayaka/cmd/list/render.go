@@ -1,14 +1,9 @@
 package listcmd
 
 import (
-	"encoding/json"
 	"io"
-	"strings"
-	"text/tabwriter"
-	"text/template"
 
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
-	"github.com/Hayao0819/Kamisato/internal/utils"
 )
 
 // pkgHeader is run through the format template to produce the table header row, as Docker does.
@@ -21,64 +16,7 @@ var pkgHeader = shared.PkgRow{
 	Build:     "BUILD",
 }
 
-// renderRows writes rows per the format: "json" emits one object per line, a
-// "table " prefix aligns columns under a header, any other template runs per row
-// with no header.
+// renderRows renders package rows through the shared Docker-style formatter.
 func renderRows(out io.Writer, format string, rows []shared.PkgRow) error {
-	if format == "json" {
-		enc := json.NewEncoder(out)
-		for _, row := range rows {
-			if err := enc.Encode(row); err != nil {
-				return utils.WrapErr(err, "failed to encode row")
-			}
-		}
-		return nil
-	}
-
-	// Let users write \t and \n in the format string, as docker does.
-	tmplText := strings.NewReplacer(`\t`, "\t", `\n`, "\n").Replace(format)
-
-	isTable := strings.HasPrefix(tmplText, "table ")
-	if isTable {
-		tmplText = strings.TrimPrefix(tmplText, "table ")
-	}
-
-	tmpl, err := template.New("list").Funcs(template.FuncMap{
-		"json": func(v any) (string, error) {
-			b, err := json.Marshal(v)
-			return string(b), err
-		},
-	}).Parse(tmplText)
-	if err != nil {
-		return utils.WrapErr(err, "invalid --format template")
-	}
-
-	if isTable {
-		w := tabwriter.NewWriter(out, 0, 4, 2, ' ', 0)
-		if err := tmpl.Execute(w, pkgHeader); err != nil {
-			return utils.WrapErr(err, "failed to render header")
-		}
-		if _, err := w.Write([]byte("\n")); err != nil {
-			return err
-		}
-		for _, row := range rows {
-			if err := tmpl.Execute(w, row); err != nil {
-				return utils.WrapErr(err, "failed to render row")
-			}
-			if _, err := w.Write([]byte("\n")); err != nil {
-				return err
-			}
-		}
-		return w.Flush()
-	}
-
-	for _, row := range rows {
-		if err := tmpl.Execute(out, row); err != nil {
-			return utils.WrapErr(err, "failed to render row")
-		}
-		if _, err := out.Write([]byte("\n")); err != nil {
-			return err
-		}
-	}
-	return nil
+	return shared.RenderList(out, format, pkgHeader, rows)
 }
