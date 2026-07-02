@@ -13,8 +13,8 @@ import (
 	"strings"
 
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
+	"github.com/Hayao0819/Kamisato/internal/errwrap"
 	"github.com/Hayao0819/Kamisato/internal/kayoproto"
-	"github.com/Hayao0819/Kamisato/internal/utils"
 	"github.com/Hayao0819/Kamisato/pkg/aurweb"
 )
 
@@ -133,7 +133,7 @@ func (b *Backend) base(pkgbase string) (baseRecord, error) {
 	}
 	var rec baseRecord
 	if err := json.Unmarshal(raw, &rec); err != nil {
-		return baseRecord{}, utils.WrapErr(err, "corrupt pkgbase record")
+		return baseRecord{}, errwrap.WrapErr(err, "corrupt pkgbase record")
 	}
 	return rec, nil
 }

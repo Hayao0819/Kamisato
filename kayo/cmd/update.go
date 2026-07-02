@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/Hayao0819/Kamisato/internal/errwrap"
 	"github.com/Hayao0819/Kamisato/internal/gitcmd"
-	"github.com/Hayao0819/Kamisato/internal/utils"
 	"github.com/Hayao0819/Kamisato/kayo/audit"
 	"github.com/Hayao0819/Kamisato/kayo/cmd/shared"
 	"github.com/Hayao0819/Kamisato/kayo/gitserve"
@@ -38,7 +38,7 @@ func updateCmd() *cobra.Command {
 			}
 			ap, ok := store.Approval(r.Pkgbase)
 			if !ok {
-				return utils.NewErrf("%s is not tracked; use 'kayo trust add' first", r.Pkgbase)
+				return errwrap.NewErrf("%s is not tracked; use 'kayo trust add' first", r.Pkgbase)
 			}
 
 			report, err := audit.Scan(r.Dir)
@@ -70,14 +70,14 @@ func updateCmd() *cobra.Command {
 				return nil
 			}
 			if report.Max() >= audit.SevHigh && !force {
-				return utils.NewErr("refusing to approve: high-severity findings (use --force)")
+				return errwrap.NewErr("refusing to approve: high-severity findings (use --force)")
 			}
 
 			if err := r.RequirePinnedCommit(); err != nil {
 				return err
 			}
 			if err := gitserve.Materialize(cmd.Context(), cfg.ServedRoot(), r.Pkgbase, r.Dir, r.Commit); err != nil {
-				return utils.WrapErr(err, "failed to re-pin reviewed commit")
+				return errwrap.WrapErr(err, "failed to re-pin reviewed commit")
 			}
 			store.Approve(trust.Approval{
 				Pkgbase:    r.Pkgbase,

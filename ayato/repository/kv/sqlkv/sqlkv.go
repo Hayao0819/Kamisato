@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
-	"github.com/Hayao0819/Kamisato/internal/utils"
+	"github.com/Hayao0819/Kamisato/internal/errwrap"
 	"github.com/Hayao0819/Kamisato/internal/weblog"
 	_ "github.com/lib/pq"
 	"gorm.io/driver/mysql"
@@ -89,7 +89,7 @@ func (s *Store) Get(ns, key string) ([]byte, error) {
 		return nil, kv.ErrNotFound
 	}
 	if err != nil {
-		return nil, utils.WrapErr(err, "sqlkv: get")
+		return nil, errwrap.WrapErr(err, "sqlkv: get")
 	}
 	return e.Value, nil
 }
@@ -130,7 +130,7 @@ func (s *Store) List(ns string) ([]kv.Entry, error) {
 		Where("namespace = ? AND (expires_at IS NULL OR expires_at > ?)", ns, time.Now()).
 		Find(&rows).Error
 	if err != nil {
-		return nil, utils.WrapErr(err, "sqlkv: list")
+		return nil, errwrap.WrapErr(err, "sqlkv: list")
 	}
 	out := make([]kv.Entry, 0, len(rows))
 	for _, r := range rows {

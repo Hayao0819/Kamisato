@@ -4,7 +4,7 @@ import (
 	"os/exec"
 	"runtime"
 
-	"github.com/Hayao0819/Kamisato/internal/utils"
+	"github.com/Hayao0819/Kamisato/internal/errwrap"
 )
 
 // OpenBrowser opens url in the user's default browser, detached from ayaka. A
@@ -20,7 +20,7 @@ func OpenBrowser(url string) error {
 		cmd = exec.Command("xdg-open", url)
 	}
 	if err := cmd.Start(); err != nil {
-		return utils.WrapErr(err, "failed to open browser")
+		return errwrap.WrapErr(err, "failed to open browser")
 	}
 	go func() { _ = cmd.Wait() }()
 	return nil

@@ -6,7 +6,7 @@ import (
 	"github.com/Hayao0819/Kamisato/ayato/handler"
 	"github.com/Hayao0819/Kamisato/ayato/middleware"
 	"github.com/Hayao0819/Kamisato/ayato/view"
-	"github.com/Hayao0819/Kamisato/internal/utils"
+	"github.com/Hayao0819/Kamisato/internal/errwrap"
 
 	"github.com/gin-gonic/gin"
 	"golang.org/x/time/rate"
@@ -14,14 +14,14 @@ import (
 
 func SetRoute(e *gin.Engine, h *handler.Handler, m *middleware.Middleware) error {
 	if err := view.Set(e); err != nil {
-		return utils.WrapErr(err, "failed to configure templates")
+		return errwrap.WrapErr(err, "failed to configure templates")
 	}
 
 	// Reverse proxy to miko. miko holds builds/jobs as the single source of truth,
 	// and ayato just passes through with an API key (clients never reach miko directly).
 	mikoProxy, err := h.MikoProxy()
 	if err != nil {
-		return utils.WrapErr(err, "failed to initialize the miko proxy")
+		return errwrap.WrapErr(err, "failed to initialize the miko proxy")
 	}
 
 	// Throttle unauthenticated auth endpoints per client IP (5 req/s, burst 20)
@@ -140,7 +140,7 @@ func SetRoute(e *gin.Engine, h *handler.Handler, m *middleware.Middleware) error
 	{
 		repo := e.Group("/repo")
 		if err := view.SetRepoAssets(repo); err != nil {
-			return utils.WrapErr(err, "failed to register repo index assets")
+			return errwrap.WrapErr(err, "failed to register repo index assets")
 		}
 		repo.GET("/:repo/:arch", h.RepoFileListHandler)
 		repo.GET("/:repo/:arch/:file", h.RepoFileHandler)

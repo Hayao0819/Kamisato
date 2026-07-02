@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/Hayao0819/Kamisato/internal/conf"
-	"github.com/Hayao0819/Kamisato/internal/utils"
+	"github.com/Hayao0819/Kamisato/internal/errwrap"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
 	"github.com/samber/lo"
 	"github.com/spf13/cobra"
@@ -27,11 +27,11 @@ func NewApp(cfg *conf.AyakaConfig) (*App, error) {
 	for _, r := range cfg.Repos {
 		repoconfig, err := conf.LoadSrcRepoConfig(r.Dir)
 		if err != nil {
-			return nil, utils.WrapErr(err, "failed to load source repository config "+r.Dir)
+			return nil, errwrap.WrapErr(err, "failed to load source repository config "+r.Dir)
 		}
 		sr, err := repo.GetSrcRepo(r.Dir, SrcConfigFromConf(repoconfig))
 		if err != nil {
-			return nil, utils.WrapErr(err, "failed to load source repository "+r.Dir)
+			return nil, errwrap.WrapErr(err, "failed to load source repository "+r.Dir)
 		}
 		sr.Dir = r.Dir
 		sr.DestDir = r.DestDir

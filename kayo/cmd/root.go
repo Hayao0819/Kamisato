@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/Hayao0819/Kamisato/internal/conf"
+	"github.com/Hayao0819/Kamisato/internal/errwrap"
 	"github.com/Hayao0819/Kamisato/internal/utils"
 	"github.com/Hayao0819/Kamisato/internal/weblog"
 	ayatocmd "github.com/Hayao0819/Kamisato/kayo/cmd/ayato"
@@ -64,7 +65,7 @@ func run(cmd *cobra.Command, _ []string) error {
 
 	store, err := trust.Open(cfg.ResolvedTrustStore())
 	if err != nil {
-		return utils.WrapErr(err, "failed to open trust store")
+		return errwrap.WrapErr(err, "failed to open trust store")
 	}
 	mode := cfg.ResolvedEnforceMode()
 
@@ -91,7 +92,7 @@ func run(cmd *cobra.Command, _ []string) error {
 	engine := gin.New()
 	engine.Use(gin.Recovery(), weblog.GinLog())
 	if err := engine.SetTrustedProxies(nil); err != nil {
-		return utils.WrapErr(err, "failed to reset trusted proxies")
+		return errwrap.WrapErr(err, "failed to reset trusted proxies")
 	}
 	engine.GET("/healthz", func(c *gin.Context) { c.String(http.StatusOK, "ok") })
 	// Approved packages are served from their pinned local repo (variant B);

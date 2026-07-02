@@ -14,7 +14,7 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/ayatoclient"
 	"github.com/Hayao0819/Kamisato/internal/blinkyutils"
 	"github.com/Hayao0819/Kamisato/internal/conf"
-	"github.com/Hayao0819/Kamisato/internal/utils"
+	"github.com/Hayao0819/Kamisato/internal/errwrap"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/srcpkg"
 )
 
@@ -24,7 +24,7 @@ func resolveServer(name string) (url, token string, err error) {
 	info, err := blinkyutils.ResolveServer(name)
 	if err != nil {
 		if errors.Is(err, blinkyutils.ErrNoServerSpecified) {
-			return "", "", utils.NewErr("no ayato server configured; set THOMA_SERVER or run 'ayaka server login'")
+			return "", "", errwrap.NewErr("no ayato server configured; set THOMA_SERVER or run 'ayaka server login'")
 		}
 		return "", "", err
 	}
@@ -38,7 +38,7 @@ func resolveServer(name string) (url, token string, err error) {
 func resolveEndpoint(cfg *conf.ThomaConfig) (base, token string, err error) {
 	if cfg.Direct() {
 		if cfg.Server == "" {
-			return "", "", utils.NewErr("direct mode needs THOMA_SERVER set to the miko URL")
+			return "", "", errwrap.NewErr("direct mode needs THOMA_SERVER set to the miko URL")
 		}
 		return cfg.Server, cfg.ApiKey, nil
 	}
@@ -80,7 +80,7 @@ func remoteBuild(args []string) error {
 
 	cwd, err := os.Getwd()
 	if err != nil {
-		return utils.WrapErr(err, "failed to get working directory")
+		return errwrap.WrapErr(err, "failed to get working directory")
 	}
 	pkgbuild, files, err := srcpkg.ReadInline(cwd, func(name string, size int64) {
 		fmt.Fprintf(os.Stderr, "thoma: skipping large file %q (%d bytes); miko fetches sources itself\n", name, size)
@@ -115,19 +115,19 @@ func remoteBuild(args []string) error {
 	fmt.Fprintf(os.Stderr, "thoma: delegating build to %s (mode %s, repo %s, arch %s)\n", base, mode, cfg.Repo, cfg.Arch)
 	jobID, err := ayatoclient.SubmitBuild(ctx, base, token, req)
 	if err != nil {
-		return utils.WrapErr(err, "failed to submit build")
+		return errwrap.WrapErr(err, "failed to submit build")
 	}
 	fmt.Fprintf(os.Stderr, "thoma: build job %s\n", jobID)
 
 	job, err := ayatoclient.WaitJob(ctx, base, token, jobID, os.Stdout)
 	if err != nil {
-		return utils.WrapErr(err, "failed while waiting for build")
+		return errwrap.WrapErr(err, "failed while waiting for build")
 	}
 	if job.Status != "success" {
 		if job.Err != "" {
-			return utils.NewErrf("remote build %s: %s", job.Status, job.Err)
+			return errwrap.NewErrf("remote build %s: %s", job.Status, job.Err)
 		}
-		return utils.NewErrf("remote build %s", job.Status)
+		return errwrap.NewErrf("remote build %s", job.Status)
 	}
 
 	dests, err := packageDests(realMakepkg(cfg.Makepkg), args)
@@ -146,7 +146,7 @@ func packageDests(mkpkg string, incoming []string) ([]string, error) {
 	}
 	out, err := exec.Command(mkpkg, args...).Output()
 	if err != nil {
-		return nil, utils.WrapErr(err, "failed to run makepkg --packagelist")
+		return nil, errwrap.WrapErr(err, "failed to run makepkg --packagelist")
 	}
 	var dests []string
 	for _, line := range strings.Split(string(out), "\n") {
@@ -155,7 +155,7 @@ func packageDests(mkpkg string, incoming []string) ([]string, error) {
 		}
 	}
 	if len(dests) == 0 {
-		return nil, utils.NewErr("makepkg --packagelist produced no output")
+		return nil, errwrap.NewErr("makepkg --packagelist produced no output")
 	}
 	return dests, nil
 }
@@ -189,7 +189,7 @@ func placePackages(ctx context.Context, cfg *conf.ThomaConfig, base, token, jobI
 			}
 		}
 		if match == "" {
-			return utils.NewErrf("no built package matches %q (built: %s)", filepath.Base(dest), strings.Join(built, ", "))
+			return errwrap.NewErrf("no built package matches %q (built: %s)", filepath.Base(dest), strings.Join(built, ", "))
 		}
 		if err := downloadBuilt(ctx, cfg, base, token, jobID, match, dest); err != nil {
 			return err
@@ -208,7 +208,7 @@ func downloadBuilt(ctx context.Context, cfg *conf.ThomaConfig, base, token, jobI
 	}
 	f, err := os.Create(dest)
 	if err != nil {
-		return utils.WrapErr(err, "failed to create "+dest)
+		return errwrap.WrapErr(err, "failed to create "+dest)
 	}
 	if err := ayatoclient.DownloadArtifact(ctx, base, token, jobID, name, f); err != nil {
 		_ = f.Close()

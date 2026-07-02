@@ -14,7 +14,7 @@ import (
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv/cfkv"
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv/sqlkv"
 	"github.com/Hayao0819/Kamisato/internal/conf"
-	"github.com/Hayao0819/Kamisato/internal/utils"
+	"github.com/Hayao0819/Kamisato/internal/errwrap"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/sign"
 )
 
@@ -104,11 +104,11 @@ func New(cfg *conf.AyatoConfig) (NameStore, BinaryRepository, AuthRepository, kv
 func loadDBSigner() (*openpgp.Entity, error) {
 	armored := os.Getenv("AYATO_DB_SIGNING_KEY")
 	if armored == "" {
-		return nil, utils.NewErr("sign.db is enabled but AYATO_DB_SIGNING_KEY is unset")
+		return nil, errwrap.NewErr("sign.db is enabled but AYATO_DB_SIGNING_KEY is unset")
 	}
 	entity, err := sign.LoadArmoredEntity(armored, os.Getenv("AYATO_DB_SIGNING_PASSPHRASE"))
 	if err != nil {
-		return nil, utils.WrapErr(err, "failed to load the repo-db signing key")
+		return nil, errwrap.WrapErr(err, "failed to load the repo-db signing key")
 	}
 	return entity, nil
 }

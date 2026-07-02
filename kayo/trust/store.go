@@ -15,7 +15,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Hayao0819/Kamisato/internal/utils"
+	"github.com/Hayao0819/Kamisato/internal/errwrap"
 )
 
 // TrustedMaintainer is a maintainer account the user explicitly vouches for,
@@ -64,10 +64,10 @@ func Open(path string) (*Store, error) {
 		return s, nil
 	}
 	if err != nil {
-		return nil, utils.WrapErr(err, "failed to read trust store")
+		return nil, errwrap.WrapErr(err, "failed to read trust store")
 	}
 	if err := json.Unmarshal(raw, &s.data); err != nil {
-		return nil, utils.WrapErr(err, "corrupt trust store")
+		return nil, errwrap.WrapErr(err, "corrupt trust store")
 	}
 	if s.data.Maintainers == nil {
 		s.data.Maintainers = map[string]TrustedMaintainer{}
@@ -157,15 +157,15 @@ func (s *Store) Save() error {
 	defer s.mu.Unlock()
 
 	if err := os.MkdirAll(filepath.Dir(s.path), 0o755); err != nil {
-		return utils.WrapErr(err, "failed to create trust store dir")
+		return errwrap.WrapErr(err, "failed to create trust store dir")
 	}
 	raw, err := json.MarshalIndent(s.data, "", "  ")
 	if err != nil {
-		return utils.WrapErr(err, "failed to encode trust store")
+		return errwrap.WrapErr(err, "failed to encode trust store")
 	}
 	tmp := s.path + ".tmp"
 	if err := os.WriteFile(tmp, raw, 0o600); err != nil {
-		return utils.WrapErr(err, "failed to write trust store")
+		return errwrap.WrapErr(err, "failed to write trust store")
 	}
 	return os.Rename(tmp, s.path)
 }

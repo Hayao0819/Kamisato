@@ -3,7 +3,7 @@ package trustcmd
 import (
 	"fmt"
 
-	"github.com/Hayao0819/Kamisato/internal/utils"
+	"github.com/Hayao0819/Kamisato/internal/errwrap"
 	"github.com/Hayao0819/Kamisato/kayo/audit"
 	"github.com/Hayao0819/Kamisato/kayo/cmd/shared"
 	"github.com/Hayao0819/Kamisato/kayo/gitserve"
@@ -48,7 +48,7 @@ func trustAddCmd() *cobra.Command {
 			shared.PrintReport(out, r, report, store.Evaluate(r.Source, r.Pkgbase, r.Maintainer))
 			shared.PrintLLMAdvisory(cmd.Context(), out, cfg, r.Dir, false)
 			if report.Max() >= audit.SevHigh && !force {
-				return utils.NewErr("refusing to trust: high-severity findings (use --force to override)")
+				return errwrap.NewErr("refusing to trust: high-severity findings (use --force to override)")
 			}
 
 			// Pin the reviewed commit by serving it ourselves (variant B), so a
@@ -57,7 +57,7 @@ func trustAddCmd() *cobra.Command {
 				return err
 			}
 			if err := gitserve.Materialize(cmd.Context(), cfg.ServedRoot(), r.Pkgbase, r.Dir, r.Commit); err != nil {
-				return utils.WrapErr(err, "failed to pin reviewed commit")
+				return errwrap.WrapErr(err, "failed to pin reviewed commit")
 			}
 
 			store.Approve(trust.Approval{

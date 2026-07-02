@@ -5,7 +5,7 @@ import (
 	"slices"
 
 	"github.com/Hayao0819/Kamisato/ayato/domain"
-	"github.com/Hayao0819/Kamisato/internal/utils"
+	"github.com/Hayao0819/Kamisato/internal/errwrap"
 	"github.com/Hayao0819/Kamisato/pkg/raiou"
 	"github.com/cockroachdb/errors"
 )
@@ -93,7 +93,7 @@ func (s *Service) ValidateRepoName(repo string) error {
 	}
 	configuredRepos, err := s.pkgBinaryRepo.RepoNames()
 	if err != nil {
-		return utils.WrapErr(err, "failed to get repository names")
+		return errwrap.WrapErr(err, "failed to get repository names")
 	}
 	if slices.Contains(configuredRepos, repo) {
 		return nil

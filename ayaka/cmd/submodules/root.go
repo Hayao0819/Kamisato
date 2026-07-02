@@ -5,7 +5,7 @@ import (
 	"os/exec"
 
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
-	"github.com/Hayao0819/Kamisato/internal/utils"
+	"github.com/Hayao0819/Kamisato/internal/errwrap"
 	"github.com/spf13/cobra"
 )
 
@@ -48,7 +48,7 @@ func Cmd() *cobra.Command {
 				gitcmd.Stderr = cmd.ErrOrStderr()
 
 				if err := gitcmd.Run(); err != nil {
-					return utils.WrapErr(err, "failed to update submodules in "+root)
+					return errwrap.WrapErr(err, "failed to update submodules in "+root)
 				}
 
 				cmd.Println("Updated submodules in:", root)

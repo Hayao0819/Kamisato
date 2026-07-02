@@ -3,7 +3,7 @@ package mikocmd
 import (
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
 	"github.com/Hayao0819/Kamisato/internal/ayatoclient"
-	"github.com/Hayao0819/Kamisato/internal/utils"
+	"github.com/Hayao0819/Kamisato/internal/errwrap"
 	"github.com/spf13/cobra"
 )
 
@@ -20,7 +20,7 @@ func mikoJobsCmd() *cobra.Command {
 
 			jobs, err := ayatoclient.ListJobs(cmd.Context(), srv.URL, srv.Password)
 			if err != nil {
-				return utils.WrapErr(err, "failed to list jobs")
+				return errwrap.WrapErr(err, "failed to list jobs")
 			}
 
 			format, err := shared.ResolveFormat(cmd, jobTableFormat)

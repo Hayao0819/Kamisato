@@ -5,8 +5,8 @@ import (
 	"os"
 	"strings"
 
+	"github.com/Hayao0819/Kamisato/internal/errwrap"
 	"github.com/Hayao0819/Kamisato/internal/gitcmd"
-	"github.com/Hayao0819/Kamisato/internal/utils"
 )
 
 // HeadCommit returns the HEAD commit hash of the git repo in dir. Author emails are
@@ -24,7 +24,7 @@ func HeadCommit(ctx context.Context, dir string) (string, error) {
 func Clone(ctx context.Context, url, ref string) (dir string, cleanup func(), err error) {
 	dir, err = os.MkdirTemp("", "kayo-audit-*")
 	if err != nil {
-		return "", func() {}, utils.WrapErr(err, "failed to create temp dir")
+		return "", func() {}, errwrap.WrapErr(err, "failed to create temp dir")
 	}
 	cleanup = func() { _ = os.RemoveAll(dir) }
 

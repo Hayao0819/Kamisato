@@ -14,8 +14,8 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/Hayao0819/Kamisato/internal/errwrap"
 	"github.com/Hayao0819/Kamisato/internal/httpx"
-	"github.com/Hayao0819/Kamisato/internal/utils"
 )
 
 // apiClient handles regular JSON API calls; httpx.Default gives it a per-attempt
@@ -64,9 +64,9 @@ func responseErr(resp *http.Response, op string) error {
 		}
 	}
 	if msg == "" {
-		return utils.NewErrf("%s failed: %s", op, resp.Status)
+		return errwrap.NewErrf("%s failed: %s", op, resp.Status)
 	}
-	return utils.NewErrf("%s failed: %s: %s", op, resp.Status, msg)
+	return errwrap.NewErrf("%s failed: %s: %s", op, resp.Status, msg)
 }
 
 // doJSON runs a JSON API call on apiClient: it attaches the Bearer token when
@@ -78,14 +78,14 @@ func doJSON(ctx context.Context, method, url, token string, body, out any, want 
 	if body != nil {
 		encoded, err := json.Marshal(body)
 		if err != nil {
-			return utils.WrapErr(err, "failed to encode "+op+" request")
+			return errwrap.WrapErr(err, "failed to encode "+op+" request")
 		}
 		reader = bytes.NewReader(encoded)
 	}
 
 	req, err := http.NewRequestWithContext(ctx, method, url, reader)
 	if err != nil {
-		return utils.WrapErr(err, "failed to create "+op+" request")
+		return errwrap.WrapErr(err, "failed to create "+op+" request")
 	}
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
@@ -96,7 +96,7 @@ func doJSON(ctx context.Context, method, url, token string, body, out any, want 
 
 	resp, err := apiClient.Do(req)
 	if err != nil {
-		return utils.WrapErr(err, "failed to send "+op+" request")
+		return errwrap.WrapErr(err, "failed to send "+op+" request")
 	}
 	defer resp.Body.Close()
 
@@ -105,7 +105,7 @@ func doJSON(ctx context.Context, method, url, token string, body, out any, want 
 	}
 	if out != nil {
 		if err := json.NewDecoder(resp.Body).Decode(out); err != nil {
-			return utils.WrapErr(err, "failed to decode "+op+" response")
+			return errwrap.WrapErr(err, "failed to decode "+op+" response")
 		}
 	}
 	return nil

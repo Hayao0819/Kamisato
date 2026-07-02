@@ -9,6 +9,7 @@ import (
 	"net/url"
 
 	"github.com/Hayao0819/Kamisato/internal/conf"
+	"github.com/Hayao0819/Kamisato/internal/errwrap"
 	utils "github.com/Hayao0819/Kamisato/internal/utils"
 	"github.com/Hayao0819/Kamisato/internal/weblog"
 	"github.com/Hayao0819/Kamisato/lumine/embed"
@@ -68,7 +69,7 @@ func RootCmd() *cobra.Command {
 
 			static, err := embed.NextHandler()
 			if err != nil {
-				return utils.WrapErr(err, "failed to prepare embedded filesystem")
+				return errwrap.WrapErr(err, "failed to prepare embedded filesystem")
 			}
 
 			engine := gin.New()
@@ -104,7 +105,7 @@ func RootCmd() *cobra.Command {
 
 			envJSON, err := json.Marshal(env)
 			if err != nil {
-				return utils.WrapErr(err, "failed to encode env")
+				return errwrap.WrapErr(err, "failed to encode env")
 			}
 			engine.Any("/env.json", func(c *gin.Context) {
 				if c.GetHeader("Sec-Fetch-Site") != "same-origin" {

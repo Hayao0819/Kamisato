@@ -16,6 +16,7 @@ import (
 	"github.com/Hayao0819/Kamisato/ayato/router"
 	"github.com/Hayao0819/Kamisato/ayato/service"
 	"github.com/Hayao0819/Kamisato/internal/conf"
+	"github.com/Hayao0819/Kamisato/internal/errwrap"
 	utils "github.com/Hayao0819/Kamisato/internal/utils"
 	"github.com/Hayao0819/Kamisato/internal/weblog"
 	"github.com/gin-gonic/gin"
@@ -53,7 +54,7 @@ func RootCmd() *cobra.Command {
 
 			pkgNameRepo, pkgBinaryRepo, authRepo, kvStore, err := repository.New(cfg)
 			if err != nil {
-				return utils.WrapErr(err, "failed to initialize repository")
+				return errwrap.WrapErr(err, "failed to initialize repository")
 			}
 			defer func() { _ = kvStore.Close() }()
 
@@ -66,12 +67,12 @@ func RootCmd() *cobra.Command {
 			// The admin allowlist is the only persisted auth state; sessions, CLI
 			// tokens, one-time codes, and OAuth state are all stateless-signed.
 			if err := s.SeedBootstrapAdmin(cfg.Auth.BootstrapAdminGitHubID); err != nil {
-				return utils.WrapErr(err, "failed to seed bootstrap admin")
+				return errwrap.WrapErr(err, "failed to seed bootstrap admin")
 			}
 			if len(cfg.Auth.SessionSecret) > 0 {
 				signer, serr := auth.NewSigner(cfg.Auth.SessionSecret)
 				if serr != nil {
-					return utils.WrapErr(serr, "failed to build session signer")
+					return errwrap.WrapErr(serr, "failed to build session signer")
 				}
 				h.WithAuth(signer)
 				s.WithDenylist(denylistRepo)
@@ -86,7 +87,7 @@ func RootCmd() *cobra.Command {
 			// a repo can publish via API key or GitHub OIDC without a session secret.
 			ci, cierr := ciauth.New(cmd.Context(), cfg.Auth.CI)
 			if cierr != nil {
-				return utils.WrapErr(cierr, "failed to init CI auth")
+				return errwrap.WrapErr(cierr, "failed to init CI auth")
 			}
 			m.WithCIAuth(ci)
 
@@ -99,29 +100,29 @@ func RootCmd() *cobra.Command {
 			// spoofable X-Forwarded-For is ignored (the rate-limit key is only
 			// trustworthy this way); honor XFF only behind trusted_proxies.
 			if err := engine.SetTrustedProxies(nil); err != nil {
-				return utils.WrapErr(err, "failed to reset trusted proxies")
+				return errwrap.WrapErr(err, "failed to reset trusted proxies")
 			}
 			if len(cfg.Auth.TrustedProxies) > 0 {
 				if err := engine.SetTrustedProxies(cfg.Auth.TrustedProxies); err != nil {
-					return utils.WrapErr(err, "failed to set trusted proxies")
+					return errwrap.WrapErr(err, "failed to set trusted proxies")
 				}
 			}
 
 			if err := router.SetRoute(engine, h, m); err != nil {
-				return utils.WrapErr(err, "failed to set routing")
+				return errwrap.WrapErr(err, "failed to set routing")
 			}
 			slog.Info("Routing initialized")
 
 			if cfg.AUR.Enabled {
 				mod, merr := aur.New(cfg, kvStore)
 				if merr != nil {
-					return utils.WrapErr(merr, "failed to initialize AUR module")
+					return errwrap.WrapErr(merr, "failed to initialize AUR module")
 				}
 				router.SetAUR(engine, m, mod.Server, handler.NewAURHandler(mod.Service))
 			}
 
 			if err := s.InitAll(); err != nil {
-				return utils.WrapErr(err, "failed to initialize services")
+				return errwrap.WrapErr(err, "failed to initialize services")
 			}
 			slog.Info("All services initialized")
 

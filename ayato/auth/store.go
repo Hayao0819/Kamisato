@@ -11,13 +11,13 @@ import (
 	"encoding/base64"
 	"fmt"
 
-	"github.com/Hayao0819/Kamisato/internal/utils"
+	"github.com/Hayao0819/Kamisato/internal/errwrap"
 )
 
 func randToken(n int) (string, error) {
 	b := make([]byte, n)
 	if _, err := rand.Read(b); err != nil {
-		return "", utils.WrapErr(err, "auth: read random")
+		return "", errwrap.WrapErr(err, "auth: read random")
 	}
 	return base64.RawURLEncoding.EncodeToString(b), nil
 }

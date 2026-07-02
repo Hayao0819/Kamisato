@@ -12,7 +12,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Hayao0819/Kamisato/internal/utils"
+	"github.com/Hayao0819/Kamisato/internal/errwrap"
 	"github.com/Hayao0819/Kamisato/pkg/raiou"
 )
 
@@ -83,7 +83,7 @@ var installStringChecks = []regexCheck{
 func Scan(dir string) (Report, error) {
 	pkgbuild, err := os.ReadFile(filepath.Join(dir, "PKGBUILD"))
 	if err != nil {
-		return Report{}, utils.WrapErr(err, "failed to read PKGBUILD")
+		return Report{}, errwrap.WrapErr(err, "failed to read PKGBUILD")
 	}
 
 	var findings []Finding

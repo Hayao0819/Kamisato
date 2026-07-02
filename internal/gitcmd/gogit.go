@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Hayao0819/Kamisato/internal/utils"
+	"github.com/Hayao0819/Kamisato/internal/errwrap"
 
 	git "github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
@@ -42,13 +42,13 @@ func safeDialContext(ctx context.Context, network, addr string) (net.Conn, error
 	}
 	ips, err := net.DefaultResolver.LookupIP(ctx, "ip", host)
 	if err != nil {
-		return nil, utils.WrapErr(err, "failed to resolve remote host")
+		return nil, errwrap.WrapErr(err, "failed to resolve remote host")
 	}
 	dialer := &net.Dialer{Timeout: 30 * time.Second, KeepAlive: 30 * time.Second}
 	var lastErr error
 	for _, ip := range ips {
 		if !isPublic(ip) {
-			lastErr = utils.NewErrf("remote host %s resolves to a non-public address", host)
+			lastErr = errwrap.NewErrf("remote host %s resolves to a non-public address", host)
 			continue
 		}
 		conn, dErr := dialer.DialContext(ctx, network, net.JoinHostPort(ip.String(), port))
@@ -59,7 +59,7 @@ func safeDialContext(ctx context.Context, network, addr string) (net.Conn, error
 		return conn, nil
 	}
 	if lastErr == nil {
-		lastErr = utils.NewErrf("remote host %s did not resolve to any address", host)
+		lastErr = errwrap.NewErrf("remote host %s did not resolve to any address", host)
 	}
 	return nil, lastErr
 }
@@ -101,21 +101,21 @@ func cloneGoGit(ctx context.Context, o CloneOptions) error {
 	// limitation the CLI path had.
 	repo, err := git.PlainCloneContext(ctx, o.Dir, o.Bare, &git.CloneOptions{URL: o.URL, Depth: o.Depth})
 	if err != nil {
-		return utils.WrapErr(err, "git clone: "+o.URL)
+		return errwrap.WrapErr(err, "git clone: "+o.URL)
 	}
 	if o.Ref == "" || o.Bare {
 		return nil
 	}
 	wt, err := repo.Worktree()
 	if err != nil {
-		return utils.WrapErr(err, "open worktree")
+		return errwrap.WrapErr(err, "open worktree")
 	}
 	hash, err := repo.ResolveRevision(plumbing.Revision(o.Ref))
 	if err != nil {
-		return utils.WrapErr(err, "resolve ref "+o.Ref)
+		return errwrap.WrapErr(err, "resolve ref "+o.Ref)
 	}
 	if err := wt.Checkout(&git.CheckoutOptions{Hash: *hash}); err != nil {
-		return utils.WrapErr(err, "checkout "+o.Ref)
+		return errwrap.WrapErr(err, "checkout "+o.Ref)
 	}
 	return nil
 }

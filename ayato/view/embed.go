@@ -5,7 +5,7 @@ import (
 	"html/template"
 	"net/http"
 
-	utils "github.com/Hayao0819/Kamisato/internal/utils"
+	"github.com/Hayao0819/Kamisato/internal/errwrap"
 	"github.com/gin-gonic/gin"
 )
 
@@ -22,7 +22,7 @@ func compile() (*template.Template, error) {
 func Set(e *gin.Engine) error {
 	t, err := compile()
 	if err != nil {
-		return utils.WrapErr(err, "failed to compile template")
+		return errwrap.WrapErr(err, "failed to compile template")
 	}
 	e.SetHTMLTemplate(t)
 	return nil
@@ -41,7 +41,7 @@ func SetRepoAssets(g *gin.RouterGroup) error {
 	for _, a := range assets {
 		body, err := staticFS.ReadFile(a.file)
 		if err != nil {
-			return utils.WrapErr(err, "failed to read embedded asset "+a.file)
+			return errwrap.WrapErr(err, "failed to read embedded asset "+a.file)
 		}
 		contentType := a.contentType
 		g.GET(a.route, func(c *gin.Context) {

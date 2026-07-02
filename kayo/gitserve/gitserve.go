@@ -12,8 +12,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/Hayao0819/Kamisato/internal/errwrap"
 	"github.com/Hayao0819/Kamisato/internal/gitcmd"
-	"github.com/Hayao0819/Kamisato/internal/utils"
 	"github.com/Hayao0819/Kamisato/pkg/aurweb"
 )
 
@@ -23,14 +23,14 @@ const pinnedBranch = "kayo-pinned"
 // reviewed commit, cloned from the already-checked-out sourceDir.
 func Materialize(ctx context.Context, root, pkgbase, sourceDir, commit string) error {
 	if commit == "" {
-		return utils.NewErr("cannot materialize without a pinned commit")
+		return errwrap.NewErr("cannot materialize without a pinned commit")
 	}
 	if err := os.MkdirAll(root, 0o755); err != nil {
-		return utils.WrapErr(err, "failed to create served root")
+		return errwrap.WrapErr(err, "failed to create served root")
 	}
 	repo := filepath.Join(root, pkgbase+".git")
 	if err := os.RemoveAll(repo); err != nil {
-		return utils.WrapErr(err, "failed to clear served repo")
+		return errwrap.WrapErr(err, "failed to clear served repo")
 	}
 
 	if err := gitcmd.Clone(ctx, gitcmd.CloneOptions{URL: sourceDir, Dir: repo, Bare: true}); err != nil {

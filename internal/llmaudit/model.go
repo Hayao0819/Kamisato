@@ -3,7 +3,7 @@ package llmaudit
 import (
 	"strings"
 
-	"github.com/Hayao0819/Kamisato/internal/utils"
+	"github.com/Hayao0819/Kamisato/internal/errwrap"
 	"github.com/tmc/langchaingo/llms"
 	"github.com/tmc/langchaingo/llms/anthropic"
 	"github.com/tmc/langchaingo/llms/ollama"
@@ -44,6 +44,6 @@ func NewModel(provider, model, baseURL string) (llms.Model, error) {
 		}
 		return ollama.New(opts...)
 	default:
-		return nil, utils.NewErrf("llmaudit: unknown provider %q (use anthropic, openai, or ollama)", provider)
+		return nil, errwrap.NewErrf("llmaudit: unknown provider %q (use anthropic, openai, or ollama)", provider)
 	}
 }

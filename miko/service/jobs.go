@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Hayao0819/Kamisato/internal/utils"
+	"github.com/Hayao0819/Kamisato/internal/errwrap"
 	"github.com/Hayao0819/Kamisato/miko/domain"
 )
 
@@ -89,7 +89,7 @@ func (s *Service) Submit(req *domain.BuildRequest) (string, error) {
 		// or SSE readers of this job would block forever.
 		s.finalizeLog(job.ID)
 		s.setStatus(job.ID, domain.JobStatusFailed, err)
-		return "", utils.WrapErr(err, "failed to enqueue build job")
+		return "", errwrap.WrapErr(err, "failed to enqueue build job")
 	}
 
 	slog.Info("Build job submitted", "id", job.ID, "repo", job.Repo, "arch", job.Arch)
@@ -103,7 +103,7 @@ func (s *Service) Status(id string) (*domain.BuildJob, error) {
 
 	job, ok := s.store[id]
 	if !ok {
-		return nil, utils.NewErrf("job not found: %s", id)
+		return nil, errwrap.NewErrf("job not found: %s", id)
 	}
 	clone := *job
 	return &clone, nil
@@ -132,7 +132,7 @@ func (s *Service) Cancel(id string) error {
 	job, ok := s.store[id]
 	if !ok {
 		s.mu.Unlock()
-		return utils.NewErrf("job not found: %s", id)
+		return errwrap.NewErrf("job not found: %s", id)
 	}
 	switch job.Status {
 	case domain.JobStatusSuccess, domain.JobStatusFailed, domain.JobStatusCancelled:

@@ -5,7 +5,7 @@ import (
 
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
 	"github.com/Hayao0819/Kamisato/internal/blinkyutils"
-	"github.com/Hayao0819/Kamisato/internal/utils"
+	"github.com/Hayao0819/Kamisato/internal/errwrap"
 	"github.com/spf13/cobra"
 )
 
@@ -28,7 +28,7 @@ func LogoutCmd() *cobra.Command {
 
 			entry, ok := db.Servers[server]
 			if !ok {
-				return utils.WrapErr(shared.ErrServerNotFound, server)
+				return errwrap.WrapErr(shared.ErrServerNotFound, server)
 			}
 
 			entry.Username = ""

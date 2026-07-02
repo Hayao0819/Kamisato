@@ -5,7 +5,7 @@ import (
 	"log/slog"
 
 	"github.com/Hayao0819/Kamisato/internal/conf"
-	"github.com/Hayao0819/Kamisato/internal/utils"
+	"github.com/Hayao0819/Kamisato/internal/errwrap"
 	"github.com/Hayao0819/Kamisato/kayo/ayatosrc"
 	"github.com/Hayao0819/Kamisato/kayo/federate"
 	"github.com/Hayao0819/Kamisato/kayo/overlay"
@@ -26,14 +26,14 @@ func BuildComposite(ctx context.Context, cfg *conf.KayoConfig) (*federate.Compos
 		reg := overlay.New(cfg.ResolvedCacheDir(), cfg.Overlays)
 		slog.Info("Syncing overlays", "count", len(cfg.Overlays), "cache", cfg.ResolvedCacheDir())
 		if err := reg.Sync(ctx); err != nil {
-			return nil, utils.WrapErr(err, "initial overlay sync failed")
+			return nil, errwrap.WrapErr(err, "initial overlay sync failed")
 		}
 		comp.Add(reg, federate.TierOverlay, 0, "overlay")
 	}
 	if len(cfg.Ayato) > 0 {
 		pins, err := ayatosrc.OpenPinStore(cfg.AyatoPinStorePath())
 		if err != nil {
-			return nil, utils.WrapErr(err, "failed to open ayato pin store")
+			return nil, errwrap.WrapErr(err, "failed to open ayato pin store")
 		}
 		for _, a := range cfg.Ayato {
 			src, err := ayatosrc.New(ayatosrc.Options{
@@ -46,7 +46,7 @@ func BuildComposite(ctx context.Context, cfg *conf.KayoConfig) (*federate.Compos
 				Pins:            pins,
 			})
 			if err != nil {
-				return nil, utils.WrapErr(err, "ayato source "+a.Name)
+				return nil, errwrap.WrapErr(err, "ayato source "+a.Name)
 			}
 			if err := src.Sync(ctx); err != nil {
 				slog.Error("ayato source initial sync failed", "name", a.Name, "error", err)

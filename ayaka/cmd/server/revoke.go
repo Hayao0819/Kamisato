@@ -6,7 +6,7 @@ import (
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
 	"github.com/Hayao0819/Kamisato/internal/ayatoclient"
 	"github.com/Hayao0819/Kamisato/internal/blinkyutils"
-	"github.com/Hayao0819/Kamisato/internal/utils"
+	"github.com/Hayao0819/Kamisato/internal/errwrap"
 	"github.com/spf13/cobra"
 )
 
@@ -28,14 +28,14 @@ func RevokeCmd() *cobra.Command {
 
 			entry, ok := db.Servers[server]
 			if !ok {
-				return utils.WrapErr(shared.ErrServerNotFound, server)
+				return errwrap.WrapErr(shared.ErrServerNotFound, server)
 			}
 			if entry.Password == "" {
-				return utils.NewErr("no stored token to revoke for " + server)
+				return errwrap.NewErr("no stored token to revoke for " + server)
 			}
 
 			if err := ayatoclient.RevokeCLIToken(cmd.Context(), server, entry.Password); err != nil {
-				return utils.WrapErr(err, "failed to revoke token")
+				return errwrap.WrapErr(err, "failed to revoke token")
 			}
 
 			entry.Username = ""

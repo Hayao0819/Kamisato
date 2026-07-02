@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Hayao0819/Kamisato/internal/utils"
+	"github.com/Hayao0819/Kamisato/internal/errwrap"
 )
 
 // SubmitBuild posts a build request to ayato with a Bearer CLI token and returns
@@ -101,7 +101,7 @@ func FetchStats(ctx context.Context, base, token string) (*Stats, error) {
 func StreamLogs(ctx context.Context, base, token, id string, w io.Writer) error {
 	resp, err := get(ctx, streamClient, endpoint(base, "/api/unstable/jobs/"+id+"/logs"), token)
 	if err != nil {
-		return utils.WrapErr(err, "failed to open log stream")
+		return errwrap.WrapErr(err, "failed to open log stream")
 	}
 	defer resp.Body.Close()
 
@@ -113,7 +113,7 @@ func StreamLogs(ctx context.Context, base, token, id string, w io.Writer) error 
 	// the content type is not event-stream and we copy the body verbatim.
 	if !strings.HasPrefix(resp.Header.Get("Content-Type"), "text/event-stream") {
 		if _, err := io.Copy(w, resp.Body); err != nil {
-			return utils.WrapErr(err, "failed to read logs")
+			return errwrap.WrapErr(err, "failed to read logs")
 		}
 		return nil
 	}
@@ -131,11 +131,11 @@ func StreamLogs(ctx context.Context, base, token, id string, w io.Writer) error 
 		}
 		data = strings.TrimPrefix(data, " ")
 		if _, err := fmt.Fprintln(w, data); err != nil {
-			return utils.WrapErr(err, "failed to write log line")
+			return errwrap.WrapErr(err, "failed to write log line")
 		}
 	}
 	if err := scanner.Err(); err != nil {
-		return utils.WrapErr(err, "failed to read log stream")
+		return errwrap.WrapErr(err, "failed to read log stream")
 	}
 	return nil
 }

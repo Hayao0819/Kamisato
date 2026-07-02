@@ -8,7 +8,7 @@ import (
 
 	"github.com/Hayao0819/Kamisato/ayaka/build"
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
-	"github.com/Hayao0819/Kamisato/internal/utils"
+	"github.com/Hayao0819/Kamisato/internal/errwrap"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/alpm"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/builder"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/gpg"
@@ -53,7 +53,7 @@ func Cmd() *cobra.Command {
 			repo = args[0]
 
 			if !slices.Contains(shared.AppFrom(cmd).GetSrcRepoNames(), repo) {
-				return utils.WrapErr(shared.ErrInvalidRepoName, repo)
+				return errwrap.WrapErr(shared.ErrInvalidRepoName, repo)
 			}
 
 			// In remote mode signing happens on miko, so skip the local key
@@ -68,15 +68,15 @@ func Cmd() *cobra.Command {
 			slog.Info("Verifying GPG key", "key", gpgkey)
 			tmpDir, err := os.MkdirTemp("", "ayaka-")
 			if err != nil {
-				return utils.WrapErr(err, "failed to create temporary directory")
+				return errwrap.WrapErr(err, "failed to create temporary directory")
 			}
 			defer os.RemoveAll(tmpDir)
 			dummyFile := path.Join(tmpDir, "dummy.txt")
 			if err := os.WriteFile(dummyFile, []byte("dummy"), 0644); err != nil {
-				return utils.WrapErr(err, "failed to create dummy file")
+				return errwrap.WrapErr(err, "failed to create dummy file")
 			}
 			if err := gpg.SignFile(gpgkey, "", dummyFile); err != nil {
-				return utils.WrapErr(err, "failed to sign dummy file")
+				return errwrap.WrapErr(err, "failed to sign dummy file")
 			}
 			return nil
 		},
@@ -101,20 +101,20 @@ func Cmd() *cobra.Command {
 			app := shared.AppFrom(cmd)
 			srcrepo := app.GetSrcRepo(repo)
 			if srcrepo == nil {
-				return utils.WrapErr(shared.ErrSourceRepoNotFound, repo)
+				return errwrap.WrapErr(shared.ErrSourceRepoNotFound, repo)
 			}
 			destDir := app.GetDestDir(repo)
 			if destDir == "" {
-				return utils.WrapErr(shared.ErrNoDestDir, repo)
+				return errwrap.WrapErr(shared.ErrNoDestDir, repo)
 			}
 			srcdir := app.GetSrcDir(repo)
 			if srcdir == "" {
-				return utils.WrapErr(shared.ErrNoSourceDir, repo)
+				return errwrap.WrapErr(shared.ErrNoSourceDir, repo)
 			}
 
 			pkgs, cleanup, err := alpm.GetCleanPkgBinary(srcrepo.Config.InstallPkgs.Names...)
 			if err != nil {
-				return utils.WrapErr(err, "failed to get clean package binaries")
+				return errwrap.WrapErr(err, "failed to get clean package binaries")
 			}
 			// The downloaded files are injected during the build, so keep them
 			// until it finishes.
@@ -141,10 +141,10 @@ func Cmd() *cobra.Command {
 				slog.Info("Starting diff build", "repo", srcdir, "outdir", writeDir, "gpgkey", gpgkey, "server", server)
 				remoteRepo, err := pacmanrepo.RepoFromURL(server, srcrepo.Config.Name)
 				if err != nil {
-					return utils.WrapErr(err, "failed to get remote repository")
+					return errwrap.WrapErr(err, "failed to get remote repository")
 				}
 				if err := build.Diff(srcrepo, &buildTarget, remoteRepo, outDir, buildPkgs...); err != nil {
-					return utils.WrapErr(err, "failed to perform diff build")
+					return errwrap.WrapErr(err, "failed to perform diff build")
 				}
 				slog.Debug("Diff build completed", "outdir", writeDir)
 				return nil
@@ -152,7 +152,7 @@ func Cmd() *cobra.Command {
 
 			slog.Info("Starting package build", "repo", srcdir, "outdir", writeDir, "gpgkey", gpgkey)
 			if err := build.Repo(srcrepo, &buildTarget, outDir, buildPkgs...); err != nil {
-				return utils.WrapErr(err, "failed to build package")
+				return errwrap.WrapErr(err, "failed to build package")
 			}
 			slog.Debug("Build completed", "outdir", writeDir)
 			return nil

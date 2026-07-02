@@ -3,7 +3,7 @@ package servercmd
 import (
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
 	"github.com/Hayao0819/Kamisato/internal/blinkyutils"
-	"github.com/Hayao0819/Kamisato/internal/utils"
+	"github.com/Hayao0819/Kamisato/internal/errwrap"
 	"github.com/spf13/cobra"
 )
 
@@ -21,7 +21,7 @@ func SetDefaultCmd() *cobra.Command {
 				return err
 			}
 			if _, ok := db.Servers[args[0]]; !ok {
-				return utils.WrapErr(shared.ErrServerNotFound, args[0])
+				return errwrap.WrapErr(shared.ErrServerNotFound, args[0])
 			}
 			db.DefaultServer = args[0]
 			return blinkyutils.SaveServerDB(db)

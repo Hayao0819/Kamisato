@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/Hayao0819/Kamisato/internal/conf"
-	"github.com/Hayao0819/Kamisato/internal/utils"
+	"github.com/Hayao0819/Kamisato/internal/errwrap"
 	"github.com/spf13/cobra"
 )
 
@@ -30,10 +30,10 @@ func Cmd() *cobra.Command {
 			if contents, err := os.ReadDir(targetDir); err != nil {
 				if os.IsNotExist(err) {
 					if err := os.MkdirAll(targetDir, 0755); err != nil {
-						return utils.WrapErr(err, "failed to create target directory")
+						return errwrap.WrapErr(err, "failed to create target directory")
 					}
 				} else {
-					return utils.WrapErr(err, "failed to read target directory")
+					return errwrap.WrapErr(err, "failed to read target directory")
 				}
 			} else {
 				if len(contents) > 0 {
@@ -44,7 +44,7 @@ func Cmd() *cobra.Command {
 			var err error
 			targetDir, err = filepath.Abs(targetDir)
 			if err != nil {
-				return utils.WrapErr(err, "failed to resolve target directory")
+				return errwrap.WrapErr(err, "failed to resolve target directory")
 			}
 
 			if outDir == "" {
@@ -59,13 +59,13 @@ func Cmd() *cobra.Command {
 			relRepoDirFromAyakarc, err := filepath.Rel(filepath.Dir(ayakarcPath), repoDir)
 			if err != nil {
 				cmd.PrintErrf("filepath.Rel(%s, %s) = %s, %s\n", path.Dir(ayakarcPath), repoDir, relRepoDirFromAyakarc, err)
-				return utils.WrapErr(err, "failed to compute repository directory path")
+				return errwrap.WrapErr(err, "failed to compute repository directory path")
 			}
 
 			relOutDirFromAyakarc, err := filepath.Rel(filepath.Dir(ayakarcPath), outDir)
 			if err != nil {
 				cmd.PrintErrf("filepath.Rel(%s, %s) = %s, Error(%s)\n", filepath.Dir(ayakarcPath), outDir, relOutDirFromAyakarc, err)
-				return utils.WrapErr(err, "failed to compute output directory path")
+				return errwrap.WrapErr(err, "failed to compute output directory path")
 			}
 
 			ayakarc := conf.AyakaConfig{
@@ -78,19 +78,19 @@ func Cmd() *cobra.Command {
 
 			ayakarcBytes, err := ayakarc.Marshal()
 			if err != nil {
-				return utils.WrapErr(err, "failed to marshal ayaka config")
+				return errwrap.WrapErr(err, "failed to marshal ayaka config")
 			}
 
 			if err := os.WriteFile(ayakarcPath, ayakarcBytes, 0644); err != nil {
-				return utils.WrapErr(err, "failed to write ayaka config")
+				return errwrap.WrapErr(err, "failed to write ayaka config")
 			}
 
 			if err := os.MkdirAll(repoDir, 0755); err != nil {
-				return utils.WrapErr(err, "failed to create repository directory")
+				return errwrap.WrapErr(err, "failed to create repository directory")
 			}
 
 			if err := os.MkdirAll(outDir, 0755); err != nil {
-				return utils.WrapErr(err, "failed to create output directory")
+				return errwrap.WrapErr(err, "failed to create output directory")
 			}
 
 			repoconf := conf.SrcRepoConfig{
@@ -100,12 +100,12 @@ func Cmd() *cobra.Command {
 
 			repoconfBytes, err := repoconf.Marshal()
 			if err != nil {
-				return utils.WrapErr(err, "failed to marshal repo config")
+				return errwrap.WrapErr(err, "failed to marshal repo config")
 			}
 
 			repoconfPath := path.Join(repoDir, "repo.json")
 			if err := os.WriteFile(repoconfPath, repoconfBytes, 0644); err != nil {
-				return utils.WrapErr(err, "failed to write repo config")
+				return errwrap.WrapErr(err, "failed to write repo config")
 			}
 
 			cmd.Printf("Initialized Ayaka repository in %s\n", targetDir)

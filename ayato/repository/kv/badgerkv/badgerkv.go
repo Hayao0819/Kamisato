@@ -15,7 +15,7 @@ import (
 
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv/badgerkv/logger"
-	"github.com/Hayao0819/Kamisato/internal/utils"
+	"github.com/Hayao0819/Kamisato/internal/errwrap"
 	"github.com/dgraph-io/badger/v3"
 )
 
@@ -48,7 +48,7 @@ func New(dir string) (*Store, error) {
 
 	db, err := badger.Open(opt)
 	if err != nil {
-		return nil, utils.WrapErr(err, "badgerkv: open badger")
+		return nil, errwrap.WrapErr(err, "badgerkv: open badger")
 	}
 	s := &Store{db: db, stop: make(chan struct{})}
 	s.wg.Add(1)
@@ -120,7 +120,7 @@ func (s *Store) Get(ns, key string) ([]byte, error) {
 		if errors.Is(err, kv.ErrNotFound) {
 			return nil, kv.ErrNotFound
 		}
-		return nil, utils.WrapErr(err, "badgerkv: get")
+		return nil, errwrap.WrapErr(err, "badgerkv: get")
 	}
 	return out, nil
 }
@@ -159,7 +159,7 @@ func (s *Store) List(ns string) ([]kv.Entry, error) {
 		return nil
 	})
 	if err != nil {
-		return nil, utils.WrapErr(err, "badgerkv: list")
+		return nil, errwrap.WrapErr(err, "badgerkv: list")
 	}
 	return out, nil
 }

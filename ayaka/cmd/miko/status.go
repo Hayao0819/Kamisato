@@ -3,7 +3,7 @@ package mikocmd
 import (
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
 	"github.com/Hayao0819/Kamisato/internal/ayatoclient"
-	"github.com/Hayao0819/Kamisato/internal/utils"
+	"github.com/Hayao0819/Kamisato/internal/errwrap"
 	"github.com/spf13/cobra"
 )
 
@@ -20,7 +20,7 @@ func mikoStatusCmd() *cobra.Command {
 
 			job, err := ayatoclient.JobStatus(cmd.Context(), srv.URL, srv.Password, args[0])
 			if err != nil {
-				return utils.WrapErr(err, "failed to get job status")
+				return errwrap.WrapErr(err, "failed to get job status")
 			}
 
 			// status shows a single job as one row of the same table as `jobs`;

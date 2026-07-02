@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/Hayao0819/Kamisato/internal/utils"
+	"github.com/Hayao0819/Kamisato/internal/errwrap"
 )
 
 // arch "" or "any" de-registers the package from every arch database; a concrete
@@ -14,12 +14,12 @@ import (
 func (s *Service) RemovePkg(rname string, arch string, pkgname string) error {
 	if err := s.ValidateRepoName(rname); err != nil {
 		slog.Error("validate repo name failed", "repo", rname, "error", err.Error())
-		return utils.WrapErr(err, "validate repo name failed")
+		return errwrap.WrapErr(err, "validate repo name failed")
 	}
 
 	filename, storeArch, err := s.resolvePackage(rname, arch, pkgname)
 	if err != nil {
-		return utils.WrapErr(err, "resolve package")
+		return errwrap.WrapErr(err, "resolve package")
 	}
 
 	allArches := arch == "" || arch == "any"
@@ -47,7 +47,7 @@ func (s *Service) RemovePkg(rname string, arch string, pkgname string) error {
 	var gnupgDir *string
 	for _, a := range dbArches {
 		if err := s.pkgBinaryRepo.RepoRemove(rname, a, pkgname, useSignedDB, gnupgDir); err != nil {
-			return utils.WrapErr(err, fmt.Sprintf("repo-remove %s from %s/%s", pkgname, rname, a))
+			return errwrap.WrapErr(err, fmt.Sprintf("repo-remove %s from %s/%s", pkgname, rname, a))
 		}
 	}
 
@@ -58,11 +58,11 @@ func (s *Service) RemovePkg(rname string, arch string, pkgname string) error {
 	}
 
 	if err := s.pkgBinaryRepo.DeleteFile(rname, storeArch, filename); err != nil {
-		return utils.WrapErr(err, "delete package file")
+		return errwrap.WrapErr(err, "delete package file")
 	}
 	s.deleteSignatureIfPresent(rname, storeArch, filename)
 	if err := s.pkgNameRepo.DeletePackageFileEntry(storeArch, pkgname); err != nil {
-		return utils.WrapErr(err, "delete package metadata entry")
+		return errwrap.WrapErr(err, "delete package metadata entry")
 	}
 	return nil
 }

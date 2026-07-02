@@ -11,7 +11,7 @@ import (
 	"github.com/Hayao0819/Kamisato/ayato/domain"
 	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
 	"github.com/Hayao0819/Kamisato/ayato/stream"
-	"github.com/Hayao0819/Kamisato/internal/utils"
+	"github.com/Hayao0819/Kamisato/internal/errwrap"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
 	"github.com/samber/lo"
 )
@@ -240,13 +240,13 @@ func (r *binaryRepository) PkgFiles(repoName, archName, pkgName string) ([]strin
 func (r *binaryRepository) VerifyPkgRepo(name string) error {
 	arches, err := r.Arches(name)
 	if err != nil {
-		return utils.WrapErr(err, "failed to get arches")
+		return errwrap.WrapErr(err, "failed to get arches")
 	}
 
 	for _, arch := range arches {
 		files, err := r.Files(name, arch)
 		if err != nil {
-			return utils.WrapErr(err, fmt.Sprintf("failed to get files for arch %s", arch))
+			return errwrap.WrapErr(err, fmt.Sprintf("failed to get files for arch %s", arch))
 		}
 
 		// Only the archives are stored; <repo>.db / <repo>.files are served as

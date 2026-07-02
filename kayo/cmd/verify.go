@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"strings"
 
-	"github.com/Hayao0819/Kamisato/internal/utils"
+	"github.com/Hayao0819/Kamisato/internal/errwrap"
 	"github.com/Hayao0819/Kamisato/kayo/cmd/shared"
 	"github.com/Hayao0819/Kamisato/kayo/trust"
 	"github.com/Hayao0819/Kamisato/pkg/aurweb"
@@ -108,7 +108,7 @@ func verifyCmd() *cobra.Command {
 						// Fail closed: a lookup we cannot complete must never silently
 						// pass an AUR package that might need review.
 						if enforce {
-							return utils.WrapErr(ierr, "could not verify AUR packages upstream (failing closed)")
+							return errwrap.WrapErr(ierr, "could not verify AUR packages upstream (failing closed)")
 						}
 						slog.Warn("upstream lookup failed; AUR packages unverified this run", "error", ierr)
 					}
@@ -119,7 +119,7 @@ func verifyCmd() *cobra.Command {
 			}
 
 			if reportTrust(cmd.OutOrStdout(), store, names, found) && enforce {
-				return utils.NewErr("untrusted packages in transaction; review with 'kayo update' or 'kayo trust add'")
+				return errwrap.NewErr("untrusted packages in transaction; review with 'kayo update' or 'kayo trust add'")
 			}
 			return nil
 		},

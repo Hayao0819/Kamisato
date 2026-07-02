@@ -6,7 +6,7 @@ import (
 
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
 	"github.com/Hayao0819/Kamisato/internal/ayatoclient"
-	"github.com/Hayao0819/Kamisato/internal/utils"
+	"github.com/Hayao0819/Kamisato/internal/errwrap"
 	"github.com/spf13/cobra"
 )
 
@@ -29,7 +29,7 @@ func adminAddCmd() *cobra.Command {
 			}
 			admin, err := ayatoclient.AddAdmin(cmd.Context(), srv.URL, srv.Password, id, login)
 			if err != nil {
-				return utils.WrapErr(err, "failed to add admin")
+				return errwrap.WrapErr(err, "failed to add admin")
 			}
 			fmt.Fprintf(cmd.OutOrStdout(), "added %s (%d)\n", admin.Login, admin.ID)
 			return nil

@@ -6,7 +6,7 @@ import (
 	"path"
 
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
-	"github.com/Hayao0819/Kamisato/internal/utils"
+	"github.com/Hayao0819/Kamisato/internal/errwrap"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
 	"github.com/spf13/cobra"
 )
@@ -31,7 +31,7 @@ func Cmd() *cobra.Command {
 			if len(args) > 0 {
 				d := app.GetSrcDir(args[0])
 				if d == "" {
-					return utils.WrapErr(shared.ErrInvalidRepoName, args[0])
+					return errwrap.WrapErr(shared.ErrInvalidRepoName, args[0])
 				}
 				dirs = append(dirs, d)
 			} else {
@@ -43,7 +43,7 @@ func Cmd() *cobra.Command {
 			for _, dir := range dirs {
 				srcdirs, err := repo.GetSrcDirs(dir)
 				if err != nil {
-					return utils.WrapErr(err, "failed to list source directories in "+dir)
+					return errwrap.WrapErr(err, "failed to list source directories in "+dir)
 				}
 				for _, d := range srcdirs {
 					gencmd := exec.Command("makepkg", "--printsrcinfo")
@@ -52,7 +52,7 @@ func Cmd() *cobra.Command {
 					srcinfoPath := path.Join(d, ".SRCINFO")
 					srcinfoFile, err := os.Create(srcinfoPath)
 					if err != nil {
-						return utils.WrapErr(err, "failed to create .SRCINFO in "+d)
+						return errwrap.WrapErr(err, "failed to create .SRCINFO in "+d)
 					}
 
 					gencmd.Stdout = srcinfoFile
@@ -63,7 +63,7 @@ func Cmd() *cobra.Command {
 						err = cerr
 					}
 					if err != nil {
-						return utils.WrapErr(err, "failed to generate .SRCINFO in "+d)
+						return errwrap.WrapErr(err, "failed to generate .SRCINFO in "+d)
 					}
 					cmd.Println("Updated SRCINFO file:", d)
 				}

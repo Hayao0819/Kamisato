@@ -4,7 +4,7 @@ import (
 	stderrors "errors"
 	"testing"
 
-	"github.com/Hayao0819/Kamisato/internal/utils"
+	"github.com/Hayao0819/Kamisato/internal/errwrap"
 )
 
 // TestSentinelErrorsMatchThroughWrap confirms sentinels stay errors.Is-matchable through nested WrapErr.
@@ -19,11 +19,11 @@ func TestSentinelErrorsMatchThroughWrap(t *testing.T) {
 	}
 
 	for name, sentinel := range sentinels {
-		wrapped := utils.WrapErr(sentinel, "context")
+		wrapped := errwrap.WrapErr(sentinel, "context")
 		if !stderrors.Is(wrapped, sentinel) {
 			t.Errorf("%s: errors.Is failed through one WrapErr", name)
 		}
-		double := utils.WrapErr(wrapped, "outer context")
+		double := errwrap.WrapErr(wrapped, "outer context")
 		if !stderrors.Is(double, sentinel) {
 			t.Errorf("%s: errors.Is failed through two WrapErr layers", name)
 		}
@@ -35,7 +35,7 @@ func TestSentinelErrorsAreDistinct(t *testing.T) {
 	if stderrors.Is(ErrServerNotFound, ErrNoServerSpecified) {
 		t.Error("ErrServerNotFound and ErrNoServerSpecified compare equal")
 	}
-	if stderrors.Is(utils.WrapErr(ErrInvalidRepoName, "myrepo"), ErrSourceRepoNotFound) {
+	if stderrors.Is(errwrap.WrapErr(ErrInvalidRepoName, "myrepo"), ErrSourceRepoNotFound) {
 		t.Error("wrapped ErrInvalidRepoName matched ErrSourceRepoNotFound")
 	}
 }

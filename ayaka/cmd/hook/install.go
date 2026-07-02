@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/Hayao0819/Kamisato/internal/utils"
+	"github.com/Hayao0819/Kamisato/internal/errwrap"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/alpm"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/hook"
 	"github.com/spf13/cobra"
@@ -19,11 +19,11 @@ func hookInstallCmd() *cobra.Command {
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if repo == "" {
-				return utils.NewErr("--repo is required")
+				return errwrap.NewErr("--repo is required")
 			}
 			self, err := os.Executable()
 			if err != nil {
-				return utils.WrapErr(err, "cannot resolve the ayaka binary path")
+				return errwrap.WrapErr(err, "cannot resolve the ayaka binary path")
 			}
 			// These are baked bare into the hook's Exec line; reject values that
 			// would word-split into injected flags (e.g. a repo of "x --all").

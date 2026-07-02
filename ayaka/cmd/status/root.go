@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
-	"github.com/Hayao0819/Kamisato/internal/utils"
+	"github.com/Hayao0819/Kamisato/internal/errwrap"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/alpm"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
 	"github.com/fatih/color"
@@ -36,7 +36,7 @@ func Cmd() *cobra.Command {
 			if len(args) > 0 {
 				argrepo := app.GetSrcRepo(args[0])
 				if argrepo == nil {
-					return utils.WrapErr(shared.ErrInvalidRepoName, args[0])
+					return errwrap.WrapErr(shared.ErrInvalidRepoName, args[0])
 				}
 				repos = []*repo.SourceRepo{argrepo}
 			}

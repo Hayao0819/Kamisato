@@ -1,11 +1,11 @@
-package utils
+package errwrap
 
 import (
 	"github.com/cockroachdb/errors"
 	"github.com/cockroachdb/errors/errbase"
 )
 
-func HasStack(err error) bool {
+func hasStack(err error) bool {
 	if err == nil {
 		return false
 	}
@@ -20,7 +20,7 @@ func WrapErr(err error, msg string) error {
 		return nil
 	}
 
-	if HasStack(err) {
+	if hasStack(err) {
 		return errors.WithMessage(err, msg)
 	}
 

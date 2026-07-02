@@ -12,7 +12,7 @@ import (
 
 	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
 	"github.com/Hayao0819/Kamisato/ayato/stream"
-	"github.com/Hayao0819/Kamisato/internal/utils"
+	"github.com/Hayao0819/Kamisato/internal/errwrap"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
 )
 
@@ -63,18 +63,18 @@ func writeSeekFileTo(dir string, f stream.SeekFile) (string, error) {
 	name := path.Base(f.FileName())
 	dst := path.Join(dir, name)
 	if _, err := f.Seek(0, io.SeekStart); err != nil {
-		return "", utils.WrapErr(err, "failed to seek stream")
+		return "", errwrap.WrapErr(err, "failed to seek stream")
 	}
 	out, err := os.Create(dst)
 	if err != nil {
-		return "", utils.WrapErr(err, "failed to create temp file")
+		return "", errwrap.WrapErr(err, "failed to create temp file")
 	}
 	if _, err := io.Copy(out, f); err != nil {
 		out.Close()
-		return "", utils.WrapErr(err, "failed to copy stream to temp file")
+		return "", errwrap.WrapErr(err, "failed to copy stream to temp file")
 	}
 	if err := out.Close(); err != nil {
-		return "", utils.WrapErr(err, "failed to close temp file")
+		return "", errwrap.WrapErr(err, "failed to close temp file")
 	}
 	return dst, nil
 }
@@ -87,7 +87,7 @@ func writeSeekFileTo(dir string, f stream.SeekFile) (string, error) {
 func (r *binaryRepository) storeArtifacts(repo, arch, dir string, skip map[string]struct{}) error {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
-		return utils.WrapErr(err, "failed to read temp dir")
+		return errwrap.WrapErr(err, "failed to read temp dir")
 	}
 	for _, entry := range entries {
 		if entry.IsDir() {
@@ -103,14 +103,14 @@ func (r *binaryRepository) storeArtifacts(repo, arch, dir string, skip map[strin
 		fp := path.Join(dir, name)
 		obj, err := stream.OpenFileWithType(fp)
 		if err != nil {
-			return utils.WrapErr(err, "failed to open artifact "+name)
+			return errwrap.WrapErr(err, "failed to open artifact "+name)
 		}
 		// OpenFileWithType keys FileName() off the full path; re-wrap under the
 		// bare name so both localfs and s3 store it as <repo>/<arch>/<name>.
 		named := stream.NewFileStream(name, obj.ContentType(), obj)
 		if err := r.Store.StoreFile(repo, arch, named); err != nil {
 			obj.Close()
-			return utils.WrapErr(err, "failed to store artifact "+name)
+			return errwrap.WrapErr(err, "failed to store artifact "+name)
 		}
 		obj.Close()
 	}
@@ -169,7 +169,7 @@ func (r *binaryRepository) RepoAddBatch(repo, arch string, items []RepoAddItem, 
 	return r.mutateDB(repo, arch, t, skip, useSignedDB, func(dbPath string) error {
 		if err := r.repoTool().RepoAddBatch(dbPath, pkgPaths, useSignedDB, gnupgDir); err != nil {
 			slog.Error("repo db add batch", "err", err, "count", len(pkgPaths))
-			return utils.WrapErr(err, "repo db add failed")
+			return errwrap.WrapErr(err, "repo db add failed")
 		}
 		return nil
 	})
@@ -203,7 +203,7 @@ func (r *binaryRepository) RepoRemove(repo, arch, pkg string, useSignedDB bool, 
 				return nil
 			}
 			slog.Error("repo db remove", "err", err)
-			return utils.WrapErr(err, "repo db remove failed")
+			return errwrap.WrapErr(err, "repo db remove failed")
 		}
 		return nil
 	})
@@ -222,7 +222,7 @@ func (r *binaryRepository) InitArch(repo, arch string, useSignedDB bool, gnupgDi
 		f.Close()
 		return nil // already initialized
 	} else if !errors.Is(err, blob.ErrNotFound) {
-		return utils.WrapErr(err, "repo db init: probe existing db")
+		return errwrap.WrapErr(err, "repo db init: probe existing db")
 	}
 
 	slog.Debug("init pkg repo", "repo", repo, "arch", arch)
@@ -234,7 +234,7 @@ func (r *binaryRepository) InitArch(repo, arch string, useSignedDB bool, gnupgDi
 
 	if err := r.repoTool().RepoAdd(path.Join(t, dbName), "", useSignedDB, gnupgDir); err != nil {
 		slog.Error("repo db init", "err", err)
-		return utils.WrapErr(err, "repo db init failed")
+		return errwrap.WrapErr(err, "repo db init failed")
 	}
 	// Create-only commit: a concurrent instance may have created it between the
 	// probe and here; treat that as success rather than clobbering its data.
@@ -242,7 +242,7 @@ func (r *binaryRepository) InitArch(repo, arch string, useSignedDB bool, gnupgDi
 		if errors.Is(err, blob.ErrPreconditionFailed) {
 			return nil
 		}
-		return utils.WrapErr(err, "repo db init failed")
+		return errwrap.WrapErr(err, "repo db init failed")
 	}
 	return nil
 }
@@ -297,7 +297,7 @@ func (r *binaryRepository) mutateDB(repo, arch, dir string, skip map[string]stru
 		lastErr = err
 		dbConflictBackoff(attempt)
 	}
-	return utils.WrapErr(lastErr, fmt.Sprintf("repo db %s/%s: too many conflicting writers after %d attempts", repo, arch, maxDBAttempts))
+	return errwrap.WrapErr(lastErr, fmt.Sprintf("repo db %s/%s: too many conflicting writers after %d attempts", repo, arch, maxDBAttempts))
 }
 
 // commitDB writes the canonical <repo>.db.tar.gz with compare-and-swap on etag
@@ -307,7 +307,7 @@ func (r *binaryRepository) mutateDB(repo, arch, dir string, skip map[string]stru
 func (r *binaryRepository) commitDB(repo, arch, dir string, skip map[string]struct{}, dbName, etag string) error {
 	obj, err := stream.OpenFileWithType(path.Join(dir, dbName))
 	if err != nil {
-		return utils.WrapErr(err, "failed to open db archive")
+		return errwrap.WrapErr(err, "failed to open db archive")
 	}
 	named := stream.NewFileStream(dbName, obj.ContentType(), obj)
 	err = r.Store.StoreFileIfMatch(repo, arch, named, etag)
@@ -330,7 +330,7 @@ func clearDBArtifacts(dir, repo string, useSignedDB bool) error {
 	}
 	for _, n := range names {
 		if err := os.Remove(path.Join(dir, n)); err != nil && !errors.Is(err, os.ErrNotExist) {
-			return utils.WrapErr(err, "failed to clear stale db artifact "+n)
+			return errwrap.WrapErr(err, "failed to clear stale db artifact "+n)
 		}
 	}
 	return nil
@@ -375,7 +375,7 @@ func (r *binaryRepository) fetchDBArtifacts(repo, arch, dir string, useSignedDB 
 			// A transient backend error must NOT be mistaken for "absent": that
 			// would seed an empty base and overwrite the live db with a truncated
 			// rebuild. Fail the attempt loudly instead.
-			return "", utils.WrapErr(err, "failed to fetch db artifact "+name)
+			return "", errwrap.WrapErr(err, "failed to fetch db artifact "+name)
 		}
 		if name == dbName {
 			dbETag = etag
@@ -384,12 +384,12 @@ func (r *binaryRepository) fetchDBArtifacts(repo, arch, dir string, useSignedDB 
 		out, cerr := os.Create(dst)
 		if cerr != nil {
 			f.Close()
-			return "", utils.WrapErr(cerr, "failed to create temp db artifact")
+			return "", errwrap.WrapErr(cerr, "failed to create temp db artifact")
 		}
 		if _, cerr := io.Copy(out, f); cerr != nil {
 			out.Close()
 			f.Close()
-			return "", utils.WrapErr(cerr, "failed to copy db artifact")
+			return "", errwrap.WrapErr(cerr, "failed to copy db artifact")
 		}
 		out.Close()
 		f.Close()

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/Hayao0819/Kamisato/internal/utils"
+	"github.com/Hayao0819/Kamisato/internal/errwrap"
 )
 
 func (s *Service) InitAll() error {
@@ -21,7 +21,7 @@ func (s *Service) InitAll() error {
 	for _, repo := range repos {
 		slog.Debug("init pkg repo", "name", repo)
 		if err := s.initRepo(repo, s.signedDB(), nil); err != nil {
-			return utils.WrapErr(err, fmt.Sprintf("failed to init repo %s", repo))
+			return errwrap.WrapErr(err, fmt.Sprintf("failed to init repo %s", repo))
 		}
 	}
 	return nil

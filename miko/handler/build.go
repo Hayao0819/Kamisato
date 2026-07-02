@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Hayao0819/Kamisato/internal/utils"
+	"github.com/Hayao0819/Kamisato/internal/errwrap"
 	"github.com/Hayao0819/Kamisato/miko/domain"
 	"github.com/Hayao0819/Kamisato/miko/service"
 	"github.com/gin-gonic/gin"
@@ -18,7 +18,7 @@ import (
 func (h *Handler) SubmitBuildHandler(c *gin.Context) {
 	var req domain.BuildRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": utils.WrapErr(err, "invalid build request").Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": errwrap.WrapErr(err, "invalid build request").Error()})
 		return
 	}
 

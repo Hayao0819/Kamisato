@@ -14,6 +14,7 @@ import (
 
 	"github.com/Hayao0819/Kamisato/internal/apikey"
 	"github.com/Hayao0819/Kamisato/internal/conf"
+	"github.com/Hayao0819/Kamisato/internal/errwrap"
 	"github.com/Hayao0819/Kamisato/internal/utils"
 	"github.com/Hayao0819/Kamisato/internal/weblog"
 	"github.com/Hayao0819/Kamisato/miko/handler"
@@ -97,7 +98,7 @@ func RootCmd() *cobra.Command {
 
 			signer, err := buildHostSigner(cmd.Context(), cfg)
 			if err != nil {
-				return utils.WrapErr(err, "failed to set up host signing key")
+				return errwrap.WrapErr(err, "failed to set up host signing key")
 			}
 
 			var persister service.Persister
@@ -127,7 +128,7 @@ func RootCmd() *cobra.Command {
 			engine.Use(gin.Recovery())
 			engine.Use(weblog.GinLog())
 			if err := router.SetRoute(engine, h, verifier); err != nil {
-				return utils.WrapErr(err, "failed to set routing")
+				return errwrap.WrapErr(err, "failed to set routing")
 			}
 			slog.Info("Routing initialized")
 
@@ -152,7 +153,7 @@ func RootCmd() *cobra.Command {
 			shutdownCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			defer cancel()
 			if err := srv.Shutdown(shutdownCtx); err != nil {
-				return utils.WrapErr(err, "graceful shutdown failed")
+				return errwrap.WrapErr(err, "graceful shutdown failed")
 			}
 			return nil
 		},

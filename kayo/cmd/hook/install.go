@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/Hayao0819/Kamisato/internal/utils"
+	"github.com/Hayao0819/Kamisato/internal/errwrap"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/alpm"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/hook"
 	"github.com/spf13/cobra"
@@ -19,7 +19,7 @@ func hookInstallCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			self, err := os.Executable()
 			if err != nil {
-				return utils.WrapErr(err, "cannot resolve the kayo binary path")
+				return errwrap.WrapErr(err, "cannot resolve the kayo binary path")
 			}
 			if err := hook.ValidateExecArg("kayo binary path", self); err != nil {
 				return err

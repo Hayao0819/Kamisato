@@ -17,7 +17,7 @@ import (
 	"time"
 
 	"github.com/Hayao0819/Kamisato/internal/ayatoclient"
-	"github.com/Hayao0819/Kamisato/internal/utils"
+	"github.com/Hayao0819/Kamisato/internal/errwrap"
 	"golang.org/x/oauth2"
 )
 
@@ -74,7 +74,7 @@ func newPKCE() (pkce, error) {
 	verifier := oauth2.GenerateVerifier()
 	stateBytes := make([]byte, 32)
 	if _, err := rand.Read(stateBytes); err != nil {
-		return pkce{}, utils.WrapErr(err, "failed to generate state")
+		return pkce{}, errwrap.WrapErr(err, "failed to generate state")
 	}
 	return pkce{
 		verifier:  verifier,
@@ -90,13 +90,13 @@ func callbackHandler(state string, codeCh chan<- string, errCh chan<- error) htt
 		q := r.URL.Query()
 		if q.Get("state") != state {
 			writeHTML(w, http.StatusBadRequest, "state が一致しません。やり直してください。")
-			errCh <- utils.NewErrf("state mismatch")
+			errCh <- errwrap.NewErrf("state mismatch")
 			return
 		}
 		code := q.Get("code")
 		if code == "" {
 			writeHTML(w, http.StatusBadRequest, "code がありません。")
-			errCh <- utils.NewErrf("missing code in callback")
+			errCh <- errwrap.NewErrf("missing code in callback")
 			return
 		}
 		writeHTML(w, http.StatusOK, "ログインが完了しました。このタブを閉じてください。")
@@ -126,7 +126,7 @@ func LoopbackLogin(ctx context.Context, serverURL string, opts ...Option) (token
 
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
-		return "", "", utils.WrapErr(err, "failed to open loopback listener")
+		return "", "", errwrap.WrapErr(err, "failed to open loopback listener")
 	}
 	port := ln.Addr().(*net.TCPAddr).Port
 
@@ -161,12 +161,12 @@ func LoopbackLogin(ctx context.Context, serverURL string, opts ...Option) (token
 	case err = <-errCh:
 		return "", "", err
 	case <-ctx.Done():
-		return "", "", utils.WrapErr(ctx.Err(), "login timed out or was cancelled")
+		return "", "", errwrap.WrapErr(ctx.Err(), "login timed out or was cancelled")
 	}
 
 	token, login, err = o.exchange(ctx, serverURL, code, p.verifier)
 	if err != nil {
-		return "", "", utils.WrapErr(err, "failed to exchange login code")
+		return "", "", errwrap.WrapErr(err, "failed to exchange login code")
 	}
 	return token, login, nil
 }

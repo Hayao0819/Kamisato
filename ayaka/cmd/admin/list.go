@@ -6,7 +6,7 @@ import (
 
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
 	"github.com/Hayao0819/Kamisato/internal/ayatoclient"
-	"github.com/Hayao0819/Kamisato/internal/utils"
+	"github.com/Hayao0819/Kamisato/internal/errwrap"
 	"github.com/spf13/cobra"
 )
 
@@ -22,7 +22,7 @@ func adminListCmd() *cobra.Command {
 			}
 			admins, err := ayatoclient.ListAdmins(cmd.Context(), srv.URL, srv.Password)
 			if err != nil {
-				return utils.WrapErr(err, "failed to list admins")
+				return errwrap.WrapErr(err, "failed to list admins")
 			}
 			w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)
 			fmt.Fprintln(w, "ID\tLOGIN")

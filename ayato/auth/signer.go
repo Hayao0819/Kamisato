@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Hayao0819/Kamisato/internal/utils"
+	"github.com/Hayao0819/Kamisato/internal/errwrap"
 )
 
 // Token type discriminators. Callers must pin the expected Typ via VerifyTyp so a
@@ -60,12 +60,12 @@ type Signer struct {
 // 32 bytes; an empty list or any short secret is rejected (fail-closed).
 func NewSigner(secrets []string) (*Signer, error) {
 	if len(secrets) == 0 {
-		return nil, utils.NewErr("auth: at least one session secret is required")
+		return nil, errwrap.NewErr("auth: at least one session secret is required")
 	}
 	keys := make([][]byte, 0, len(secrets))
 	for _, s := range secrets {
 		if len(s) < minSecretBytes {
-			return nil, utils.NewErrf("auth: session secret must be at least %d bytes", minSecretBytes)
+			return nil, errwrap.NewErrf("auth: session secret must be at least %d bytes", minSecretBytes)
 		}
 		keys = append(keys, []byte(s))
 	}
@@ -82,7 +82,7 @@ func mac(key []byte, payloadB64 string) []byte {
 func (s *Signer) Sign(c Claims) (string, error) {
 	payload, err := json.Marshal(c)
 	if err != nil {
-		return "", utils.WrapErr(err, "auth: marshal claims")
+		return "", errwrap.WrapErr(err, "auth: marshal claims")
 	}
 	payloadB64 := base64.RawURLEncoding.EncodeToString(payload)
 	sigB64 := base64.RawURLEncoding.EncodeToString(mac(s.secrets[0], payloadB64))
@@ -94,11 +94,11 @@ func (s *Signer) Sign(c Claims) (string, error) {
 func (s *Signer) verify(token string) (*Claims, error) {
 	payloadB64, sigB64, ok := strings.Cut(token, ".")
 	if !ok || payloadB64 == "" || sigB64 == "" {
-		return nil, utils.NewErr("auth: malformed token")
+		return nil, errwrap.NewErr("auth: malformed token")
 	}
 	want, err := base64.RawURLEncoding.DecodeString(sigB64)
 	if err != nil {
-		return nil, utils.NewErr("auth: malformed token signature")
+		return nil, errwrap.NewErr("auth: malformed token signature")
 	}
 	matched := false
 	for _, key := range s.secrets {
@@ -108,18 +108,18 @@ func (s *Signer) verify(token string) (*Claims, error) {
 		}
 	}
 	if !matched {
-		return nil, utils.NewErr("auth: bad token signature")
+		return nil, errwrap.NewErr("auth: bad token signature")
 	}
 	payload, err := base64.RawURLEncoding.DecodeString(payloadB64)
 	if err != nil {
-		return nil, utils.NewErr("auth: malformed token payload")
+		return nil, errwrap.NewErr("auth: malformed token payload")
 	}
 	var c Claims
 	if err := json.Unmarshal(payload, &c); err != nil {
-		return nil, utils.NewErr("auth: malformed token claims")
+		return nil, errwrap.NewErr("auth: malformed token claims")
 	}
 	if time.Now().After(c.Exp) {
-		return nil, utils.NewErr("auth: token expired")
+		return nil, errwrap.NewErr("auth: token expired")
 	}
 	return &c, nil
 }
@@ -132,7 +132,7 @@ func (s *Signer) VerifyTyp(token, typ string) (*Claims, error) {
 		return nil, err
 	}
 	if c.Typ != typ {
-		return nil, utils.NewErrf("auth: token type %q, want %q", c.Typ, typ)
+		return nil, errwrap.NewErrf("auth: token type %q, want %q", c.Typ, typ)
 	}
 	return c, nil
 }

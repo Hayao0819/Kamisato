@@ -14,8 +14,8 @@ import (
 	"path/filepath"
 
 	"github.com/Hayao0819/Kamisato/internal/conf"
+	"github.com/Hayao0819/Kamisato/internal/errwrap"
 	"github.com/Hayao0819/Kamisato/internal/gitcmd"
-	"github.com/Hayao0819/Kamisato/internal/utils"
 	"github.com/Hayao0819/Kamisato/kayo/pkgindex"
 	"github.com/Hayao0819/Kamisato/pkg/aurweb"
 	"github.com/Hayao0819/Kamisato/pkg/raiou"
@@ -43,7 +43,7 @@ func New(cacheDir string, overlays []conf.OverlayConfig) *Registry {
 // swaps in a fresh index. A single failing overlay is logged and skipped.
 func (r *Registry) Sync(ctx context.Context) error {
 	if err := os.MkdirAll(r.cacheDir, 0o755); err != nil {
-		return utils.WrapErr(err, "failed to create overlay cache dir")
+		return errwrap.WrapErr(err, "failed to create overlay cache dir")
 	}
 
 	index := map[string]aurweb.Pkg{}

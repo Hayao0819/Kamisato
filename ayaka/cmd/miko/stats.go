@@ -8,7 +8,7 @@ import (
 
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
 	"github.com/Hayao0819/Kamisato/internal/ayatoclient"
-	"github.com/Hayao0819/Kamisato/internal/utils"
+	"github.com/Hayao0819/Kamisato/internal/errwrap"
 	"github.com/spf13/cobra"
 )
 
@@ -25,7 +25,7 @@ func mikoStatsCmd() *cobra.Command {
 
 			stats, err := ayatoclient.FetchStats(cmd.Context(), srv.URL, srv.Password)
 			if err != nil {
-				return utils.WrapErr(err, "failed to get stats")
+				return errwrap.WrapErr(err, "failed to get stats")
 			}
 
 			format, err := shared.ResolveFormat(cmd, "")
@@ -39,7 +39,7 @@ func mikoStatsCmd() *cobra.Command {
 			case format == "json":
 				b, err := json.MarshalIndent(stats, "", "  ")
 				if err != nil {
-					return utils.WrapErr(err, "failed to encode stats")
+					return errwrap.WrapErr(err, "failed to encode stats")
 				}
 				fmt.Fprintln(out, string(b))
 				return nil

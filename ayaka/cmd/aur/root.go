@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
-	"github.com/Hayao0819/Kamisato/internal/utils"
+	"github.com/Hayao0819/Kamisato/internal/errwrap"
 	"github.com/spf13/cobra"
 )
 
@@ -20,7 +20,7 @@ var aurPkgNameRe = regexp.MustCompile(`^[a-z0-9][a-z0-9@._+-]*$`)
 
 func validateAurPkgName(name string) error {
 	if !aurPkgNameRe.MatchString(name) {
-		return utils.NewErrf("invalid AUR package name %q", name)
+		return errwrap.NewErrf("invalid AUR package name %q", name)
 	}
 	return nil
 }
@@ -69,12 +69,12 @@ func aurFetchCmd(use, short string) *cobra.Command {
 func runAurFetch(cmd *cobra.Command, repoName string, pkgs []string, force bool) error {
 	app := shared.AppFrom(cmd)
 	if app.GetSrcRepo(repoName) == nil {
-		return utils.WrapErr(shared.ErrInvalidRepoName, repoName)
+		return errwrap.WrapErr(shared.ErrInvalidRepoName, repoName)
 	}
 
 	repoDir := app.GetSrcDir(repoName)
 	if repoDir == "" {
-		return utils.WrapErr(shared.ErrNoSourceDir, repoName)
+		return errwrap.WrapErr(shared.ErrNoSourceDir, repoName)
 	}
 
 	var errs []string
@@ -87,7 +87,7 @@ func runAurFetch(cmd *cobra.Command, repoName string, pkgs []string, force bool)
 	}
 
 	if len(errs) > 0 {
-		return utils.NewErr("one or more AUR fetches failed:\n" + strings.Join(errs, "\n"))
+		return errwrap.NewErr("one or more AUR fetches failed:\n" + strings.Join(errs, "\n"))
 	}
 	return nil
 }
@@ -106,7 +106,7 @@ func updateAurPkg(cobraCmd *cobra.Command, repoDir, name string, force bool) err
 		gitcmd.Stdout = cobraCmd.OutOrStdout()
 		gitcmd.Stderr = cobraCmd.ErrOrStderr()
 		if err := gitcmd.Run(); err != nil {
-			return utils.WrapErr(err, "failed to pull AUR package "+name)
+			return errwrap.WrapErr(err, "failed to pull AUR package "+name)
 		}
 		return nil
 	}
@@ -115,7 +115,7 @@ func updateAurPkg(cobraCmd *cobra.Command, repoDir, name string, force bool) err
 	if force {
 		slog.Info("force remove non-git directory", "name", name, "dir", targetDir)
 		if err := os.RemoveAll(targetDir); err != nil {
-			return utils.WrapErr(err, "failed to remove existing directory for "+name)
+			return errwrap.WrapErr(err, "failed to remove existing directory for "+name)
 		}
 	}
 
@@ -124,12 +124,12 @@ func updateAurPkg(cobraCmd *cobra.Command, repoDir, name string, force bool) err
 	root, err := shared.GitRootDir(repoDir)
 	if err == nil {
 		if err := os.MkdirAll(filepath.Dir(targetDir), 0o755); err != nil {
-			return utils.WrapErr(err, "failed to create parent directory")
+			return errwrap.WrapErr(err, "failed to create parent directory")
 		}
 
 		relPath, err := filepath.Rel(root, targetDir)
 		if err != nil {
-			return utils.WrapErr(err, "failed to get relative path for submodule")
+			return errwrap.WrapErr(err, "failed to get relative path for submodule")
 		}
 
 		slog.Info("adding AUR repo as submodule", "name", name, "root", root, "path", relPath)
@@ -137,20 +137,20 @@ func updateAurPkg(cobraCmd *cobra.Command, repoDir, name string, force bool) err
 		gitcmd.Stdout = cobraCmd.OutOrStdout()
 		gitcmd.Stderr = cobraCmd.ErrOrStderr()
 		if err := gitcmd.Run(); err != nil {
-			return utils.WrapErr(err, "failed to add AUR submodule "+name)
+			return errwrap.WrapErr(err, "failed to add AUR submodule "+name)
 		}
 		return nil
 	}
 
 	slog.Info("cloning AUR repo (non-git parent)", "name", name, "dir", targetDir)
 	if err := os.MkdirAll(repoDir, 0o755); err != nil {
-		return utils.WrapErr(err, "failed to create repo directory")
+		return errwrap.WrapErr(err, "failed to create repo directory")
 	}
 	gitcmd := exec.Command("git", "clone", url, targetDir)
 	gitcmd.Stdout = cobraCmd.OutOrStdout()
 	gitcmd.Stderr = cobraCmd.ErrOrStderr()
 	if err := gitcmd.Run(); err != nil {
-		return utils.WrapErr(err, "failed to clone AUR package "+name)
+		return errwrap.WrapErr(err, "failed to clone AUR package "+name)
 	}
 	return nil
 }

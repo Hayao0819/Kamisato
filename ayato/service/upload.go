@@ -12,7 +12,7 @@ import (
 	"github.com/Hayao0819/Kamisato/ayato/repository"
 	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
 	"github.com/Hayao0819/Kamisato/ayato/stream"
-	"github.com/Hayao0819/Kamisato/internal/utils"
+	"github.com/Hayao0819/Kamisato/internal/errwrap"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/alpm"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/gpg"
 	pkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
@@ -58,10 +58,10 @@ func (s *Service) prepareUpload(repo string, files *domain.UploadFiles, kr *gpg.
 			return preparedUpload{}, fmt.Errorf("package signature present but no trust root (verify.keyring or a registered signer) is configured to validate it")
 		}
 		if _, err := pkgFileStream.Seek(0, io.SeekStart); err != nil {
-			return preparedUpload{}, utils.WrapErr(err, "failed to seek package file for verification")
+			return preparedUpload{}, errwrap.WrapErr(err, "failed to seek package file for verification")
 		}
 		if _, err := files.SigFile.Seek(0, io.SeekStart); err != nil {
-			return preparedUpload{}, utils.WrapErr(err, "failed to seek signature file for verification")
+			return preparedUpload{}, errwrap.WrapErr(err, "failed to seek signature file for verification")
 		}
 		fpr, verr := kr.VerifyDetached(pkgFileStream, files.SigFile)
 		if verr != nil {
@@ -141,7 +141,7 @@ func (s *Service) UploadFiles(repo string, files []*domain.UploadFiles) error {
 	if s.pkgBinaryRepo.VerifyPkgRepo(repo) != nil {
 		slog.Warn("repository directory not found", "repo", repo)
 		if err := s.initRepo(repo, useSignedDB, gnupgDir); err != nil {
-			return utils.WrapErr(err, "failed to initialize repo")
+			return errwrap.WrapErr(err, "failed to initialize repo")
 		}
 	}
 
@@ -196,24 +196,24 @@ func (s *Service) UploadFiles(repo string, files []*domain.UploadFiles) error {
 	for _, p := range preps {
 		if _, err := p.pkgStream.Seek(0, io.SeekStart); err != nil {
 			rollback()
-			return utils.WrapErr(err, "failed to seek package file")
+			return errwrap.WrapErr(err, "failed to seek package file")
 		}
 		if err := s.pkgBinaryRepo.StoreFile(repo, p.storeArch, p.pkgStream); err != nil {
 			rollback()
-			return utils.WrapErr(err, "failed to store file")
+			return errwrap.WrapErr(err, "failed to store file")
 		}
 		stored = append(stored, archKey{p.storeArch, p.storedName})
 		if p.sigStream != nil {
 			if _, err := p.sigStream.Seek(0, io.SeekStart); err != nil {
 				rollback()
-				return utils.WrapErr(err, "failed to seek signature file")
+				return errwrap.WrapErr(err, "failed to seek signature file")
 			}
 			// StoreFile keys the on-disk name off FileName(), so re-wrap the sig
 			// under "<storedName>.sig". Verification already rejected bad sigs.
 			sigToStore := stream.NewFileStream(p.sigName, p.sigStream.ContentType(), p.sigStream)
 			if err := s.pkgBinaryRepo.StoreFile(repo, p.storeArch, sigToStore); err != nil {
 				rollback()
-				return utils.WrapErr(err, "failed to store signature file")
+				return errwrap.WrapErr(err, "failed to store signature file")
 			}
 			stored = append(stored, archKey{p.storeArch, p.sigName})
 		}
@@ -235,7 +235,7 @@ func (s *Service) UploadFiles(repo string, files []*domain.UploadFiles) error {
 	for _, a := range archOrder {
 		if err := s.pkgBinaryRepo.RepoAddBatch(repo, a, byArch[a], useSignedDB, gnupgDir); err != nil {
 			rollback()
-			return utils.WrapErr(err, "failed to add to repo database")
+			return errwrap.WrapErr(err, "failed to add to repo database")
 		}
 		for _, pn := range pkgsByArch[a] {
 			added = append(added, archKey{a, pn})
@@ -246,7 +246,7 @@ func (s *Service) UploadFiles(repo string, files []*domain.UploadFiles) error {
 	for _, p := range preps {
 		if err := s.pkgNameRepo.StorePackageFile(p.storeArch, p.pkgName, p.storedName); err != nil {
 			rollback()
-			return utils.WrapErr(err, "failed to store package file name")
+			return errwrap.WrapErr(err, "failed to store package file name")
 		}
 		named = append(named, archKey{p.storeArch, p.pkgName})
 	}
@@ -286,7 +286,7 @@ func (s *Service) publishedVersion(repo, arch, pkgname string) (string, bool, er
 		if errors.Is(err, blob.ErrNotFound) {
 			return "", false, nil
 		}
-		return "", false, utils.WrapErr(err, "read repo db for version gate")
+		return "", false, errwrap.WrapErr(err, "read repo db for version gate")
 	}
 	p := rr.PkgByPkgName(pkgname)
 	if p == nil {

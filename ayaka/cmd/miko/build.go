@@ -5,7 +5,7 @@ import (
 
 	"github.com/Hayao0819/Kamisato/ayaka/build"
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
-	"github.com/Hayao0819/Kamisato/internal/utils"
+	"github.com/Hayao0819/Kamisato/internal/errwrap"
 	"github.com/spf13/cobra"
 )
 
@@ -37,7 +37,7 @@ func mikoBuildCmd() *cobra.Command {
 			// ayato, which need not exist locally. Otherwise it must be a known
 			// source repo.
 			if gitURL == "" && !slices.Contains(shared.AppFrom(cmd).GetSrcRepoNames(), args[0]) {
-				return utils.WrapErr(shared.ErrInvalidRepoName, args[0])
+				return errwrap.WrapErr(shared.ErrInvalidRepoName, args[0])
 			}
 			return nil
 		},
@@ -58,7 +58,7 @@ func mikoBuildCmd() *cobra.Command {
 			}
 			if signLocal {
 				if localKey == "" {
-					return utils.NewErr("--sign-local requires --local-key")
+					return errwrap.NewErr("--sign-local requires --local-key")
 				}
 				return build.RunRemoteBuildLocalSign(cmd.Context(), opts, localKey, localPass)
 			}

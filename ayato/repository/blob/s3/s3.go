@@ -14,7 +14,7 @@ import (
 
 	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
 	"github.com/Hayao0819/Kamisato/ayato/stream"
-	"github.com/Hayao0819/Kamisato/internal/utils"
+	"github.com/Hayao0819/Kamisato/internal/errwrap"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/aws/retry"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -192,7 +192,7 @@ func (s *S3) putFile(key, name string) error {
 	}
 	defer f.Close()
 	if err := s.putObject(key, f); err != nil {
-		return utils.WrapErr(err, "failed to put object")
+		return errwrap.WrapErr(err, "failed to put object")
 	}
 
 	return nil

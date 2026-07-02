@@ -5,14 +5,14 @@ import (
 
 	blinky_clientlib "github.com/BrenekH/blinky/clientlib"
 	blinky_util "github.com/BrenekH/blinky/cmd/blinky/util"
-	"github.com/Hayao0819/Kamisato/internal/utils"
+	"github.com/Hayao0819/Kamisato/internal/errwrap"
 )
 
 // Sentinel errors for server resolution. Package-level so callers can errors.Is
-// them through utils.WrapErr.
+// them through errwrap.WrapErr.
 var (
-	ErrNoServerSpecified = utils.NewErr("no server specified and no default server is set")
-	ErrServerNotFound    = utils.NewErr("server not found")
+	ErrNoServerSpecified = errwrap.NewErr("no server specified and no default server is set")
+	ErrServerNotFound    = errwrap.NewErr("server not found")
 )
 
 // Client is the blinky upload client. Aliased so callers depend on blinkyutils
@@ -33,7 +33,7 @@ type ServerInfo struct {
 func ResolveServerName(name string) (string, error) {
 	db, err := blinky_util.ReadServerDB()
 	if err != nil {
-		return "", utils.WrapErr(err, "failed to read server database")
+		return "", errwrap.WrapErr(err, "failed to read server database")
 	}
 	if name == "" {
 		name = db.DefaultServer
@@ -50,7 +50,7 @@ func ResolveServerName(name string) (string, error) {
 func ResolveServer(name string) (*ServerInfo, error) {
 	db, err := blinky_util.ReadServerDB()
 	if err != nil {
-		return nil, utils.WrapErr(err, "failed to read server database")
+		return nil, errwrap.WrapErr(err, "failed to read server database")
 	}
 	if name == "" {
 		name = db.DefaultServer
@@ -60,7 +60,7 @@ func ResolveServer(name string) (*ServerInfo, error) {
 	}
 	entry, ok := db.Servers[name]
 	if !ok {
-		return nil, utils.WrapErr(ErrServerNotFound,
+		return nil, errwrap.WrapErr(ErrServerNotFound,
 			"server "+name+" is not registered; log in first with 'ayaka server login "+name+"'")
 	}
 	return &ServerInfo{URL: name, Username: entry.Username, Password: entry.Password}, nil
