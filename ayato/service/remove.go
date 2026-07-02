@@ -43,7 +43,7 @@ func (s *Service) RemovePkg(rname string, arch string, pkgname string) error {
 		return fmt.Errorf("no architecture database to remove %q from in %s", pkgname, rname)
 	}
 
-	useSignedDB := false // TODO: support signed DB
+	useSignedDB := s.signedDB()
 	var gnupgDir *string
 	for _, a := range dbArches {
 		if err := s.pkgBinaryRepo.RepoRemove(rname, a, pkgname, useSignedDB, gnupgDir); err != nil {

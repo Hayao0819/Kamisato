@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/ProtonMail/go-crypto/openpgp"
+
 	pkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
 )
 
@@ -32,12 +34,21 @@ var (
 // NativeTool reads, mutates, and writes the pacman repo-DB archives directly,
 // with no repo-add/repo-remove binary, so a server can produce pacman databases
 // on any distribution. It operates on the .db archive at dbPath and its siblings
-// in the same directory.
-type NativeTool struct{}
+// in the same directory. A nil signer cannot produce a signed database; build a
+// signing tool with NewSigningNativeTool.
+type NativeTool struct {
+	signer *openpgp.Entity
+}
 
-// ErrSignedDBUnsupported is returned when a signed database is requested. Native
-// signing needs a private signing key, which is not yet wired up.
-var ErrSignedDBUnsupported = errors.New("native repo-db tool: signed databases are not supported")
+// NewSigningNativeTool returns a NativeTool that detach-signs the .db/.files
+// archives with entity when a signed database is requested.
+func NewSigningNativeTool(entity *openpgp.Entity) NativeTool {
+	return NativeTool{signer: entity}
+}
+
+// ErrSignedDBUnsupported is returned when a signed database is requested but the
+// tool has no signing key (a plain NativeTool{}). Build a NewSigningNativeTool.
+var ErrSignedDBUnsupported = errors.New("native repo-db tool: signed databases require a signing key")
 
 func (t NativeTool) RepoAdd(dbPath, pkgFilePath string, useSignedDB bool, gnupgDir *string) error {
 	var paths []string
@@ -47,8 +58,8 @@ func (t NativeTool) RepoAdd(dbPath, pkgFilePath string, useSignedDB bool, gnupgD
 	return t.RepoAddBatch(dbPath, paths, useSignedDB, gnupgDir)
 }
 
-func (NativeTool) RepoAddBatch(dbPath string, pkgFilePaths []string, useSignedDB bool, _ *string) error {
-	if useSignedDB {
+func (t NativeTool) RepoAddBatch(dbPath string, pkgFilePaths []string, useSignedDB bool, _ *string) error {
+	if useSignedDB && t.signer == nil {
 		return ErrSignedDBUnsupported
 	}
 	paths, err := toolPathsFor(dbPath)
@@ -71,11 +82,14 @@ func (NativeTool) RepoAddBatch(dbPath string, pkgFilePaths []string, useSignedDB
 			return err
 		}
 	}
-	return writeToolBuilder(b, paths)
+	if err := writeToolBuilder(b, paths); err != nil {
+		return err
+	}
+	return t.maybeSign(paths, useSignedDB)
 }
 
-func (NativeTool) RepoRemove(dbPath, pkgName string, useSignedDB bool, _ *string) error {
-	if useSignedDB {
+func (t NativeTool) RepoRemove(dbPath, pkgName string, useSignedDB bool, _ *string) error {
+	if useSignedDB && t.signer == nil {
 		return ErrSignedDBUnsupported
 	}
 	paths, err := toolPathsFor(dbPath)
@@ -89,7 +103,10 @@ func (NativeTool) RepoRemove(dbPath, pkgName string, useSignedDB bool, _ *string
 	if !b.Remove(pkgName) {
 		return fmt.Errorf("package matching %q not found", pkgName)
 	}
-	return writeToolBuilder(b, paths)
+	if err := writeToolBuilder(b, paths); err != nil {
+		return err
+	}
+	return t.maybeSign(paths, useSignedDB)
 }
 
 // toolPaths holds the four artifact paths a repo-DB mutation touches, all in the

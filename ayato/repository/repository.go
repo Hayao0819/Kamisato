@@ -5,6 +5,8 @@ import (
 	"path"
 	"strings"
 
+	"github.com/ProtonMail/go-crypto/openpgp"
+
 	"github.com/Hayao0819/Kamisato/ayato/domain"
 	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
 	"github.com/Hayao0819/Kamisato/ayato/stream"
@@ -48,8 +50,28 @@ type binaryRepository struct {
 	tool repoDBTool
 }
 
-func NewBinaryRepository(store blob.Store) BinaryRepository {
-	return &binaryRepository{Store: store}
+// BinaryRepoOption configures a binaryRepository at construction.
+type BinaryRepoOption func(*binaryRepository)
+
+// WithSigningTool makes the repository detach-sign the .db/.files archives with
+// entity when a signed database is requested. A nil entity is a no-op (the tool
+// stays the unsigned Go-native writer).
+func WithSigningTool(entity *openpgp.Entity) BinaryRepoOption {
+	return func(r *binaryRepository) {
+		if entity != nil {
+			r.tool = repo.NewSigningNativeTool(entity)
+		}
+	}
+}
+
+func NewBinaryRepository(store blob.Store, opts ...BinaryRepoOption) BinaryRepository {
+	r := &binaryRepository{Store: store}
+	for _, o := range opts {
+		if o != nil {
+			o(r)
+		}
+	}
+	return r
 }
 
 // Arches lists the repository's architectures, dropping "any". An arch=any

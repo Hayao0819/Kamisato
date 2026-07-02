@@ -5,9 +5,31 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/ProtonMail/go-crypto/openpgp"
 )
+
+// LoadArmoredEntity parses an armored OpenPGP private key from an in-memory string
+// (e.g. an env var) and unlocks it with passphrase when protected. It is the
+// env-supplied counterpart to NewLocalSigner's file loader.
+func LoadArmoredEntity(armored, passphrase string) (*openpgp.Entity, error) {
+	el, err := openpgp.ReadArmoredKeyRing(strings.NewReader(armored))
+	if err != nil {
+		return nil, fmt.Errorf("parse armored key: %w", err)
+	}
+	if len(el) != 1 {
+		return nil, fmt.Errorf("expected one key, got %d", len(el))
+	}
+	key := el[0]
+	if key.PrivateKey == nil {
+		return nil, fmt.Errorf("key has no private material")
+	}
+	if err := decryptPrivate(key, passphrase); err != nil {
+		return nil, err
+	}
+	return key, nil
+}
 
 // LocalSigner signs with an arbitrary OpenPGP private key the user holds locally.
 type LocalSigner struct{ key *openpgp.Entity }

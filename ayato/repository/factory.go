@@ -2,6 +2,9 @@ package repository
 
 import (
 	"log/slog"
+	"os"
+
+	"github.com/ProtonMail/go-crypto/openpgp"
 
 	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
 	"github.com/Hayao0819/Kamisato/ayato/repository/blob/localfs"
@@ -11,6 +14,8 @@ import (
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv/cfkv"
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv/sqlkv"
 	"github.com/Hayao0819/Kamisato/internal/conf"
+	"github.com/Hayao0819/Kamisato/internal/utils"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/sign"
 )
 
 // initBinaryStore keeps the IO layer conf-free by unpacking conf into the plain values the backends take.
@@ -80,5 +85,30 @@ func New(cfg *conf.AyatoConfig) (NameStore, BinaryRepository, AuthRepository, kv
 		return nil, nil, nil, nil, err
 	}
 
-	return NewPackageMetadataRepo(kvStore), NewBinaryRepository(newSerializingStore(binStore)), NewAuthRepository(kvStore), kvStore, nil
+	var binOpts []BinaryRepoOption
+	if cfg != nil && cfg.Sign.DB {
+		signer, serr := loadDBSigner()
+		if serr != nil {
+			return nil, nil, nil, nil, serr
+		}
+		binOpts = append(binOpts, WithSigningTool(signer))
+	}
+
+	return NewPackageMetadataRepo(kvStore), NewBinaryRepository(newSerializingStore(binStore), binOpts...), NewAuthRepository(kvStore), kvStore, nil
+}
+
+// loadDBSigner loads the repo-db signing key from the environment (never the
+// config file, since it is a private key), unlocking it with an optional
+// passphrase. It fails closed: sign.db enabled with no key is a startup error, so
+// ayato never silently serves an unsigned database when a signed one was asked for.
+func loadDBSigner() (*openpgp.Entity, error) {
+	armored := os.Getenv("AYATO_DB_SIGNING_KEY")
+	if armored == "" {
+		return nil, utils.NewErr("sign.db is enabled but AYATO_DB_SIGNING_KEY is unset")
+	}
+	entity, err := sign.LoadArmoredEntity(armored, os.Getenv("AYATO_DB_SIGNING_PASSPHRASE"))
+	if err != nil {
+		return nil, utils.WrapErr(err, "failed to load the repo-db signing key")
+	}
+	return entity, nil
 }

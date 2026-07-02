@@ -24,12 +24,23 @@ type AyatoConfig struct {
 	AUR         AURConfig       `koanf:"aur"`
 	BugReport   BugReportConfig `koanf:"bug_report"`
 	Recaptcha   RecaptchaConfig `koanf:"recaptcha"`
+	Sign        SignConfig      `koanf:"sign"`
 	// RedirectDownloads, unset by default, answers a file download with a 302 to a
 	// presigned object URL whenever the blob backend can presign (S3), so the bytes
 	// go client<->object-store directly and skip ayato's egress (Cloud Run bills it).
 	// Set it to false to force every download to stream through ayato; a backend that
 	// cannot presign (localfs) always streams regardless.
 	RedirectDownloads *bool `koanf:"redirect_downloads"`
+}
+
+// SignConfig toggles optional signing features. Only the toggle lives in config;
+// the private keys come from the environment (never the config file), matching
+// the AUR catalog seed.
+type SignConfig struct {
+	// DB enables signing the pacman repo database, producing <repo>.db.tar.gz.sig
+	// and <repo>.files.tar.gz.sig. The armored private key comes from
+	// AYATO_DB_SIGNING_KEY (optionally unlocked with AYATO_DB_SIGNING_PASSPHRASE).
+	DB bool `koanf:"db,omitempty"`
 }
 
 // RedirectDownloadsEnabled reports whether downloads should be redirected to a

@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"bytes"
 	"compress/gzip"
+	"crypto"
 	"errors"
 	"io"
 	"os"
@@ -13,6 +14,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ProtonMail/go-crypto/openpgp"
+	"github.com/ProtonMail/go-crypto/openpgp/packet"
 	"github.com/klauspost/compress/zstd"
 )
 
@@ -300,6 +303,52 @@ func TestNativeSignedUnsupported(t *testing.T) {
 	if err := (NativeTool{}).RepoAdd(dbPath, "", true, nil); !errors.Is(err, ErrSignedDBUnsupported) {
 		t.Fatalf("expected ErrSignedDBUnsupported, got %v", err)
 	}
+}
+
+// TestNativeSignedDB checks that a signing tool produces the .db/.files signatures
+// (both archive-name and bare-name aliases) and that they verify with the key.
+func TestNativeSignedDB(t *testing.T) {
+	entity, err := openpgp.NewEntity("ayato db", "test", "db@example.com",
+		&packet.Config{Algorithm: packet.PubKeyAlgoEdDSA, DefaultHash: crypto.SHA256})
+	if err != nil {
+		t.Fatalf("NewEntity: %v", err)
+	}
+
+	dir := t.TempDir()
+	pkgPath := filepath.Join(dir, "sample-1.0-1-x86_64.pkg.tar.zst")
+	buildPkg(t, pkgPath, pkginfoSample("sample", "sample", "1.0-1"), sampleMembers())
+
+	dbPath := filepath.Join(dir, "r.db.tar.gz")
+	if err := NewSigningNativeTool(entity).RepoAddBatch(dbPath, []string{pkgPath}, true, nil); err != nil {
+		t.Fatalf("signed RepoAddBatch: %v", err)
+	}
+
+	// pacman fetches <repo>.db.sig, so both the archive-name signature and the
+	// bare-name alias must exist for the .db and the .files.
+	for _, name := range []string{"r.db.tar.gz.sig", "r.db.sig", "r.files.tar.gz.sig", "r.files.sig"} {
+		if _, err := os.Stat(filepath.Join(dir, name)); err != nil {
+			t.Errorf("signature %s missing: %v", name, err)
+		}
+	}
+
+	keyring := openpgp.EntityList{entity}
+	verify := func(archive, sig string) {
+		a, err := os.Open(filepath.Join(dir, archive))
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer a.Close()
+		s, err := os.Open(filepath.Join(dir, sig))
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer s.Close()
+		if _, err := openpgp.CheckDetachedSignature(keyring, a, s, nil); err != nil {
+			t.Errorf("verify %s against %s: %v", sig, archive, err)
+		}
+	}
+	verify("r.db.tar.gz", "r.db.tar.gz.sig")
+	verify("r.files.tar.gz", "r.files.tar.gz.sig")
 }
 
 func TestNativeRepoRemoveMissing(t *testing.T) {

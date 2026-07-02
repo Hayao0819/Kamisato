@@ -128,21 +128,21 @@ func (s *Service) UploadFile(repo string, files *domain.UploadFiles) error {
 // multi-package push (a split package, or a rebuild set) lands as one atomic
 // database update rather than N partial ones. On any error it rolls back every
 // stored file and database entry.
-//
-// TODO: support signed DB, check gnupgDir existence
 func (s *Service) UploadFiles(repo string, files []*domain.UploadFiles) error {
 	if len(files) == 0 {
 		return nil
 	}
+	useSignedDB := s.signedDB()
+	// gnupgDir is only for the CLI tool's GNUPGHOME; native signing takes its key
+	// from the config, so it stays nil.
+	var gnupgDir *string
+
 	if s.pkgBinaryRepo.VerifyPkgRepo(repo) != nil {
 		slog.Warn("repository directory not found", "repo", repo)
-		if err := s.initRepo(repo, false, nil); err != nil {
+		if err := s.initRepo(repo, useSignedDB, gnupgDir); err != nil {
 			return utils.WrapErr(err, "failed to initialize repo")
 		}
 	}
-
-	useSignedDB := false // TODO: support signed DB
-	var gnupgDir *string // TODO: check gnupgDir existence
 
 	// Build the verification keyring once for the whole batch: it is identical for
 	// every package and rebuilding it per file re-runs the (KV-backed) signer
@@ -267,6 +267,12 @@ func (s *Service) configuredArches(repo string) []string {
 		}
 	}
 	return out
+}
+
+// signedDB reports whether uploads should produce a signed pacman database. The
+// signing key itself is wired into the repository layer at startup.
+func (s *Service) signedDB() bool {
+	return s.cfg != nil && s.cfg.Sign.DB
 }
 
 // publishedVersion returns the version of pkgname currently published in
