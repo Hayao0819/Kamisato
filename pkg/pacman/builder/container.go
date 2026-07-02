@@ -19,11 +19,18 @@ import (
 	"github.com/docker/docker/pkg/stdcopy"
 )
 
-// buildScript is the in-container entrypoint. __ARCH__ and __INSTALL__ are
-// substituted per build.
+// buildScript is the in-container entrypoint. __EXTRA_REPOS__ and __INSTALL__
+// are substituted per build; the target arch is passed via TARGET_CARCH.
 //
 //go:embed buildscript.sh
 var buildScript string
+
+// makepkgOverrideConf is the static base of /build/makepkg.override.conf. The
+// entrypoint copies it in and appends the dynamic CARCH/CHOST, so the file body
+// is a real staged file rather than a heredoc generated inline.
+//
+//go:embed makepkg.override.conf
+var makepkgOverrideConf string
 
 // containerBackend builds packages in a fresh throwaway container, one per
 // build (makecontainerpkg-style clean room).
@@ -134,13 +141,21 @@ func (b *containerBackend) Build(ctx context.Context, spec Spec) (*Result, error
 	}
 
 	script := buildScript
-	script = strings.ReplaceAll(script, "__ARCH__", spec.Arch)
 	script = strings.ReplaceAll(script, "__EXTRA_REPOS__", extraReposScript(b.extraRepos))
 	script = strings.ReplaceAll(script, "__INSTALL__", strings.TrimRight(installCmd.String(), "\n"))
+
+	// Stage the static override as a real host file so the entrypoint copies it
+	// into place instead of generating it via a heredoc.
+	overridePath, cleanupOverride, err := stageOverrideConf()
+	if err != nil {
+		return nil, err
+	}
+	defer cleanupOverride()
 
 	containerConfig := &container.Config{
 		Image:      b.image,
 		Cmd:        []string{"sh", "-c", script},
+		Env:        []string{"TARGET_CARCH=" + spec.Arch},
 		WorkingDir: "/build",
 		Tty:        false,
 		User:       "root",
@@ -159,6 +174,12 @@ func (b *containerBackend) Build(ctx context.Context, spec Spec) (*Result, error
 			Type:   mount.TypeBind,
 			Source: absOut,
 			Target: "/build/out",
+		},
+		{
+			Type:     mount.TypeBind,
+			Source:   overridePath,
+			Target:   "/build/staging/makepkg.override.conf",
+			ReadOnly: true,
 		},
 	}
 	mounts = append(mounts, installMounts...)
@@ -240,6 +261,25 @@ func (b *containerBackend) Build(ctx context.Context, spec Spec) (*Result, error
 	}
 	slog.Info("container build completed", "packages", len(pkgs))
 	return &Result{Packages: pkgs}, nil
+}
+
+// stageOverrideConf writes the embedded makepkg override base to a host temp
+// file for bind-mounting into the container, returning its path and a cleanup.
+func stageOverrideConf() (string, func(), error) {
+	f, err := os.CreateTemp("", "makepkg-override-*.conf")
+	if err != nil {
+		return "", nil, utils.WrapErr(err, "failed to stage makepkg override")
+	}
+	if _, err := f.WriteString(makepkgOverrideConf); err != nil {
+		_ = f.Close()
+		_ = os.Remove(f.Name())
+		return "", nil, utils.WrapErr(err, "failed to write makepkg override")
+	}
+	if err := f.Close(); err != nil {
+		_ = os.Remove(f.Name())
+		return "", nil, utils.WrapErr(err, "failed to write makepkg override")
+	}
+	return f.Name(), func() { _ = os.Remove(f.Name()) }, nil
 }
 
 // cacheMounts returns the cache bind-mounts, creating host dirs if missing.
