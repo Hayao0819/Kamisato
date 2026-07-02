@@ -2,10 +2,9 @@ package alpm
 
 import (
 	"errors"
+	"fmt"
 	"os/exec"
 	"strings"
-
-	"github.com/Hayao0819/Kamisato/internal/utils"
 )
 
 // InstalledVersion returns the version pacman records for an installed package
@@ -13,11 +12,11 @@ import (
 func InstalledVersion(name string) (string, error) {
 	out, err := exec.Command("pacman", "-Q", name).Output()
 	if err != nil {
-		return "", utils.WrapErr(err, "pacman -Q "+name)
+		return "", fmt.Errorf("pacman -Q %s: %w", name, err)
 	}
 	fields := strings.Fields(string(out))
 	if len(fields) < 2 {
-		return "", utils.NewErrf("unexpected 'pacman -Q' output for %s", name)
+		return "", fmt.Errorf("unexpected 'pacman -Q' output for %s", name)
 	}
 	return fields[1], nil
 }
@@ -26,7 +25,7 @@ func InstalledVersion(name string) (string, error) {
 func InstalledVersions() (map[string]string, error) {
 	out, err := exec.Command("pacman", "-Q").Output()
 	if err != nil {
-		return nil, utils.WrapErr(err, "pacman -Q")
+		return nil, fmt.Errorf("pacman -Q: %w", err)
 	}
 	m := map[string]string{}
 	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
@@ -47,7 +46,7 @@ func ForeignPackages() (map[string]bool, error) {
 		if errors.As(err, &ee) && ee.ExitCode() == 1 && len(out) == 0 && len(ee.Stderr) == 0 {
 			return map[string]bool{}, nil
 		}
-		return nil, utils.WrapErr(err, "pacman -Qmq")
+		return nil, fmt.Errorf("pacman -Qmq: %w", err)
 	}
 	return lineSet(out), nil
 }
@@ -57,7 +56,7 @@ func ForeignPackages() (map[string]bool, error) {
 func SyncPackages() (map[string]bool, error) {
 	out, err := exec.Command("pacman", "-Slq").Output()
 	if err != nil {
-		return nil, utils.WrapErr(err, "pacman -Slq")
+		return nil, fmt.Errorf("pacman -Slq: %w", err)
 	}
 	return lineSet(out), nil
 }

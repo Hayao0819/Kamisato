@@ -6,11 +6,10 @@
 package hook
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
-
-	"github.com/Hayao0819/Kamisato/internal/utils"
 )
 
 // ExecPlaceholder is the token in a template that Install swaps for the Exec line.
@@ -23,7 +22,7 @@ const ExecPlaceholder = "@EXEC@"
 // before baking them.
 func ValidateExecArg(name, v string) error {
 	if strings.ContainsAny(v, " \t\r\n\"'\\") {
-		return utils.NewErrf("%s contains whitespace or quotes and cannot be baked into a hook's Exec line: %q", name, v)
+		return fmt.Errorf("%s contains whitespace or quotes and cannot be baked into a hook's Exec line: %q", name, v)
 	}
 	return nil
 }
@@ -34,7 +33,7 @@ func Install(dir, fileName, template, exec string) (string, error) {
 	content := strings.ReplaceAll(template, ExecPlaceholder, exec)
 	path := filepath.Join(dir, fileName)
 	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
-		return "", utils.WrapErr(err, "failed to write pacman hook (root needed for "+dir+"?)")
+		return "", fmt.Errorf("failed to write pacman hook (root needed for %s?): %w", dir, err)
 	}
 	return path, nil
 }

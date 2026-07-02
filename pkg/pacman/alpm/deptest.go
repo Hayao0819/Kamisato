@@ -2,10 +2,9 @@ package alpm
 
 import (
 	"errors"
+	"fmt"
 	"os/exec"
 	"strings"
-
-	"github.com/Hayao0819/Kamisato/internal/utils"
 )
 
 // Deptest returns the subset of deps not satisfied by the locally installed
@@ -24,7 +23,7 @@ func Deptest(deps []string) ([]string, error) {
 		if errors.As(err, &ee) && ee.ExitCode() == 127 {
 			return strings.Fields(string(out)), nil
 		}
-		return nil, utils.WrapErr(err, "pacman -T")
+		return nil, fmt.Errorf("pacman -T: %w", err)
 	}
 	return nil, nil
 }

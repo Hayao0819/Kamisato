@@ -5,11 +5,10 @@
 package srcpkg
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
-
-	"github.com/Hayao0819/Kamisato/internal/utils"
 )
 
 // MaxInlineSource caps the size of a build-dir file shipped inline. Larger files
@@ -24,7 +23,7 @@ const MaxInlineSource = 1 << 20 // 1 MiB
 func ReadInline(dir string, onSkipLarge func(name string, size int64)) (pkgbuild string, files map[string]string, err error) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
-		return "", nil, utils.WrapErr(err, "failed to read source directory")
+		return "", nil, fmt.Errorf("failed to read source directory: %w", err)
 	}
 
 	files = map[string]string{}
@@ -44,7 +43,7 @@ func ReadInline(dir string, onSkipLarge func(name string, size int64)) (pkgbuild
 		}
 		b, rerr := os.ReadFile(filepath.Join(dir, name))
 		if rerr != nil {
-			return "", nil, utils.WrapErr(rerr, "failed to read "+name)
+			return "", nil, fmt.Errorf("failed to read %s: %w", name, rerr)
 		}
 		if name == "PKGBUILD" {
 			pkgbuild = string(b)
@@ -54,7 +53,7 @@ func ReadInline(dir string, onSkipLarge func(name string, size int64)) (pkgbuild
 	}
 
 	if pkgbuild == "" {
-		return "", nil, utils.NewErr("no PKGBUILD found in " + dir)
+		return "", nil, fmt.Errorf("no PKGBUILD found in %s", dir)
 	}
 	return pkgbuild, files, nil
 }
