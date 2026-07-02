@@ -1,6 +1,7 @@
 package service
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -9,8 +10,10 @@ import (
 
 	"github.com/Hayao0819/Kamisato/ayato/domain"
 	"github.com/Hayao0819/Kamisato/ayato/repository"
+	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
 	"github.com/Hayao0819/Kamisato/ayato/stream"
 	"github.com/Hayao0819/Kamisato/internal/utils"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/alpm"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/gpg"
 	pkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
 )
@@ -76,6 +79,27 @@ func (s *Service) prepareUpload(repo string, files *domain.UploadFiles, kr *gpg.
 	dbArches, err := s.targetArches(repo, pi.Arch)
 	if err != nil {
 		return preparedUpload{}, err
+	}
+
+	// Fail-closed version gate: reject a downgrade or a re-publish of an already
+	// present version. Running here, in the up-front validation loop, means a bad
+	// package anywhere in a batch aborts the whole publish before anything is
+	// stored. Wrapping ErrInvalidUpload maps it to HTTP 400.
+	for _, a := range dbArches {
+		cur, ok, verr := s.publishedVersion(repo, a, pi.PkgName)
+		if verr != nil {
+			return preparedUpload{}, verr
+		}
+		if !ok {
+			continue
+		}
+		cmp, _ := alpm.VerCmp(pi.PkgVer, cur)
+		if cmp < 0 {
+			return preparedUpload{}, fmt.Errorf("%w: %s %s is older than the published %s (downgrade rejected)", domain.ErrInvalidUpload, pi.PkgName, pi.PkgVer, cur)
+		}
+		if cmp == 0 {
+			return preparedUpload{}, fmt.Errorf("%w: %s %s is already published (duplicate rejected)", domain.ErrInvalidUpload, pi.PkgName, pi.PkgVer)
+		}
 	}
 
 	storedName := path.Base(pkgFileStream.FileName())
@@ -243,6 +267,25 @@ func (s *Service) configuredArches(repo string) []string {
 		}
 	}
 	return out
+}
+
+// publishedVersion returns the version of pkgname currently published in
+// (repo, arch), reading the authoritative .db (not the NameStore cache, which can
+// legitimately miss). A missing db or absent package is ("", false, nil); only a
+// real backend error is surfaced, so the gate fails closed on an unreadable db.
+func (s *Service) publishedVersion(repo, arch, pkgname string) (string, bool, error) {
+	rr, err := s.pkgBinaryRepo.RemoteRepo(repo, arch)
+	if err != nil {
+		if errors.Is(err, blob.ErrNotFound) {
+			return "", false, nil
+		}
+		return "", false, utils.WrapErr(err, "read repo db for version gate")
+	}
+	p := rr.PkgByPkgName(pkgname)
+	if p == nil {
+		return "", false, nil
+	}
+	return p.Version(), true, nil
 }
 
 // A concrete arch maps to itself; arch=any expands to every configured arch

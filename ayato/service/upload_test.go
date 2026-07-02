@@ -19,7 +19,18 @@ import (
 	"github.com/Hayao0819/Kamisato/ayato/test/mocks"
 	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/internal/utils"
+	pkgpkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
+	"github.com/Hayao0819/Kamisato/pkg/raiou"
 )
+
+// remoteWith builds a one-package RemoteRepo for the version-gate tests.
+func remoteWith(pkgname, version string) *repo.RemoteRepo {
+	return &repo.RemoteRepo{Pkgs: []*pkgpkg.BinaryPackage{
+		pkgpkg.NewBinaryPackage(pkgname+"-"+version+"-x86_64.pkg.tar.zst",
+			&raiou.PKGINFO{PkgName: pkgname, Arch: "x86_64", PkgVer: version}),
+	}}
+}
 
 const pkginfoBody = "pkgname = foo\n" +
 	"pkgver = 1.0-1\n" +
@@ -113,6 +124,7 @@ func TestUploadFile_RequireSignNoSig(t *testing.T) {
 	bin := mocks.NewMockBinaryRepository(ctrl)
 	name := mocks.NewMockNameStore(ctrl)
 	bin.EXPECT().VerifyPkgRepo("myrepo").Return(nil)
+	bin.EXPECT().RemoteRepo("myrepo", "x86_64").Return(&repo.RemoteRepo{}, nil).AnyTimes()
 	// No StoreFile / RepoAdd / StorePackageFile must be called.
 
 	svc := service.New(name, bin, nil, nil, baseConfig(true, keyring))
@@ -142,6 +154,7 @@ func TestUploadFile_BadSigRejected(t *testing.T) {
 			bin := mocks.NewMockBinaryRepository(ctrl)
 			name := mocks.NewMockNameStore(ctrl)
 			bin.EXPECT().VerifyPkgRepo("myrepo").Return(nil)
+			bin.EXPECT().RemoteRepo("myrepo", "x86_64").Return(&repo.RemoteRepo{}, nil).AnyTimes()
 			// No StoreFile / RepoAdd allowed.
 
 			svc := service.New(name, bin, nil, nil, baseConfig(requireSign, keyring))
@@ -172,6 +185,7 @@ func TestUploadFile_GoodSigStoresTwice(t *testing.T) {
 	bin := mocks.NewMockBinaryRepository(ctrl)
 	name := mocks.NewMockNameStore(ctrl)
 	bin.EXPECT().VerifyPkgRepo("myrepo").Return(nil)
+	bin.EXPECT().RemoteRepo("myrepo", "x86_64").Return(&repo.RemoteRepo{}, nil).AnyTimes()
 
 	var stored []string
 	bin.EXPECT().StoreFile("myrepo", "x86_64", gomock.Any()).DoAndReturn(
@@ -195,6 +209,69 @@ func TestUploadFile_GoodSigStoresTwice(t *testing.T) {
 	}
 }
 
+func TestUploadFile_DowngradeRejected(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	bin := mocks.NewMockBinaryRepository(ctrl)
+	name := mocks.NewMockNameStore(ctrl)
+	bin.EXPECT().VerifyPkgRepo("myrepo").Return(nil)
+	// foo 2.0-1 is already published; the upload is the older 1.0-1.
+	bin.EXPECT().RemoteRepo("myrepo", "x86_64").Return(remoteWith("foo", "2.0-1"), nil)
+	// No StoreFile / RepoAddBatch / StorePackageFile must be called.
+
+	svc := service.New(name, bin, nil, nil, baseConfig(false, ""))
+	files := &domain.UploadFiles{PkgFile: pkgStream(uploadName, buildPkgArchive(t))}
+	err := svc.UploadFile("myrepo", files)
+	if err == nil {
+		t.Fatal("expected a downgrade to be rejected, got nil")
+	}
+	if !errors.Is(err, domain.ErrInvalidUpload) {
+		t.Fatalf("downgrade must be a client error (ErrInvalidUpload), got %v", err)
+	}
+}
+
+func TestUploadFile_DuplicateRejected(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	bin := mocks.NewMockBinaryRepository(ctrl)
+	name := mocks.NewMockNameStore(ctrl)
+	bin.EXPECT().VerifyPkgRepo("myrepo").Return(nil)
+	// The same version 1.0-1 is already published.
+	bin.EXPECT().RemoteRepo("myrepo", "x86_64").Return(remoteWith("foo", "1.0-1"), nil)
+
+	svc := service.New(name, bin, nil, nil, baseConfig(false, ""))
+	files := &domain.UploadFiles{PkgFile: pkgStream(uploadName, buildPkgArchive(t))}
+	err := svc.UploadFile("myrepo", files)
+	if err == nil {
+		t.Fatal("expected a duplicate version to be rejected, got nil")
+	}
+	if !errors.Is(err, domain.ErrInvalidUpload) {
+		t.Fatalf("duplicate must be a client error (ErrInvalidUpload), got %v", err)
+	}
+}
+
+func TestUploadFile_UpgradeAccepted(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	bin := mocks.NewMockBinaryRepository(ctrl)
+	name := mocks.NewMockNameStore(ctrl)
+	bin.EXPECT().VerifyPkgRepo("myrepo").Return(nil)
+	// The published 0.9-1 is older than the uploaded 1.0-1, so it is accepted.
+	bin.EXPECT().RemoteRepo("myrepo", "x86_64").Return(remoteWith("foo", "0.9-1"), nil)
+	bin.EXPECT().StoreFile("myrepo", "x86_64", gomock.Any()).Return(nil)
+	bin.EXPECT().RepoAddBatch("myrepo", "x86_64", gomock.Any(), false, gomock.Nil()).Return(nil)
+	name.EXPECT().StorePackageFile("x86_64", "foo", uploadName).Return(nil)
+
+	svc := service.New(name, bin, nil, nil, baseConfig(false, ""))
+	files := &domain.UploadFiles{PkgFile: pkgStream(uploadName, buildPkgArchive(t))}
+	if err := svc.UploadFile("myrepo", files); err != nil {
+		t.Fatalf("an upgrade should be accepted: %v", err)
+	}
+}
+
 func TestUploadFile_CleanupRemovesBoth(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -207,6 +284,7 @@ func TestUploadFile_CleanupRemovesBoth(t *testing.T) {
 	bin := mocks.NewMockBinaryRepository(ctrl)
 	name := mocks.NewMockNameStore(ctrl)
 	bin.EXPECT().VerifyPkgRepo("myrepo").Return(nil)
+	bin.EXPECT().RemoteRepo("myrepo", "x86_64").Return(&repo.RemoteRepo{}, nil).AnyTimes()
 	// both pkg and sig get stored.
 	bin.EXPECT().StoreFile("myrepo", "x86_64", gomock.Any()).Return(nil).Times(2)
 	// RepoAddBatch fails, triggering cleanup of both stored files.
@@ -305,6 +383,7 @@ func TestUploadFiles_KeyringBuiltOncePerBatch(t *testing.T) {
 	bin := mocks.NewMockBinaryRepository(ctrl)
 	name := mocks.NewMockNameStore(ctrl)
 	bin.EXPECT().VerifyPkgRepo("myrepo").Return(nil)
+	bin.EXPECT().RemoteRepo("myrepo", "x86_64").Return(&repo.RemoteRepo{}, nil).AnyTimes()
 	bin.EXPECT().StoreFile("myrepo", "x86_64", gomock.Any()).Return(nil).Times(4)
 	bin.EXPECT().RepoAddBatch("myrepo", "x86_64", gomock.Any(), false, gomock.Nil()).Return(nil)
 	name.EXPECT().StorePackageFile("x86_64", "foo", "foo-1.0-1-x86_64.pkg.tar.zst").Return(nil)
@@ -334,6 +413,7 @@ func TestUploadFiles_BatchOneRepoAddPerArch(t *testing.T) {
 	bin := mocks.NewMockBinaryRepository(ctrl)
 	name := mocks.NewMockNameStore(ctrl)
 	bin.EXPECT().VerifyPkgRepo("myrepo").Return(nil)
+	bin.EXPECT().RemoteRepo("myrepo", "x86_64").Return(&repo.RemoteRepo{}, nil).AnyTimes()
 	bin.EXPECT().StoreFile("myrepo", "x86_64", gomock.Any()).Return(nil).Times(2)
 	bin.EXPECT().RepoAddBatch("myrepo", "x86_64", gomock.Any(), false, gomock.Nil()).Return(nil)
 	name.EXPECT().StorePackageFile("x86_64", "foo", "foo-1.0-1-x86_64.pkg.tar.zst").Return(nil)
