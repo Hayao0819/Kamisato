@@ -27,8 +27,9 @@ func (h *Handler) CLIExchangeHandler(c *gin.Context) {
 	}
 
 	// The PKCE challenge ayaka registered at /cli/start rides state -> code, so the
-	// presented verifier proves possession.
-	rec, err := h.signer.VerifyTyp(body.Code, auth.TypCode)
+	// presented verifier proves possession. Pinning TypCodeCLI stops a web-bearer
+	// code from being redeemed for the longer-lived CLI token.
+	rec, err := h.signer.VerifyTyp(body.Code, auth.TypCodeCLI)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid or used code"})
 		return
@@ -59,8 +60,8 @@ func (h *Handler) CLIExchangeHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"token": token, "login": rec.Login, "id": rec.GitHubID})
 }
 
-// Web-bearer PKCE exchange. The code must be a web code (Web=true) so a CLI/cookie
-// code can never be redeemed for a bearer token here.
+// Web-bearer PKCE exchange. Pinning TypCodeWeb means a CLI/cookie code can never
+// be redeemed for a bearer token here.
 func (h *Handler) WebExchangeHandler(c *gin.Context) {
 	if h.signer == nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "auth not configured"})
@@ -74,8 +75,8 @@ func (h *Handler) WebExchangeHandler(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
 		return
 	}
-	rec, err := h.signer.VerifyTyp(body.Code, auth.TypCode)
-	if err != nil || !rec.Web {
+	rec, err := h.signer.VerifyTyp(body.Code, auth.TypCodeWeb)
+	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid or used code"})
 		return
 	}

@@ -53,7 +53,7 @@ func TestRedteam_NoExpIsRejected(t *testing.T) {
 // different type even with a valid signature, blocking cross-type replay.
 func TestRedteam_CrossTypeReplayMatrix(t *testing.T) {
 	s, _ := NewSigner([]string{rtSecret})
-	types := []string{TypSession, TypCLI, TypCode, TypState}
+	types := []string{TypSession, TypCLI, TypCodeCLI, TypCodeWeb, TypState}
 	for _, minted := range types {
 		tok, _ := s.Sign(Claims{Typ: minted, GitHubID: 9, Exp: time.Now().Add(time.Hour)})
 		for _, want := range types {

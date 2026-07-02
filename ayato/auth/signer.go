@@ -17,7 +17,11 @@ import (
 const (
 	TypSession = "session"
 	TypCLI     = "cli"
-	TypCode    = "code"
+	// TypCodeCLI/TypCodeWeb are the one-time PKCE codes for the CLI loopback and
+	// the web-bearer (SPA) flows. They are distinct so a code minted for one flow
+	// can never be redeemed at the other exchange endpoint.
+	TypCodeCLI = "code_cli"
+	TypCodeWeb = "code_web"
 	TypState   = "state"
 	// TypBearer is the web SPA session token, distinct from TypCLI so the two
 	// delivery paths can carry different lifetimes.

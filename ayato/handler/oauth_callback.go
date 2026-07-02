@@ -127,7 +127,7 @@ func (h *Handler) finishWebLogin(c *gin.Context, user githubUser) {
 // echoing ayaka's original state so its state-equality check passes.
 func (h *Handler) finishCLILogin(c *gin.Context, st *auth.Claims, user githubUser) {
 	oneTime, err := h.signer.Sign(auth.Claims{
-		Typ:       auth.TypCode,
+		Typ:       auth.TypCodeCLI,
 		GitHubID:  user.ID,
 		Login:     user.Login,
 		Challenge: st.Challenge,
@@ -151,8 +151,7 @@ func (h *Handler) finishCLILogin(c *gin.Context, st *auth.Claims, user githubUse
 // redeemed at /auth/web/exchange with PKCE.
 func (h *Handler) finishWebBearerLogin(c *gin.Context, st *auth.Claims, user githubUser) {
 	oneTime, err := h.signer.Sign(auth.Claims{
-		Typ:       auth.TypCode,
-		Web:       true,
+		Typ:       auth.TypCodeWeb,
 		GitHubID:  user.ID,
 		Login:     user.Login,
 		Challenge: st.Challenge,

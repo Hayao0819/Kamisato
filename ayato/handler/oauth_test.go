@@ -125,12 +125,16 @@ func TestCLILoopbackReconstructedServerSide(t *testing.T) {
 	if code == "" {
 		t.Fatalf("loopback redirect must carry a one-time code")
 	}
-	// The code must verify as a signed one-time code (never a token).
-	if _, err := signer.VerifyTyp(code, auth.TypCode); err != nil {
-		t.Fatalf("loopback code must be a signed one-time code: %v", err)
+	// The code must verify as a signed one-time CLI code (never a token, and never
+	// a web-bearer code).
+	if _, err := signer.VerifyTyp(code, auth.TypCodeCLI); err != nil {
+		t.Fatalf("loopback code must be a signed one-time CLI code: %v", err)
 	}
 	if _, err := signer.VerifyTyp(code, auth.TypCLI); err == nil {
 		t.Fatalf("loopback code must never verify as a CLI token")
+	}
+	if _, err := signer.VerifyTyp(code, auth.TypCodeWeb); err == nil {
+		t.Fatalf("a CLI loopback code must never verify as a web-bearer code")
 	}
 }
 
