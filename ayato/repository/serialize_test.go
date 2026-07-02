@@ -76,6 +76,11 @@ func runConcurrentStore(s blob.Store, repo string, arches []string) {
 	wg.Wait()
 }
 
+// TestSerializingStoreSameKey stays on the real scheduler: it relies on genuine
+// sync.Mutex contention on one key, and a goroutine blocked on Mutex.Lock is not
+// "durably blocked" under synctest, so the fake clock could never advance past the
+// holder's sleep. The assertion is deterministic regardless of timing — the store
+// serializes same-key writes, so peak in-flight must be exactly 1.
 func TestSerializingStoreSameKey(t *testing.T) {
 	probe := &concurrencyProbe{}
 	s := newSerializingStore(probe)

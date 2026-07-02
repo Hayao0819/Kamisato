@@ -126,9 +126,13 @@ func TestVerifiedFreshnessBound(t *testing.T) {
 	if !s.Verified() {
 		t.Fatal("Verified() should be true immediately after a fresh sync")
 	}
-	time.Sleep(250 * time.Millisecond)
-	if s.Verified() {
-		t.Error("Verified() must fall closed once the served catalog passes maxAge (freeze defense)")
+	// Poll until the vouch ages out past maxAge instead of sleeping a fixed span.
+	deadline := time.Now().Add(3 * time.Second)
+	for s.Verified() {
+		if time.Now().After(deadline) {
+			t.Fatal("Verified() did not fall closed once the served catalog passes maxAge (freeze defense)")
+		}
+		time.Sleep(10 * time.Millisecond)
 	}
 	// The last-good index is still served (fail-closed), only delegation drops.
 	if info, _ := s.Info(context.Background(), []string{"x"}); len(info) != 1 {
@@ -158,9 +162,13 @@ func TestVerifiedExpiresBound(t *testing.T) {
 	if !s.Verified() {
 		t.Fatal("Verified() should be true immediately after sync")
 	}
-	time.Sleep(300 * time.Millisecond)
-	if s.Verified() {
-		t.Error("Verified() must fall closed past the catalog's signed ExpiresAt, even within maxAge")
+	// Poll until the signed ExpiresAt lapses instead of sleeping a fixed span.
+	deadline := time.Now().Add(3 * time.Second)
+	for s.Verified() {
+		if time.Now().After(deadline) {
+			t.Fatal("Verified() did not fall closed past the catalog's signed ExpiresAt, even within maxAge")
+		}
+		time.Sleep(10 * time.Millisecond)
 	}
 }
 

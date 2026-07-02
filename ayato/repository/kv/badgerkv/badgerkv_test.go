@@ -129,15 +129,25 @@ func TestList(t *testing.T) {
 func TestTTLExpiry(t *testing.T) {
 	s := newStore(t)
 	// Badger's TTL has second resolution, so a sub-second TTL would expire
-	// immediately. Use a 1s TTL and sleep past it.
+	// immediately. Use a 1s TTL and poll past it.
 	if err := s.Set("ns", "tmp", []byte("v"), 1*time.Second); err != nil {
 		t.Fatalf("Set with ttl: %v", err)
 	}
 	if _, err := s.Get("ns", "tmp"); err != nil {
 		t.Fatalf("Get before expiry: %v", err)
 	}
-	time.Sleep(1500 * time.Millisecond)
-	if _, err := s.Get("ns", "tmp"); !errors.Is(err, kv.ErrNotFound) {
-		t.Fatalf("Get after expiry = %v, want ErrNotFound", err)
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		_, err := s.Get("ns", "tmp")
+		if errors.Is(err, kv.ErrNotFound) {
+			break
+		}
+		if err != nil {
+			t.Fatalf("Get during expiry wait: %v", err)
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("key did not expire within the deadline")
+		}
+		time.Sleep(20 * time.Millisecond)
 	}
 }

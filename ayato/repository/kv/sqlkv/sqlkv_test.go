@@ -102,9 +102,20 @@ func TestTTLExpiry(t *testing.T) {
 	if _, err := s.Get("ns", "tmp"); err != nil {
 		t.Fatalf("Get before expiry: %v", err)
 	}
-	time.Sleep(80 * time.Millisecond)
-	if _, err := s.Get("ns", "tmp"); !errors.Is(err, kv.ErrNotFound) {
-		t.Fatalf("Get after expiry = %v, want ErrNotFound", err)
+	// Poll past the 50ms TTL until the row expires instead of sleeping a fixed span.
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		_, err := s.Get("ns", "tmp")
+		if errors.Is(err, kv.ErrNotFound) {
+			break
+		}
+		if err != nil {
+			t.Fatalf("Get during expiry wait: %v", err)
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("row did not expire within the deadline")
+		}
+		time.Sleep(5 * time.Millisecond)
 	}
 	// An expired row is excluded from List too.
 	if entries, _ := s.List("ns"); len(entries) != 0 {

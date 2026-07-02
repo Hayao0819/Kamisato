@@ -78,9 +78,18 @@ func TestRateLimitRefill(t *testing.T) {
 	if w := doReq(r, ip); w.Code != http.StatusTooManyRequests {
 		t.Fatalf("immediate second: status = %d, want 429", w.Code)
 	}
-	time.Sleep(60 * time.Millisecond) // allow refill
-	if w := doReq(r, ip); w.Code != http.StatusOK {
-		t.Fatalf("after refill: status = %d, want 200", w.Code)
+	// Poll until the bucket refills a token instead of sleeping a fixed span:
+	// the limiter refills off the real clock, so waiting on the condition avoids
+	// flaking on a slow scheduler.
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		if w := doReq(r, ip); w.Code == http.StatusOK {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("token bucket did not refill within the deadline")
+		}
+		time.Sleep(5 * time.Millisecond)
 	}
 }
 

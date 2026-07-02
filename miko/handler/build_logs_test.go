@@ -5,7 +5,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
-	"time"
+	"testing/synctest"
 
 	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/miko/domain"
@@ -23,7 +23,7 @@ func TestJobLogsHandlerEmitsLinesOnce(t *testing.T) {
 	h := New(mockSvc, &conf.MikoConfig{MaxLogReaders: 8})
 
 	buf := joblog.New(0)
-	buf.Write([]byte("line1\nline2\nline3\n"))
+	_, _ = buf.Write([]byte("line1\nline2\nline3\n"))
 	buf.Close()
 	mockSvc.EXPECT().Status("job1").Return(&domain.BuildJob{ID: "job1"}, nil)
 	mockSvc.EXPECT().LogBuffer("job1").Return(buf)
@@ -49,41 +49,44 @@ func TestJobLogsHandlerEmitsLinesOnce(t *testing.T) {
 }
 
 func TestJobLogsHandlerHoldsPartialLine(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-	mockSvc := mocks.NewMockServicer(ctrl)
-	h := New(mockSvc, &conf.MikoConfig{MaxLogReaders: 8})
+	synctest.Test(t, func(t *testing.T) {
+		gin.SetMode(gin.TestMode)
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+		mockSvc := mocks.NewMockServicer(ctrl)
+		h := New(mockSvc, &conf.MikoConfig{MaxLogReaders: 8})
 
-	// A chunk that does not end in a newline must be held, not framed on its own.
-	buf := joblog.New(0)
-	buf.Write([]byte("hello, "))
-	mockSvc.EXPECT().Status("job1").Return(&domain.BuildJob{ID: "job1"}, nil)
-	mockSvc.EXPECT().LogBuffer("job1").Return(buf)
+		// A chunk that does not end in a newline must be held, not framed on its own.
+		buf := joblog.New(0)
+		_, _ = buf.Write([]byte("hello, "))
+		mockSvc.EXPECT().Status("job1").Return(&domain.BuildJob{ID: "job1"}, nil)
+		mockSvc.EXPECT().LogBuffer("job1").Return(buf)
 
-	r := gin.New()
-	r.GET("/jobs/:id/logs", h.JobLogsHandler)
-	w := httptest.NewRecorder()
+		r := gin.New()
+		r.GET("/jobs/:id/logs", h.JobLogsHandler)
+		w := httptest.NewRecorder()
 
-	done := make(chan struct{})
-	go func() {
-		r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/jobs/job1/logs", nil))
-		close(done)
-	}()
+		done := make(chan struct{})
+		go func() {
+			r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/jobs/job1/logs", nil))
+			close(done)
+		}()
 
-	// Let the handler poll the partial line on its own before the newline arrives.
-	time.Sleep(300 * time.Millisecond)
-	buf.Write([]byte("world\n"))
-	buf.Close()
-	<-done
+		// Wait until the handler has polled the partial line and is durably blocked
+		// on its ticker, holding "hello, " unframed, before the newline arrives.
+		synctest.Wait()
+		_, _ = buf.Write([]byte("world\n"))
+		buf.Close()
+		<-done
 
-	body := w.Body.String()
-	if c := strings.Count(body, "data: hello, world\n\n"); c != 1 {
-		t.Errorf("merged frame appeared %d times, want exactly 1\nbody:\n%s", c, body)
-	}
-	if strings.Contains(body, "data: hello, \n\n") {
-		t.Errorf("partial line was framed before its newline arrived:\n%s", body)
-	}
+		body := w.Body.String()
+		if c := strings.Count(body, "data: hello, world\n\n"); c != 1 {
+			t.Errorf("merged frame appeared %d times, want exactly 1\nbody:\n%s", c, body)
+		}
+		if strings.Contains(body, "data: hello, \n\n") {
+			t.Errorf("partial line was framed before its newline arrived:\n%s", body)
+		}
+	})
 }
 
 func TestJobLogsHandlerReaderCap(t *testing.T) {
