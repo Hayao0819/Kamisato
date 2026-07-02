@@ -45,58 +45,98 @@ type Pkg struct {
 	CoMaintainers []string
 }
 
-// toMap renders the record as aurweb does: Submitter and the relation arrays are
-// info-only, and License/Keywords are always present for info even when empty.
-func (p Pkg) toMap(info bool) map[string]any {
-	m := map[string]any{
-		"ID":             p.ID,
-		"Name":           p.Name,
-		"PackageBaseID":  p.PackageBaseID,
-		"PackageBase":    p.PackageBase,
-		"Version":        p.Version,
-		"Description":    nullableStr(p.Description),
-		"URL":            nullableStr(p.URL),
-		"NumVotes":       p.NumVotes,
-		"Popularity":     p.Popularity,
-		"OutOfDate":      nil,
-		"Maintainer":     nullableStr(p.Maintainer),
-		"FirstSubmitted": p.FirstSubmitted,
-		"LastModified":   p.LastModified,
-		"URLPath":        p.URLPath,
-	}
-	if p.OutOfDate > 0 {
-		m["OutOfDate"] = p.OutOfDate
-	}
-	if !info {
-		return m
-	}
-
-	m["Submitter"] = nullableStr(p.Submitter)
-	m["License"] = nonNilSlice(p.License)
-	m["Keywords"] = nonNilSlice(p.Keywords)
-	for key, vals := range map[string][]string{
-		"Depends":       p.Depends,
-		"MakeDepends":   p.MakeDepends,
-		"CheckDepends":  p.CheckDepends,
-		"OptDepends":    p.OptDepends,
-		"Conflicts":     p.Conflicts,
-		"Provides":      p.Provides,
-		"Replaces":      p.Replaces,
-		"Groups":        p.Groups,
-		"CoMaintainers": p.CoMaintainers,
-	} {
-		if len(vals) > 0 {
-			m[key] = vals
-		}
-	}
-	return m
+// searchResult is the search-level record: the fields every result carries.
+// Nullable columns are pointers so an empty value renders as JSON null, not "".
+type searchResult struct {
+	ID             int     `json:"ID"`
+	Name           string  `json:"Name"`
+	PackageBaseID  int     `json:"PackageBaseID"`
+	PackageBase    string  `json:"PackageBase"`
+	Version        string  `json:"Version"`
+	Description    *string `json:"Description"`
+	URL            *string `json:"URL"`
+	NumVotes       int     `json:"NumVotes"`
+	Popularity     float64 `json:"Popularity"`
+	OutOfDate      *int    `json:"OutOfDate"`
+	Maintainer     *string `json:"Maintainer"`
+	FirstSubmitted int64   `json:"FirstSubmitted"`
+	LastModified   int64   `json:"LastModified"`
+	URLPath        string  `json:"URLPath"`
 }
 
-func nullableStr(s string) any {
+// infoResult is the info-level record: the search fields plus Submitter, the
+// always-present License/Keywords arrays, and the relation arrays that aurweb
+// emits only when non-empty.
+type infoResult struct {
+	searchResult
+	Submitter     *string  `json:"Submitter"`
+	License       []string `json:"License"`
+	Keywords      []string `json:"Keywords"`
+	Depends       []string `json:"Depends,omitempty"`
+	MakeDepends   []string `json:"MakeDepends,omitempty"`
+	CheckDepends  []string `json:"CheckDepends,omitempty"`
+	OptDepends    []string `json:"OptDepends,omitempty"`
+	Conflicts     []string `json:"Conflicts,omitempty"`
+	Provides      []string `json:"Provides,omitempty"`
+	Replaces      []string `json:"Replaces,omitempty"`
+	Groups        []string `json:"Groups,omitempty"`
+	CoMaintainers []string `json:"CoMaintainers,omitempty"`
+}
+
+func (p Pkg) base() searchResult {
+	return searchResult{
+		ID:             p.ID,
+		Name:           p.Name,
+		PackageBaseID:  p.PackageBaseID,
+		PackageBase:    p.PackageBase,
+		Version:        p.Version,
+		Description:    nullStr(p.Description),
+		URL:            nullStr(p.URL),
+		NumVotes:       p.NumVotes,
+		Popularity:     p.Popularity,
+		OutOfDate:      outOfDate(p.OutOfDate),
+		Maintainer:     nullStr(p.Maintainer),
+		FirstSubmitted: p.FirstSubmitted,
+		LastModified:   p.LastModified,
+		URLPath:        p.URLPath,
+	}
+}
+
+// result renders the record as aurweb does: search level returns the bare base,
+// info level adds Submitter, License/Keywords and the non-empty relation arrays.
+func (p Pkg) result(info bool) any {
+	if !info {
+		return p.base()
+	}
+	return infoResult{
+		searchResult:  p.base(),
+		Submitter:     nullStr(p.Submitter),
+		License:       nonNilSlice(p.License),
+		Keywords:      nonNilSlice(p.Keywords),
+		Depends:       p.Depends,
+		MakeDepends:   p.MakeDepends,
+		CheckDepends:  p.CheckDepends,
+		OptDepends:    p.OptDepends,
+		Conflicts:     p.Conflicts,
+		Provides:      p.Provides,
+		Replaces:      p.Replaces,
+		Groups:        p.Groups,
+		CoMaintainers: p.CoMaintainers,
+	}
+}
+
+func nullStr(s string) *string {
 	if s == "" {
 		return nil
 	}
-	return s
+	return &s
+}
+
+func outOfDate(ts int) *int {
+	if ts > 0 {
+		return &ts
+	}
+	return nil
 }
 
 func nonNilSlice(s []string) []string {

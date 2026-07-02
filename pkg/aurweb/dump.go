@@ -137,7 +137,7 @@ func (s *Server) buildMetaDump(ctx context.Context, ext bool) ([]byte, error) {
 	localNames := make(map[string]bool, len(local))
 	for _, p := range local {
 		localNames[p.Name] = true
-		elem, mErr := json.Marshal(p.toMap(ext))
+		elem, mErr := json.Marshal(p.result(ext))
 		if mErr != nil {
 			return nil, mErr
 		}

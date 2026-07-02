@@ -8,9 +8,9 @@ import (
 )
 
 func (s *Server) writeResults(w http.ResponseWriter, r *http.Request, callback, typ string, pkgs []Pkg, info bool) {
-	results := make([]map[string]any, len(pkgs))
+	results := make([]any, len(pkgs))
 	for i, p := range pkgs {
-		results[i] = p.toMap(info)
+		results[i] = p.result(info)
 	}
 	s.writeJSON(w, r, callback, map[string]any{
 		"version":     Version,
