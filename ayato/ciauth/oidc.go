@@ -2,12 +2,12 @@ package ciauth
 
 import (
 	"context"
-	"net/http"
 	"strings"
 	"time"
 
 	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/internal/errwrap"
+	"github.com/Hayao0819/Kamisato/internal/httpx"
 	"github.com/coreos/go-oidc/v3/oidc"
 )
 
@@ -26,7 +26,7 @@ type oidcPublisher struct {
 }
 
 func newOIDCAuth(ctx context.Context, cfg conf.CIGitHubOIDC) (*oidcAuth, error) {
-	client := &http.Client{Timeout: 10 * time.Second}
+	client := httpx.New(10*time.Second, 3)
 	provider, err := oidc.NewProvider(oidc.ClientContext(ctx, client), githubOIDCIssuer)
 	if err != nil {
 		return nil, errwrap.WrapErr(err, "discover github oidc issuer")

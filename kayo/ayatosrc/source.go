@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Hayao0819/Kamisato/internal/httpx"
 	"github.com/Hayao0819/Kamisato/kayo/pkgindex"
 )
 
@@ -56,7 +57,7 @@ func New(o Options) (*Source, error) {
 		Index:           pkgindex.New(),
 		name:            o.Name,
 		base:            strings.TrimRight(o.BaseURL, "/"),
-		client:          &http.Client{Timeout: 15 * time.Second},
+		client:          httpx.New(15*time.Second, 3),
 		maxAge:          o.MaxAge,
 		insecure:        o.Insecure,
 		trustOnFirstUse: o.TrustOnFirstUse,

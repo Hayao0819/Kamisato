@@ -14,6 +14,8 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/Hayao0819/Kamisato/internal/httpx"
 )
 
 const (
@@ -40,7 +42,7 @@ func New(provider, secret string) Verifier {
 	return &verifier{
 		secret:   secret,
 		endpoint: endpoint,
-		client:   &http.Client{Timeout: 10 * time.Second},
+		client:   httpx.New(10*time.Second, 3),
 	}
 }
 

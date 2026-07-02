@@ -11,6 +11,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/Hayao0819/Kamisato/internal/httpx"
 )
 
 const webhookEvent = "bug_report"
@@ -48,7 +50,7 @@ func newWebhook(cfg WebhookConfig) (Reporter, error) {
 	if cfg.URL == "" {
 		return nil, fmt.Errorf("bugreport: webhook url is required")
 	}
-	return &webhookReporter{client: &http.Client{Timeout: 10 * time.Second}, url: cfg.URL}, nil
+	return &webhookReporter{client: httpx.New(10*time.Second, 3), url: cfg.URL}, nil
 }
 
 func (h *webhookReporter) Report(ctx context.Context, r Report) (string, error) {
