@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
-	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -57,15 +56,6 @@ func NewDESC() *DESC {
 		XData:       []keyValue{},
 		ExtraFields: map[string][]string{},
 	}
-}
-
-func ParseDescFile(path string) (*DESC, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, fmt.Errorf("error opening desc file: %w", err)
-	}
-	defer f.Close()
-	return ParseDesc(f)
 }
 
 func ParseDescString(data string) (*DESC, error) {
@@ -303,14 +293,6 @@ func (d *DESC) Bytes() []byte {
 	var b bytes.Buffer
 	d.appendTo(&b)
 	return b.Bytes()
-}
-
-// WriteTo writes the serialized desc to w, satisfying io.WriterTo.
-func (d *DESC) WriteTo(w io.Writer) (int64, error) {
-	var b bytes.Buffer
-	d.appendTo(&b)
-	n, err := w.Write(b.Bytes())
-	return int64(n), err
 }
 
 // appendTo writes each %FIELD% block in the order repo-add's db_write_entry

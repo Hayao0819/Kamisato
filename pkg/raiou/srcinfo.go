@@ -1,8 +1,6 @@
 package raiou
 
 import (
-	"io"
-
 	go_srcinfo "github.com/Morganamilo/go-srcinfo"
 )
 
@@ -51,18 +49,6 @@ type SRCINFO struct {
 	SrcinfoBase    `mapstructure:",squash"`
 	SrcinfoPackage `mapstructure:",squash"`
 	Packages       []SrcinfoPackage `mapstructure:"packages" json:"packages" yml:"packages" toml:"packages"`
-}
-
-func ParseSrcinfo(r io.Reader) (*SRCINFO, error) {
-	b, err := io.ReadAll(r)
-	if err != nil {
-		return nil, err
-	}
-	parsed, err := go_srcinfo.Parse(string(b))
-	if err != nil {
-		return nil, err
-	}
-	return srcinfoFromGo(parsed), nil
 }
 
 func ParseSrcinfoFile(path string) (*SRCINFO, error) {

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
-	"os"
 	"strconv"
 	"strings"
 )
@@ -49,14 +48,6 @@ func NewPKGINFO() *PKGINFO {
 	}
 }
 
-func ParsePkginfoFile(path string) (*PKGINFO, error) {
-	r, err := os.Open(path)
-	if err != nil {
-		return nil, fmt.Errorf("error opening file: %w", err)
-	}
-	defer r.Close()
-	return ParsePkginfo(r)
-}
 func ParsePkginfoString(data string) (*PKGINFO, error) {
 	r := strings.NewReader(data)
 	return ParsePkginfo(r)

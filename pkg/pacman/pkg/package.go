@@ -38,10 +38,6 @@ func OpenSourcePackage(dir string) (*SourcePackage, error) {
 	return &SourcePackage{dir: dir, info: info}, nil
 }
 
-func (p *SourcePackage) SRCINFO() *raiou.SRCINFO {
-	return p.info
-}
-
 func (p *SourcePackage) Dir() string {
 	return p.dir
 }

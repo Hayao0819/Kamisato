@@ -34,12 +34,6 @@ type AURUpstream struct {
 
 type AURUpstreamOption func(*AURUpstream)
 
-// WithHTTPClient overrides the HTTP client (e.g. to inject timeouts or a test
-// transport).
-func WithHTTPClient(c *http.Client) AURUpstreamOption {
-	return func(u *AURUpstream) { u.client = c }
-}
-
 // WithUserAgent overrides the request User-Agent.
 func WithUserAgent(ua string) AURUpstreamOption {
 	return func(u *AURUpstream) {
