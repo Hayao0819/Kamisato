@@ -6,23 +6,26 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
 func TestWebhookReport(t *testing.T) {
 	var gotMethod, gotType string
-	var got Report
+	var raw []byte
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotMethod = r.Method
 		gotType = r.Header.Get("Content-Type")
-		b, _ := io.ReadAll(r.Body)
-		_ = json.Unmarshal(b, &got)
+		raw, _ = io.ReadAll(r.Body)
 		w.WriteHeader(http.StatusNoContent)
 	}))
 	defer srv.Close()
 
 	h := &webhookReporter{client: srv.Client(), url: srv.URL}
-	url, err := h.Report(context.Background(), Report{Pkgname: "foo", Severity: "high", Description: "boom"})
+	url, err := h.Report(context.Background(), Report{
+		Pkgname: "foo", Severity: "high", Description: "boom",
+		Email: "reporter@example.com", MaintainerEmail: "maintainer@secret.example",
+	})
 	if err != nil {
 		t.Fatalf("Report: %v", err)
 	}
@@ -35,8 +38,44 @@ func TestWebhookReport(t *testing.T) {
 	if gotType != "application/json" {
 		t.Errorf("content-type = %q, want application/json", gotType)
 	}
-	if got.Pkgname != "foo" || got.Severity != "high" || got.Description != "boom" {
-		t.Errorf("posted body = %+v", got)
+
+	// The server-resolved maintainer address must never leave the process.
+	if strings.Contains(string(raw), "maintainer@secret.example") {
+		t.Errorf("payload leaked MaintainerEmail: %s", raw)
+	}
+
+	var env map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &env); err != nil {
+		t.Fatalf("unmarshal envelope: %v", err)
+	}
+	for _, k := range []string{"event", "id", "timestamp", "data"} {
+		if _, ok := env[k]; !ok {
+			t.Errorf("payload missing %q key: %s", k, raw)
+		}
+	}
+	var event string
+	_ = json.Unmarshal(env["event"], &event)
+	if event != "bug_report" {
+		t.Errorf("event = %q, want bug_report", event)
+	}
+
+	var data map[string]any
+	if err := json.Unmarshal(env["data"], &data); err != nil {
+		t.Fatalf("unmarshal data: %v", err)
+	}
+	for _, k := range []string{"pkgname", "pkgver", "name", "email", "severity", "description"} {
+		if _, ok := data[k]; !ok {
+			t.Errorf("data missing snake_case key %q: %s", k, env["data"])
+		}
+	}
+	if _, ok := data["maintainer_email"]; ok {
+		t.Error("data must not include maintainer_email")
+	}
+	if data["pkgname"] != "foo" || data["severity"] != "high" || data["description"] != "boom" {
+		t.Errorf("data = %+v", data)
+	}
+	if data["email"] != "reporter@example.com" {
+		t.Errorf("data email = %v, want reporter@example.com", data["email"])
 	}
 }
 
