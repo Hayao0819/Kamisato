@@ -1,4 +1,4 @@
-package hookcmd
+package alpm
 
 import (
 	"os"
@@ -19,7 +19,7 @@ func TestFindCachedPackage(t *testing.T) {
 	mk("foo-1.0-1-1-x86_64.pkg.tar.zst")    // foo-1.0 ver 1-1: name+ver concat look-alike
 	mk("foo-1.0-1-x86_64.pkg.tar.zst.part") // stale partial download
 
-	got, ok := findCachedPackage([]string{dir}, "foo", "1.0-1")
+	got, ok := FindCachedPackage([]string{dir}, "foo", "1.0-1")
 	if !ok {
 		t.Fatal("expected to find the built package")
 	}
@@ -27,11 +27,11 @@ func TestFindCachedPackage(t *testing.T) {
 		t.Errorf("found %q, want the .pkg.tar.zst (not .sig, .part, foo-bar, or the concat look-alike)", filepath.Base(got))
 	}
 
-	if _, ok := findCachedPackage([]string{dir}, "missing", "1.0-1"); ok {
+	if _, ok := FindCachedPackage([]string{dir}, "missing", "1.0-1"); ok {
 		t.Error("a package with no cached file must report not found")
 	}
 	// Wrong version must not match a different cached version.
-	if _, ok := findCachedPackage([]string{dir}, "foo", "9.9-9"); ok {
+	if _, ok := FindCachedPackage([]string{dir}, "foo", "9.9-9"); ok {
 		t.Error("a version with no cached file must report not found")
 	}
 
@@ -40,18 +40,18 @@ func TestFindCachedPackage(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(only, "bar-1-1-x86_64.pkg.tar.zst.part"), []byte("x"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if _, ok := findCachedPackage([]string{only}, "bar", "1-1"); ok {
+	if _, ok := FindCachedPackage([]string{only}, "bar", "1-1"); ok {
 		t.Error("a lone .part sidecar must not be treated as a finished package")
 	}
 }
 
 func TestFilterForeign(t *testing.T) {
 	foreign := map[string]bool{"yay": true, "mytool": true}
-	got := filterForeign([]string{"glibc", "yay", "linux", "mytool"}, foreign)
+	got := FilterForeign([]string{"glibc", "yay", "linux", "mytool"}, foreign)
 	if len(got) != 2 || got[0] != "yay" || got[1] != "mytool" {
-		t.Errorf("filterForeign kept %v, want [yay mytool] (official packages dropped)", got)
+		t.Errorf("FilterForeign kept %v, want [yay mytool] (official packages dropped)", got)
 	}
-	if out := filterForeign([]string{"glibc", "linux"}, foreign); len(out) != 0 {
+	if out := FilterForeign([]string{"glibc", "linux"}, foreign); len(out) != 0 {
 		t.Errorf("all-official input should yield nothing, got %v", out)
 	}
 }

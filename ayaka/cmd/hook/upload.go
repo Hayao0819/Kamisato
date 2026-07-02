@@ -45,7 +45,7 @@ func hookUploadCmd() *cobra.Command {
 				if err != nil {
 					return utils.WrapErr(err, "could not determine foreign packages; pass --all to upload every target")
 				}
-				names = filterForeign(names, foreign)
+				names = alpm.FilterForeign(names, foreign)
 				if len(names) == 0 {
 					slog.Info("no foreign (AUR/local) packages to upload in this transaction")
 					return nil
@@ -56,7 +56,7 @@ func hookUploadCmd() *cobra.Command {
 			// foreign packages live in the former, repo downloads in the latter.
 			dirs := cacheOverride
 			if len(dirs) == 0 {
-				dirs = append(append(append([]string{}, buildDirs...), makepkgPkgDest()...), alpm.CacheDirs(pacmanConf)...)
+				dirs = append(append(append([]string{}, buildDirs...), alpm.MakepkgPkgDest()...), alpm.CacheDirs(pacmanConf)...)
 			}
 
 			var files []string
@@ -66,7 +66,7 @@ func hookUploadCmd() *cobra.Command {
 					slog.Warn("skipping package not in the local db", "name", name, "error", err)
 					continue
 				}
-				path, ok := findCachedPackage(dirs, name, ver)
+				path, ok := alpm.FindCachedPackage(dirs, name, ver)
 				if !ok {
 					slog.Warn("no package file found; skipping upload (set makepkg PKGDEST or --build-dir for locally-built packages)", "name", name, "version", ver)
 					continue

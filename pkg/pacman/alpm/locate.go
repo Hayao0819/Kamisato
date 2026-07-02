@@ -1,4 +1,4 @@
-package hookcmd
+package alpm
 
 import (
 	"os/exec"
@@ -23,10 +23,10 @@ elif [[ -r $HOME/.makepkg.conf ]]; then
 fi
 printf '%s' "${PKGDEST:-}"`
 
-// makepkgPkgDest returns PKGDEST by running bash on makepkg.conf, since that is
+// MakepkgPkgDest returns PKGDEST by running bash on makepkg.conf, since that is
 // where a `-U`-installed foreign package lands and the pacman cache is not. Empty
 // when PKGDEST is unset.
-func makepkgPkgDest() []string {
+func MakepkgPkgDest() []string {
 	out, err := exec.Command("bash", "-c", makepkgPkgDestScript).Output()
 	if err != nil {
 		return nil
@@ -37,7 +37,8 @@ func makepkgPkgDest() []string {
 	return nil
 }
 
-func filterForeign(names []string, foreign map[string]bool) []string {
+// FilterForeign keeps only the names present in the foreign set.
+func FilterForeign(names []string, foreign map[string]bool) []string {
 	var out []string
 	for _, n := range names {
 		if foreign[n] {
@@ -52,9 +53,9 @@ func filterForeign(names []string, foreign map[string]bool) []string {
 // dash-free arch rejects look-alike names; the end anchor rejects .sig/.part.
 var pkgFileTail = regexp.MustCompile(`^[^-]+\.pkg\.tar(\.[A-Za-z0-9]+)?$`)
 
-// findCachedPackage finds the built file for name-version; the prefix and strict
+// FindCachedPackage finds the built file for name-version; the prefix and strict
 // tail exclude signatures, partial downloads, and look-alikes.
-func findCachedPackage(dirs []string, name, version string) (string, bool) {
+func FindCachedPackage(dirs []string, name, version string) (string, bool) {
 	prefix := name + "-" + version + "-"
 	for _, d := range dirs {
 		matches, _ := filepath.Glob(filepath.Join(d, prefix+"*"))
