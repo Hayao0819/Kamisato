@@ -8,6 +8,17 @@ import (
 	"github.com/Hayao0819/Kamisato/miko/domain"
 )
 
+// Persister durably stores and reloads job records. The service depends on this
+// seam rather than a concrete store so a fake can stand in for tests; jobPersist
+// is the production implementation.
+type Persister interface {
+	save(job *domain.BuildJob) error
+	remove(id string) error
+	loadAll() ([]*domain.BuildJob, error)
+}
+
+var _ Persister = (*jobPersist)(nil)
+
 // jobPersist stores each job as one JSON file under <dataDir>/jobs. BuildJob's
 // Request is json:"-", so only durable state is written.
 type jobPersist struct {
@@ -20,6 +31,16 @@ func newJobPersist(dataDir string) (*jobPersist, error) {
 		return nil, err
 	}
 	return &jobPersist{dir: dir}, nil
+}
+
+// NewFilePersister returns the file-backed Persister injected into the service in
+// production. Callers pass its result to New; a nil Persister disables persistence.
+func NewFilePersister(dataDir string) (Persister, error) {
+	p, err := newJobPersist(dataDir)
+	if err != nil {
+		return nil, err
+	}
+	return p, nil
 }
 
 func (p *jobPersist) path(id string) string {

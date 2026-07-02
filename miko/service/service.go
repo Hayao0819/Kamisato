@@ -41,10 +41,11 @@ type Servicer interface {
 }
 
 type Service struct {
-	cfg     *conf.MikoConfig
-	signer  sign.Signer // host signing key; nil disables signing
-	queue   *queue
-	persist *jobPersist
+	cfg      *conf.MikoConfig
+	signer   sign.Signer // host signing key; nil disables signing
+	queue    *queue
+	persist  Persister // durable job store; nil disables persistence
+	uploader Uploader  // publishes built packages to ayato
 
 	startedAt time.Time
 
@@ -66,24 +67,22 @@ type Service struct {
 	logs   map[string]*joblog.Buffer
 }
 
-func New(cfg *conf.MikoConfig, signer sign.Signer) Servicer {
+// New builds the service with its collaborators injected: persister durably
+// stores jobs (nil disables persistence) and uploader publishes built packages.
+func New(cfg *conf.MikoConfig, signer sign.Signer, persister Persister, uploader Uploader) Servicer {
 	s := &Service{
 		cfg:       cfg,
 		signer:    signer,
 		queue:     newQueue(),
+		persist:   persister,
+		uploader:  uploader,
 		store:     make(map[string]*domain.BuildJob),
 		running:   make(map[string]context.CancelFunc),
 		logs:      make(map[string]*joblog.Buffer),
 		startedAt: time.Now(),
 	}
-	if cfg.DataDir != "" {
-		p, err := newJobPersist(cfg.DataDir)
-		if err != nil {
-			slog.Error("job persistence disabled", "error", err)
-		} else {
-			s.persist = p
-			s.restore()
-		}
+	if persister != nil {
+		s.restore()
 	}
 	return s
 }

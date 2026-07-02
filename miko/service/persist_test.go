@@ -58,7 +58,7 @@ func TestRestoreMarksInterrupted(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	s := New(&conf.MikoConfig{DataDir: dir}, nil)
+	s := New(&conf.MikoConfig{DataDir: dir}, nil, p, nil)
 
 	run, err := s.Status("run1")
 	if err != nil {

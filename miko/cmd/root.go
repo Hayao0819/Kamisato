@@ -100,7 +100,18 @@ func RootCmd() *cobra.Command {
 				return utils.WrapErr(err, "failed to set up host signing key")
 			}
 
-			s := service.New(cfg, signer)
+			var persister service.Persister
+			if cfg.DataDir != "" {
+				p, perr := service.NewFilePersister(cfg.DataDir)
+				if perr != nil {
+					slog.Error("job persistence disabled", "error", perr)
+				} else {
+					persister = p
+				}
+			}
+			uploader := service.NewBlinkyUploader(cfg.Ayato.URL, cfg.Ayato.Username, cfg.Ayato.Password)
+
+			s := service.New(cfg, signer, persister, uploader)
 			h := handler.New(s, cfg)
 			verifier := apikey.NewVerifier(cfg.APIKeys)
 
