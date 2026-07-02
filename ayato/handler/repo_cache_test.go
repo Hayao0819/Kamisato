@@ -17,6 +17,10 @@ type nopSeekCloser struct{ *bytes.Reader }
 
 func (nopSeekCloser) Close() error { return nil }
 
+func bufferToReadSeekCloser(buf *bytes.Buffer) nopSeekCloser {
+	return nopSeekCloser{bytes.NewReader(buf.Bytes())}
+}
+
 // The file server must mark content-immutable package archives cacheable forever
 // while keeping the mutable repo DB revalidating.
 func TestRepoFileCacheControl(t *testing.T) {

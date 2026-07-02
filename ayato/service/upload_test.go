@@ -18,7 +18,6 @@ import (
 	"github.com/Hayao0819/Kamisato/ayato/stream"
 	"github.com/Hayao0819/Kamisato/ayato/test/mocks"
 	"github.com/Hayao0819/Kamisato/internal/conf"
-	"github.com/Hayao0819/Kamisato/internal/utils"
 	pkgpkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
 	"github.com/Hayao0819/Kamisato/pkg/raiou"
@@ -100,7 +99,7 @@ func detachSignBytes(t *testing.T, signer *openpgp.Entity, payload []byte) []byt
 }
 
 func pkgStream(name string, data []byte) *stream.FileStream {
-	return stream.NewFileStream(name, "application/octet-stream", utils.BufferToReadSeekCloser(bytes.NewBuffer(data)))
+	return stream.NewFileStream(name, "application/octet-stream", bufferToReadSeekCloser(bytes.NewBuffer(data)))
 }
 
 const uploadName = "foo-1.0-1-x86_64.pkg.tar.zst"

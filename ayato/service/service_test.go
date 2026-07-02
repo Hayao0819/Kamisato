@@ -14,12 +14,19 @@ import (
 	"github.com/Hayao0819/Kamisato/ayato/stream"
 	"github.com/Hayao0819/Kamisato/ayato/test/mocks"
 	"github.com/Hayao0819/Kamisato/internal/conf"
-	"github.com/Hayao0819/Kamisato/internal/utils"
 	pkgpkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
 	"github.com/Hayao0819/Kamisato/pkg/raiou"
 	"go.uber.org/mock/gomock"
 )
+
+type readSeekCloser struct{ *bytes.Reader }
+
+func (readSeekCloser) Close() error { return nil }
+
+func bufferToReadSeekCloser(buf *bytes.Buffer) readSeekCloser {
+	return readSeekCloser{bytes.NewReader(buf.Bytes())}
+}
 
 func TestServiceRepoNames(t *testing.T) {
 	ctrl := gomock.NewController(t)
@@ -61,7 +68,7 @@ func TestServiceGetFile(t *testing.T) {
 
 	want := "package-bytes"
 	fs := stream.NewFileStream("foo.pkg.tar.zst", "application/octet-stream",
-		utils.BufferToReadSeekCloser(bytes.NewBufferString(want)))
+		bufferToReadSeekCloser(bytes.NewBufferString(want)))
 
 	bin := mocks.NewMockBinaryRepository(ctrl)
 	bin.EXPECT().FetchFileWithMeta("myrepo", "x86_64", "foo.pkg.tar.zst").Return(fs, blob.FileMeta{ETag: `"etag1"`}, nil)

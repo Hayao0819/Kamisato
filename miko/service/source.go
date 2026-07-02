@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/Hayao0819/Kamisato/internal/errwrap"
-	"github.com/Hayao0819/Kamisato/internal/utils"
+	"github.com/Hayao0819/Kamisato/internal/ioutils"
 	"github.com/Hayao0819/Kamisato/miko/domain"
 )
 
@@ -76,7 +76,7 @@ func materializeGit(git *domain.GitSource, srcDir string) error {
 
 	if git.Subdir != "" {
 		src := filepath.Join(cloneDir, filepath.Clean(git.Subdir))
-		if err := utils.CopyDir(src, srcDir); err != nil {
+		if err := ioutils.CopyDir(src, srcDir); err != nil {
 			return errwrap.WrapErr(err, "failed to copy subdir")
 		}
 	}

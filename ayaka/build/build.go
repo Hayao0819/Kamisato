@@ -14,7 +14,7 @@ import (
 	"path"
 
 	"github.com/Hayao0819/Kamisato/internal/errwrap"
-	"github.com/Hayao0819/Kamisato/internal/utils"
+	"github.com/Hayao0819/Kamisato/internal/ioutils"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/alpm"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/builder"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/gpg"
@@ -30,7 +30,7 @@ func Package(p *pkg.SourcePackage, target *builder.Target, dest string) error {
 		return err
 	}
 	slog.Info("tempdir", "dir", tmpdir)
-	if err := utils.CopyDir(p.Dir(), tmpdir); err != nil {
+	if err := ioutils.CopyDir(p.Dir(), tmpdir); err != nil {
 		return err
 	}
 	// The output is moved to OutDir(=dest), so discard tmpdir holding the source copy.

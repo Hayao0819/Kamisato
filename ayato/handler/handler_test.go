@@ -12,7 +12,6 @@ import (
 	"github.com/Hayao0819/Kamisato/ayato/stream"
 	"github.com/Hayao0819/Kamisato/ayato/test/mocks"
 	"github.com/Hayao0819/Kamisato/internal/conf"
-	"github.com/Hayao0819/Kamisato/internal/utils"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/mock/gomock"
 )
@@ -198,7 +197,7 @@ func TestRepoFileHandlerStreamsWhenPresignUnavailable(t *testing.T) {
 
 	const body = "package-bytes"
 	fs := stream.NewFileStream("foo.pkg.tar.zst", "application/octet-stream",
-		utils.BufferToReadSeekCloser(bytes.NewBufferString(body)))
+		bufferToReadSeekCloser(bytes.NewBufferString(body)))
 
 	// localfs cannot presign: SignedURL returns "", so the handler streams.
 	mockSvc.EXPECT().SignedURL("myrepo", "x86_64", "foo.pkg.tar.zst").Return("", nil)
@@ -229,7 +228,7 @@ func TestRepoFileHandlerReturns304OnMatchingETag(t *testing.T) {
 	mockSvc.EXPECT().GetFileWithMeta("myrepo", "x86_64", "myrepo.db").DoAndReturn(
 		func(_, _, _ string) (stream.File, domain.FileMeta, error) {
 			return stream.NewFileStream("myrepo.db", "application/octet-stream",
-				utils.BufferToReadSeekCloser(bytes.NewBufferString(body))), domain.FileMeta{ETag: etag}, nil
+				bufferToReadSeekCloser(bytes.NewBufferString(body))), domain.FileMeta{ETag: etag}, nil
 		}).Times(2)
 
 	r := gin.New()
@@ -271,7 +270,7 @@ func TestRepoFileHandlerReturns304OnIfModifiedSince(t *testing.T) {
 	mockSvc.EXPECT().GetFileWithMeta("myrepo", "x86_64", "myrepo.db").DoAndReturn(
 		func(_, _, _ string) (stream.File, domain.FileMeta, error) {
 			return stream.NewFileStream("myrepo.db", "application/octet-stream",
-				utils.BufferToReadSeekCloser(bytes.NewBufferString(body))), domain.FileMeta{LastModified: modtime}, nil
+				bufferToReadSeekCloser(bytes.NewBufferString(body))), domain.FileMeta{LastModified: modtime}, nil
 		}).Times(3)
 
 	r := gin.New()
@@ -315,7 +314,7 @@ func TestRepoFileHandlerStreamsWhenRedirectDisabled(t *testing.T) {
 
 	const body = "package-bytes"
 	fs := stream.NewFileStream("foo.pkg.tar.zst", "application/octet-stream",
-		utils.BufferToReadSeekCloser(bytes.NewBufferString(body)))
+		bufferToReadSeekCloser(bytes.NewBufferString(body)))
 
 	// redirect_downloads=false forces streaming, so SignedURL is never consulted.
 	disabled := false
