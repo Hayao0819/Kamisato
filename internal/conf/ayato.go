@@ -21,19 +21,24 @@ type AyatoConfig struct {
 	RequireBuildinfoProvenance bool `koanf:"require_buildinfo_provenance"`
 	// BuildinfoBuildDir is the builddir the provenance gate requires; empty means
 	// the default "/build" (miko's sandbox root).
-	BuildinfoBuildDir string          `koanf:"buildinfo_builddir,omitempty"`
-	Port              int             `koanf:"port"`
-	MaxSize           int             `koanf:"max_size"`
-	Repos             []BinRepoConfig `koanf:"repos"`
-	Auth              AuthConfig      `koanf:"auth"`
-	Store             StoreConfig     `koanf:"store"`
-	Build             BuildConfig     `koanf:"build"`
-	Miko              MikoUpstream    `koanf:"miko"`
-	Verify            VerifyConfig    `koanf:"verify"`
-	AUR               AURConfig       `koanf:"aur"`
-	BugReport         BugReportConfig `koanf:"bug_report"`
-	Recaptcha         RecaptchaConfig `koanf:"recaptcha"`
-	Sign              SignConfig      `koanf:"sign"`
+	BuildinfoBuildDir string `koanf:"buildinfo_builddir,omitempty"`
+	// ProtectedNames is an opt-in supply-chain guard: an upload whose pkgname — or
+	// any of its provides/replaces/groups — collides with one of these names is
+	// rejected, so an AUR-style package cannot masquerade as (shadow) an official
+	// package such as "pacman" or "glibc". Empty disables the guard.
+	ProtectedNames []string        `koanf:"protected_names,omitempty"`
+	Port           int             `koanf:"port"`
+	MaxSize        int             `koanf:"max_size"`
+	Repos          []BinRepoConfig `koanf:"repos"`
+	Auth           AuthConfig      `koanf:"auth"`
+	Store          StoreConfig     `koanf:"store"`
+	Build          BuildConfig     `koanf:"build"`
+	Miko           MikoUpstream    `koanf:"miko"`
+	Verify         VerifyConfig    `koanf:"verify"`
+	AUR            AURConfig       `koanf:"aur"`
+	BugReport      BugReportConfig `koanf:"bug_report"`
+	Recaptcha      RecaptchaConfig `koanf:"recaptcha"`
+	Sign           SignConfig      `koanf:"sign"`
 	// RedirectDownloads, unset by default, answers a file download with a 302 to a
 	// presigned object URL whenever the blob backend can presign (S3), so the bytes
 	// go client<->object-store directly and skip ayato's egress (Cloud Run bills it).

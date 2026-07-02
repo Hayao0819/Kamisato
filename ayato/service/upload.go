@@ -16,6 +16,7 @@ import (
 	"github.com/Hayao0819/Kamisato/pkg/pacman/alpm"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/gpg"
 	pkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
+	"github.com/Hayao0819/Kamisato/pkg/raiou"
 )
 
 // preparedUpload is one validated package ready to be stored and registered.
@@ -51,6 +52,10 @@ func (s *Service) prepareUpload(repo string, files *domain.UploadFiles, kr *gpg.
 		if err := s.checkBuildinfoProvenance(pkgFileStream); err != nil {
 			return preparedUpload{}, err
 		}
+	}
+
+	if err := s.checkProtectedNames(pi); err != nil {
+		return preparedUpload{}, err
 	}
 
 	hasSig := files.SigFile != nil
@@ -143,6 +148,44 @@ func (s *Service) checkBuildinfoProvenance(pkgFileStream stream.SeekFile) error 
 		return fmt.Errorf("%w: package builddir %q is not the expected sandbox root %q (not built in the clean environment)", domain.ErrInvalidUpload, bi.BuildDir, want)
 	}
 	return nil
+}
+
+// checkProtectedNames rejects an upload that would shadow an official package
+// name: a match on the pkgname, or on the bare name of any provides/replaces
+// entry, or on any group, is a supply-chain masquerade (e.g. a package claiming to
+// provide "glibc"). Off unless conf.ProtectedNames is set.
+func (s *Service) checkProtectedNames(pi *raiou.PKGINFO) error {
+	if s.cfg == nil || len(s.cfg.ProtectedNames) == 0 {
+		return nil
+	}
+	protected := make(map[string]struct{}, len(s.cfg.ProtectedNames))
+	for _, n := range s.cfg.ProtectedNames {
+		protected[n] = struct{}{}
+	}
+	candidates := make([]string, 0, 1+len(pi.Provides)+len(pi.Replaces)+len(pi.Group))
+	candidates = append(candidates, pi.PkgName)
+	for _, p := range pi.Provides {
+		candidates = append(candidates, depName(p))
+	}
+	for _, r := range pi.Replaces {
+		candidates = append(candidates, depName(r))
+	}
+	candidates = append(candidates, pi.Group...)
+	for _, c := range candidates {
+		if _, ok := protected[c]; ok {
+			return fmt.Errorf("%w: package %q collides with protected official name %q", domain.ErrConflict, pi.PkgName, c)
+		}
+	}
+	return nil
+}
+
+// depName strips a version constraint from a provides/replaces entry (foo=1.2,
+// foo>=1.0), leaving the bare name the protected-name match is done on.
+func depName(entry string) string {
+	if i := strings.IndexAny(entry, "=<>"); i >= 0 {
+		return entry[:i]
+	}
+	return entry
 }
 
 // UploadFile publishes a single package; it is the one-item form of UploadFiles.
