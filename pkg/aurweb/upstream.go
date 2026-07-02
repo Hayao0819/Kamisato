@@ -10,6 +10,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/Hayao0819/Kamisato/internal/httpx"
 )
 
 // DefaultUserAgent is sent on every upstream request; the AUR blocks the default
@@ -66,8 +68,8 @@ func NewAURUpstream(rpcURL string, opts ...AURUpstreamOption) *AURUpstream {
 		rpcURL:     rpcURL,
 		gitBase:    deriveOrigin(rpcURL),
 		userAgent:  DefaultUserAgent,
-		client:     &http.Client{Timeout: 15 * time.Second},
-		dumpClient: &http.Client{Timeout: 3 * time.Minute},
+		client:     httpx.New(15*time.Second, 3),
+		dumpClient: httpx.New(3*time.Minute, 3),
 	}
 	for _, opt := range opts {
 		opt(u)
