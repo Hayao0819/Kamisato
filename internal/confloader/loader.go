@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 
 	"github.com/knadh/koanf/parsers/json"
@@ -68,7 +69,9 @@ func (l *Loader[T]) Load() error {
 			}
 			continue
 		}
-		for _, dir := range l.dirs {
+		// Dirs are listed highest-precedence first (project-local before the global
+		// user config dir), but koanf merges last-wins, so load them lowest-first.
+		for _, dir := range slices.Backward(l.dirs) {
 			if err := l.loadFile(filepath.Join(dir, filename)); err != nil {
 				return err
 			}

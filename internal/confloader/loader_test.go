@@ -33,6 +33,31 @@ func TestLoadAbsoluteFile(t *testing.T) {
 	}
 }
 
+// TestDirPrecedenceProjectLocalWins checks that a file in the first (project-local)
+// dir overrides the same file in a later (global) dir, the standard expectation.
+func TestDirPrecedenceProjectLocalWins(t *testing.T) {
+	local := t.TempDir()
+	global := t.TempDir()
+	if err := os.WriteFile(filepath.Join(local, "cfg.json"), []byte(`{"port":1,"name":"local"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(global, "cfg.json"), []byte(`{"port":2,"name":"global"}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	l := New[testCfg](".").Dirs(local, global).Files("cfg.json")
+	if err := l.Load(); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := l.Get()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Port != 1 || cfg.Name != "local" {
+		t.Errorf("project-local dir did not win: %+v", cfg)
+	}
+}
+
 // TestLoadRelativeFileInDir keeps the dir-search behaviour for relative names.
 func TestLoadRelativeFileInDir(t *testing.T) {
 	dir := t.TempDir()
