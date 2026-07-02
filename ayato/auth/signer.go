@@ -28,7 +28,7 @@ const (
 const minSecretBytes = 32
 
 // Claims is the stateless token payload shared by every token type; Typ
-// disambiguates them. Exp is always set and Verify rejects an elapsed token.
+// disambiguates them. Exp is always set and verify rejects an elapsed token.
 type Claims struct {
 	Typ       string
 	GitHubID  int64
@@ -82,9 +82,9 @@ func (s *Signer) Sign(c Claims) (string, error) {
 	return payloadB64 + "." + sigB64, nil
 }
 
-// Verify checks the signature against every secret (constant-time) and rejects an
+// verify checks the signature against every secret (constant-time) and rejects an
 // expired token. It does NOT check Typ — callers use VerifyTyp for that.
-func (s *Signer) Verify(token string) (*Claims, error) {
+func (s *Signer) verify(token string) (*Claims, error) {
 	payloadB64, sigB64, ok := strings.Cut(token, ".")
 	if !ok || payloadB64 == "" || sigB64 == "" {
 		return nil, utils.NewErr("auth: malformed token")
@@ -120,7 +120,7 @@ func (s *Signer) Verify(token string) (*Claims, error) {
 // VerifyTyp verifies token and additionally requires Typ == typ, rejecting a token
 // minted for another purpose even with a valid signature.
 func (s *Signer) VerifyTyp(token, typ string) (*Claims, error) {
-	c, err := s.Verify(token)
+	c, err := s.verify(token)
 	if err != nil {
 		return nil, err
 	}

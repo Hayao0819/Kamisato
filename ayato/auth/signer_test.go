@@ -36,7 +36,7 @@ func TestSignVerifyRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Sign: %v", err)
 	}
-	out, err := s.Verify(tok)
+	out, err := s.verify(tok)
 	if err != nil {
 		t.Fatalf("Verify: %v", err)
 	}
@@ -59,7 +59,7 @@ func TestVerifyTypPinsType(t *testing.T) {
 func TestVerifyRejectsExpired(t *testing.T) {
 	s, _ := NewSigner([]string{secretA})
 	tok, _ := s.Sign(Claims{Typ: TypSession, GitHubID: 1, Exp: time.Now().Add(-time.Second)})
-	if _, err := s.Verify(tok); err == nil {
+	if _, err := s.verify(tok); err == nil {
 		t.Fatal("expired token must be rejected")
 	}
 }
@@ -70,12 +70,12 @@ func TestVerifyRejectsTamper(t *testing.T) {
 
 	payload, sig, _ := strings.Cut(tok, ".")
 	tampered := flipFirst(payload) + "." + sig
-	if _, err := s.Verify(tampered); err == nil {
+	if _, err := s.verify(tampered); err == nil {
 		t.Fatal("tampered payload must be rejected")
 	}
 
 	for _, bad := range []string{"", ".", "noseparator", "a.", ".b", "a.b.c"} {
-		if _, err := s.Verify(bad); err == nil {
+		if _, err := s.verify(bad); err == nil {
 			t.Fatalf("malformed token %q must be rejected", bad)
 		}
 	}
@@ -91,15 +91,15 @@ func TestVerifyRotation(t *testing.T) {
 	tokOld, _ := signOld.Sign(Claims{Typ: TypCLI, GitHubID: 8, Exp: time.Now().Add(time.Hour)})
 
 	rotating, _ := NewSigner([]string{secretB, secretA})
-	if c, err := rotating.Verify(tokNew); err != nil || c.GitHubID != 7 {
+	if c, err := rotating.verify(tokNew); err != nil || c.GitHubID != 7 {
 		t.Fatalf("new-key token must verify under rotation: c=%+v err=%v", c, err)
 	}
-	if c, err := rotating.Verify(tokOld); err != nil || c.GitHubID != 8 {
+	if c, err := rotating.verify(tokOld); err != nil || c.GitHubID != 8 {
 		t.Fatalf("old-key token must still verify under rotation: c=%+v err=%v", c, err)
 	}
 
 	// A signer that only knows the new key must NOT verify an old-key token.
-	if _, err := signNew.Verify(tokOld); err == nil {
+	if _, err := signNew.verify(tokOld); err == nil {
 		t.Fatal("old-key token must fail once the old secret is dropped")
 	}
 }

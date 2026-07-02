@@ -30,7 +30,7 @@ func TestRedteam_ForgeWithoutSecret(t *testing.T) {
 		"hmac-payload-askey": pB64 + "." + base64.RawURLEncoding.EncodeToString(mac([]byte(pB64), pB64)),
 	}
 	for name, tok := range forgeries {
-		if _, err := s.Verify(tok); err == nil {
+		if _, err := s.verify(tok); err == nil {
 			t.Fatalf("FORGERY ACCEPTED (%s): attacker minted a valid session without the secret", name)
 		}
 	}
@@ -44,7 +44,7 @@ func TestRedteam_NoExpIsRejected(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Sign: %v", err)
 	}
-	if _, err := s.Verify(tok); err == nil {
+	if _, err := s.verify(tok); err == nil {
 		t.Fatal("a token with no/zero Exp must be rejected (fail-closed), but Verify accepted it")
 	}
 }
@@ -85,11 +85,11 @@ func TestRedteam_SignatureMalleability(t *testing.T) {
 		if mut == tok {
 			continue
 		}
-		if _, err := s.Verify(mut); err == nil {
+		if _, err := s.verify(mut); err == nil {
 			t.Fatalf("malleable token accepted: %q", mut)
 		}
 	}
-	if _, err := s.Verify(tok); err != nil {
+	if _, err := s.verify(tok); err != nil {
 		t.Fatalf("baseline token must verify: %v", err)
 	}
 }
