@@ -59,3 +59,16 @@ func (s *serializingStore) DeleteFile(repo, arch, file string) error {
 	defer s.mu.lock(repo + "/" + arch)()
 	return s.Store.DeleteFile(repo, arch, file)
 }
+
+// FetchFileWithMeta forwards the optional MetaFetcher capability through the
+// wrapper. Embedding blob.Store promotes only the Store interface, so without
+// this the type assertion in binaryRepository misses and conditional-GET
+// validators silently degrade to a full body on every request. Reads are not
+// serialized against writes (same as the embedded FetchFile).
+func (s *serializingStore) FetchFileWithMeta(repo, arch, file string) (stream.File, blob.FileMeta, error) {
+	if mf, ok := s.Store.(blob.MetaFetcher); ok {
+		return mf.FetchFileWithMeta(repo, arch, file)
+	}
+	f, err := s.Store.FetchFile(repo, arch, file)
+	return f, blob.FileMeta{}, err
+}
