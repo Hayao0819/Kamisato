@@ -5,7 +5,9 @@
 // additionally validate the remote URL and refuse local-path/file transports
 // and private-network hosts, which is required when the URL comes from an
 // untrusted caller (e.g. ayato's register endpoint, where it would otherwise be
-// an SSRF into cloud metadata).
+// an SSRF into cloud metadata). Strict https clones are served by go-git instead
+// of the CLI (see gogit.go) so the connection can be pinned to a validated
+// public IP, which the git CLI cannot do.
 package gitcmd
 
 import (
@@ -55,19 +57,6 @@ func Output(ctx context.Context, dir string, args ...string) (string, error) {
 	return string(out), nil
 }
 
-// CommitUnix returns the HEAD commit time as a unix timestamp, or 0 on failure.
-func CommitUnix(ctx context.Context, dir string) int64 {
-	out, err := Output(ctx, dir, "log", "-1", "--format=%ct")
-	if err != nil {
-		return 0
-	}
-	ts, err := strconv.ParseInt(strings.TrimSpace(out), 10, 64)
-	if err != nil {
-		return 0
-	}
-	return ts
-}
-
 type CloneOptions struct {
 	URL   string
 	Dir   string
@@ -85,6 +74,13 @@ func Clone(ctx context.Context, o CloneOptions) error {
 	if o.Strict {
 		if err := ValidateRemote(o.URL); err != nil {
 			return err
+		}
+		// Strict https clones go through go-git, whose dialer pins the
+		// connection to a validated public IP and so closes the DNS-rebinding
+		// TOCTOU the CLI leaves open (see rejectInternalHost). ssh/git strict
+		// clones stay on the hardened CLI below.
+		if isHTTPSURL(o.URL) {
+			return cloneGoGit(ctx, o)
 		}
 		extra = append(extra, "-c", "protocol.file.allow=never")
 		// The caller controls the registered server, so a 3xx redirect to an
