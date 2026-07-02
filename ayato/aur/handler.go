@@ -84,7 +84,12 @@ func (h *Handler) CatalogHandler(c *gin.Context) {
 
 	var env kayoproto.CatalogEnvelope
 	if h.signer == nil {
-		payload, _ := json.Marshal(kayoproto.SignedPayload{IssuedAt: time.Now().UTC(), Catalog: cat})
+		payload, mErr := json.Marshal(kayoproto.SignedPayload{IssuedAt: time.Now().UTC(), Catalog: cat})
+		if mErr != nil {
+			slog.Error("AUR catalog marshal failed", "error", mErr)
+			c.JSON(http.StatusInternalServerError, domain.APIError{Message: "failed to build catalog"})
+			return
+		}
 		env = kayoproto.CatalogEnvelope{Payload: payload, Alg: "none"}
 	} else {
 		env, err = h.signer.Sign(cat)
