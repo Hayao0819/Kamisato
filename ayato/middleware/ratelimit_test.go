@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Hayao0819/Kamisato/ayato/repository/kv/badgerkv"
 	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/time/rate"
@@ -26,13 +27,19 @@ func doReq(r *gin.Engine, remoteAddr string) *httptest.ResponseRecorder {
 	return w
 }
 
-func newRLMiddleware() *Middleware {
+func newRLMiddleware(t *testing.T) *Middleware {
+	t.Helper()
 	gin.SetMode(gin.TestMode)
-	return New(&conf.AyatoConfig{})
+	store, err := badgerkv.New(t.TempDir())
+	if err != nil {
+		t.Fatalf("open badger: %v", err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+	return New(&conf.AyatoConfig{}).WithRateLimiter(store)
 }
 
 func TestRateLimitBurstThen429(t *testing.T) {
-	m := newRLMiddleware()
+	m := newRLMiddleware(t)
 	// rate is tiny so the burst is not replenished during the test.
 	r := rlEngine(m, rate.Every(time.Hour), 3)
 
@@ -52,7 +59,7 @@ func TestRateLimitBurstThen429(t *testing.T) {
 }
 
 func TestRateLimitPerIP(t *testing.T) {
-	m := newRLMiddleware()
+	m := newRLMiddleware(t)
 	r := rlEngine(m, rate.Every(time.Hour), 1)
 
 	if w := doReq(r, "10.0.0.1:1"); w.Code != http.StatusOK {
@@ -67,7 +74,7 @@ func TestRateLimitPerIP(t *testing.T) {
 }
 
 func TestRateLimitRefill(t *testing.T) {
-	m := newRLMiddleware()
+	m := newRLMiddleware(t)
 	// 50 tokens/sec -> ~20ms to refill one; burst 1.
 	r := rlEngine(m, rate.Limit(50), 1)
 
@@ -94,7 +101,7 @@ func TestRateLimitRefill(t *testing.T) {
 }
 
 func TestRateLimitConcurrent(t *testing.T) {
-	m := newRLMiddleware()
+	m := newRLMiddleware(t)
 	r := rlEngine(m, rate.Limit(1000), 1000)
 
 	var wg sync.WaitGroup

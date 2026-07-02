@@ -10,11 +10,20 @@ import (
 // It is safe for concurrent use. Mount it directly (it implements http.Handler)
 // or wire its individual handlers (RPC, GitClone, ...) into another router.
 type Server struct {
-	backend  Backend
-	upstream Upstream
-	log      *slog.Logger
-	dumps    dumpCache
-	limiter  *rateLimiter // nil unless WithRateLimit is set
+	backend   Backend
+	upstream  Upstream
+	log       *slog.Logger
+	dumps     dumpCache
+	limiter   Limiter                    // nil unless a limiter option is set
+	limiterFn func(*http.Request) string // client key for the limiter (defaults to remoteIP)
+}
+
+// Limiter is the /rpc + NoRoute per-client throttle. It is an interface so a
+// caller can inject a shared (kv-backed, cross-replica) limiter; the built-in
+// per-instance one from WithRateLimit satisfies it too.
+type Limiter interface {
+	// Allow records one request for client and reports whether it is within limit.
+	Allow(client string) bool
 }
 
 type Option func(*Server)
@@ -28,6 +37,21 @@ func WithLogger(l *slog.Logger) Option {
 	return func(s *Server) {
 		if l != nil {
 			s.log = l
+		}
+	}
+}
+
+// WithLimiter injects a rate limiter (e.g. a shared kv-backed one that holds the
+// limit across replicas) and the key function that identifies the client. A nil
+// keyFn keys on the request's remote IP.
+func WithLimiter(l Limiter, keyFn func(*http.Request) string) Option {
+	return func(s *Server) {
+		if l != nil {
+			if keyFn == nil {
+				keyFn = remoteIP
+			}
+			s.limiter = l
+			s.limiterFn = keyFn
 		}
 	}
 }

@@ -65,7 +65,7 @@ func RootCmd() *cobra.Command {
 			deviceRepo := repository.NewDeviceRepository(kvStore)
 			s := service.New(pkgNameRepo, pkgBinaryRepo, authRepo, signerRepo, cfg)
 			h := handler.New(s, cfg).WithLogTokens(logTokenRepo)
-			m := middleware.New(cfg).WithLogTokens(logTokenRepo)
+			m := middleware.New(cfg).WithLogTokens(logTokenRepo).WithRateLimiter(kvStore)
 
 			// The admin allowlist is the only persisted auth state; sessions, CLI
 			// tokens, one-time codes, and OAuth state are all stateless-signed.

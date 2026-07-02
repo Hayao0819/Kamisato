@@ -7,6 +7,7 @@ import (
 
 	"github.com/Hayao0819/Kamisato/ayato/handler"
 	"github.com/Hayao0819/Kamisato/ayato/middleware"
+	"github.com/Hayao0819/Kamisato/ayato/repository/kv/badgerkv"
 	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/gin-gonic/gin"
 )
@@ -16,7 +17,12 @@ import (
 func TestAURNoRouteRateLimited(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	e := gin.New()
-	m := middleware.New(&conf.AyatoConfig{})
+	store, err := badgerkv.New(t.TempDir())
+	if err != nil {
+		t.Fatalf("open badger: %v", err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+	m := middleware.New(&conf.AyatoConfig{}).WithRateLimiter(store)
 
 	var served int
 	srv := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {

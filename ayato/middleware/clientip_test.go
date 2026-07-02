@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/time/rate"
 )
@@ -45,8 +44,7 @@ func doReqXFF(r *gin.Engine, remoteAddr, xff string) *httptest.ResponseRecorder 
 // rotates a fresh forged XFF on every request; with XFF ignored, all requests
 // key on the SAME RemoteAddr and the limiter must 429 after the burst.
 func TestRedteam_RotatingXFFNoBypass(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	m := New(&conf.AyatoConfig{})
+	m := newRLMiddleware(t)
 	// tiny rate so the burst is never replenished mid-test; burst 3.
 	r := rlEngineTrusted(t, m, rate.Every(time.Hour), 3, nil)
 
@@ -94,8 +92,7 @@ func itoa(n int) string {
 // key stays the real peer); a peer INSIDE the CIDR has its rightmost-untrusted
 // XFF hop used as the key.
 func TestRedteam_XFFHonoredOnlyFromTrustedCIDR(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	m := New(&conf.AyatoConfig{})
+	m := newRLMiddleware(t)
 	r := rlEngineTrusted(t, m, rate.Every(time.Hour), 1, []string{"10.0.0.0/8"})
 
 	// (a) Untrusted peer rotating XFF: must NOT bypass (key = real peer).

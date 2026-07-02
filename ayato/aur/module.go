@@ -5,11 +5,26 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/Hayao0819/Kamisato/ayato/ratelimit"
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
 	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/internal/errwrap"
 	"github.com/Hayao0819/Kamisato/pkg/aurweb"
 )
+
+// aurRPCLimiter adapts the shared kv-backed fixed-window limiter to aurweb's
+// per-client Limiter, so the /rpc + NoRoute throttle holds across replicas rather
+// than each process granting the full daily quota.
+type aurRPCLimiter struct {
+	lim    *ratelimit.Limiter
+	limit  int
+	window time.Duration
+}
+
+func (a aurRPCLimiter) Allow(client string) bool {
+	ok, _ := a.lim.Allow("aur:rpc", client, a.limit, a.window)
+	return ok
+}
 
 // Module is the assembled AUR wiring: Server is the read-only aurweb surface
 // (/rpc, git redirects) mounted as the NoRoute fallback, and Service is the
@@ -35,12 +50,15 @@ func New(cfg *conf.AyatoConfig, store kv.Store) (*Module, error) {
 	}
 	// The limiter keys on the request's real peer: the aurweb Server is mounted as a
 	// raw handler, so gin's trusted-proxy ClientIP() resolution does not reach it.
+	// The counter lives in the shared kv, so the daily limit holds across replicas
+	// (a per-instance counter would grant N replicas N times the quota).
 	rateLimit := aurweb.DefaultRateLimit
 	if cfg.AUR.RateLimitPerDay != nil {
 		rateLimit = *cfg.AUR.RateLimitPerDay
 	}
 	if rateLimit > 0 {
-		opts = append(opts, aurweb.WithRateLimit(rateLimit, aurweb.DefaultRateWindow, nil))
+		lim := aurRPCLimiter{lim: ratelimit.New(store), limit: rateLimit, window: aurweb.DefaultRateWindow}
+		opts = append(opts, aurweb.WithLimiter(lim, nil))
 	}
 
 	// TTL bounds both the signed envelope's freshness and how long the public

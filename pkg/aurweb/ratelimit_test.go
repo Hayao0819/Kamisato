@@ -68,15 +68,15 @@ func TestRateLimit(t *testing.T) {
 
 func TestRateLimitWindowReset(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		l := newRateLimiter(1, 50*time.Millisecond, nil)
-		if !l.allow("k") {
+		l := newRateLimiter(1, 50*time.Millisecond)
+		if !l.Allow("k") {
 			t.Fatal("first request should pass")
 		}
-		if l.allow("k") {
+		if l.Allow("k") {
 			t.Fatal("second request in-window should be denied")
 		}
 		time.Sleep(70 * time.Millisecond)
-		if !l.allow("k") {
+		if !l.Allow("k") {
 			t.Error("request after the window should pass again")
 		}
 	})

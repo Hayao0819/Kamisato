@@ -24,12 +24,17 @@ const maxRateBuckets = 100_000
 // (n<=0 is a no-op). keyFn identifies the client; nil uses the request's remote
 // IP. Behind a trusted proxy, pass a keyFn that reads the forwarded address.
 //
-// The counter is in-memory and per-instance — best-effort, like aurweb's, and
-// not shared across replicas; it resets on restart.
+// The counter is in-memory and per-instance — best-effort, like aurweb's, and not
+// shared across replicas; it resets on restart. For a limit that holds across
+// replicas, inject a shared limiter via WithLimiter instead.
 func WithRateLimit(n int, window time.Duration, keyFn func(*http.Request) string) Option {
 	return func(s *Server) {
 		if n > 0 && window > 0 {
-			s.limiter = newRateLimiter(n, window, keyFn)
+			if keyFn == nil {
+				keyFn = remoteIP
+			}
+			s.limiter = newRateLimiter(n, window)
+			s.limiterFn = keyFn
 		}
 	}
 }
@@ -37,7 +42,6 @@ func WithRateLimit(n int, window time.Duration, keyFn func(*http.Request) string
 type rateLimiter struct {
 	n      int
 	window time.Duration
-	keyFn  func(*http.Request) string
 
 	mu   sync.Mutex
 	hits map[string]*rateBucket
@@ -48,15 +52,12 @@ type rateBucket struct {
 	start time.Time
 }
 
-func newRateLimiter(n int, window time.Duration, keyFn func(*http.Request) string) *rateLimiter {
-	if keyFn == nil {
-		keyFn = remoteIP
-	}
-	return &rateLimiter{n: n, window: window, keyFn: keyFn, hits: make(map[string]*rateBucket)}
+func newRateLimiter(n int, window time.Duration) *rateLimiter {
+	return &rateLimiter{n: n, window: window, hits: make(map[string]*rateBucket)}
 }
 
-// allow records a request for key and reports whether it is within the limit.
-func (l *rateLimiter) allow(key string) bool {
+// Allow records a request for key and reports whether it is within the limit.
+func (l *rateLimiter) Allow(key string) bool {
 	now := time.Now()
 	l.mu.Lock()
 	defer l.mu.Unlock()

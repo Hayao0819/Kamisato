@@ -5,9 +5,12 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync/atomic"
 
 	"github.com/Hayao0819/Kamisato/ayato/auth"
 	"github.com/Hayao0819/Kamisato/ayato/ciauth"
+	"github.com/Hayao0819/Kamisato/ayato/ratelimit"
+	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
 	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/gin-gonic/gin"
 )
@@ -37,12 +40,25 @@ type Middleware struct {
 	ci        *ciauth.Authorizer // nil = no CI auth
 	denylist  denylistChecker    // nil = per-token revocation not wired
 	logTokens logTokenConsumer   // nil = one-time SSE log tokens not wired
+	// limiter is the shared kv-backed rate limiter; nil leaves RateLimit a
+	// pass-through (a minimal/test setup with no kv wired). rlScope hands each
+	// RateLimit call site a distinct, wiring-order-stable scope so independent
+	// route limiters do not share a counter on the one kv.
+	limiter *ratelimit.Limiter
+	rlScope atomic.Int64
 }
 
 func New(cfg *conf.AyatoConfig) *Middleware {
 	return &Middleware{
 		cfg: cfg,
 	}
+}
+
+// WithRateLimiter wires the shared kv-backed limiter so RateLimit enforces a
+// limit across replicas. Unwired (nil) leaves RateLimit a pass-through.
+func (m *Middleware) WithRateLimiter(store kv.Store) *Middleware {
+	m.limiter = ratelimit.New(store)
+	return m
 }
 
 func (m *Middleware) WithAuth(checker adminChecker, signer *auth.Signer) *Middleware {
