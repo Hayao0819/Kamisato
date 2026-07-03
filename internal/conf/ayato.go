@@ -45,12 +45,42 @@ type AyatoConfig struct {
 	Sign           SignConfig      `koanf:"sign"`
 	Secrets        SecretsConfig   `koanf:"secrets"`
 	Pool           PoolConfig      `koanf:"pool"`
+	// Mirror configures the pacman mirrorlist served at /repo/<repo>/mirrorlist.
+	Mirror MirrorConfig `koanf:"mirror"`
 	// RedirectDownloads, unset by default, answers a file download with a 302 to a
 	// presigned object URL whenever the blob backend can presign (S3), so the bytes
 	// go client<->object-store directly and skip ayato's egress (Cloud Run bills it).
 	// Set it to false to force every download to stream through ayato; a backend that
 	// cannot presign (localfs) always streams regardless.
 	RedirectDownloads *bool `koanf:"redirect_downloads"`
+}
+
+// MirrorConfig configures the pacman mirrorlist ayato generates at
+// /repo/<repo>/mirrorlist. Phase 1 advertises only this instance; peers and
+// health filtering are future work.
+type MirrorConfig struct {
+	// SelfURL is this instance's public base URL (e.g. https://repo.example). The
+	// Server line becomes <SelfURL><RepoPath>/<repo>/$arch. Empty falls back to
+	// auth.self_origin, then auth.public_origin, then the request host.
+	SelfURL string `koanf:"self_url,omitempty"`
+	// RepoPath is the path prefix repos are served under; empty means "/repo".
+	RepoPath string `koanf:"repo_path,omitempty"`
+	// UseRepoVar writes the pacman $repo variable instead of the concrete repo
+	// name into the Server path. Default (false) bakes the repo name in.
+	UseRepoVar bool `koanf:"use_repo_var,omitempty"`
+	// AllCommented ships every Server line commented out (official-Arch style) so
+	// the user opts in per mirror. Default (false) leaves this instance active.
+	AllCommented bool `koanf:"all_commented,omitempty"`
+}
+
+// ServerPath returns the Server-line path prefix, normalized to a single leading
+// slash and no trailing/interior redundant slashes (default "/repo").
+func (m MirrorConfig) ServerPath() string {
+	p := strings.Trim(m.RepoPath, "/")
+	if p == "" {
+		return "/repo"
+	}
+	return path.Clean("/" + p)
 }
 
 // PoolConfig governs the content-addressed package pool: uploaded package bytes

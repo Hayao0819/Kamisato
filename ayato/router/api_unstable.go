@@ -162,6 +162,9 @@ func SetRoute(e *gin.Engine, h *handler.Handler, m *middleware.Middleware) error
 		if err := view.SetRepoAssets(repo); err != nil {
 			return errwrap.WrapErr(err, "failed to register repo index assets")
 		}
+		// Static: takes priority over the :arch route below, so no repo may serve
+		// an architecture literally named "mirrorlist".
+		repo.GET("/:repo/mirrorlist", h.MirrorlistHandler)
 		repo.GET("/:repo/:arch", h.RepoFileListHandler)
 		repo.GET("/:repo/:arch/:file", h.RepoFileHandler)
 	}
