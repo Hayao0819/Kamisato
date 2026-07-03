@@ -41,6 +41,7 @@ type AyatoConfig struct {
 	BugReport      BugReportConfig `koanf:"bug_report"`
 	Recaptcha      RecaptchaConfig `koanf:"recaptcha"`
 	Sign           SignConfig      `koanf:"sign"`
+	Secrets        SecretsConfig   `koanf:"secrets"`
 	Pool           PoolConfig      `koanf:"pool"`
 	// RedirectDownloads, unset by default, answers a file download with a 302 to a
 	// presigned object URL whenever the blob backend can presign (S3), so the bytes
@@ -84,6 +85,22 @@ type SignConfig struct {
 	// and <repo>.files.tar.gz.sig. The armored private key comes from
 	// AYATO_DB_SIGNING_KEY (optionally unlocked with AYATO_DB_SIGNING_PASSPHRASE).
 	DB bool `koanf:"db,omitempty"`
+}
+
+// SecretsConfig enables at-rest encryption of sensitive kv records (the admin
+// allowlist). It is opt-in: with no age identity configured the records stay in
+// plaintext exactly as before, and enabling it later reads existing plaintext back
+// transparently. The age X25519 secret key comes from the environment
+// (AYATO_SECRETS_AGE_IDENTITY) or a file, never the config value itself — matching
+// how the other private keys are sourced.
+type SecretsConfig struct {
+	// AgeIdentityFile points at a file holding the age X25519 secret key
+	// ("AGE-SECRET-KEY-1..."), e.g. a mounted secret. AYATO_SECRETS_AGE_IDENTITY
+	// takes precedence over it. Empty (and no env) leaves encryption off.
+	AgeIdentityFile string `koanf:"age_identity_file,omitempty"`
+	// Namespaces overrides which kv namespaces are encrypted. Empty uses the default
+	// sensitive set (the admin allowlist).
+	Namespaces []string `koanf:"namespaces,omitempty"`
 }
 
 // ExpectedBuildDir returns the builddir the .BUILDINFO provenance gate requires,

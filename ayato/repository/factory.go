@@ -12,11 +12,43 @@ import (
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv/badgerkv"
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv/cfkv"
+	"github.com/Hayao0819/Kamisato/ayato/repository/kv/securekv"
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv/sqlkv"
 	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/internal/errwrap"
+	"github.com/Hayao0819/Kamisato/internal/secretbox"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/sign"
 )
+
+// defaultEncryptedNamespaces is the sensitive kv namespace set at-rest encryption
+// seals when enabled. Kept beside the namespace constants so the set is explicit
+// and reviewable; only the durable admin allowlist qualifies today (sessions,
+// tokens, replay and rate-limit state are stateless-signed or ephemeral).
+var defaultEncryptedNamespaces = []string{allowNS}
+
+// secureKV wraps store with at-rest encryption when an age identity is configured;
+// otherwise it returns store unchanged so plaintext behaviour is preserved. The
+// secret key is read from the environment (AYATO_SECRETS_AGE_IDENTITY) or the
+// configured file, never the config value itself.
+func secureKV(store kv.Store, cfg *conf.AyatoConfig) (kv.Store, error) {
+	identity, err := secretbox.LoadAgeIdentity(os.Getenv("AYATO_SECRETS_AGE_IDENTITY"), cfg.Secrets.AgeIdentityFile)
+	if err != nil {
+		return nil, errwrap.WrapErr(err, "failed to load the secrets age identity")
+	}
+	if identity == "" {
+		return store, nil
+	}
+	box, err := secretbox.NewAgeX25519(identity)
+	if err != nil {
+		return nil, errwrap.WrapErr(err, "failed to build the secrets encryptor")
+	}
+	ns := cfg.Secrets.Namespaces
+	if len(ns) == 0 {
+		ns = defaultEncryptedNamespaces
+	}
+	slog.Info("at-rest secret encryption enabled", "namespaces", ns)
+	return securekv.New(store, box, ns), nil
+}
 
 // initBinaryStore keeps the IO layer conf-free by unpacking conf into the plain values the backends take.
 func initBinaryStore(cfg *conf.AyatoConfig) (blob.Store, error) {
@@ -82,6 +114,13 @@ func New(cfg *conf.AyatoConfig) (NameStore, BinaryRepository, AuthRepository, kv
 	if err != nil {
 		slog.Error("Failed to create key-value store", "error", err)
 		return nil, nil, nil, nil, nil, err
+	}
+	if cfg != nil {
+		kvStore, err = secureKV(kvStore, cfg)
+		if err != nil {
+			slog.Error("Failed to enable at-rest secret encryption", "error", err)
+			return nil, nil, nil, nil, nil, err
+		}
 	}
 
 	binStore, err := initBinaryStore(cfg)
