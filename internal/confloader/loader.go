@@ -4,6 +4,7 @@
 package confloader
 
 import (
+	encjson "encoding/json"
 	"fmt"
 	"log/slog"
 	"os"
@@ -85,17 +86,31 @@ func (l *Loader[T]) Load() error {
 		if err != nil {
 			return err
 		}
+		// The transform callback cannot return an error, so the first parse
+		// failure is stashed here and surfaced once Load returns.
+		var parseErr error
 		provider := env.Provider(".", env.Opt{
 			Prefix: strings.ToUpper(l.envPrefix) + "_",
 			TransformFunc: func(k, v string) (string, any) {
-				if path, ok := revMap[k]; ok {
-					return path, v
+				leaf, ok := revMap[k]
+				if !ok {
+					return "", nil
 				}
-				return "", nil
+				val, perr := parseEnvValue(leaf.typ, v)
+				if perr != nil {
+					if parseErr == nil {
+						parseErr = fmt.Errorf("env %s: %w", k, perr)
+					}
+					return "", nil
+				}
+				return leaf.path, val
 			},
 		})
 		if err := l.k.Load(provider, nil); err != nil {
 			return fmt.Errorf("failed to load env vars: %w", err)
+		}
+		if parseErr != nil {
+			return parseErr
 		}
 	}
 
@@ -152,27 +167,35 @@ func (l *Loader[T]) Unmarshal(v *T) error {
 	return l.k.Unmarshal("", v)
 }
 
-// envPathMap maps each leaf's env name to its dotted koanf path, derived from the
-// koanf struct tags of T. The env name is the prefix plus the uppercased path with
-// dots replaced by underscores, e.g. auth.session_secret -> AYATO_AUTH_SESSION_SECRET.
-func envPathMap(t reflect.Type, prefix string) (map[string]string, error) {
-	var paths []string
-	collectKoanfPaths(t, "", &paths)
+// envLeaf pairs a koanf dotted path with the Go type of the field it targets, so
+// the env transform knows whether a value is a scalar or a slice/map to parse.
+type envLeaf struct {
+	path string
+	typ  reflect.Type
+}
 
-	rev := make(map[string]string, len(paths))
-	for _, p := range paths {
-		name := strings.ToUpper(prefix + "_" + strings.ReplaceAll(p, ".", "_"))
+// envPathMap maps each leaf's env name to its koanf path and field type, derived
+// from the koanf struct tags of T. The env name is the prefix plus the uppercased
+// path with dots replaced by underscores, e.g. auth.session_secret ->
+// AYATO_AUTH_SESSION_SECRET.
+func envPathMap(t reflect.Type, prefix string) (map[string]envLeaf, error) {
+	var leaves []envLeaf
+	collectKoanfPaths(t, "", &leaves)
+
+	rev := make(map[string]envLeaf, len(leaves))
+	for _, lf := range leaves {
+		name := strings.ToUpper(prefix + "_" + strings.ReplaceAll(lf.path, ".", "_"))
 		if other, ok := rev[name]; ok {
-			return nil, fmt.Errorf("env name %q maps to both %q and %q", name, other, p)
+			return nil, fmt.Errorf("env name %q maps to both %q and %q", name, other.path, lf.path)
 		}
-		rev[name] = p
+		rev[name] = lf
 	}
 	return rev, nil
 }
 
 // collectKoanfPaths walks t's koanf tags, recursing into nested structs and
 // treating slices and maps as single leaves.
-func collectKoanfPaths(t reflect.Type, prefix string, out *[]string) {
+func collectKoanfPaths(t reflect.Type, prefix string, out *[]envLeaf) {
 	if t.Kind() == reflect.Pointer {
 		t = t.Elem()
 	}
@@ -204,7 +227,71 @@ func collectKoanfPaths(t reflect.Type, prefix string, out *[]string) {
 			collectKoanfPaths(ft, path, out)
 			continue
 		}
-		*out = append(*out, path)
+		*out = append(*out, envLeaf{path: path, typ: f.Type})
+	}
+}
+
+// parseEnvValue shapes an env var's string value for the target field. Scalars
+// pass through unchanged (mapstructure coerces them on Unmarshal). Slice, array
+// and map fields — which koanf's single-env-per-key model otherwise can't fill —
+// accept a JSON literal; a slice of scalars additionally accepts a plain
+// comma-separated list for the common case (e.g. trusted_proxies=a,b,c).
+func parseEnvValue(typ reflect.Type, v string) (any, error) {
+	for typ != nil && typ.Kind() == reflect.Pointer {
+		typ = typ.Elem()
+	}
+	if typ == nil {
+		return v, nil
+	}
+	switch typ.Kind() {
+	case reflect.Slice, reflect.Array, reflect.Map:
+		return parseStructuredEnv(typ, v)
+	default:
+		return v, nil
+	}
+}
+
+func parseStructuredEnv(typ reflect.Type, v string) (any, error) {
+	trimmed := strings.TrimSpace(v)
+	if strings.HasPrefix(trimmed, "[") || strings.HasPrefix(trimmed, "{") {
+		var out any
+		if err := encjson.Unmarshal([]byte(trimmed), &out); err != nil {
+			return nil, fmt.Errorf("invalid JSON: %w", err)
+		}
+		return out, nil
+	}
+	// Only a slice/array of scalar elements can take the bare comma form; a map or
+	// a slice of structs is ambiguous, so require JSON there.
+	if typ.Kind() == reflect.Map {
+		return nil, fmt.Errorf("value for a %s must be a JSON object (starting with '{')", typ)
+	}
+	elem := typ.Elem()
+	for elem.Kind() == reflect.Pointer {
+		elem = elem.Elem()
+	}
+	if !isScalarKind(elem.Kind()) {
+		return nil, fmt.Errorf("value for a %s must be a JSON array (starting with '[')", typ)
+	}
+	if trimmed == "" {
+		return []string{}, nil
+	}
+	parts := strings.Split(v, ",")
+	out := make([]string, len(parts))
+	for i, p := range parts {
+		out[i] = strings.TrimSpace(p)
+	}
+	return out, nil
+}
+
+func isScalarKind(k reflect.Kind) bool {
+	switch k {
+	case reflect.String, reflect.Bool,
+		reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
+		reflect.Float32, reflect.Float64:
+		return true
+	default:
+		return false
 	}
 }
 
