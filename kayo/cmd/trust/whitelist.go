@@ -22,7 +22,7 @@ func whitelistCmd() *cobra.Command {
 func whitelistAddCmd() *cobra.Command {
 	var note string
 	cmd := &cobra.Command{
-		Use:   "add <pkgbase>",
+		Use:   "add <pkgname>",
 		Short: "Unconditionally trust a pkgbase (skips review)",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -44,9 +44,10 @@ func whitelistAddCmd() *cobra.Command {
 
 func whitelistRemoveCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "rm <pkgbase>",
-		Short: "Remove a pkgbase from the allowlist",
-		Args:  cobra.ExactArgs(1),
+		Use:     "remove <pkgname>",
+		Aliases: []string{"rm"},
+		Short:   "Remove a pkgbase from the allowlist",
+		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := shared.LoadConfig(cmd)
 			if err != nil {

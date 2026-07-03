@@ -13,9 +13,10 @@ import (
 func trustRemoveCmd() *cobra.Command {
 	var maintainer string
 	cmd := &cobra.Command{
-		Use:   "rm [pkgbase]",
-		Short: "Remove a package approval, or a maintainer with --maintainer source/account",
-		Args:  cobra.MaximumNArgs(1),
+		Use:     "remove [<pkgname>]",
+		Aliases: []string{"rm"},
+		Short:   "Remove a package approval, or a maintainer with --maintainer source/account",
+		Args:    cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := shared.LoadConfig(cmd)
 			if err != nil {
