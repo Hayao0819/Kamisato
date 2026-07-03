@@ -82,7 +82,7 @@ func (b *bwrapBackend) Build(ctx context.Context, spec Spec) (*Result, error) {
 		return nil, wrapErr(err, "failed to resolve src dir")
 	}
 
-	// Overlay scratch (upper + per-phase work dirs) must live on a real fs that
+	// Overlay scratch (per-phase upper + work dirs) must live on a real fs that
 	// can host an overlayfs upper, so place it next to the rootfs rather than in
 	// a possibly-tmpfs TMPDIR.
 	scratch, err := os.MkdirTemp(filepath.Dir(b.rootfs), "bwrap-build-")
@@ -90,10 +90,15 @@ func (b *bwrapBackend) Build(ctx context.Context, spec Spec) (*Result, error) {
 		return nil, wrapErr(err, "failed to create overlay scratch dir")
 	}
 	defer func() { _ = os.RemoveAll(scratch) }()
-	upper := filepath.Join(scratch, "upper")
+	// depsUpper captures phase 1's dependency install. Phase 2 cannot reuse it as
+	// its own overlay upperdir — the kernel refuses to mount an overlay onto an
+	// upperdir a prior mount already wrote to (EBUSY, userxattr in-use marker) —
+	// so phase 2 stacks it as a read-only lower and writes to its own buildUpper.
+	depsUpper := filepath.Join(scratch, "deps-upper")
 	work1 := filepath.Join(scratch, "work1")
+	buildUpper := filepath.Join(scratch, "build-upper")
 	work2 := filepath.Join(scratch, "work2")
-	for _, d := range []string{upper, work1, work2} {
+	for _, d := range []string{depsUpper, work1, buildUpper, work2} {
 		if err := os.Mkdir(d, 0o755); err != nil { //nolint:gosec // build overlay dirs accessed by the build sandbox/overlayfs
 			return nil, wrapErr(err, "failed to create overlay dir")
 		}
@@ -111,16 +116,18 @@ func (b *bwrapBackend) Build(ctx context.Context, spec Spec) (*Result, error) {
 
 	depsScript, installBinds := bwrapInstall(spec.InstallPkgs, b.extraRepos)
 
-	// Phase 1: install deps as root-in-userns over the shared overlay.
+	// Phase 1: install deps as root-in-userns into depsUpper over the rootfs.
 	slog.Info("bwrap phase 1: installing dependencies", "dir", srcAbs, "rootfs", b.rootfs)
-	p1 := bwrapArgs(b.rootfs, upper, work1, srcAbs, b.cacheDir, "0", depsScript, installBinds)
+	p1 := bwrapArgs([]string{b.rootfs}, depsUpper, work1, srcAbs, b.cacheDir, "0", depsScript, installBinds)
 	if err := runBwrap(ctx, p1, out); err != nil {
 		return nil, wrapErr(err, "bwrap dependency phase failed (ensure unprivileged user namespaces and bwrap >= 0.11 with overlay support)")
 	}
 
-	// Phase 2: build as the unprivileged user over the same overlay (deps present).
+	// Phase 2: build as the unprivileged user, stacking phase 1's deps as a
+	// read-only lower (rootfs at the bottom, depsUpper on top) with a fresh
+	// writable buildUpper — see the depsUpper comment for why it is not reused.
 	slog.Info("bwrap phase 2: building package", "dir", srcAbs, "arch", spec.Arch)
-	p2 := bwrapArgs(b.rootfs, upper, work2, srcAbs, b.cacheDir, bwrapBuildUID, bwrapBuildScript, nil)
+	p2 := bwrapArgs([]string{b.rootfs, depsUpper}, buildUpper, work2, srcAbs, b.cacheDir, bwrapBuildUID, bwrapBuildScript, nil)
 	if err := runBwrap(ctx, p2, out); err != nil {
 		return nil, wrapErr(err, "bwrap build phase failed")
 	}
@@ -152,24 +159,31 @@ func bwrapInstall(installPkgs []string, extraRepos []RepoSpec) (script string, b
 	return script, binds
 }
 
-// bwrapArgs builds the sandbox for one phase: the rootfs as a read-only overlay
-// lower with a writable upper, the build dir bound at /build, private dev/proc/tmp,
-// and fresh ipc/pid/uts/cgroup namespaces. The network is left shared so pacman
-// and makepkg can reach mirrors and fetch sources. uid maps the host user 1:1 to
-// the given inner uid (0 for the dep phase, unprivileged for the build phase).
-func bwrapArgs(rootfs, upper, work, srcAbs, cacheDir, uid, script string, installBinds [][2]string) []string {
+// bwrapArgs builds the sandbox for one phase: the lowers as read-only overlay
+// layers (bottom-to-top: the rootfs, plus phase 1's dependency upper for phase 2)
+// under the phase's own writable upper/work, the build dir bound at /build,
+// private dev/proc/tmp, and fresh ipc/pid/uts/cgroup namespaces. The network is
+// left shared so pacman and makepkg can reach mirrors and fetch sources. uid maps
+// the host user 1:1 to the given inner uid (0 for the dep phase, unprivileged for
+// the build phase).
+func bwrapArgs(lowers []string, upper, work, srcAbs, cacheDir, uid, script string, installBinds [][2]string) []string {
 	args := []string{
 		"--unshare-user", "--unshare-ipc", "--unshare-pid", "--unshare-uts", "--unshare-cgroup",
 		"--uid", uid, "--gid", uid,
 		"--die-with-parent", "--new-session",
-		"--overlay-src", rootfs, "--overlay", upper, work, "/",
+	}
+	for _, l := range lowers {
+		args = append(args, "--overlay-src", l)
+	}
+	args = append(args,
+		"--overlay", upper, work, "/",
 		"--proc", "/proc",
 		"--dev", "/dev",
 		"--tmpfs", "/tmp",
 		"--bind", srcAbs, "/build",
 		"--chdir", "/build",
 		"--setenv", "HOME", "/build",
-	}
+	)
 	// A persistent package cache survives the throwaway overlay, so downloads
 	// resume across builds and an already-fetched package is reused instead of
 	// re-downloaded — the difference between a build that completes on a flaky

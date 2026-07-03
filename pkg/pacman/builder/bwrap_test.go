@@ -17,7 +17,7 @@ func TestNewBwrapBackend(t *testing.T) {
 }
 
 func TestBwrapArgsOverlayAndUID(t *testing.T) {
-	joined := strings.Join(bwrapArgs("/rootfs", "/s/upper", "/s/work", "/work/pkg", "", "0", "echo hi", nil), " ")
+	joined := strings.Join(bwrapArgs([]string{"/rootfs"}, "/s/upper", "/s/work", "/work/pkg", "", "0", "echo hi", nil), " ")
 	for _, want := range []string{
 		"--unshare-user", "--uid 0 --gid 0",
 		"--overlay-src /rootfs --overlay /s/upper /s/work /",
@@ -31,9 +31,15 @@ func TestBwrapArgsOverlayAndUID(t *testing.T) {
 		t.Errorf("empty cacheDir should not bind a package cache: %q", joined)
 	}
 	// With a cache dir set, it is bind-mounted at the pacman cache path.
-	withCache := strings.Join(bwrapArgs("/rootfs", "/s/upper", "/s/work", "/work/pkg", "/pkgcache", "0", "echo hi", nil), " ")
+	withCache := strings.Join(bwrapArgs([]string{"/rootfs"}, "/s/upper", "/s/work", "/work/pkg", "/pkgcache", "0", "echo hi", nil), " ")
 	if !strings.Contains(withCache, "--bind /pkgcache /var/cache/pacman/pkg") {
 		t.Errorf("cacheDir not bound: %q", withCache)
+	}
+	// Phase 2 stacks phase 1's deps upper as a second read-only lower before its
+	// own writable upper, in bottom-to-top order.
+	phase2 := strings.Join(bwrapArgs([]string{"/rootfs", "/s/deps"}, "/s/build", "/s/work2", "/work/pkg", "", "1000", "echo hi", nil), " ")
+	if !strings.Contains(phase2, "--overlay-src /rootfs --overlay-src /s/deps --overlay /s/build /s/work2 /") {
+		t.Errorf("phase 2 overlay stacking wrong: %q", phase2)
 	}
 }
 
