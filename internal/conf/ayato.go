@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"os"
 	"path"
+	"strconv"
 	"strings"
 	"time"
 
@@ -388,8 +390,34 @@ func LoadAyatoConfig(flags *pflag.FlagSet, configFile string) (*AyatoConfig, err
 		configFileNames(configFile, "ayato_config"),
 		flags,
 		"AYATO",
-		nil,
+		(*AyatoConfig).applyDefaults,
 	)
+}
+
+// DefaultPort is the listen port used when neither an explicit port
+// (AYATO_PORT / config "port") nor Cloud Run's injected PORT is set.
+const DefaultPort = 8080
+
+// applyDefaults fills in load-time defaults that depend on the ambient
+// environment, keeping cfg.Port a valid port so the server never binds ":0".
+func (c *AyatoConfig) applyDefaults() {
+	c.Port = resolvePort(c.Port, os.Getenv("PORT"))
+}
+
+// resolvePort picks the listen port by precedence: an explicit configured port
+// (AYATO_PORT / config "port") wins; otherwise Cloud Run's injected PORT; else
+// DefaultPort. A non-positive or unparseable value counts as unset so the result
+// is always a usable port.
+func resolvePort(configured int, portEnv string) int {
+	if configured > 0 {
+		return configured
+	}
+	if portEnv != "" {
+		if n, err := strconv.Atoi(portEnv); err == nil && n > 0 {
+			return n
+		}
+	}
+	return DefaultPort
 }
 
 // Validate rejects an OAuth config whose redirect_uri or session-cookie Secure flag
