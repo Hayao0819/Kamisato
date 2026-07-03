@@ -26,9 +26,6 @@ func hookUploadCmd() *cobra.Command {
 		Use:   "upload [pkgname...]",
 		Short: "Upload freshly installed packages to the repo (pacman hook entry point)",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if repo == "" {
-				return errwrap.NewErr("--repo is required")
-			}
 			names := args
 			if len(names) == 0 {
 				names = hook.StdinTargets()
@@ -104,5 +101,6 @@ func hookUploadCmd() *cobra.Command {
 	cmd.Flags().StringArrayVar(&buildDirs, "build-dir", nil, "extra dir(s) holding locally-built packages (e.g. makepkg PKGDEST), searched before the cache")
 	cmd.Flags().BoolVar(&all, "all", false, "upload every target, not just foreign (AUR/local) packages")
 	cmd.Flags().DurationVar(&timeout, "timeout", 120*time.Second, "max time to wait for the upload before failing the hook")
+	_ = cmd.MarkFlagRequired("repo")
 	return cmd
 }

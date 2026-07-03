@@ -1,7 +1,6 @@
 package hookcmd
 
 import (
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
 	sharedhook "github.com/Hayao0819/Kamisato/internal/hookcmd"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/hook"
 	"github.com/spf13/cobra"
@@ -18,11 +17,9 @@ func hookInstallCmd() *cobra.Command {
 			cmd.Flags().StringVar(&repo, "repo", "", "target repository on ayato (required)")
 			cmd.Flags().StringVar(&server, "server", "", "ayato server to bake in (default: server db default at runtime)")
 			cmd.Flags().StringArrayVar(&buildDirs, "build-dir", nil, "dir(s) holding locally-built packages (e.g. makepkg PKGDEST), baked into the hook")
+			_ = cmd.MarkFlagRequired("repo")
 		},
 		BuildExec: func(self, pacmanConf string) (string, error) {
-			if repo == "" {
-				return "", errwrap.NewErr("--repo is required")
-			}
 			// These are baked bare into the hook's Exec line; reject values that
 			// would word-split into injected flags (e.g. a repo of "x --all").
 			toBake := []struct{ name, val string }{{"--repo", repo}, {"--server", server}, {"--pacman-config", pacmanConf}}
