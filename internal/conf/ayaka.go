@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"path/filepath"
 
 	"github.com/Hayao0819/Kamisato/internal/confloader"
 	"github.com/spf13/pflag"
@@ -25,16 +26,28 @@ func (c *AyakaConfig) Marshal() ([]byte, error) {
 	return json.MarshalIndent(c, "", "  ")
 }
 
-func LoadAyakaConfig(flags *pflag.FlagSet) (*AyakaConfig, error) {
-	// migrateLegacy runs as the post-load hook so the deprecated repodir/destdir
-	// are folded into Repos before Validate checks the shape.
+func LoadAyakaConfigFrom(configFile string, flags *pflag.FlagSet) (*AyakaConfig, error) {
+	var files []string
+	if configFile != "" {
+		absPath, err := filepath.Abs(configFile)
+		if err != nil {
+			return nil, err
+		}
+		files = []string{absPath}
+	} else {
+		files = configFileNames("", ".ayakarc")
+	}
 	return confloader.LoadTyped[AyakaConfig](
 		commonConfigDirs(),
-		[]string{".ayakarc.json", ".ayakarc.toml", ".ayakarc.yaml"},
+		files,
 		flags,
 		"AYAKA",
 		(*AyakaConfig).migrateLegacy,
 	)
+}
+
+func LoadAyakaConfig(flags *pflag.FlagSet) (*AyakaConfig, error) {
+	return LoadAyakaConfigFrom("", flags)
 }
 
 // migrateLegacy folds the deprecated top-level repodir/destdir into the repos

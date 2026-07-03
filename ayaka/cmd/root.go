@@ -16,6 +16,7 @@ import (
 	srcinfocmd "github.com/Hayao0819/Kamisato/ayaka/cmd/srcinfo"
 	statuscmd "github.com/Hayao0819/Kamisato/ayaka/cmd/status"
 	submodulescmd "github.com/Hayao0819/Kamisato/ayaka/cmd/submodules"
+	"github.com/Hayao0819/Kamisato/internal/cliutil"
 	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/internal/logging"
 	"github.com/Hayao0819/Kamisato/internal/version"
@@ -25,35 +26,35 @@ import (
 
 func RootCmd() *cobra.Command {
 	cmd := cobra.Command{
-		Use:   "ayaka",
-		Short: "Repository management tool",
-		Long:  "Ayaka is a tool for managing pacman repositories.",
+		Use:           "ayaka",
+		Short:         "Repository management tool",
+		Long:          "Ayaka is a tool for managing pacman repositories.",
+		SilenceUsage:  true,
+		SilenceErrors: true,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			c, err := conf.LoadAyakaConfig(cmd.Flags())
+			configFile, _ := cmd.Flags().GetString("config")
+			c, err := conf.LoadAyakaConfigFrom(configFile, cmd.Flags())
 			if err != nil {
 				return err
 			}
 
+			level := slog.LevelInfo
 			if c.Debug {
-				logging.UseColorLog(slog.LevelDebug)
-			} else {
-				logging.UseColorLog(slog.LevelInfo)
+				level = slog.LevelDebug
 			}
+			logging.Setup(level, cliutil.ColorEnabled(cmd))
 
 			app, err := shared.NewApp(c)
 			if err != nil {
 				return err
 			}
 			cmd.SetContext(shared.WithApp(cmd.Context(), app))
-
 			return nil
 		},
-		SilenceUsage: true,
-		CompletionOptions: cobra.CompletionOptions{
-			HiddenDefaultCmd: true,
-		},
-		SilenceErrors: true,
 	}
+
+	cliutil.SetVersion(&cmd)
+	cliutil.AddNoColorFlag(&cmd)
 
 	subCmds := cobrautils.Registory{}
 	subCmds.Add(
@@ -73,7 +74,7 @@ func RootCmd() *cobra.Command {
 	)
 	subCmds.Bind(&cmd)
 
-	cmd.PersistentFlags().StringP("repodir", "", "", "Repository directory")
+	cmd.PersistentFlags().StringP("config", "c", "", "Explicit config file path")
 	cmd.PersistentFlags().BoolP("debug", "d", false, "Enable debug mode")
 
 	return &cmd
