@@ -3,7 +3,6 @@ package admincmd
 import (
 	"context"
 	"fmt"
-	"strconv"
 
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
 	"github.com/Hayao0819/Kamisato/internal/buildclient"
@@ -21,13 +20,7 @@ func adminAddCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			var id int64
-			var login string
-			if n, perr := strconv.ParseInt(args[0], 10, 64); perr == nil && n > 0 {
-				id = n
-			} else {
-				login = args[0]
-			}
+			id, login := parseLoginOrID(args[0])
 			var admin buildclient.Admin
 			err = shared.WithServerAuth(cmd.Context(), srv, func(ctx context.Context, token string) error {
 				var aerr error
