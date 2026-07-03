@@ -2,6 +2,7 @@ package repo
 
 import (
 	"archive/tar"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -18,6 +19,12 @@ import (
 // dbHTTPClient downloads repo databases with a bounded timeout so a slow or
 // hung mirror can't block the caller indefinitely.
 var dbHTTPClient = &http.Client{Timeout: 30 * time.Second}
+
+// ErrRepoNotFound reports that the remote db is absent (HTTP 404): the repo is
+// not configured on the server, or the URL/arch is wrong. It is distinct from a
+// transport failure or a 5xx/auth error so callers can tell a fix-your-config
+// problem from an unreachable server, and never mistake either for an empty repo.
+var ErrRepoNotFound = errors.New("remote repository not found")
 
 type RemoteRepo struct {
 	Name   string
@@ -55,6 +62,9 @@ func RepoFromURL(server string, name string) (*RemoteRepo, error) {
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, fmt.Errorf("%w: %s", ErrRepoNotFound, dburl)
+	}
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("bad status while downloading: %s", resp.Status)
 	}
