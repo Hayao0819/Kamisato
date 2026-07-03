@@ -1,10 +1,6 @@
 package srcinfocmd
 
 import (
-	"os"
-	"os/exec"
-	"path"
-
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
 	"github.com/Hayao0819/Kamisato/internal/errwrap"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
@@ -46,24 +42,8 @@ func Cmd() *cobra.Command {
 					return errwrap.WrapErr(err, "failed to list source directories in "+dir)
 				}
 				for _, d := range srcdirs {
-					gencmd := exec.Command("makepkg", "--printsrcinfo")
-					gencmd.Dir = d
-
-					srcinfoPath := path.Join(d, ".SRCINFO")
-					srcinfoFile, err := os.Create(srcinfoPath)
-					if err != nil {
-						return errwrap.WrapErr(err, "failed to create .SRCINFO in "+d)
-					}
-
-					gencmd.Stdout = srcinfoFile
-					gencmd.Stderr = cmd.ErrOrStderr()
-					err = gencmd.Run()
-					// Close every iteration; otherwise one fd leaks per source dir.
-					if cerr := srcinfoFile.Close(); err == nil {
-						err = cerr
-					}
-					if err != nil {
-						return errwrap.WrapErr(err, "failed to generate .SRCINFO in "+d)
+					if err := repo.GenerateSrcinfo(d, cmd.ErrOrStderr()); err != nil {
+						return err
 					}
 					cmd.Println("Updated SRCINFO file:", d)
 				}
