@@ -2,7 +2,6 @@ package initcmd
 
 import (
 	"os"
-	"path"
 	"path/filepath"
 
 	"github.com/Hayao0819/Kamisato/internal/conf"
@@ -13,12 +12,11 @@ import (
 func Cmd() *cobra.Command {
 
 	targetDir := "."
-	reponame := "myrepo"
-	outDir := ""
-	maintainer := "John Smith <john@example.com>"
+
+	var repoName, maintainer, destDir string
 
 	cmd := cobra.Command{
-		Use:   "init [target directory]",
+		Use:   "init [dir]",
 		Short: "Initialize ayaka repository",
 		Long:  "Initializes the Ayaka configuration file.",
 		Args:  cobra.MaximumNArgs(1),
@@ -29,7 +27,7 @@ func Cmd() *cobra.Command {
 
 			if contents, err := os.ReadDir(targetDir); err != nil {
 				if os.IsNotExist(err) {
-					if err := os.MkdirAll(targetDir, 0755); err != nil { //nolint:gosec // ayaka init scaffolds a publishable pacman repo workspace (world-readable by convention)
+					if err := os.MkdirAll(targetDir, 0755); err != nil {
 						return errwrap.WrapErr(err, "failed to create target directory")
 					}
 				} else {
@@ -47,24 +45,24 @@ func Cmd() *cobra.Command {
 				return errwrap.WrapErr(err, "failed to resolve target directory")
 			}
 
-			if outDir == "" {
-				outDir = path.Join(targetDir, "out")
+			if destDir == "" {
+				destDir = filepath.Join(targetDir, "out")
 			}
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ayakarcPath := path.Join(targetDir, ".ayakarc.json")
-			repoDir := path.Join(targetDir, reponame)
+			ayakarcPath := filepath.Join(targetDir, ".ayakarc.json")
+			repoDir := filepath.Join(targetDir, repoName)
 
 			relRepoDirFromAyakarc, err := filepath.Rel(filepath.Dir(ayakarcPath), repoDir)
 			if err != nil {
-				cmd.PrintErrf("filepath.Rel(%s, %s) = %s, %s\n", path.Dir(ayakarcPath), repoDir, relRepoDirFromAyakarc, err)
+				cmd.PrintErrf("filepath.Rel(%s, %s) = %s, %s\n", filepath.Dir(ayakarcPath), repoDir, relRepoDirFromAyakarc, err)
 				return errwrap.WrapErr(err, "failed to compute repository directory path")
 			}
 
-			relOutDirFromAyakarc, err := filepath.Rel(filepath.Dir(ayakarcPath), outDir)
+			relOutDirFromAyakarc, err := filepath.Rel(filepath.Dir(ayakarcPath), destDir)
 			if err != nil {
-				cmd.PrintErrf("filepath.Rel(%s, %s) = %s, Error(%s)\n", filepath.Dir(ayakarcPath), outDir, relOutDirFromAyakarc, err)
+				cmd.PrintErrf("filepath.Rel(%s, %s) = %s, Error(%s)\n", filepath.Dir(ayakarcPath), destDir, relOutDirFromAyakarc, err)
 				return errwrap.WrapErr(err, "failed to compute output directory path")
 			}
 
@@ -81,20 +79,20 @@ func Cmd() *cobra.Command {
 				return errwrap.WrapErr(err, "failed to marshal ayaka config")
 			}
 
-			if err := os.WriteFile(ayakarcPath, ayakarcBytes, 0644); err != nil { //nolint:gosec // ayaka init scaffolds a publishable pacman repo workspace (world-readable by convention)
+			if err := os.WriteFile(ayakarcPath, ayakarcBytes, 0644); err != nil {
 				return errwrap.WrapErr(err, "failed to write ayaka config")
 			}
 
-			if err := os.MkdirAll(repoDir, 0755); err != nil { //nolint:gosec // ayaka init scaffolds a publishable pacman repo workspace (world-readable by convention)
+			if err := os.MkdirAll(repoDir, 0755); err != nil {
 				return errwrap.WrapErr(err, "failed to create repository directory")
 			}
 
-			if err := os.MkdirAll(outDir, 0755); err != nil { //nolint:gosec // ayaka init scaffolds a publishable pacman repo workspace (world-readable by convention)
+			if err := os.MkdirAll(destDir, 0755); err != nil {
 				return errwrap.WrapErr(err, "failed to create output directory")
 			}
 
 			repoconf := conf.SrcRepoConfig{
-				Name:       reponame,
+				Name:       repoName,
 				Maintainer: maintainer,
 			}
 
@@ -103,20 +101,24 @@ func Cmd() *cobra.Command {
 				return errwrap.WrapErr(err, "failed to marshal repo config")
 			}
 
-			repoconfPath := path.Join(repoDir, "repo.json")
-			if err := os.WriteFile(repoconfPath, repoconfBytes, 0644); err != nil { //nolint:gosec // ayaka init scaffolds a publishable pacman repo workspace (world-readable by convention)
+			repoconfPath := filepath.Join(repoDir, "repo.json")
+			if err := os.WriteFile(repoconfPath, repoconfBytes, 0644); err != nil {
 				return errwrap.WrapErr(err, "failed to write repo config")
 			}
 
 			cmd.Printf("Initialized Ayaka repository in %s\n", targetDir)
 			cmd.Printf("Repository directory: %s\n", repoDir)
-			cmd.Printf("Output directory: %s\n", outDir)
+			cmd.Printf("Output directory: %s\n", destDir)
 			cmd.Printf("Configuration file: %s\n", ayakarcPath)
 
 			return nil
 
 		},
 	}
+
+	cmd.Flags().StringVar(&repoName, "name", "myrepo", "Source repository name")
+	cmd.Flags().StringVar(&maintainer, "maintainer", "", "Repository maintainer")
+	cmd.Flags().StringVar(&destDir, "dest-dir", "", "Destination directory for built packages (default: <dir>/out)")
 
 	return &cmd
 }
