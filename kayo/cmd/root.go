@@ -115,7 +115,7 @@ func run(cmd *cobra.Command, _ []string) error {
 	if err := engine.SetTrustedProxies(nil); err != nil {
 		return errwrap.WrapErr(err, "failed to reset trusted proxies")
 	}
-	engine.GET("/healthz", func(c *gin.Context) { c.String(http.StatusOK, "ok") })
+	engine.GET("/health", func(c *gin.Context) { c.String(http.StatusOK, "ok") })
 	// Approved packages are served from their pinned local repo (variant B);
 	// everything else (/rpc, unmanaged /<pkgbase>.git redirects, /cgit, dumps)
 	// falls through to the aurweb surface.

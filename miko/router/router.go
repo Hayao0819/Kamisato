@@ -11,8 +11,8 @@ import (
 // (ayato is the only caller).
 func SetRoute(e *gin.Engine, h *handler.Handler, v *apikey.Verifier) error {
 	// Health probes carry no API key, so they live outside the /api/unstable group.
-	e.GET("/healthz", func(c *gin.Context) { c.String(200, "ok") })
-	e.GET("/readyz", func(c *gin.Context) { c.JSON(200, gin.H{"ready": true}) })
+	e.GET("/health", func(c *gin.Context) { c.String(200, "ok") })
+	e.GET("/ready", func(c *gin.Context) { c.JSON(200, gin.H{"ready": true}) })
 
 	api := e.Group("/api/unstable")
 	api.Use(v.Middleware())

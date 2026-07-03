@@ -17,6 +17,11 @@ func SetRoute(e *gin.Engine, h *handler.Handler, m *middleware.Middleware) error
 		return errwrap.WrapErr(err, "failed to configure templates")
 	}
 
+	// Health/readiness probes carry no auth and sit outside /api/unstable so
+	// orchestrators (Cloud Run, Kubernetes) can reach them without credentials.
+	e.GET("/health", func(c *gin.Context) { c.String(200, "ok") })
+	e.GET("/ready", func(c *gin.Context) { c.JSON(200, gin.H{"ready": true}) })
+
 	// Reverse proxy to miko. miko holds builds/jobs as the single source of truth,
 	// and ayato just passes through with an API key (clients never reach miko directly).
 	mikoProxy, err := h.MikoProxy()
