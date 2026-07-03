@@ -8,6 +8,7 @@ import (
 	"net/http/httputil"
 	"net/url"
 
+	"github.com/Hayao0819/Kamisato/internal/cliutil"
 	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/internal/errwrap"
 	"github.com/Hayao0819/Kamisato/internal/logging"
@@ -61,10 +62,10 @@ func RootCmd() *cobra.Command {
 			}
 
 			if cfg.Debug {
-				logging.UseColorLog(slog.LevelDebug)
+				logging.Setup(slog.LevelDebug, cliutil.ColorEnabled(cmd))
 				gin.SetMode(gin.DebugMode)
 			} else {
-				logging.UseColorLog(slog.LevelInfo)
+				logging.Setup(slog.LevelInfo, cliutil.ColorEnabled(cmd))
 				gin.SetMode(gin.ReleaseMode)
 			}
 
@@ -132,6 +133,8 @@ func RootCmd() *cobra.Command {
 	cmd.Flags().String("auth-mode", "cookie", "auth delivery mode: cookie (same-origin BFF proxy) or bearer (SPA calls ayato cross-origin with a token)")
 	cmd.Flags().BoolP("debug", "d", false, "Enable debug mode")
 	cmd.Flags().StringP("config", "c", "", "Config file")
+	cliutil.SetVersion(cmd)
+	cliutil.AddNoColorFlag(cmd)
 
 	cmd.AddCommand(version.Command())
 

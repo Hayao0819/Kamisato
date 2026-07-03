@@ -15,6 +15,7 @@ import (
 	"github.com/Hayao0819/Kamisato/ayato/repository"
 	"github.com/Hayao0819/Kamisato/ayato/router"
 	"github.com/Hayao0819/Kamisato/ayato/service"
+	"github.com/Hayao0819/Kamisato/internal/cliutil"
 	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/internal/errwrap"
 	"github.com/Hayao0819/Kamisato/internal/logging"
@@ -43,11 +44,11 @@ func RootCmd() *cobra.Command {
 			}
 
 			if cfg.Debug {
-				logging.UseColorLog(slog.LevelDebug)
+				logging.Setup(slog.LevelDebug, cliutil.ColorEnabled(cmd))
 				slog.Debug("Debug mode enabled")
 				gin.SetMode(gin.DebugMode)
 			} else {
-				logging.UseColorLog(slog.LevelInfo)
+				logging.Setup(slog.LevelInfo, cliutil.ColorEnabled(cmd))
 				gin.SetMode(gin.ReleaseMode)
 			}
 
@@ -156,6 +157,8 @@ func RootCmd() *cobra.Command {
 	}
 	cmd.PersistentFlags().BoolP("debug", "d", false, "Enable debug mode")
 	cmd.PersistentFlags().StringP("config", "c", "", "Config file")
+	cliutil.SetVersion(&cmd)
+	cliutil.AddNoColorFlag(&cmd)
 	cmd.SilenceErrors = true
 	cmd.SilenceUsage = true
 	cmd.AddCommand(aurCmd())
