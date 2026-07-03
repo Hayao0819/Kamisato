@@ -8,6 +8,7 @@ import (
 
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
 	"github.com/Hayao0819/Kamisato/internal/buildclient"
+	"github.com/Hayao0819/Kamisato/internal/cliutil"
 	"github.com/Hayao0819/Kamisato/internal/errwrap"
 	"github.com/spf13/cobra"
 )
@@ -28,7 +29,7 @@ func mikoStatsCmd() *cobra.Command {
 				return errwrap.WrapErr(err, "failed to get stats")
 			}
 
-			format, err := shared.ResolveFormat(cmd, "")
+			format, err := cliutil.ResolveFormat(cmd, "")
 			if err != nil {
 				return err
 			}
@@ -44,7 +45,7 @@ func mikoStatsCmd() *cobra.Command {
 				fmt.Fprintln(out, string(b))
 				return nil
 			case format != "":
-				return shared.RenderList(out, format, buildclient.Stats{}, []buildclient.Stats{*stats})
+				return cliutil.RenderList(out, format, buildclient.Stats{}, []buildclient.Stats{*stats})
 			}
 
 			w := tabwriter.NewWriter(out, 0, 4, 2, ' ', 0)
@@ -57,6 +58,6 @@ func mikoStatsCmd() *cobra.Command {
 			return w.Flush()
 		},
 	}
-	shared.AddFormatFlags(cmd)
+	cliutil.AddFormatFlags(cmd)
 	return cmd
 }

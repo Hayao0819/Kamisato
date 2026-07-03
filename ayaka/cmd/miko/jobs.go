@@ -3,6 +3,7 @@ package mikocmd
 import (
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
 	"github.com/Hayao0819/Kamisato/internal/buildclient"
+	"github.com/Hayao0819/Kamisato/internal/cliutil"
 	"github.com/Hayao0819/Kamisato/internal/errwrap"
 	"github.com/spf13/cobra"
 )
@@ -23,13 +24,13 @@ func mikoJobsCmd() *cobra.Command {
 				return errwrap.WrapErr(err, "failed to list jobs")
 			}
 
-			format, err := shared.ResolveFormat(cmd, jobTableFormat)
+			format, err := cliutil.ResolveFormat(cmd, jobTableFormat)
 			if err != nil {
 				return err
 			}
-			return shared.RenderList(cmd.OutOrStdout(), format, jobHeader, jobs)
+			return cliutil.RenderList(cmd.OutOrStdout(), format, jobHeader, jobs)
 		},
 	}
-	shared.AddFormatFlags(cmd)
+	cliutil.AddFormatFlags(cmd)
 	return cmd
 }

@@ -11,7 +11,7 @@ func Cmd() *cobra.Command {
 		Short: "Manage ayato admin allowlist",
 		Long:  "List, add, and remove ayato admins. Requires a logged-in server with a CLI token.",
 	}
-	shared.AddServerFlag(cmd)
+	shared.AddPersistentServerFlag(cmd)
 
 	cmd.AddCommand(adminListCmd(), adminAddCmd(), adminRemoveCmd())
 	return cmd

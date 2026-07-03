@@ -8,12 +8,19 @@ import (
 // AyatoServer is a resolved ayato endpoint: base URL plus credentials from the blinky server database.
 type AyatoServer = blinkyutils.ServerInfo
 
-// AddServerFlag registers the shared --server selection flag. One helper keeps
-// the flag name, -s shorthand, and help text identical across every command that
-// targets an ayato server, whether a leaf command or a group root whose children
-// inherit it.
+const serverFlagHelp = "ayato server (default: serverdb default)"
+
+// AddServerFlag registers the shared --server selection flag on a leaf command.
+// One helper keeps the flag name, -s shorthand, and help text identical across
+// every command that targets an ayato server.
 func AddServerFlag(cmd *cobra.Command) {
-	cmd.PersistentFlags().StringP("server", "s", "", "ayato server (default: serverdb default)")
+	cmd.Flags().StringP("server", "s", "", serverFlagHelp)
+}
+
+// AddPersistentServerFlag is AddServerFlag for group roots whose children
+// inherit the flag.
+func AddPersistentServerFlag(cmd *cobra.Command) {
+	cmd.PersistentFlags().StringP("server", "s", "", serverFlagHelp)
 }
 
 // ServerFromFlag reads --server and resolves it through ResolveAyatoServer. This

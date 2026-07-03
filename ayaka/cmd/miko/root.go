@@ -14,7 +14,7 @@ func Cmd() *cobra.Command {
 		Short: "Submit and inspect builds on the miko build service",
 		Long:  "Submit build jobs to miko (via ayato) and inspect their status and logs.",
 	}
-	shared.AddServerFlag(cmd)
+	shared.AddPersistentServerFlag(cmd)
 	cmd.AddCommand(
 		mikoBuildCmd(),
 		mikoJobsCmd(),
