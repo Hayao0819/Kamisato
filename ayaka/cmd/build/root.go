@@ -16,18 +16,18 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// Cmd builds in a clean local chroot by default; --remote submits to miko (via
-// ayato) through the same path as `ayaka miko build`.
+// Cmd builds packages locally in a clean chroot. Use `ayaka miko build` to
+// submit to the remote miko build service.
 func Cmd() *cobra.Command {
+	var sign bool
 	var gpgkey string
 	var diffMode bool
 	var repo string
-	var remote bool
 	var executor string
 	var arch string
 	cmd := cobra.Command{
-		Use:   "build <repo> [packages...]",
-		Short: "Build packages locally (--diff for diff build, --remote to build on miko)",
+		Use:   "build <srcrepo> [pkgname...]",
+		Short: "Build packages locally (--diff to build only changed packages)",
 		Args:  cobra.MinimumNArgs(1),
 		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 			app := shared.AppFrom(cmd)
@@ -56,14 +56,11 @@ func Cmd() *cobra.Command {
 				return errwrap.WrapErr(shared.ErrInvalidRepoName, repo)
 			}
 
-			// In remote mode signing happens on miko, so skip the local key
-			// check here.
-			if remote {
+			if !sign || diffMode {
 				return nil
 			}
-
-			if gpgkey == "" || diffMode {
-				return nil
+			if gpgkey == "" {
+				return errwrap.NewErr("--sign requires --key <gpg-key-id>")
 			}
 			slog.Info("Verifying GPG key", "key", gpgkey)
 			tmpDir, err := os.MkdirTemp("", "ayaka-")
@@ -90,14 +87,6 @@ func Cmd() *cobra.Command {
 				buildPkgs = args[1:]
 			}
 
-			if remote {
-				return build.RunRemoteBuild(cmd.Context(), build.RemoteBuildOpts{
-					Repo:   repo,
-					Server: server,
-					Pkgs:   buildPkgs,
-				})
-			}
-
 			app := shared.AppFrom(cmd)
 			srcrepo := app.GetSrcRepo(repo)
 			if srcrepo == nil {
@@ -116,16 +105,18 @@ func Cmd() *cobra.Command {
 			if err != nil {
 				return errwrap.WrapErr(err, "failed to get clean package binaries")
 			}
-			// The downloaded files are injected during the build, so keep them
-			// until it finishes.
 			defer func() { _ = cleanup.Close() }()
 
 			slog.Info("Creating build target", "arch", srcrepo.Config.ArchBuild, "installpkgs", pkgs)
 
+			var signKey string
+			if sign {
+				signKey = gpgkey
+			}
 			buildTarget := builder.Target{
 				Arch:        arch,
 				ArchBuild:   srcrepo.Config.ArchBuild,
-				SignKey:     gpgkey,
+				SignKey:     signKey,
 				InstallPkgs: append(srcrepo.Config.InstallPkgs.Files, pkgs...),
 				Executor:    builder.Kind(executor),
 			}
@@ -134,7 +125,6 @@ func Cmd() *cobra.Command {
 				server = srcrepo.Config.Server
 			}
 			outDir := path.Join(destDir, srcrepo.Config.Name)
-			// Repo and Diff both append the arch subdir; this is where they write.
 			writeDir := path.Join(outDir, buildTarget.Arch)
 
 			if diffMode {
@@ -158,18 +148,11 @@ func Cmd() *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().StringVarP(&gpgkey, "key", "g", "", "GPG key for package signing")
-	// --gpgkey is the original spelling, kept as a deprecated alias for --key.
-	// Both bind to the same value.
-	cmd.Flags().StringVar(&gpgkey, "gpgkey", "", "Deprecated: use --key")
-	_ = cmd.Flags().MarkDeprecated("gpgkey", "use --key instead")
+	cmd.Flags().BoolVar(&sign, "sign", false, "Sign built packages with the GPG key specified by --key")
+	cmd.Flags().StringVar(&gpgkey, "key", "", "GPG key ID for package signing (requires --sign)")
 	cmd.Flags().BoolVar(&diffMode, "diff", false, "Enable diff build mode (build only new packages)")
 	shared.AddServerFlag(&cmd)
-	cmd.Flags().BoolVar(&remote, "remote", false, "Build on miko (via ayato) instead of locally")
 	cmd.Flags().StringVar(&executor, "executor", "chroot", "Local build backend: chroot or container")
 	cmd.Flags().StringVar(&arch, "arch", "x86_64", "Target architecture for the build")
-	// Remote builds run on miko and have no diff mode; reject the combination
-	// instead of silently ignoring --diff.
-	cmd.MarkFlagsMutuallyExclusive("remote", "diff")
 	return &cmd
 }
