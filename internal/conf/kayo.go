@@ -10,12 +10,11 @@ import (
 )
 
 // KayoConfig configures the kayo local AUR overlay daemon. kayo serves an
-// aurweb-compatible API on Port, resolving packages from trusted git overlays
+// aurweb-compatible API on Addr, resolving packages from trusted git overlays
 // first and falling through to the real AUR.
 type KayoConfig struct {
 	Debug bool   `koanf:"debug"`
-	Port  int    `koanf:"port"`
-	Bind  string `koanf:"bind"` // listen address; default 127.0.0.1 (loopback only)
+	Addr  string `koanf:"addr"` // listen address (host:port); default :10713
 
 	// CacheDir holds the cloned overlay working trees. Defaults to
 	// $XDG_CACHE_HOME/kayo (or ~/.cache/kayo).
@@ -93,8 +92,8 @@ func LoadKayoConfig(flags *pflag.FlagSet, configFile string) (*KayoConfig, error
 		flags,
 		"KAYO",
 		func(c *KayoConfig) {
-			if c.Port == 0 {
-				c.Port = 10713
+			if c.Addr == "" {
+				c.Addr = ":10713"
 			}
 		},
 	)

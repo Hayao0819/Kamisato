@@ -1,18 +1,16 @@
 package conf
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 )
 
 func (c *KayoConfig) ListenAddr() string {
-	bind := c.Bind
-	if bind == "" {
-		bind = "127.0.0.1"
+	if c.Addr != "" {
+		return c.Addr
 	}
-	return fmt.Sprintf("%s:%d", bind, c.Port)
+	return ":10713"
 }
 
 func (c *KayoConfig) ResolvedCacheDir() string {

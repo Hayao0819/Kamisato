@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/Hayao0819/Kamisato/internal/cliutil"
 	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/internal/errwrap"
 	"github.com/Hayao0819/Kamisato/internal/logging"
@@ -35,7 +36,9 @@ func RootCmd() *cobra.Command {
 	}
 	cmd.PersistentFlags().BoolP("debug", "d", false, "Enable debug mode")
 	cmd.PersistentFlags().StringP("config", "c", "", "Config file")
-	cmd.Flags().IntP("port", "p", 0, "Listen port (default 10713)")
+	cmd.Flags().String("addr", "", "Listen address (host:port, default :10713)")
+	cliutil.SetVersion(&cmd)
+	cliutil.AddNoColorFlag(&cmd)
 	cmd.SilenceErrors = true
 	cmd.SilenceUsage = true
 	cmd.AddCommand(auditCmd(), trustcmd.Cmd(), updateCmd(), verifyCmd(), hookcmd.Cmd(), ayatocmd.Cmd(), version.Command())
@@ -54,10 +57,10 @@ func run(cmd *cobra.Command, _ []string) error {
 	}
 
 	if cfg.Debug {
-		logging.UseColorLog(slog.LevelDebug)
+		logging.Setup(slog.LevelDebug, cliutil.ColorEnabled(cmd))
 		gin.SetMode(gin.DebugMode)
 	} else {
-		logging.UseColorLog(slog.LevelInfo)
+		logging.Setup(slog.LevelInfo, cliutil.ColorEnabled(cmd))
 		gin.SetMode(gin.ReleaseMode)
 	}
 

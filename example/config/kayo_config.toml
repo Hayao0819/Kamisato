@@ -6,8 +6,7 @@
 #   paru.conf:  AurUrl = http://localhost:10713
 #   yay:        yay --aururl http://localhost:10713 --aurrpcurl http://localhost:10713/rpc?
 
-port = 10713
-bind = "0.0.0.0"                 # reachable through the compose port mapping
+addr = "0.0.0.0:10713"           # reachable through the compose port mapping
 cache_dir = "/data/cache"        # cloned overlay working trees
 trust_store = "/data/trust.json" # durable; federated-ayato key pins live beside it
 refresh_minutes = 30

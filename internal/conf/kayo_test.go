@@ -19,7 +19,7 @@ func testPubKey(t *testing.T) string {
 func kayoWith(a AyatoSource) *KayoConfig {
 	// An explicit TrustStore keeps these per-source checks independent of the
 	// ambient user-config-dir guard.
-	return &KayoConfig{Port: 10713, TrustStore: "/tmp/kayo-test/trust.json", Ayato: []AyatoSource{a}}
+	return &KayoConfig{Addr: ":10713", TrustStore: "/tmp/kayo-test/trust.json", Ayato: []AyatoSource{a}}
 }
 
 func TestAyatoSourceValidate(t *testing.T) {
@@ -60,13 +60,13 @@ func TestAyatoTrustStoreGuard(t *testing.T) {
 	// refuse rather than drop pins into a world-writable temp path.
 	t.Setenv("XDG_CONFIG_HOME", "")
 	t.Setenv("HOME", "")
-	if err := (&KayoConfig{Port: 10713, Ayato: []AyatoSource{src}}).Validate(); err == nil {
+	if err := (&KayoConfig{Addr: ":10713", Ayato: []AyatoSource{src}}).Validate(); err == nil {
 		t.Error("ayato + no durable trust_store should be refused")
 	}
-	if err := (&KayoConfig{Port: 10713, TrustStore: "/srv/kayo/trust.json", Ayato: []AyatoSource{src}}).Validate(); err != nil {
+	if err := (&KayoConfig{Addr: ":10713", TrustStore: "/srv/kayo/trust.json", Ayato: []AyatoSource{src}}).Validate(); err != nil {
 		t.Errorf("explicit trust_store should be accepted: %v", err)
 	}
-	if err := (&KayoConfig{Port: 10713}).Validate(); err != nil {
+	if err := (&KayoConfig{Addr: ":10713"}).Validate(); err != nil {
 		t.Errorf("no ayato sources should not trip the guard: %v", err)
 	}
 }
@@ -90,5 +90,22 @@ func TestAyatoSourceDelegated(t *testing.T) {
 	}
 	if (AyatoSource{PubKey: pub}).Delegated() {
 		t.Error("review (default) must not delegate")
+	}
+}
+
+func TestListenAddr(t *testing.T) {
+	tests := []struct {
+		addr string
+		want string
+	}{
+		{"", ":10713"},
+		{":10713", ":10713"},
+		{"0.0.0.0:10713", "0.0.0.0:10713"},
+		{":9999", ":9999"},
+	}
+	for _, tt := range tests {
+		if got := (&KayoConfig{Addr: tt.addr}).ListenAddr(); got != tt.want {
+			t.Errorf("ListenAddr(%q) = %q, want %q", tt.addr, got, tt.want)
+		}
 	}
 }
