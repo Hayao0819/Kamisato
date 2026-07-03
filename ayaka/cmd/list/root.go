@@ -2,6 +2,7 @@ package listcmd
 
 import (
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
+	"github.com/Hayao0819/Kamisato/internal/cliutil"
 	"github.com/Hayao0819/Kamisato/internal/errwrap"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
 	"github.com/spf13/cobra"
@@ -10,11 +11,9 @@ import (
 // Cmd lists source packages with their versions and build status; columns are
 // selectable with a Docker-style --format template.
 func Cmd() *cobra.Command {
-	var format string
-
 	cmd := cobra.Command{
-		Use:   "list [repo]",
-		Short: "List source packages with their versions and build status",
+		Use:   "list [<srcrepo>]",
+		Short: "List source packages in a source repository (.ayakarc)",
 		Long: "List source packages as a table.\n\n" +
 			"Columns are chosen with a Go template via --format, like docker:\n" +
 			"  ayaka list --format 'table {{.Package}}\\t{{.Local}}\\t{{.Remote}}'\n" +
@@ -43,15 +42,16 @@ func Cmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if format == "" {
-				format = shared.DefaultListFormat
+			format, err := cliutil.ResolveFormat(cmd, shared.DefaultListFormat)
+			if err != nil {
+				return err
 			}
 			rows := shared.BuildPkgRows(repos, format, server)
 			return renderRows(cmd.OutOrStdout(), format, rows)
 		},
 	}
 
-	cmd.Flags().StringVar(&format, "format", "", "Format the output with a Go template (Docker-style; 'table ...' or 'json')")
+	cliutil.AddFormatFlags(&cmd)
 	shared.AddServerFlag(&cmd)
 	return &cmd
 }
