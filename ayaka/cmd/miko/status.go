@@ -10,7 +10,7 @@ import (
 
 func mikoStatusCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "status <id>",
+		Use:   "status <job-id>",
 		Short: "Show the status of a build job",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

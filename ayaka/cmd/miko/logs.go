@@ -1,8 +1,6 @@
 package mikocmd
 
 import (
-	"os"
-
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
 	"github.com/Hayao0819/Kamisato/internal/buildclient"
 	"github.com/Hayao0819/Kamisato/internal/errwrap"
@@ -11,7 +9,7 @@ import (
 
 func mikoLogsCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "logs <id>",
+		Use:   "logs <job-id>",
 		Short: "Stream logs from a build job",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -20,7 +18,7 @@ func mikoLogsCmd() *cobra.Command {
 				return err
 			}
 
-			if err := buildclient.StreamLogs(cmd.Context(), srv.URL, srv.Password, args[0], os.Stdout); err != nil {
+			if err := buildclient.StreamLogs(cmd.Context(), srv.URL, srv.Password, args[0], cmd.OutOrStdout()); err != nil {
 				return errwrap.WrapErr(err, "failed to stream logs")
 			}
 			return nil

@@ -11,7 +11,7 @@ import (
 
 func mikoCancelCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "cancel <id>",
+		Use:   "cancel <job-id>",
 		Short: "Cancel a queued or running build job",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -24,7 +24,7 @@ func mikoCancelCmd() *cobra.Command {
 				return errwrap.WrapErr(err, "failed to cancel job")
 			}
 
-			fmt.Printf("cancelled job %s\n", args[0])
+			fmt.Fprintf(cmd.OutOrStdout(), "cancelled job %s\n", args[0])
 			return nil
 		},
 	}
