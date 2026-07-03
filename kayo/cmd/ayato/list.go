@@ -1,17 +1,28 @@
 package ayatocmd
 
 import (
-	"fmt"
 	"time"
 
+	"github.com/Hayao0819/Kamisato/internal/cliutil"
 	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/kayo/ayatosrc"
 	"github.com/Hayao0819/Kamisato/kayo/cmd/shared"
 	"github.com/spf13/cobra"
 )
 
+const ayatoListDefaultFmt = "table {{.Kind}}\t{{.Name}}\t{{.URL}}\t{{.Mode}}\t{{.KeyID}}\t{{.LastIssued}}"
+
+type ayatoRow struct {
+	Kind       string `json:"kind"`
+	Name       string `json:"name"`
+	URL        string `json:"url,omitempty"`
+	Mode       string `json:"mode,omitempty"`
+	KeyID      string `json:"key_id,omitempty"`
+	LastIssued string `json:"last_issued,omitempty"`
+}
+
 func ayatoListCmd() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "list",
 		Short: "List configured ayato sources and pinned keys",
 		Args:  cobra.NoArgs,
@@ -25,18 +36,25 @@ func ayatoListCmd() *cobra.Command {
 				return err
 			}
 
-			out := cmd.OutOrStdout()
-			fmt.Fprintln(out, "sources:")
+			format, err := cliutil.ResolveFormat(cmd, ayatoListDefaultFmt)
+			if err != nil {
+				return err
+			}
+
+			var rows []ayatoRow
 			for _, a := range cfg.Ayato {
-				fmt.Fprintf(out, "  %s\t%s\t[%s]\n", a.Name, a.URL, sourceMode(a))
+				rows = append(rows, ayatoRow{Kind: "source", Name: a.Name, URL: a.URL, Mode: sourceMode(a)})
 			}
-			fmt.Fprintln(out, "pins:")
 			for _, p := range pins.Entries() {
-				fmt.Fprintf(out, "  %s\tkey_id %s\tlast_issued %s\n", p.Name, keyOrDash(p.KeyID), watermark(p.LastIssued))
+				rows = append(rows, ayatoRow{Kind: "pin", Name: p.Name, KeyID: keyOrDash(p.KeyID), LastIssued: watermark(p.LastIssued)})
 			}
-			return nil
+
+			header := ayatoRow{Kind: "KIND", Name: "NAME", URL: "URL", Mode: "MODE", KeyID: "KEY_ID", LastIssued: "LAST_ISSUED"}
+			return cliutil.RenderList(cmd.OutOrStdout(), format, header, rows)
 		},
 	}
+	cliutil.AddFormatFlags(cmd)
+	return cmd
 }
 
 func sourceMode(a conf.AyatoSource) string {

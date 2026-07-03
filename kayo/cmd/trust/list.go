@@ -1,15 +1,24 @@
 package trustcmd
 
 import (
-	"fmt"
-
+	"github.com/Hayao0819/Kamisato/internal/cliutil"
 	"github.com/Hayao0819/Kamisato/kayo/cmd/shared"
 	"github.com/Hayao0819/Kamisato/kayo/trust"
 	"github.com/spf13/cobra"
 )
 
+const trustListDefaultFmt = "table {{.Kind}}\t{{.Name}}\t{{.Source}}\t{{.Maintainer}}\t{{.Commit}}"
+
+type trustRow struct {
+	Kind       string `json:"kind"`
+	Name       string `json:"name"`
+	Source     string `json:"source,omitempty"`
+	Maintainer string `json:"maintainer,omitempty"`
+	Commit     string `json:"commit,omitempty"`
+}
+
 func trustListCmd() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "list",
 		Short: "List trusted maintainers and approved packages",
 		Args:  cobra.NoArgs,
@@ -23,20 +32,26 @@ func trustListCmd() *cobra.Command {
 				return err
 			}
 
-			out := cmd.OutOrStdout()
-			fmt.Fprintln(out, "maintainers:")
+			format, err := cliutil.ResolveFormat(cmd, trustListDefaultFmt)
+			if err != nil {
+				return err
+			}
+
+			var rows []trustRow
 			for _, m := range store.Maintainers() {
-				fmt.Fprintf(out, "  %s/%s\n", m.Source, m.Account)
+				rows = append(rows, trustRow{Kind: "maintainer", Name: m.Account, Source: m.Source})
 			}
-			fmt.Fprintln(out, "packages:")
 			for _, a := range store.Approvals() {
-				fmt.Fprintf(out, "  %s @ %s (maintainer %q, source %s)\n", a.Pkgbase, shared.Short(a.Commit), a.Maintainer, a.Source)
+				rows = append(rows, trustRow{Kind: "package", Name: a.Pkgbase, Source: a.Source, Maintainer: a.Maintainer, Commit: shared.Short(a.Commit)})
 			}
-			fmt.Fprintln(out, "whitelist:")
 			for _, w := range store.WhitelistEntries() {
-				fmt.Fprintf(out, "  %s\n", w.Pkgbase)
+				rows = append(rows, trustRow{Kind: "whitelist", Name: w.Pkgbase})
 			}
-			return nil
+
+			header := trustRow{Kind: "KIND", Name: "NAME", Source: "SOURCE", Maintainer: "MAINTAINER", Commit: "COMMIT"}
+			return cliutil.RenderList(cmd.OutOrStdout(), format, header, rows)
 		},
 	}
+	cliutil.AddFormatFlags(cmd)
+	return cmd
 }
