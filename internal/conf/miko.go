@@ -46,12 +46,24 @@ type MikoConfig struct {
 		Username string `koanf:"username"`
 		Password string `koanf:"password"`
 	} `koanf:"ayato"`
-	// Signing configures the worker host signing key. KeyDir defaults to
-	// <data_dir>/keys; empty (with no data_dir) disables host signing.
+	// Signing configures package signing. KeyDir defaults to <data_dir>/keys;
+	// empty (with no data_dir) disables host signing.
 	Signing struct {
+		// Mode selects where signing runs: "local" (default) signs inline on the
+		// worker with its host key; "remote" offloads to a dedicated signer service
+		// so the worker holds no private key.
+		Mode   string `koanf:"mode"`
 		KeyDir string `koanf:"key_dir"`
 		Name   string `koanf:"name"`
 		Email  string `koanf:"email"`
+		// Remote is the signer service the worker calls in "remote" mode.
+		Remote struct {
+			// URL is the signer service base URL, e.g. http://miko-signer:8081.
+			URL string `koanf:"url"`
+			// APIKey authenticates the worker to the signer (sent as X-API-Key).
+			// Prefer MIKO_SIGNING_REMOTE_API_KEY over the config file.
+			APIKey string `koanf:"api_key"`
+		} `koanf:"remote"`
 	} `koanf:"signing"`
 	// AURTrust gates which recursively-resolved AUR dependencies may be
 	// auto-built when resolve_aur_deps is on.
@@ -195,6 +207,12 @@ func (c *MikoConfig) applyDefaults() {
 func (c *MikoConfig) Validate() error {
 	if !slices.Contains([]string{"", "container", "chroot", "bwrap"}, c.Executor) {
 		return fmt.Errorf("executor: unknown value %q (want container, chroot or bwrap)", c.Executor)
+	}
+	if !slices.Contains([]string{"", "local", "remote"}, c.Signing.Mode) {
+		return fmt.Errorf("signing.mode: unknown value %q (want local or remote)", c.Signing.Mode)
+	}
+	if c.Signing.Mode == "remote" && c.Signing.Remote.URL == "" {
+		return fmt.Errorf("signing.mode is remote but signing.remote.url is unset")
 	}
 	return nil
 }

@@ -2,12 +2,19 @@ package service
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"testing"
 
 	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/miko/domain"
 )
+
+type failingSigner struct{}
+
+func (failingSigner) Sign(context.Context, string) (string, error) {
+	return "", errors.New("signer unavailable")
+}
 
 type fakePersister struct {
 	mu    sync.Mutex
@@ -71,5 +78,18 @@ func TestSignAndUploadUsesInjectedUploader(t *testing.T) {
 	}
 	if len(fu.uploaded) != 1 || fu.uploaded[0] != [3]string{"extra", "/tmp/foo.pkg.tar.zst", ""} {
 		t.Errorf("uploader received %v, want one unsigned upload to extra", fu.uploaded)
+	}
+}
+
+// A signer failure must fail the publish closed: no package is uploaded unsigned.
+func TestSignAndUploadFailsClosedOnSignerError(t *testing.T) {
+	fu := &fakeUploader{}
+	s := New(&conf.MikoConfig{}, failingSigner{}, nil, fu).(*Service)
+
+	if err := s.signAndUpload(context.Background(), "extra", []string{"/tmp/foo.pkg.tar.zst"}); err == nil {
+		t.Fatal("signAndUpload must fail when the signer errors")
+	}
+	if len(fu.uploaded) != 0 {
+		t.Fatalf("nothing must be uploaded on a signer error, got %v", fu.uploaded)
 	}
 }

@@ -21,10 +21,33 @@ import (
 	"github.com/Hayao0819/Kamisato/miko/handler"
 	"github.com/Hayao0819/Kamisato/miko/router"
 	"github.com/Hayao0819/Kamisato/miko/service"
+	"github.com/Hayao0819/Kamisato/miko/signer"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/sign"
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/cobra"
 )
+
+// buildSigner returns the worker's package signer per config: the local host key
+// signing inline (default), or a remote signer that offloads to a dedicated signer
+// tier so the worker holds no private key.
+func buildSigner(ctx context.Context, cfg *conf.MikoConfig) (sign.Signer, error) {
+	switch cfg.Signing.Mode {
+	case "", "local":
+		return buildHostSigner(ctx, cfg)
+	case "remote":
+		if cfg.Signing.Remote.URL == "" {
+			return nil, errwrap.NewErr("signing.mode is remote but signing.remote.url is unset")
+		}
+		apiKey := cfg.Signing.Remote.APIKey
+		if env := os.Getenv("MIKO_SIGNING_REMOTE_API_KEY"); env != "" {
+			apiKey = env
+		}
+		slog.Info("remote signing enabled", "url", cfg.Signing.Remote.URL)
+		return signer.NewRemoteSigner(cfg.Signing.Remote.URL, apiKey), nil
+	default:
+		return nil, errwrap.NewErrf("signing.mode: unknown value %q (want local or remote)", cfg.Signing.Mode)
+	}
+}
 
 // buildHostSigner loads (or on first boot generates) the worker host signing key.
 // It returns a nil Signer when no key dir is resolvable, leaving signing disabled.
@@ -97,9 +120,9 @@ func RootCmd() *cobra.Command {
 
 			slog.Debug("Configuration loaded", "port", cfg.Port, "debug", cfg.Debug, "executor", cfg.Executor)
 
-			signer, err := buildHostSigner(cmd.Context(), cfg)
+			pkgSigner, err := buildSigner(cmd.Context(), cfg)
 			if err != nil {
-				return errwrap.WrapErr(err, "failed to set up host signing key")
+				return errwrap.WrapErr(err, "failed to set up package signing")
 			}
 
 			var persister service.Persister
@@ -113,7 +136,7 @@ func RootCmd() *cobra.Command {
 			}
 			uploader := service.NewBlinkyUploader(cfg.Ayato.URL, cfg.Ayato.Username, cfg.Ayato.Password)
 
-			s := service.New(cfg, signer, persister, uploader)
+			s := service.New(cfg, pkgSigner, persister, uploader)
 			h := handler.New(s, cfg)
 			verifier := apikey.NewVerifier(cfg.APIKeys)
 
@@ -166,6 +189,7 @@ func RootCmd() *cobra.Command {
 
 	cmd.AddCommand(apikeyCmd())
 	cmd.AddCommand(nvcheckCmd())
+	cmd.AddCommand(signerCmd())
 	cmd.AddCommand(version.Command())
 
 	return &cmd
