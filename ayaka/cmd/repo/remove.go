@@ -7,8 +7,8 @@ import (
 
 func repoRemoveCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "remove <repo> <packages...>",
-		Short: "Remove packages from a repository on ayato",
+		Use:   "remove <repo> <pkgname>...",
+		Short: "Remove packages by name from a binary repository on ayato",
 		Args:  cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			client, err := shared.RepoClient(cmd)

@@ -20,9 +20,9 @@ type statusItem struct {
 
 func Cmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "status [repo]",
-		Short: "Show packages that are out of date or failed to build",
-		Long:  "Show, like git status, which source packages failed to build, are out of date (PKGBUILD ahead of the published package), are building, or were never published.",
+		Use:   "status [<srcrepo>]",
+		Short: "Show build status of packages in a source repository (.ayakarc)",
+		Long:  "Show, like git status, which source packages in a source repository (.ayakarc) failed to build, are out of date (PKGBUILD ahead of the published package), are building, or were never published.",
 		Args:  cobra.MaximumNArgs(1),
 		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 			if len(args) == 0 {

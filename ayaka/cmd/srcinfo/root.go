@@ -14,10 +14,10 @@ import (
 // Cmd regenerates .SRCINFO files; with no argument it covers every configured repository.
 func Cmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "srcinfo [repo]",
+		Use:     "srcinfo [<srcrepo>]",
 		Aliases: []string{"us"},
-		Short:   "Regenerate .SRCINFO files",
-		Long:    "Regenerate .SRCINFO files for the source packages in a repository.",
+		Short:   "Regenerate .SRCINFO files in a source repository (.ayakarc)",
+		Long:    "Regenerate .SRCINFO files for the source packages in a source repository (.ayakarc).",
 		Args:    cobra.MaximumNArgs(1),
 		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 			if len(args) == 0 {

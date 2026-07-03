@@ -7,8 +7,8 @@ import (
 
 func repoAddCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "add <repo> <package_files...>",
-		Short: "Add built packages to a repository on ayato",
+		Use:   "add <repo> <pkgfile>...",
+		Short: "Add package files (*.pkg.tar.*) to a binary repository on ayato",
 		Args:  cobra.MinimumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			client, err := shared.RepoClient(cmd)
