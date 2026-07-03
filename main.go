@@ -5,6 +5,7 @@ import (
 
 	ayaka "github.com/Hayao0819/Kamisato/ayaka/cmd"
 	ayato "github.com/Hayao0819/Kamisato/ayato/cmd"
+	"github.com/Hayao0819/Kamisato/internal/cliutil"
 	"github.com/Hayao0819/Kamisato/internal/version"
 	kayo "github.com/Hayao0819/Kamisato/kayo/cmd"
 	lumine "github.com/Hayao0819/Kamisato/lumine/cmd"
@@ -23,11 +24,10 @@ func rootCmd() *cobra.Command {
 	cmd.AddCommand(miko.RootCmd())
 	cmd.AddCommand(kayo.RootCmd())
 	cmd.AddCommand(version.Command())
+	cliutil.SetVersion(&cmd)
 	return &cmd
 }
 
 func main() {
-	if err := rootCmd().Execute(); err != nil {
-		os.Exit(1)
-	}
+	os.Exit(cliutil.Execute(rootCmd()))
 }

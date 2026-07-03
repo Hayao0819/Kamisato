@@ -2,6 +2,7 @@ package logging
 
 import (
 	"log/slog"
+	"os"
 	"text/template"
 
 	"github.com/m-mizutani/clog"
@@ -23,14 +24,17 @@ var clogLevelFormatter = func(level slog.Level) string {
 	return level.String()
 }
 
-func UseColorLog(level slog.Level) {
+// Setup installs the default slog handler. Logs go to stderr so command output
+// on stdout stays pipeable; color follows the caller's TTY/NO_COLOR decision.
+func Setup(level slog.Level, color bool) {
 	tmpl, err := template.New("default").Parse(clogTemplate)
 	if err != nil {
 		panic(err)
 	}
 
 	h := clog.New(
-		clog.WithColor(true),
+		clog.WithWriter(os.Stderr),
+		clog.WithColor(color),
 		clog.WithLevel(level),
 		clog.WithSource(true),
 		clog.WithLevelFormatter(clogLevelFormatter),
@@ -38,4 +42,10 @@ func UseColorLog(level slog.Level) {
 	)
 	l := slog.New(h)
 	slog.SetDefault(l)
+}
+
+// UseColorLog is the pre-convention entry point; new callers should pass their
+// color decision through Setup.
+func UseColorLog(level slog.Level) {
+	Setup(level, true)
 }
