@@ -15,7 +15,7 @@ import (
 // replica immediately, not just on this machine.
 func RevokeCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "revoke <server_url>",
+		Use:   "revoke <server>",
 		Short: "Revoke the stored CLI token on an ayato server and clear it locally",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -52,7 +52,7 @@ func RevokeCmd() *cobra.Command {
 				return err
 			}
 
-			fmt.Fprintln(cmd.OutOrStdout(), "トークンを失効しました")
+			fmt.Fprintln(cmd.OutOrStdout(), "Token revoked")
 			return nil
 		},
 	}

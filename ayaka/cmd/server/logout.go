@@ -15,7 +15,7 @@ import (
 // token server-side.
 func LogoutCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "logout <server_url>",
+		Use:   "logout <server>",
 		Short: "Clear the stored login for an ayato server",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -41,7 +41,7 @@ func LogoutCmd() *cobra.Command {
 				return err
 			}
 
-			fmt.Fprintln(cmd.OutOrStdout(), "ログアウトしました")
+			fmt.Fprintln(cmd.OutOrStdout(), "Logged out")
 			return nil
 		},
 	}

@@ -15,9 +15,12 @@ import (
 // and stores the issued CLI token. --token skips the browser for headless use.
 func LoginCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "login <server_url>",
-		Short: "Log into an ayato server via GitHub in your browser",
+		Use:   "login <server>",
+		Short: "Log in to an ayato server via GitHub OAuth",
 		Args:  cobra.ExactArgs(1),
+		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			serverURL := args[0]
 
@@ -66,7 +69,7 @@ func LoginCmd() *cobra.Command {
 			if err := saveLogin(serverURL, loginName, token, refresh, setDefault); err != nil {
 				return err
 			}
-			fmt.Fprintf(cmd.OutOrStdout(), "%s として %s にログインしました\n", loginName, serverURL)
+			fmt.Fprintf(cmd.OutOrStdout(), "Logged in to %s as %s\n", serverURL, loginName)
 			return nil
 		},
 	}

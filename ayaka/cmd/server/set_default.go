@@ -9,8 +9,8 @@ import (
 
 func SetDefaultCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "set-default <name>",
-		Short: "Set default server",
+		Use:   "set-default <server>",
+		Short: "Set the default ayato server",
 		Args:  cobra.ExactArgs(1),
 		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 			return blinkyutils.ServerNames(toComplete), cobra.ShellCompDirectiveNoFileComp

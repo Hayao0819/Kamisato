@@ -7,8 +7,8 @@ import (
 
 func RemoveCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "remove <name>",
-		Short: "Remove a server",
+		Use:   "remove <server>",
+		Short: "Remove a server from the local registry",
 		Args:  cobra.ExactArgs(1),
 		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 			return blinkyutils.ServerNames(toComplete), cobra.ShellCompDirectiveNoFileComp
