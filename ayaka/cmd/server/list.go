@@ -1,27 +1,33 @@
 package servercmd
 
 import (
-	"encoding/json"
 	"fmt"
-	"os"
 	"sort"
 	"strings"
 
 	"github.com/Hayao0819/Kamisato/internal/blinkyutils"
+	"github.com/Hayao0819/Kamisato/internal/cliutil"
 	"github.com/spf13/cobra"
 )
+
+type serverRow struct {
+	Name     string `json:"name"`
+	Username string `json:"username"`
+	Default  bool   `json:"default"`
+	Secret   string `json:"secret,omitempty"`
+}
+
+const serverListDefaultFmt = `{{if .Default}}* {{else}}  {{end}}{{.Name}}{{if .Username}} ({{.Username}}{{if .Secret}}:{{.Secret}}{{end}}){{end}}`
 
 func ListCmd() *cobra.Command {
 	var (
 		showSecret bool
-		showRaw    bool
-		format     string
 		search     string
 	)
 
 	cmd := &cobra.Command{
-		Use:   "list [server_name...]",
-		Short: "List ayato servers",
+		Use:   "list [<server>...]",
+		Short: "List registered ayato servers",
 		Args:  cobra.ArbitraryArgs,
 		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 			return blinkyutils.ServerNames(toComplete), cobra.ShellCompDirectiveNoFileComp
@@ -43,56 +49,35 @@ func ListCmd() *cobra.Command {
 				serverNames = args
 			}
 
+			rows := make([]serverRow, 0, len(serverNames))
 			for _, name := range serverNames {
 				server, ok := db.Servers[name]
 				if !ok {
-					fmt.Fprintf(os.Stderr, "server not found: %s\n", name)
+					fmt.Fprintf(cmd.ErrOrStderr(), "server not found: %s\n", name)
 					continue
 				}
-				prefix := "  "
-				if db.DefaultServer == name {
-					prefix = "* "
+				row := serverRow{
+					Name:     name,
+					Username: server.Username,
+					Default:  db.DefaultServer == name,
 				}
-				if showRaw || format == "json" {
-					// The password stays behind --show-secret in every format, so
-					// piping list output to a file or a script never leaks it. The
-					// live secret may live in the OS keyring, so resolve it there.
-					out := server
-					if showSecret {
-						out.Password = blinkyutils.LoadSecret(name, server.Password)
-					} else {
-						out.Password = ""
-					}
-					var b []byte
-					if showRaw {
-						b, _ = json.MarshalIndent(out, "", "  ") //nolint:gosec // G117: Password is redacted above unless --show-secret is explicit
-					} else {
-						b, _ = json.Marshal(out) //nolint:gosec // G117: Password is redacted above unless --show-secret is explicit
-					}
-					fmt.Printf("%s%s: %s\n", prefix, name, string(b))
-				} else {
-					var line strings.Builder
-					line.WriteString(prefix)
-					line.WriteString(name)
-					if server.Username != "" {
-						line.WriteString(" (")
-						line.WriteString(server.Username)
-						if secret := blinkyutils.LoadSecret(name, server.Password); showSecret && secret != "" {
-							line.WriteString(":" + secret)
-						}
-						line.WriteString(")")
-					}
-					fmt.Println(line.String())
+				if showSecret {
+					row.Secret = blinkyutils.LoadSecret(name, server.Password)
 				}
+				rows = append(rows, row)
 			}
-			return nil
+
+			format, err := cliutil.ResolveFormat(cmd, serverListDefaultFmt)
+			if err != nil {
+				return err
+			}
+			return cliutil.RenderList(cmd.OutOrStdout(), format, serverRow{}, rows)
 		},
 	}
 
-	cmd.Flags().BoolVarP(&showSecret, "show-secret", "s", false, "show server password")
-	cmd.Flags().BoolVar(&showRaw, "raw", false, "show raw server config (json)")
-	cmd.Flags().StringVar(&format, "format", "", "output format (json)")
-	cmd.Flags().StringVar(&search, "search", "", "search server name (substring)")
+	cmd.Flags().BoolVar(&showSecret, "show-secret", false, "Show stored password in output")
+	cmd.Flags().StringVar(&search, "search", "", "Filter servers by name substring")
+	cliutil.AddFormatFlags(cmd)
 
 	return cmd
 }
