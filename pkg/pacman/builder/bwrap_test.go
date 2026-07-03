@@ -17,7 +17,7 @@ func TestNewBwrapBackend(t *testing.T) {
 }
 
 func TestBwrapArgsOverlayAndUID(t *testing.T) {
-	joined := strings.Join(bwrapArgs("/rootfs", "/s/upper", "/s/work", "/work/pkg", "0", "echo hi", nil), " ")
+	joined := strings.Join(bwrapArgs("/rootfs", "/s/upper", "/s/work", "/work/pkg", "", "0", "echo hi", nil), " ")
 	for _, want := range []string{
 		"--unshare-user", "--uid 0 --gid 0",
 		"--overlay-src /rootfs --overlay /s/upper /s/work /",
@@ -26,6 +26,14 @@ func TestBwrapArgsOverlayAndUID(t *testing.T) {
 		if !strings.Contains(joined, want) {
 			t.Errorf("bwrapArgs missing %q in %q", want, joined)
 		}
+	}
+	if strings.Contains(joined, "/var/cache/pacman/pkg") {
+		t.Errorf("empty cacheDir should not bind a package cache: %q", joined)
+	}
+	// With a cache dir set, it is bind-mounted at the pacman cache path.
+	withCache := strings.Join(bwrapArgs("/rootfs", "/s/upper", "/s/work", "/work/pkg", "/pkgcache", "0", "echo hi", nil), " ")
+	if !strings.Contains(withCache, "--bind /pkgcache /var/cache/pacman/pkg") {
+		t.Errorf("cacheDir not bound: %q", withCache)
 	}
 }
 

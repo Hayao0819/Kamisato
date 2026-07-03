@@ -73,7 +73,8 @@ type Options struct {
 	// default socket.
 	DockerHost string
 	// PacmanCacheDir, when set, is bind-mounted at /var/cache/pacman/pkg by the
-	// container backend to persist packages across builds (chroot ignores it).
+	// container and bwrap backends to persist packages across builds and resume
+	// interrupted downloads (chroot ignores it).
 	PacmanCacheDir string
 	// CcacheDir, when set, is bind-mounted at /build/ccache by the container
 	// backend to persist a compiler cache across builds (chroot ignores it).

@@ -44,10 +44,11 @@ type bwrapBackend struct {
 	rootfs     string
 	timeout    time.Duration
 	extraRepos []RepoSpec
+	cacheDir   string
 }
 
 func newBwrapBackend(opts Options) Backend {
-	return &bwrapBackend{rootfs: opts.BwrapRootfs, timeout: opts.Timeout, extraRepos: opts.ExtraRepos}
+	return &bwrapBackend{rootfs: opts.BwrapRootfs, timeout: opts.Timeout, extraRepos: opts.ExtraRepos, cacheDir: opts.PacmanCacheDir}
 }
 
 func (b *bwrapBackend) Name() string { return "bwrap" }
@@ -112,14 +113,14 @@ func (b *bwrapBackend) Build(ctx context.Context, spec Spec) (*Result, error) {
 
 	// Phase 1: install deps as root-in-userns over the shared overlay.
 	slog.Info("bwrap phase 1: installing dependencies", "dir", srcAbs, "rootfs", b.rootfs)
-	p1 := bwrapArgs(b.rootfs, upper, work1, srcAbs, "0", depsScript, installBinds)
+	p1 := bwrapArgs(b.rootfs, upper, work1, srcAbs, b.cacheDir, "0", depsScript, installBinds)
 	if err := runBwrap(ctx, p1, out); err != nil {
 		return nil, wrapErr(err, "bwrap dependency phase failed (ensure unprivileged user namespaces and bwrap >= 0.11 with overlay support)")
 	}
 
 	// Phase 2: build as the unprivileged user over the same overlay (deps present).
 	slog.Info("bwrap phase 2: building package", "dir", srcAbs, "arch", spec.Arch)
-	p2 := bwrapArgs(b.rootfs, upper, work2, srcAbs, bwrapBuildUID, bwrapBuildScript, nil)
+	p2 := bwrapArgs(b.rootfs, upper, work2, srcAbs, b.cacheDir, bwrapBuildUID, bwrapBuildScript, nil)
 	if err := runBwrap(ctx, p2, out); err != nil {
 		return nil, wrapErr(err, "bwrap build phase failed")
 	}
@@ -156,7 +157,7 @@ func bwrapInstall(installPkgs []string, extraRepos []RepoSpec) (script string, b
 // and fresh ipc/pid/uts/cgroup namespaces. The network is left shared so pacman
 // and makepkg can reach mirrors and fetch sources. uid maps the host user 1:1 to
 // the given inner uid (0 for the dep phase, unprivileged for the build phase).
-func bwrapArgs(rootfs, upper, work, srcAbs, uid, script string, installBinds [][2]string) []string {
+func bwrapArgs(rootfs, upper, work, srcAbs, cacheDir, uid, script string, installBinds [][2]string) []string {
 	args := []string{
 		"--unshare-user", "--unshare-ipc", "--unshare-pid", "--unshare-uts", "--unshare-cgroup",
 		"--uid", uid, "--gid", uid,
@@ -168,6 +169,13 @@ func bwrapArgs(rootfs, upper, work, srcAbs, uid, script string, installBinds [][
 		"--bind", srcAbs, "/build",
 		"--chdir", "/build",
 		"--setenv", "HOME", "/build",
+	}
+	// A persistent package cache survives the throwaway overlay, so downloads
+	// resume across builds and an already-fetched package is reused instead of
+	// re-downloaded — the difference between a build that completes on a flaky
+	// mirror and one that never does.
+	if cacheDir != "" {
+		args = append(args, "--bind", cacheDir, "/var/cache/pacman/pkg")
 	}
 	// DNS for mirror access; the rootfs may not ship a usable resolv.conf.
 	if _, err := os.Stat("/etc/resolv.conf"); err == nil {
