@@ -36,7 +36,7 @@ func RootCmd() *cobra.Command {
 	}
 	cmd.PersistentFlags().BoolP("debug", "d", false, "Enable debug mode")
 	cmd.PersistentFlags().StringP("config", "c", "", "Config file")
-	cmd.Flags().String("addr", "", "Listen address (host:port, default :10713)")
+	cmd.Flags().String("addr", "", "Listen address (host:port, default 127.0.0.1:10713)")
 	cliutil.SetVersion(&cmd)
 	cliutil.AddNoColorFlag(&cmd)
 	cmd.SilenceErrors = true

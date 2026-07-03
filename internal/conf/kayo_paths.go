@@ -10,7 +10,7 @@ func (c *KayoConfig) ListenAddr() string {
 	if c.Addr != "" {
 		return c.Addr
 	}
-	return ":10713"
+	return "127.0.0.1:10713"
 }
 
 func (c *KayoConfig) ResolvedCacheDir() string {

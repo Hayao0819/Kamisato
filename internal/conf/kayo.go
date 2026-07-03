@@ -14,7 +14,7 @@ import (
 // first and falling through to the real AUR.
 type KayoConfig struct {
 	Debug bool   `koanf:"debug"`
-	Addr  string `koanf:"addr"` // listen address (host:port); default :10713
+	Addr  string `koanf:"addr"` // listen address (host:port); default 127.0.0.1:10713 (loopback only)
 
 	// CacheDir holds the cloned overlay working trees. Defaults to
 	// $XDG_CACHE_HOME/kayo (or ~/.cache/kayo).
@@ -93,7 +93,7 @@ func LoadKayoConfig(flags *pflag.FlagSet, configFile string) (*KayoConfig, error
 		"KAYO",
 		func(c *KayoConfig) {
 			if c.Addr == "" {
-				c.Addr = ":10713"
+				c.Addr = "127.0.0.1:10713"
 			}
 		},
 	)
