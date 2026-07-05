@@ -27,5 +27,5 @@ func ColorEnabled(cmd *cobra.Command) bool {
 	if os.Getenv("TERM") == "dumb" {
 		return false
 	}
-	return term.IsTerminal(int(os.Stderr.Fd()))
+	return term.IsTerminal(int(os.Stderr.Fd())) //nolint:gosec // G115: fd fits in int
 }

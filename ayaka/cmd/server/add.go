@@ -32,7 +32,7 @@ func AddCmd() *cobra.Command {
 			}
 
 			if username == "" {
-				if !term.IsTerminal(int(os.Stdin.Fd())) {
+				if !term.IsTerminal(int(os.Stdin.Fd())) { //nolint:gosec // G115: fd fits in int
 					return fmt.Errorf("stdin is not a terminal; use --username to provide the username")
 				}
 				fmt.Fprint(cmd.ErrOrStderr(), "Username: ")
@@ -54,7 +54,7 @@ func AddCmd() *cobra.Command {
 				if err := sc.Err(); err != nil {
 					return err
 				}
-			} else if term.IsTerminal(int(os.Stdin.Fd())) {
+			} else if term.IsTerminal(int(os.Stdin.Fd())) { //nolint:gosec // G115: fd fits in int
 				pass, err = shared.PromptPassword("Password:")
 				if err != nil {
 					return err

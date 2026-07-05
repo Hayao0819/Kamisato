@@ -27,7 +27,7 @@ func Cmd() *cobra.Command {
 
 			if contents, err := os.ReadDir(targetDir); err != nil {
 				if os.IsNotExist(err) {
-					if err := os.MkdirAll(targetDir, 0755); err != nil {
+					if err := os.MkdirAll(targetDir, 0755); err != nil { //nolint:gosec // G301/G306: scaffolded repo world-readable by design
 						return errwrap.WrapErr(err, "failed to create target directory")
 					}
 				} else {
@@ -79,15 +79,15 @@ func Cmd() *cobra.Command {
 				return errwrap.WrapErr(err, "failed to marshal ayaka config")
 			}
 
-			if err := os.WriteFile(ayakarcPath, ayakarcBytes, 0644); err != nil {
+			if err := os.WriteFile(ayakarcPath, ayakarcBytes, 0644); err != nil { //nolint:gosec // G301/G306: scaffolded repo world-readable by design
 				return errwrap.WrapErr(err, "failed to write ayaka config")
 			}
 
-			if err := os.MkdirAll(repoDir, 0755); err != nil {
+			if err := os.MkdirAll(repoDir, 0755); err != nil { //nolint:gosec // G301/G306: scaffolded repo world-readable by design
 				return errwrap.WrapErr(err, "failed to create repository directory")
 			}
 
-			if err := os.MkdirAll(destDir, 0755); err != nil {
+			if err := os.MkdirAll(destDir, 0755); err != nil { //nolint:gosec // G301/G306: scaffolded repo world-readable by design
 				return errwrap.WrapErr(err, "failed to create output directory")
 			}
 
@@ -102,7 +102,7 @@ func Cmd() *cobra.Command {
 			}
 
 			repoconfPath := filepath.Join(repoDir, "repo.json")
-			if err := os.WriteFile(repoconfPath, repoconfBytes, 0644); err != nil {
+			if err := os.WriteFile(repoconfPath, repoconfBytes, 0644); err != nil { //nolint:gosec // G301/G306: scaffolded repo world-readable by design
 				return errwrap.WrapErr(err, "failed to write repo config")
 			}
 

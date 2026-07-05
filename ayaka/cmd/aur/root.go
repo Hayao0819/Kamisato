@@ -46,7 +46,7 @@ func updateAurPkg(cobraCmd *cobra.Command, repoDir, name string, force bool) err
 
 	if _, err := os.Stat(gitDir); err == nil {
 		slog.Info("updating existing AUR repo", "name", name, "dir", targetDir)
-		gitcmd := exec.Command("git", "-C", targetDir, "pull", "--ff-only")
+		gitcmd := exec.Command("git", "-C", targetDir, "pull", "--ff-only") //nolint:gosec // fixed program git, argv passed as separate args (no shell)
 		gitcmd.Stdout = cobraCmd.OutOrStdout()
 		gitcmd.Stderr = cobraCmd.ErrOrStderr()
 		if err := gitcmd.Run(); err != nil {
@@ -66,7 +66,7 @@ func updateAurPkg(cobraCmd *cobra.Command, repoDir, name string, force bool) err
 
 	root, err := shared.GitRootDir(repoDir)
 	if err == nil {
-		if err := os.MkdirAll(filepath.Dir(targetDir), 0o755); err != nil {
+		if err := os.MkdirAll(filepath.Dir(targetDir), 0o755); err != nil { //nolint:gosec // G301: repo dir world-readable by design
 			return errwrap.WrapErr(err, "failed to create parent directory")
 		}
 
@@ -76,7 +76,7 @@ func updateAurPkg(cobraCmd *cobra.Command, repoDir, name string, force bool) err
 		}
 
 		slog.Info("adding AUR repo as submodule", "name", name, "root", root, "path", relPath)
-		gitcmd := exec.Command("git", "-C", root, "submodule", "add", url, relPath)
+		gitcmd := exec.Command("git", "-C", root, "submodule", "add", url, relPath) //nolint:gosec // fixed program git, argv passed as separate args (no shell)
 		gitcmd.Stdout = cobraCmd.OutOrStdout()
 		gitcmd.Stderr = cobraCmd.ErrOrStderr()
 		if err := gitcmd.Run(); err != nil {
@@ -86,10 +86,10 @@ func updateAurPkg(cobraCmd *cobra.Command, repoDir, name string, force bool) err
 	}
 
 	slog.Info("cloning AUR repo (non-git parent)", "name", name, "dir", targetDir)
-	if err := os.MkdirAll(repoDir, 0o755); err != nil {
+	if err := os.MkdirAll(repoDir, 0o755); err != nil { //nolint:gosec // G301: repo dir world-readable by design
 		return errwrap.WrapErr(err, "failed to create repo directory")
 	}
-	gitcmd := exec.Command("git", "clone", url, targetDir)
+	gitcmd := exec.Command("git", "clone", url, targetDir) //nolint:gosec // fixed program git, argv passed as separate args (no shell)
 	gitcmd.Stdout = cobraCmd.OutOrStdout()
 	gitcmd.Stderr = cobraCmd.ErrOrStderr()
 	if err := gitcmd.Run(); err != nil {
