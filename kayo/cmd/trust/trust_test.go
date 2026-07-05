@@ -11,29 +11,6 @@ import (
 	"github.com/Hayao0819/Kamisato/kayo/trust"
 )
 
-// buildRoot wires the trust command tree around a temp trust store and returns
-// the root cobra.Command together with a buffer capturing its stdout.
-func buildRoot(t *testing.T) (*bytes.Buffer, func(args ...string) error) {
-	t.Helper()
-	dir := t.TempDir()
-	cfgPath := filepath.Join(dir, "kayo_config.toml")
-	storePath := filepath.Join(dir, "trust.json")
-	if err := os.WriteFile(cfgPath, []byte("addr = \":10713\"\ntrust_store = \""+storePath+"\"\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	var buf bytes.Buffer
-	root := Cmd()
-	root.SetOut(&buf)
-	root.SetErr(&buf)
-	// Inject the config flag that LoadConfig reads via the parent flag set.
-	root.PersistentFlags().String("config", cfgPath, "")
-	return &buf, func(args ...string) error {
-		root.SetArgs(args)
-		buf.Reset()
-		return root.Execute()
-	}
-}
-
 // seedStore prepopulates a trust store at the path embedded in the config file
 // written by buildRoot.
 func seedStore(t *testing.T, dir string) {
