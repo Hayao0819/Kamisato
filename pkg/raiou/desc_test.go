@@ -12,11 +12,11 @@ import (
 )
 
 func TestSyncParseAllDescFiles(t *testing.T) {
-	const localDBPath = "/var/lib/pacman/sync"
+	const syncDir = "testdata/sync"
 
-	entries, err := flist.Get(localDBPath, flist.WithFileOnly(), flist.WithExtOnly(".db"), flist.WithExactDepth(1))
+	entries, err := flist.Get(syncDir, flist.WithFileOnly(), flist.WithExtOnly(".db"), flist.WithExactDepth(1))
 	if err != nil {
-		t.Fatalf("failed to read %s: %v", localDBPath, err)
+		t.Fatalf("failed to read %s: %v", syncDir, err)
 	}
 
 	for _, entry := range *entries {
@@ -28,28 +28,26 @@ func TestSyncParseAllDescFiles(t *testing.T) {
 		}
 
 		for _, pkg := range rr.Pkgs {
-			pi := pkg.PKGINFO()
-			if pi == nil {
+			if pkg.PKGINFO() == nil {
 				t.Errorf("failed to get PKGINFO from %s", entry)
-				continue
 			}
 		}
 	}
 }
 
 func TestLocalParseAllDescFiles(t *testing.T) {
-	const localDBPath = "/var/lib/pacman/local"
+	const localDir = "testdata/local"
 
-	entries, err := os.ReadDir(localDBPath)
+	entries, err := os.ReadDir(localDir)
 	if err != nil {
-		t.Fatalf("failed to read %s: %v", localDBPath, err)
+		t.Fatalf("failed to read %s: %v", localDir, err)
 	}
 
 	for _, entry := range entries {
 		if !entry.IsDir() {
 			continue
 		}
-		descPath := filepath.Join(localDBPath, entry.Name(), "desc")
+		descPath := filepath.Join(localDir, entry.Name(), "desc")
 		data, err := os.ReadFile(descPath)
 		if err != nil {
 			t.Errorf("failed to read %s: %v", descPath, err)
