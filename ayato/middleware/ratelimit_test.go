@@ -75,8 +75,8 @@ func TestRateLimitPerIP(t *testing.T) {
 
 func TestRateLimitRefill(t *testing.T) {
 	m := newRLMiddleware(t)
-	// 50 tokens/sec -> ~20ms to refill one; burst 1.
-	r := rlEngine(m, rate.Limit(50), 1)
+	// 1s window: the immediate second request is reliably rejected; the poll waits for the refill.
+	r := rlEngine(m, rate.Every(time.Second), 1)
 
 	const ip = "10.0.0.3:1"
 	if w := doReq(r, ip); w.Code != http.StatusOK {
