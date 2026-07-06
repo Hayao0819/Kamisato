@@ -13,13 +13,16 @@ import (
 // order so the output is reproducible.
 func (p *PKGINFO) Bytes() []byte {
 	var b strings.Builder
+	// Newlines in a value would inject a spurious key line, so collapse them to
+	// spaces; a well-formed PKGINFO is one key = value per line.
+	sanitize := strings.NewReplacer("\r", " ", "\n", " ")
 	write := func(key, value string) {
 		if value == "" {
 			return
 		}
 		b.WriteString(key)
 		b.WriteString(" = ")
-		b.WriteString(value)
+		b.WriteString(sanitize.Replace(value))
 		b.WriteByte('\n')
 	}
 	writeAll := func(key string, values []string) {

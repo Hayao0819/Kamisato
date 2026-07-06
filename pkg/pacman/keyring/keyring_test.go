@@ -185,3 +185,16 @@ func TestFileNameAndInstallScript(t *testing.T) {
 		t.Errorf("install script missing populate call:\n%s", s)
 	}
 }
+
+func TestBuildFilesRejectsUnsafeName(t *testing.T) {
+	k := newKey(t)
+	pub, _ := k.PublicEntity()
+	for _, bad := range []string{"../evil", "my repo", "a/b", "foo;rm -rf", "-leading"} {
+		if _, err := BuildFiles(bad, []*openpgp.Entity{pub}, []string{k.PrimaryFingerprint()}, nil); err == nil {
+			t.Errorf("name %q should be rejected", bad)
+		}
+	}
+	if _, err := BuildFiles("my-repo_1", []*openpgp.Entity{pub}, []string{k.PrimaryFingerprint()}, nil); err != nil {
+		t.Errorf("valid name rejected: %v", err)
+	}
+}

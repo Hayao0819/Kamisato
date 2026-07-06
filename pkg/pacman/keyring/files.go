@@ -8,12 +8,28 @@ package keyring
 import (
 	"bytes"
 	"fmt"
+	"regexp"
 	"sort"
 	"strings"
 
 	"github.com/Hayao0819/Kamisato/pkg/pacman/sign"
 	"github.com/ProtonMail/go-crypto/openpgp"
 )
+
+// nameRe constrains a keyring name to what is safe as a pacman pkgname stem, a
+// path segment under usr/share/pacman/keyrings, and an argument to the root-run
+// `pacman-key --populate` in the install hook. It rejects slashes, whitespace and
+// shell metacharacters, so a stray or hostile name can neither escape the keyring
+// directory in the tarball nor inject into the install script.
+var nameRe = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9@._+-]*$`)
+
+// ValidateName reports whether name is usable as a keyring identifier.
+func ValidateName(name string) error {
+	if !nameRe.MatchString(name) {
+		return fmt.Errorf("invalid keyring name %q: use letters, digits and @._+- (no slashes or spaces)", name)
+	}
+	return nil
+}
 
 // trustFull is gpg's ownertrust value for full trust (level 4). pacman-key
 // --populate lsigns every fingerprint in the -trusted file, so a single anchor
@@ -37,8 +53,8 @@ type Files struct {
 // signatures embedded in the .gpg are the cryptographic record, the -revoked list
 // is the pacman-side belt-and-suspenders.
 func BuildFiles(name string, entities []*openpgp.Entity, trustedFprs, revokedFprs []string) (*Files, error) {
-	if name == "" {
-		return nil, fmt.Errorf("keyring name is required")
+	if err := ValidateName(name); err != nil {
+		return nil, err
 	}
 	if len(entities) == 0 {
 		return nil, fmt.Errorf("keyring needs at least one key")
