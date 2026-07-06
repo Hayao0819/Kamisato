@@ -8,6 +8,8 @@ import (
 	buildcmd "github.com/Hayao0819/Kamisato/ayaka/cmd/build"
 	hookcmd "github.com/Hayao0819/Kamisato/ayaka/cmd/hook"
 	initcmd "github.com/Hayao0819/Kamisato/ayaka/cmd/init"
+	keycmd "github.com/Hayao0819/Kamisato/ayaka/cmd/key"
+	keyringcmd "github.com/Hayao0819/Kamisato/ayaka/cmd/keyring"
 	listcmd "github.com/Hayao0819/Kamisato/ayaka/cmd/list"
 	mikocmd "github.com/Hayao0819/Kamisato/ayaka/cmd/miko"
 	repocmd "github.com/Hayao0819/Kamisato/ayaka/cmd/repo"
@@ -70,6 +72,8 @@ func RootCmd() *cobra.Command {
 		initcmd.Cmd(),
 		submodulescmd.Cmd(),
 		servercmd.Cmd(),
+		keycmd.Cmd(),
+		keyringcmd.Cmd(),
 		version.Command(),
 	)
 	subCmds.Bind(&cmd)
