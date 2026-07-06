@@ -137,6 +137,24 @@ func (k *SigningKey) ExportPublicArmored() (string, error) {
 	return buf.String(), nil
 }
 
+// ExportSecretArmored returns the armored private key for offline backup. Handle
+// the result as a secret: it is the full key, primary included.
+func (k *SigningKey) ExportSecretArmored() (string, error) {
+	var buf bytes.Buffer
+	a, err := armor.Encode(&buf, openpgp.PrivateKeyType, nil)
+	if err != nil {
+		return "", err
+	}
+	if err := k.entity.SerializePrivateWithoutSigning(a, nil); err != nil {
+		_ = a.Close()
+		return "", err
+	}
+	if err := a.Close(); err != nil {
+		return "", err
+	}
+	return buf.String(), nil
+}
+
 // PrimaryFingerprint is the trust anchor: the 40-hex uppercase fingerprint a
 // keyring package writes into its `-trusted` file.
 func (k *SigningKey) PrimaryFingerprint() string {
