@@ -166,21 +166,62 @@ func readEntity(path string) (*openpgp.Entity, error) {
 	return el[0], nil
 }
 
-func writeArmored(path, blockType string, perm os.FileMode, serialize func(io.Writer) error) error {
-	f, err := os.OpenFile(path, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, perm)
+// writeArmored writes the serialized armored block to path atomically: it writes
+// a sibling temp file, fsyncs it, then renames over the target. A crash or write
+// error therefore never truncates an existing key, which for the private key is
+// the sole on-disk copy of the trust anchor. os.CreateTemp makes the temp 0600,
+// so the private key is never briefly world-readable.
+func writeArmored(path, blockType string, perm os.FileMode, serialize func(io.Writer) error) (err error) {
+	dir := filepath.Dir(path)
+	tmp, err := os.CreateTemp(dir, "."+filepath.Base(path)+".tmp-*")
 	if err != nil {
 		return err
 	}
-	defer func() { _ = f.Close() }()
-	a, err := armor.Encode(f, blockType, nil)
-	if err != nil {
-		return err
+	tmpName := tmp.Name()
+	// On any failure, drop the temp file so we do not litter the key directory.
+	defer func() {
+		if err != nil {
+			_ = tmp.Close()
+			_ = os.Remove(tmpName)
+		}
+	}()
+
+	a, aerr := armor.Encode(tmp, blockType, nil)
+	if aerr != nil {
+		return aerr
 	}
-	if err := serialize(a); err != nil {
+	if serr := serialize(a); serr != nil {
 		_ = a.Close()
-		return err
+		return serr
 	}
-	return a.Close()
+	if cerr := a.Close(); cerr != nil {
+		return cerr
+	}
+	if cherr := tmp.Chmod(perm); cherr != nil {
+		return cherr
+	}
+	if serr := tmp.Sync(); serr != nil {
+		return serr
+	}
+	if cerr := tmp.Close(); cerr != nil {
+		return cerr
+	}
+	if rerr := os.Rename(tmpName, path); rerr != nil {
+		return rerr
+	}
+	return fsyncDir(dir)
+}
+
+// fsyncDir flushes a directory entry so the rename is durable. A failure to open
+// the directory for sync is not fatal on platforms that disallow it.
+func fsyncDir(dir string) error {
+	d, err := os.Open(dir)
+	if err != nil {
+		return nil
+	}
+	defer func() { _ = d.Close() }()
+	_ = d.Sync()
+	return nil
 }
 
 func readString(path string) (string, error) {
