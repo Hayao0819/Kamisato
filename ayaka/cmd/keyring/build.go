@@ -35,6 +35,6 @@ func buildCmd() *cobra.Command {
 		},
 	}
 	addBuildFlags(cmd, &params)
-	cmd.Flags().StringVarP(&outDir, "output", "o", ".", "Directory to write the package into")
+	cmd.Flags().StringVar(&outDir, "output-dir", ".", "Directory to write the package into")
 	return cmd
 }

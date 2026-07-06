@@ -40,7 +40,7 @@ func TestBuildProducesInstallablePackage(t *testing.T) {
 		"--name", "myrepo",
 		"--version", "20260707-1",
 		"--packager", "MyRepo <repo@example.com>",
-		"--output", out,
+		"--output-dir", out,
 	)
 	if err != nil {
 		t.Fatalf("build: %v\n%s", err, stdout)
@@ -61,7 +61,7 @@ func TestBuildProducesInstallablePackage(t *testing.T) {
 
 func TestBuildRequiresName(t *testing.T) {
 	home := newKeyHome(t)
-	if _, err := runKeyring(t, "build", "--key-home", home, "--output", t.TempDir()); err == nil {
+	if _, err := runKeyring(t, "build", "--key-home", home, "--output-dir", t.TempDir()); err == nil {
 		t.Error("build without --name should fail")
 	}
 }
