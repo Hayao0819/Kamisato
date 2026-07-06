@@ -8,6 +8,7 @@ package cfkv
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"strings"
@@ -18,8 +19,11 @@ import (
 	"github.com/cloudflare/cloudflare-go"
 )
 
-// sep separates the namespace from the key (see badgerkv for the rationale).
-const sep = "\x00"
+// Keys are URL-safe base64 so no byte can break the Workers KV REST URL: the NUL
+// separator badgerkv uses would become %00, which Cloudflare's edge rejects with a
+// 400. ns and key are encoded separately and joined by "." (not in the base64url
+// alphabet) so List still matches by prefix.
+const sep = "."
 
 type Store struct {
 	client      *cloudflare.API
@@ -47,7 +51,11 @@ func (s *Store) accountIdentifier() *cloudflare.ResourceContainer {
 	return cloudflare.AccountIdentifier(s.accountId)
 }
 
-func composite(ns, key string) string { return ns + sep + key }
+func encPart(s string) string { return base64.RawURLEncoding.EncodeToString([]byte(s)) }
+
+func nsPrefix(ns string) string { return encPart(ns) + sep }
+
+func composite(ns, key string) string { return encPart(ns) + sep + encPart(key) }
 
 // A Cloudflare not-found is mapped to kv.ErrNotFound so misses surface uniformly.
 func (s *Store) Get(ns, key string) ([]byte, error) {
@@ -109,7 +117,7 @@ func (s *Store) Delete(ns, key string) error {
 // each value separately (the list API returns key names only). Cloudflare
 // excludes expired keys from the listing.
 func (s *Store) List(ns string) ([]kv.Entry, error) {
-	prefix := ns + sep
+	prefix := nsPrefix(ns)
 	var out []kv.Entry
 	cursor := ""
 	for {
@@ -136,7 +144,11 @@ func (s *Store) List(ns string) ([]kv.Entry, error) {
 				}
 				return nil, fmt.Errorf("cfkv: list get value: %w", gerr)
 			}
-			out = append(out, kv.Entry{Key: strings.TrimPrefix(k.Name, prefix), Value: v})
+			key, derr := base64.RawURLEncoding.DecodeString(strings.TrimPrefix(k.Name, prefix))
+			if derr != nil {
+				continue
+			}
+			out = append(out, kv.Entry{Key: string(key), Value: v})
 		}
 		cursor = resp.ResultInfo.Cursor
 		if cursor == "" {
