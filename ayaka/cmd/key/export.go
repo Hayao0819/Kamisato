@@ -21,13 +21,16 @@ func exportCmd() *cobra.Command {
 		Long:  "Write the armored public key (default) for keyring distribution, or the full private key with --secret for offline backup. Handle a secret export as sensitive material.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			k, _, err := shared.LoadSigningKey(cmd)
+			k, pass, err := shared.LoadSigningKey(cmd)
 			if err != nil {
 				return err
 			}
 			var armored string
 			if secret {
-				armored, err = k.ExportSecretArmored()
+				if pass == "" {
+					fmt.Fprintln(cmd.ErrOrStderr(), "warning: the key has no passphrase, so this secret export is unencrypted; store it securely.")
+				}
+				armored, err = k.ExportSecretArmored(pass)
 			} else {
 				armored, err = k.ExportPublicArmored()
 			}
@@ -47,6 +50,6 @@ func exportCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().BoolVar(&secret, "secret", false, "Export the full private key (for offline backup) instead of the public key")
-	cmd.Flags().StringVarP(&output, "output", "o", "", "Write to a file instead of stdout")
+	cmd.Flags().StringVar(&output, "output", "", "Write to a file instead of stdout")
 	return cmd
 }

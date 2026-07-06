@@ -137,9 +137,18 @@ func (k *SigningKey) ExportPublicArmored() (string, error) {
 	return buf.String(), nil
 }
 
-// ExportSecretArmored returns the armored private key for offline backup. Handle
-// the result as a secret: it is the full key, primary included.
-func (k *SigningKey) ExportSecretArmored() (string, error) {
+// ExportSecretArmored returns the armored private key for offline backup. When
+// passphrase is non-empty the export is encrypted with it, so a backup of a
+// protected key is never silently written in cleartext; the in-memory key is left
+// unlocked so this SigningKey can keep operating. Handle the result as a secret:
+// it is the full key, primary included.
+func (k *SigningKey) ExportSecretArmored(passphrase string) (string, error) {
+	if passphrase != "" {
+		if err := k.entity.EncryptPrivateKeys([]byte(passphrase), &packet.Config{}); err != nil {
+			return "", fmt.Errorf("encrypt export: %w", err)
+		}
+		defer func() { _ = decryptPrivate(k.entity, passphrase) }()
+	}
 	var buf bytes.Buffer
 	a, err := armor.Encode(&buf, openpgp.PrivateKeyType, nil)
 	if err != nil {
@@ -274,12 +283,25 @@ func (k *SigningKey) RevokePrimary(reason packet.ReasonForRevocation, reasonText
 	return k.save(passphrase)
 }
 
-// Sign makes SigningKey a Signer: go-crypto selects the signing subkey.
+// Sign makes SigningKey a Signer. It refuses to fall back to the primary key:
+// the primary is [SC] so go-crypto would otherwise silently sign with it once the
+// signing subkey expires or is revoked, defeating the rotatable-subkey model.
+// A caller hitting this must add or rotate a signing subkey first.
 func (k *SigningKey) Sign(ctx context.Context, pkgPath string) (string, error) {
+	signer, ok := k.entity.SigningKey(time.Now())
+	if !ok || signer.PublicKey == nil {
+		return "", errNoValidSubkey
+	}
+	if signer.PublicKey.KeyId == k.entity.PrimaryKey.KeyId {
+		return "", errNoValidSubkey
+	}
 	return detachSign(ctx, k.entity, pkgPath)
 }
 
-var errNoPrimarySecret = fmt.Errorf("this operation needs the primary secret key; run it against the offline key directory with --home")
+var (
+	errNoPrimarySecret = fmt.Errorf("this operation needs the primary secret key; run it against the offline key directory with --home")
+	errNoValidSubkey   = fmt.Errorf("no valid signing subkey (expired or revoked); add one with 'ayaka key subkey add' or rotate with 'ayaka key subkey rotate'")
+)
 
 // dropEncryptionSubkeys removes any non-signing subkey. A repository key only
 // signs; the encryption subkey NewEntity always adds is dead weight in a keyring.

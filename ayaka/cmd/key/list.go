@@ -1,6 +1,8 @@
 package keycmd
 
 import (
+	"time"
+
 	"github.com/spf13/cobra"
 
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
@@ -48,6 +50,8 @@ func listCmd() *cobra.Command {
 					status = "revoked"
 				case !s.CanSign:
 					status = "non-signing"
+				case !s.Expires.IsZero() && s.Expires.Before(time.Now()):
+					status = "expired"
 				}
 				expires := "never"
 				if !s.Expires.IsZero() {
