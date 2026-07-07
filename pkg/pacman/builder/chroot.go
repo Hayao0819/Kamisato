@@ -14,17 +14,17 @@ import (
 	"github.com/otiai10/copy"
 )
 
-// chrootBackend builds packages using the devtools clean-chroot flow
-// (<ArchBuild> -- makechrootpkg -c -- makepkg ...).
-// It runs only on an Arch host and requires root/nspawn.
+// chrootBackend builds packages using the devtools clean-chroot flow. When a build
+// config is present (Options.ExtraRepos, Spec.Repos, or Spec.Makepkg) it drives
+// mkarchroot/makechrootpkg directly with ayaka-generated pacman.conf (-C) and
+// makepkg.conf (-M) so those settings are honoured; otherwise it shells out to the
+// devtools <ArchBuild> wrapper, unchanged, for full backward compatibility. Either
+// way it runs only on an Arch host and requires root/nspawn.
 type chrootBackend struct {
 	opts Options
 }
 
 func newChrootBackend(opts Options) Backend {
-	if len(opts.ExtraRepos) > 0 {
-		slog.Warn("chroot backend ignores extra_repos; publish build-chain dependencies as InstallPkgs instead")
-	}
 	return &chrootBackend{opts: opts}
 }
 
@@ -33,11 +33,18 @@ func (b *chrootBackend) Name() string {
 }
 
 func (b *chrootBackend) Build(ctx context.Context, spec Spec) (*Result, error) {
-	if spec.ArchBuild == "" {
-		return nil, errors.New("chroot backend requires a devtools wrapper (Spec.ArchBuild), e.g. extra-x86_64-build")
-	}
 	if spec.SrcDir == "" {
 		return nil, errors.New("chroot backend requires Spec.SrcDir")
+	}
+
+	// Merge the two repo channels: Options.ExtraRepos (miko/server config) first,
+	// then Spec.Repos (repo.json build.repos), same as container/bwrap. Any build
+	// config forces the generated -C/-M path so those settings are honoured.
+	effectiveRepos := append(append([]RepoSpec{}, b.opts.ExtraRepos...), spec.Repos...)
+	useGenerated := len(effectiveRepos) > 0 || !spec.Makepkg.isZero()
+
+	if !useGenerated && spec.ArchBuild == "" {
+		return nil, errors.New("chroot backend requires a devtools wrapper (Spec.ArchBuild), e.g. extra-x86_64-build")
 	}
 
 	if b.opts.Timeout > 0 {
@@ -60,9 +67,16 @@ func (b *chrootBackend) Build(ctx context.Context, spec Spec) (*Result, error) {
 		out = io.MultiWriter(os.Stdout, spec.LogWriter)
 	}
 
-	slog.Info("building package in clean chroot", "dir", spec.SrcDir, "archbuild", spec.ArchBuild, "arch", spec.Arch)
-	if err := runChrootBuild(ctx, spec.SrcDir, spec.ArchBuild, spec.InstallPkgs, out); err != nil {
-		return nil, wrapErr(err, "failed to build package in chroot")
+	if useGenerated {
+		slog.Info("building package in clean chroot", "dir", spec.SrcDir, "arch", spec.Arch, "repos", len(effectiveRepos))
+		if err := runChrootBuildGenerated(ctx, spec, effectiveRepos, out); err != nil {
+			return nil, wrapErr(err, "failed to build package in chroot")
+		}
+	} else {
+		slog.Info("building package in clean chroot", "dir", spec.SrcDir, "archbuild", spec.ArchBuild, "arch", spec.Arch)
+		if err := runChrootBuild(ctx, spec.SrcDir, spec.ArchBuild, spec.InstallPkgs, out); err != nil {
+			return nil, wrapErr(err, "failed to build package in chroot")
+		}
 	}
 
 	built, err := collectNewPackages(spec.SrcDir, baseline)
@@ -94,6 +108,85 @@ func runChrootBuild(ctx context.Context, dir, archBuild string, installPkgs []st
 	build := cmdContext(ctx, dir, out, args...)
 	slog.Debug("build command", "cmd", build.String())
 	return build.Run()
+}
+
+// runChrootBuildGenerated drives devtools directly with ayaka-generated pacman.conf
+// (-C) and makepkg.conf (-M) so per-build build.repos/build.makepkg are honoured,
+// unlike the wrapper path. It creates a throwaway chroot with mkarchroot, then
+// builds with makechrootpkg from spec.SrcDir (where makechrootpkg reads the
+// PKGBUILD and leaves output, same as the wrapper).
+func runChrootBuildGenerated(ctx context.Context, spec Spec, repos []RepoSpec, out io.Writer) error {
+	arch := spec.Arch
+	if arch == "" {
+		arch = "x86_64"
+	}
+	repoName := "extra"
+	if spec.ArchBuild != "" {
+		repoName = repoFromArchBuild(spec.ArchBuild)
+	}
+
+	pacConf, err := renderChrootPacmanConf(repoName, repos)
+	if err != nil {
+		return err
+	}
+	mkConf, err := renderChrootMakepkgConf(arch, spec.Makepkg)
+	if err != nil {
+		return err
+	}
+
+	pacTmp, cleanupPac, err := writeTempConf("ayaka-pacman-*.conf", pacConf)
+	if err != nil {
+		return err
+	}
+	defer cleanupPac()
+	mkTmp, cleanupMk, err := writeTempConf("ayaka-makepkg-*.conf", mkConf)
+	if err != nil {
+		return err
+	}
+	defer cleanupMk()
+
+	chrootDir, err := os.MkdirTemp("", "ayaka-chroot-")
+	if err != nil {
+		return wrapErr(err, "failed to create chroot dir")
+	}
+	defer func() { _ = os.RemoveAll(chrootDir) }()
+	chrootRoot := filepath.Join(chrootDir, "root")
+
+	create := cmdContext(ctx, spec.SrcDir, out, mkarchrootArgs(arch, pacTmp, mkTmp, chrootRoot)...)
+	slog.Debug("chroot create command", "cmd", create.String())
+	if err := create.Run(); err != nil {
+		return wrapErr(err, "failed to create chroot (needs root, the 'devtools' package, and systemd-nspawn)")
+	}
+
+	build := cmdContext(ctx, spec.SrcDir, out, makechrootpkgArgs(chrootDir, spec.InstallPkgs)...)
+	slog.Debug("chroot build command", "cmd", build.String())
+	return build.Run()
+}
+
+// writeTempConf writes content to a host temp file and returns its path and a
+// cleanup. The file is made world-readable because arch-nspawn copies the -M/-C
+// config into the chroot, and must read it, when run under makechrootpkg.
+func writeTempConf(pattern, content string) (string, func(), error) {
+	f, err := os.CreateTemp("", pattern)
+	if err != nil {
+		return "", nil, wrapErr(err, "failed to create temp config")
+	}
+	name := f.Name()
+	cleanup := func() { _ = os.Remove(name) }
+	if _, err := f.WriteString(content); err != nil {
+		_ = f.Close()
+		cleanup()
+		return "", nil, wrapErr(err, "failed to write temp config")
+	}
+	if err := f.Close(); err != nil {
+		cleanup()
+		return "", nil, wrapErr(err, "failed to write temp config")
+	}
+	if err := os.Chmod(name, 0o644); err != nil { //nolint:gosec // config copied into the chroot must be readable there
+		cleanup()
+		return "", nil, wrapErr(err, "failed to chmod temp config")
+	}
+	return name, cleanup, nil
 }
 
 func cmdContext(ctx context.Context, dir string, out io.Writer, args ...string) *exec.Cmd {

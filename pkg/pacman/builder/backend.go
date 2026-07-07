@@ -16,16 +16,17 @@ type Spec struct {
 	OutDir string
 	// Arch is the target CARCH (x86_64, aarch64, armv7h, ...).
 	Arch string
-	// Repos are per-build pacman repositories (the repo.json build.repos channel).
-	// The container and bwrap backends inject them into pacman.conf, merged after
-	// Options.ExtraRepos; the chroot backend ignores them (Stage 2).
+	// Repos are per-build pacman repositories (the repo.json build.repos channel),
+	// merged after Options.ExtraRepos. All backends inject them into pacman.conf;
+	// the chroot backend via the generated pacman.conf passed to mkarchroot with -C.
 	Repos []RepoSpec
 	// Makepkg carries per-build makepkg.conf overrides (packager, microarch tier,
-	// extra CFLAGS, OPTIONS). The container and bwrap backends append them to the
-	// build's makepkg.conf; the chroot backend ignores them (Stage 2).
+	// extra CFLAGS, OPTIONS). All backends append them to the build's makepkg.conf;
+	// the chroot backend via the generated makepkg.conf passed to mkarchroot with -M.
 	Makepkg MakepkgSettings
-	// ArchBuild is the devtools wrapper used by the chroot backend
-	// (e.g. extra-x86_64-build). The container and bwrap backends ignore it.
+	// ArchBuild is the devtools wrapper (e.g. extra-x86_64-build). With build config
+	// present the chroot backend only derives its pacman.conf base repo from it; with
+	// none it shells out to the wrapper directly. Container and bwrap ignore it.
 	ArchBuild string
 	// InstallPkgs are local package files installed into the build environment
 	// before building (makechrootpkg -I / pacman -U), for not-yet-published
@@ -103,9 +104,9 @@ type Options struct {
 	BwrapRootfs string
 	// ExtraRepos are pacman repositories added to the build environment (e.g. the
 	// ayato repo) so already-published dependencies resolve during the build. This
-	// is the miko/server-config channel; the container and bwrap backends inject it
-	// into /etc/pacman.conf ahead of Spec.Repos (the repo.json channel). The chroot
-	// backend does not (use InstallPkgs for its build-chain dependencies).
+	// is the miko/server-config channel; all backends inject it into pacman.conf
+	// ahead of Spec.Repos (the repo.json channel) — the chroot backend via the
+	// generated -C config (any build config switches it off the wrapper path).
 	ExtraRepos []RepoSpec
 }
 

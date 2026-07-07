@@ -4,9 +4,7 @@ import "io"
 
 // Target is the build configuration ayaka assembles for a local build: which
 // backend to use, the signing key, and the per-build environment (chroot wrapper,
-// extra repos, makepkg overrides). It maps to a Spec the chosen backend consumes;
-// the chroot backend reads only ArchBuild, the container/bwrap backends read
-// Repos and Makepkg.
+// extra repos, makepkg overrides). It maps to a Spec the chosen backend consumes.
 type Target struct {
 	Arch        string
 	ArchBuild   string

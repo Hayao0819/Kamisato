@@ -164,16 +164,6 @@ func Cmd() *cobra.Command {
 				Executor: builder.Kind(executor),
 			}
 
-			// The chroot backend still shells out to the devtools wrapper, so it
-			// cannot yet apply per-repo build.repos/build.makepkg (Stage 2). Warn so
-			// the drop is not silent.
-			mkSet := mk.Packager != "" || mk.Microarch != "" || mk.CFlagsAppend != "" || len(mk.Options) > 0
-			if buildTarget.Executor == "" || buildTarget.Executor == builder.KindChroot {
-				if len(buildTarget.Repos) > 0 || mkSet {
-					slog.Warn("chroot backend does not yet apply per-repo build.repos/build.makepkg (Stage 2); using the devtools wrapper without them")
-				}
-			}
-
 			outDir := path.Join(destDir, srcrepo.Config.Name)
 			writeDir := path.Join(outDir, buildTarget.Arch)
 
