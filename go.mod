@@ -5,7 +5,7 @@ go 1.25.8
 require (
 	filippo.io/age v1.3.1
 	github.com/BrenekH/blinky v0.0.0-20260701031321-fd31e83d792e
-	github.com/Hayao0819/nahi v0.0.3
+	github.com/Hayao0819/nahi v0.0.4
 	github.com/Morganamilo/go-srcinfo v1.0.0
 	github.com/aws/aws-sdk-go-v2 v1.42.1
 	github.com/aws/aws-sdk-go-v2/config v1.32.27

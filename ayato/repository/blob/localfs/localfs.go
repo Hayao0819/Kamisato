@@ -8,7 +8,7 @@ import (
 	"path"
 
 	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
-	"github.com/Hayao0819/Kamisato/internal/ioutils"
+	"github.com/Hayao0819/nahi/futils"
 	"github.com/samber/lo"
 )
 
@@ -32,7 +32,7 @@ func (l *LocalStore) getRepoDir(name string) (string, error) {
 		return "", fmt.Errorf("failed to get current working directory: %w", err)
 	}
 	if lo.Contains(l.repoNames, name) {
-		return path.Join(ioutils.ResolvePath(pwd, l.repoDir), name), nil
+		return path.Join(futils.ResolvePath(pwd, l.repoDir), name), nil
 	}
 	return "", fmt.Errorf("repo %s not found", name)
 }

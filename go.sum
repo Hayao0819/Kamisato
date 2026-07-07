@@ -12,8 +12,8 @@ github.com/Azure/go-ansiterm v0.0.0-20250102033503-faa5f7b0171c h1:udKWzYgxTojEK
 github.com/Azure/go-ansiterm v0.0.0-20250102033503-faa5f7b0171c/go.mod h1:xomTg63KZ2rFqZQzSB4Vz2SUXa1BpHTVz9L5PTmPC4E=
 github.com/BrenekH/blinky v0.0.0-20260701031321-fd31e83d792e h1:0bgWDPPhgoz30lsDV9q50BozshUBEqN8bdBovhA2ESE=
 github.com/BrenekH/blinky v0.0.0-20260701031321-fd31e83d792e/go.mod h1:U1xXjLxqSCY9lXbfYqlKchfaquGUU+n4dNgbmNhUolw=
-github.com/Hayao0819/nahi v0.0.3 h1:sdXZO523hZJYLe9wSvEhAQEzkxfCyKer3gpKNeba7i4=
-github.com/Hayao0819/nahi v0.0.3/go.mod h1:6y4OH/3jDW6HX3L2LoaE+GvNlqAzUG0hrpba9U1b2XA=
+github.com/Hayao0819/nahi v0.0.4 h1:pAKnPcSwPPpq1XNV6+++PLS5eZ+CNgRMgnW4+Vmxd+U=
+github.com/Hayao0819/nahi v0.0.4/go.mod h1:cup9lsmub3ZNT4CKb1S7wdCp+v3TCORul2la3Iim+a0=
 github.com/Microsoft/go-winio v0.5.2/go.mod h1:WpS1mjBmmwHBEWmogvA2mj8546UReBk4v8QkMxJ6pZY=
 github.com/Microsoft/go-winio v0.6.2 h1:F2VQgta7ecxGYO8k3ZZz3RS8fVIXVxONVUPlNERoyfY=
 github.com/Microsoft/go-winio v0.6.2/go.mod h1:yd8OoFMLzJbo9gZq8j5qaps8bJ9aShtEA8Ipt1oGCvU=

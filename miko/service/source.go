@@ -8,8 +8,8 @@ import (
 
 	"github.com/Hayao0819/Kamisato/internal/errwrap"
 	"github.com/Hayao0819/Kamisato/internal/gitcmd"
-	"github.com/Hayao0819/Kamisato/internal/ioutils"
 	"github.com/Hayao0819/Kamisato/miko/domain"
+	"github.com/otiai10/copy"
 )
 
 // materialize prepares the build source in srcDir from the request. Exactly one
@@ -76,7 +76,7 @@ func materializeGit(ctx context.Context, git *domain.GitSource, srcDir string) e
 
 	if git.Subdir != "" {
 		src := filepath.Join(cloneDir, filepath.Clean(git.Subdir))
-		if err := ioutils.CopyDir(src, srcDir); err != nil {
+		if err := copy.Copy(src, srcDir); err != nil {
 			return errwrap.WrapErr(err, "failed to copy subdir")
 		}
 	}
