@@ -3,6 +3,7 @@ package repo
 import (
 	"archive/tar"
 	"compress/gzip"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"slices"
@@ -100,8 +101,10 @@ func (b *dbBuilder) load(r io.Reader, withFiles bool) error {
 
 // Upsert adds (or replaces) a package's entry. Any existing entry with the same
 // package name is removed first, matching repo-add, which drops all prior
-// entries for a name before writing the new one.
-func (b *dbBuilder) Upsert(meta *pkg.BinaryPackageMeta) error {
+// entries for a name before writing the new one. A non-empty sig is the package's
+// detached (binary) signature, embedded as the desc %PGPSIG% like repo-add's
+// --include-sigs.
+func (b *dbBuilder) Upsert(meta *pkg.BinaryPackageMeta, sig []byte) error {
 	if meta == nil || meta.Info == nil {
 		return fmt.Errorf("nil package metadata")
 	}
@@ -112,11 +115,16 @@ func (b *dbBuilder) Upsert(meta *pkg.BinaryPackageMeta) error {
 	}
 	b.Remove(name)
 
+	desc := raiou.DescFromPkginfo(meta.Info, meta.Filename, meta.CSize, meta.SHA256)
+	if len(sig) > 0 {
+		desc.PGPSIG = base64.StdEncoding.EncodeToString(sig)
+	}
+
 	dir := name + "-" + ver
 	b.entries[dir] = &dbEntry{
 		dir:   dir,
 		name:  name,
-		desc:  raiou.DescFromPkginfo(meta.Info, meta.Filename, meta.CSize, meta.SHA256).Bytes(),
+		desc:  desc.Bytes(),
 		files: filesEntry(meta.Files),
 	}
 	return nil

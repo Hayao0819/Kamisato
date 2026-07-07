@@ -60,23 +60,35 @@ func writeSeekFileTo(dir string, f stream.SeekFile) (string, error) {
 	if f == nil {
 		return "", nil
 	}
-	name := path.Base(f.FileName())
-	dst := path.Join(dir, name)
+	dst := path.Join(dir, path.Base(f.FileName()))
+	if err := writeSeekFileToPath(dst, f); err != nil {
+		return "", err
+	}
+	return dst, nil
+}
+
+// writeSeekFileToPath materializes f at the exact path dst, letting the caller
+// name the file (e.g. "<pkg>.sig" next to its package) rather than deriving it
+// from the stream's own FileName.
+func writeSeekFileToPath(dst string, f stream.SeekFile) error {
+	if f == nil {
+		return nil
+	}
 	if _, err := f.Seek(0, io.SeekStart); err != nil {
-		return "", errwrap.WrapErr(err, "failed to seek stream")
+		return errwrap.WrapErr(err, "failed to seek stream")
 	}
 	out, err := os.Create(dst)
 	if err != nil {
-		return "", errwrap.WrapErr(err, "failed to create temp file")
+		return errwrap.WrapErr(err, "failed to create temp file")
 	}
 	if _, err := io.Copy(out, f); err != nil {
 		_ = out.Close()
-		return "", errwrap.WrapErr(err, "failed to copy stream to temp file")
+		return errwrap.WrapErr(err, "failed to copy stream to temp file")
 	}
 	if err := out.Close(); err != nil {
-		return "", errwrap.WrapErr(err, "failed to close temp file")
+		return errwrap.WrapErr(err, "failed to close temp file")
 	}
-	return dst, nil
+	return nil
 }
 
 // derivedArtifacts are the DB artifacts commitDB publishes alongside the canonical
@@ -141,10 +153,14 @@ func (r *binaryRepository) RepoAddBatch(repo, arch string, items []RepoAddItem, 
 		if err != nil {
 			return err
 		}
-		if pkgPath != "" {
-			pkgPaths = append(pkgPaths, pkgPath)
+		if pkgPath == "" {
+			continue
 		}
-		if _, err := writeSeekFileTo(t, it.Sig); err != nil {
+		pkgPaths = append(pkgPaths, pkgPath)
+		// Write the detached signature as "<pkg>.sig" beside its package so the
+		// repo tool embeds it as the desc %PGPSIG% (repo-add's --include-sigs
+		// convention; NativeTool reads the same adjacent path).
+		if err := writeSeekFileToPath(pkgPath+".sig", it.Sig); err != nil {
 			return err
 		}
 	}

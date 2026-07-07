@@ -19,7 +19,9 @@ func (t CLITool) RepoAdd(dbPath, pkgFilePath string, useSignedDB bool, gnupgDir 
 }
 
 func (CLITool) RepoAddBatch(dbPath string, pkgFilePaths []string, useSignedDB bool, gnupgDir *string) error {
-	args := []string{"-q", "-R", "--nocolor"}
+	// --include-sigs embeds each package's adjacent "<pkg>.sig" as the desc
+	// %PGPSIG%, matching NativeTool; it is a no-op when no signature is present.
+	args := []string{"-q", "-R", "--nocolor", "--include-sigs"}
 	if useSignedDB {
 		args = append(args, "--sign")
 	}

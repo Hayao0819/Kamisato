@@ -56,7 +56,7 @@ func readMember(t *testing.T, archive []byte, name string) ([]byte, bool) {
 
 func TestDBBuilderUpsertAndRead(t *testing.T) {
 	b := newDBBuilder()
-	if err := b.Upsert(metaFor("foo", "1.0-1", []string{"usr/", "usr/bin/foo"})); err != nil {
+	if err := b.Upsert(metaFor("foo", "1.0-1", []string{"usr/", "usr/bin/foo"}), nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -91,10 +91,10 @@ func TestDBBuilderUpsertAndRead(t *testing.T) {
 
 func TestDBBuilderUpsertReplacesSameName(t *testing.T) {
 	b := newDBBuilder()
-	if err := b.Upsert(metaFor("foo", "1.0-1", nil)); err != nil {
+	if err := b.Upsert(metaFor("foo", "1.0-1", nil), nil); err != nil {
 		t.Fatal(err)
 	}
-	if err := b.Upsert(metaFor("foo", "2.0-1", nil)); err != nil {
+	if err := b.Upsert(metaFor("foo", "2.0-1", nil), nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -116,7 +116,7 @@ func TestDBBuilderUpsertReplacesSameName(t *testing.T) {
 
 func TestDBBuilderRemove(t *testing.T) {
 	b := newDBBuilder()
-	if err := b.Upsert(metaFor("foo", "1.0-1", nil)); err != nil {
+	if err := b.Upsert(metaFor("foo", "1.0-1", nil), nil); err != nil {
 		t.Fatal(err)
 	}
 	if !b.Remove("foo") {
@@ -143,7 +143,7 @@ func TestDBBuilderRemove(t *testing.T) {
 func TestDBBuilderPreservesUntouchedFiles(t *testing.T) {
 	// Build an initial .files archive holding package "a" with a files list.
 	initial := newDBBuilder()
-	if err := initial.Upsert(metaFor("a", "1-1", []string{"usr/", "usr/lib/a.so"})); err != nil {
+	if err := initial.Upsert(metaFor("a", "1-1", []string{"usr/", "usr/lib/a.so"}), nil); err != nil {
 		t.Fatal(err)
 	}
 	var filesArchive bytes.Buffer
@@ -156,7 +156,7 @@ func TestDBBuilderPreservesUntouchedFiles(t *testing.T) {
 	if err := b.LoadFiles(bytes.NewReader(filesArchive.Bytes())); err != nil {
 		t.Fatal(err)
 	}
-	if err := b.Upsert(metaFor("b", "1-1", []string{"usr/bin/b"})); err != nil {
+	if err := b.Upsert(metaFor("b", "1-1", []string{"usr/bin/b"}), nil); err != nil {
 		t.Fatal(err)
 	}
 	var out bytes.Buffer

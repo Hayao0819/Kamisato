@@ -303,7 +303,7 @@ func (s *Service) UploadFiles(repo string, files []*domain.UploadFiles) error {
 			if _, ok := byArch[a]; !ok {
 				archOrder = append(archOrder, a)
 			}
-			byArch[a] = append(byArch[a], repository.RepoAddItem{Pkg: p.pkgStream})
+			byArch[a] = append(byArch[a], repository.RepoAddItem{Pkg: p.pkgStream, Sig: p.sigStream})
 			pkgsByArch[a] = append(pkgsByArch[a], p.pkgName)
 		}
 	}

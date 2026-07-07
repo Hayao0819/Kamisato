@@ -1,6 +1,7 @@
 package repo
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -83,7 +84,11 @@ func (t NativeTool) RepoAddBatch(dbPath string, pkgFilePaths []string, useSigned
 		if err != nil {
 			return fmt.Errorf("failed to read package: %w", err)
 		}
-		if err := b.Upsert(meta); err != nil {
+		sig, err := readPackageSig(pkgFilePath)
+		if err != nil {
+			return err
+		}
+		if err := b.Upsert(meta, sig); err != nil {
 			return err
 		}
 	}
@@ -91,6 +96,31 @@ func (t NativeTool) RepoAddBatch(dbPath string, pkgFilePaths []string, useSigned
 		return err
 	}
 	return t.maybeSign(paths, useSignedDB)
+}
+
+// maxPackageSigSize caps an embedded detached signature at repo-add's 16 KiB
+// limit; a larger .sig is rejected as invalid.
+const maxPackageSigSize = 16384
+
+// readPackageSig returns the detached signature bytes from "<pkgFilePath>.sig",
+// or nil when none exists. It mirrors repo-add's --include-sigs constraints —
+// binary (non-armored) and at most 16 KiB — so the %PGPSIG% it feeds the desc is
+// one pacman can verify.
+func readPackageSig(pkgFilePath string) ([]byte, error) {
+	sig, err := os.ReadFile(pkgFilePath + ".sig")
+	if errors.Is(err, os.ErrNotExist) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to read package signature: %w", err)
+	}
+	if bytes.Contains(sig, []byte("BEGIN PGP SIGNATURE")) {
+		return nil, fmt.Errorf("armored package signature is not supported: %s.sig", pkgFilePath)
+	}
+	if len(sig) > maxPackageSigSize {
+		return nil, fmt.Errorf("package signature exceeds %d bytes: %s.sig", maxPackageSigSize, pkgFilePath)
+	}
+	return sig, nil
 }
 
 func (t NativeTool) RepoRemove(dbPath, pkgName string, useSignedDB bool, _ *string) error {

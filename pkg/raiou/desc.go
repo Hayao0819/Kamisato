@@ -266,8 +266,8 @@ func joinQuoted(values []string, sep string) string {
 
 // DescFromPkginfo builds a repository desc entry from a package's .PKGINFO plus
 // the three values repo-add computes outside it: the stored filename, the
-// package file's own (compressed) size, and its sha256. PGPSIG is left empty,
-// matching ayato, which does not embed package signatures into the database.
+// package file's own (compressed) size, and its sha256. PGPSIG is left empty;
+// the caller sets it from the package's detached signature when one exists.
 func DescFromPkginfo(info *PKGINFO, filename string, csize int64, sha256sum string) *DESC {
 	d := NewDESC()
 	d.FileName = filename

@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"crypto"
+	"encoding/base64"
 	"errors"
 	"io"
 	"maps"
@@ -18,6 +19,8 @@ import (
 	"github.com/ProtonMail/go-crypto/openpgp"
 	"github.com/ProtonMail/go-crypto/openpgp/packet"
 	"github.com/klauspost/compress/zstd"
+
+	"github.com/Hayao0819/Kamisato/pkg/raiou"
 )
 
 type member struct {
@@ -282,6 +285,105 @@ func TestRepoAddBatch(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// descPGPSIG parses a raw desc member and returns its %PGPSIG% value.
+func descPGPSIG(t *testing.T, desc []byte) string {
+	t.Helper()
+	d, err := raiou.ParseDescString(string(desc))
+	if err != nil {
+		t.Fatalf("parse desc: %v", err)
+	}
+	return d.PGPSIG
+}
+
+// TestNativeEmbedsAdjacentPGPSIG checks that a detached signature written beside a
+// package as "<pkg>.sig" is embedded into the desc as base64 %PGPSIG%, and — when
+// repo-add is available — that the value matches repo-add --include-sigs exactly.
+func TestNativeEmbedsAdjacentPGPSIG(t *testing.T) {
+	// A non-armored (binary) signature; both repo-add --include-sigs and the
+	// native tool base64-encode the raw bytes verbatim.
+	sig := []byte{0x89, 0x01, 0x0d, 0x03, 0x00, 0xde, 0xad, 0xbe, 0xef, 0x00, 0x7f}
+	want := base64.StdEncoding.EncodeToString(sig)
+
+	build := func(dir string) string {
+		pkgPath := filepath.Join(dir, "sample-1.0-1-x86_64.pkg.tar.zst")
+		buildPkg(t, pkgPath, pkginfoSample("sample", "sample", "1.0-1"), sampleMembers())
+		if err := os.WriteFile(pkgPath+".sig", sig, 0o644); err != nil {
+			t.Fatal(err)
+		}
+		return pkgPath
+	}
+
+	dir := t.TempDir()
+	pkgPath := build(dir)
+	dbPath := filepath.Join(dir, "r.db.tar.gz")
+	if err := (NativeTool{}).RepoAddBatch(dbPath, []string{pkgPath}, false, nil); err != nil {
+		t.Fatalf("RepoAddBatch: %v", err)
+	}
+	desc, ok := readMemberSuffix(t, dbPath, "/desc")
+	if !ok {
+		t.Fatal("desc member missing")
+	}
+	if got := descPGPSIG(t, desc); got != want {
+		t.Errorf("native %%PGPSIG%% = %q, want %q", got, want)
+	}
+
+	if _, err := exec.LookPath("repo-add"); err != nil {
+		t.Skip("repo-add not installed; skipping --include-sigs parity")
+	}
+	refDir := t.TempDir()
+	refPkg := build(refDir)
+	refDB := filepath.Join(refDir, "r.db.tar.gz")
+	if out, err := exec.Command("repo-add", "-q", "-R", "--nocolor", "--include-sigs", refDB, refPkg).CombinedOutput(); err != nil {
+		t.Fatalf("repo-add --include-sigs: %v: %s", err, out)
+	}
+	refDesc, ok := readMemberSuffix(t, refDB, "/desc")
+	if !ok {
+		t.Fatal("repo-add desc member missing")
+	}
+	if got := descPGPSIG(t, refDesc); got != want {
+		t.Errorf("repo-add %%PGPSIG%% = %q, want %q", got, want)
+	}
+}
+
+// TestNativeNoAdjacentSig checks that a package with no "<pkg>.sig" beside it
+// yields a desc with no %PGPSIG% field.
+func TestNativeNoAdjacentSig(t *testing.T) {
+	dir := t.TempDir()
+	pkgPath := filepath.Join(dir, "sample-1.0-1-x86_64.pkg.tar.zst")
+	buildPkg(t, pkgPath, pkginfoSample("sample", "sample", "1.0-1"), sampleMembers())
+
+	dbPath := filepath.Join(dir, "r.db.tar.gz")
+	if err := (NativeTool{}).RepoAddBatch(dbPath, []string{pkgPath}, false, nil); err != nil {
+		t.Fatalf("RepoAddBatch: %v", err)
+	}
+	desc, ok := readMemberSuffix(t, dbPath, "/desc")
+	if !ok {
+		t.Fatal("desc member missing")
+	}
+	if got := descPGPSIG(t, desc); got != "" {
+		t.Errorf("unsigned package has %%PGPSIG%% = %q, want empty", got)
+	}
+	if bytes.Contains(desc, []byte("%PGPSIG%")) {
+		t.Error("desc contains a %PGPSIG% field for an unsigned package")
+	}
+}
+
+// TestNativeRejectsArmoredSig checks that an ASCII-armored signature next to a
+// package is rejected rather than embedded (pacman cannot use armored sigs).
+func TestNativeRejectsArmoredSig(t *testing.T) {
+	dir := t.TempDir()
+	pkgPath := filepath.Join(dir, "sample-1.0-1-x86_64.pkg.tar.zst")
+	buildPkg(t, pkgPath, pkginfoSample("sample", "sample", "1.0-1"), sampleMembers())
+	armored := "-----BEGIN PGP SIGNATURE-----\n\nc2ln\n-----END PGP SIGNATURE-----\n"
+	if err := os.WriteFile(pkgPath+".sig", []byte(armored), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	dbPath := filepath.Join(dir, "r.db.tar.gz")
+	if err := (NativeTool{}).RepoAddBatch(dbPath, []string{pkgPath}, false, nil); err == nil {
+		t.Fatal("expected an error for an armored package signature")
 	}
 }
 

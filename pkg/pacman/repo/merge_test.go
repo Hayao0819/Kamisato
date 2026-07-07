@@ -11,11 +11,12 @@ import (
 func buildDB(t *testing.T, metas ...*struct {
 	name, ver string
 	files     []string
-}) (db, files []byte) {
+},
+) (db, files []byte) {
 	t.Helper()
 	b := newDBBuilder()
 	for _, m := range metas {
-		if err := b.Upsert(metaFor(m.name, m.ver, m.files)); err != nil {
+		if err := b.Upsert(metaFor(m.name, m.ver, m.files), nil); err != nil {
 			t.Fatalf("upsert %s: %v", m.name, err)
 		}
 	}
