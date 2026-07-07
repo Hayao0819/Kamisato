@@ -10,6 +10,7 @@ package badgerkv
 import (
 	"errors"
 	"log/slog"
+	"math/bits"
 	"sync"
 	"time"
 
@@ -45,6 +46,14 @@ var _ kv.Store = (*Store)(nil)
 func New(dir string) (*Store, error) {
 	opt := badger.DefaultOptions(dir)
 	opt.Logger = logger.Default()
+	// BadgerDB memory-maps each value-log file at twice its configured size
+	// (~2 GiB by default). That mapping does not fit — let alone repeatedly — in a
+	// 32-bit process's limited address space, so on 32-bit builds cap the value-log
+	// file size to keep the mmap small. amd64/arm64 keep the default. bits.UintSize
+	// is a constant, so the other branch is compiled out.
+	if bits.UintSize == 32 {
+		opt = opt.WithValueLogFileSize(64 << 20)
+	}
 
 	db, err := badger.Open(opt)
 	if err != nil {
