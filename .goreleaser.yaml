@@ -13,11 +13,13 @@ builds:
     binary: ayaka
     env:
       - CGO_ENABLED=0
+      - GO386=sse2 # 386 target is pentium4 (SSE2); i686 (no SSE2) needs GO386=softfloat, unbuildable natively on a modern Go
     goos:
       - linux
     goarch:
       - amd64
       - arm64
+      - "386"
     ldflags:
       - -s -w
       - -X github.com/Hayao0819/Kamisato/internal/version.Version={{.Version}}
@@ -29,11 +31,13 @@ builds:
     binary: ayato
     env:
       - CGO_ENABLED=0
+      - GO386=sse2 # 386 target is pentium4 (SSE2)
     goos:
       - linux
     goarch:
       - amd64
       - arm64
+      - "386"
     ldflags:
       - -s -w
       - -X github.com/Hayao0819/Kamisato/internal/version.Version={{.Version}}
@@ -63,11 +67,13 @@ builds:
     binary: thoma
     env:
       - CGO_ENABLED=0
+      - GO386=sse2 # 386 target is pentium4 (SSE2)
     goos:
       - linux
     goarch:
       - amd64
       - arm64
+      - "386"
     ldflags:
       - -s -w
       - -X github.com/Hayao0819/Kamisato/internal/version.Version={{.Version}}
