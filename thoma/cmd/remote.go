@@ -15,6 +15,7 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/buildclient"
 	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/internal/errwrap"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/makepkgconf"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/srcpkg"
 )
 
@@ -47,14 +48,19 @@ func resolveEndpoint(cfg *conf.ThomaConfig) (base, token string, err error) {
 
 // detectArch resolves the build arch. makepkg.conf's CARCH is authoritative and
 // can disagree with `uname -m` (armv7h userland on an aarch64 kernel, an i686
-// build chroot on x86_64), so source it first and fall back to uname only when
-// it is unset or unreadable.
-func detectArch() string {
-	out, err := exec.Command("bash", "-c", `source /etc/makepkg.conf 2>/dev/null; printf %s "$CARCH"`).Output()
-	if err == nil {
-		if a := strings.TrimSpace(string(out)); a != "" {
-			return a
-		}
+// build chroot on x86_64), so read it first and fall back to uname only when it
+// is unset or unreadable. configPath is the AUR helper's --config, so the arch
+// matches the makepkg.conf that computes the package list.
+func detectArch(configPath string) string {
+	var cfg *makepkgconf.Conf
+	var err error
+	if configPath != "" {
+		cfg, err = makepkgconf.ReadFile(configPath)
+	} else {
+		cfg, err = makepkgconf.Read()
+	}
+	if err == nil && cfg.CARCH != "" {
+		return cfg.CARCH
 	}
 	if out, err := exec.Command("uname", "-m").Output(); err == nil {
 		if a := strings.TrimSpace(string(out)); a != "" {
@@ -70,7 +76,7 @@ func remoteBuild(args []string) error {
 		return err
 	}
 	if cfg.Arch == "" {
-		cfg.Arch = detectArch()
+		cfg.Arch = detectArch(configArg(args))
 	}
 
 	base, token, err := resolveEndpoint(cfg)

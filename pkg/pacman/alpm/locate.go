@@ -1,40 +1,21 @@
 package alpm
 
 import (
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/Hayao0819/Kamisato/pkg/pacman/makepkgconf"
 )
 
-// makepkgPkgDestScript sources makepkg's config files in makepkg's own order so
-// bash interprets expansion and includes exactly as makepkg would, not guessed.
-const makepkgPkgDestScript = `confdir=/etc
-[[ -r $confdir/makepkg.conf ]] && source "$confdir/makepkg.conf"
-if [[ -d $confdir/makepkg.conf.d ]]; then
-  for f in "$confdir/makepkg.conf.d"/*.conf; do
-    [[ -r $f ]] && source "$f"
-  done
-fi
-if [[ -r ${XDG_CONFIG_HOME:-$HOME/.config}/pacman/makepkg.conf ]]; then
-  source "${XDG_CONFIG_HOME:-$HOME/.config}/pacman/makepkg.conf"
-elif [[ -r $HOME/.makepkg.conf ]]; then
-  source "$HOME/.makepkg.conf"
-fi
-printf '%s' "${PKGDEST:-}"`
-
-// MakepkgPkgDest returns PKGDEST by running bash on makepkg.conf, since that is
-// where a `-U`-installed foreign package lands and the pacman cache is not. Empty
-// when PKGDEST is unset.
+// MakepkgPkgDest returns PKGDEST from makepkg.conf, where a `-U`-installed foreign
+// package lands (the pacman cache does not). Empty when PKGDEST is unset.
 func MakepkgPkgDest() []string {
-	out, err := exec.Command("bash", "-c", makepkgPkgDestScript).Output()
-	if err != nil {
+	cfg, err := makepkgconf.Read()
+	if err != nil || cfg.PKGDEST == "" {
 		return nil
 	}
-	if dest := strings.TrimSpace(string(out)); dest != "" {
-		return []string{dest}
-	}
-	return nil
+	return []string{cfg.PKGDEST}
 }
 
 // FilterForeign keeps only the names present in the foreign set.
