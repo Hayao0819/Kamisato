@@ -1,11 +1,12 @@
 # Cloudflare Pages headers for the lumine static export.
 # Mirror ayato's strict CSP, relaxed only where a Next.js SPA needs it:
-# style-src keeps 'unsafe-inline' (the framework injects inline <style>), and
-# connect-src reaches the API. In the same-origin/BFF deploy 'self' already
-# covers ayato; add the ayato origin to connect-src for cross-origin (bearer)
-# deploys by replacing the https://ayato.example.com placeholder below.
+# script-src and style-src keep 'unsafe-inline' because the static export inlines
+# its hydration bootstrap (self.__next_f.push(...)) and <style>, and a static
+# export has no server to emit per-request nonces. connect-src reaches the API:
+# in the same-origin/BFF deploy 'self' already covers ayato; add the ayato origin
+# for cross-origin (bearer) deploys by replacing the placeholder below.
 /*
-  Content-Security-Policy: default-src 'none'; script-src 'self'; connect-src 'self' https://ayato.example.com; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; manifest-src 'self'; frame-ancestors 'none'; base-uri 'none'; object-src 'none'; form-action 'self'
+  Content-Security-Policy: default-src 'none'; script-src 'self' 'unsafe-inline'; connect-src 'self' https://ayato.example.com; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; manifest-src 'self'; frame-ancestors 'none'; base-uri 'none'; object-src 'none'; form-action 'self'
   X-Content-Type-Options: nosniff
   Referrer-Policy: no-referrer
   X-Frame-Options: DENY
