@@ -2,10 +2,10 @@ package submodulescmd
 
 import (
 	"log/slog"
-	"os/exec"
 
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
 	"github.com/Hayao0819/Kamisato/internal/errwrap"
+	"github.com/Hayao0819/Kamisato/internal/gitcmd"
 	"github.com/spf13/cobra"
 )
 
@@ -31,7 +31,7 @@ func Cmd() *cobra.Command {
 
 				slog.Info("updating submodules", "repo", root)
 
-				gitArgs := []string{"-C", root, "submodule", "update"}
+				gitArgs := []string{"submodule", "update"}
 
 				if init {
 					gitArgs = append(gitArgs, "--init")
@@ -43,11 +43,7 @@ func Cmd() *cobra.Command {
 					gitArgs = append(gitArgs, "--remote")
 				}
 
-				gitcmd := exec.Command("git", gitArgs...) //nolint:gosec // fixed program git, argv passed as separate args (no shell)
-				gitcmd.Stdout = cmd.OutOrStdout()
-				gitcmd.Stderr = cmd.ErrOrStderr()
-
-				if err := gitcmd.Run(); err != nil {
+				if err := gitcmd.Run(cmd.Context(), root, gitArgs...); err != nil {
 					return errwrap.WrapErr(err, "failed to update submodules in "+root)
 				}
 

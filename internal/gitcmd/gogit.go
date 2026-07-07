@@ -2,6 +2,7 @@ package gitcmd
 
 import (
 	"context"
+	"errors"
 	"net"
 	"net/http"
 	"net/url"
@@ -116,6 +117,27 @@ func cloneGoGit(ctx context.Context, o CloneOptions) error {
 	}
 	if err := wt.Checkout(&git.CheckoutOptions{Hash: *hash}); err != nil {
 		return errwrap.WrapErr(err, "checkout "+o.Ref)
+	}
+	return nil
+}
+
+// Pull fast-forwards the checkout in dir from its origin, through go-git so no
+// git process is spawned. It returns nil when already up to date, and errors
+// (like the CLI's --ff-only) when the local branch has diverged. https fetches
+// are pinned to a validated public IP, the same as clones.
+func Pull(ctx context.Context, dir string) error {
+	installSafeHTTPSClient()
+	repo, err := git.PlainOpen(dir)
+	if err != nil {
+		return errwrap.WrapErr(err, "open repo "+dir)
+	}
+	wt, err := repo.Worktree()
+	if err != nil {
+		return errwrap.WrapErr(err, "open worktree")
+	}
+	if err := wt.PullContext(ctx, &git.PullOptions{RemoteName: "origin"}); err != nil &&
+		!errors.Is(err, git.NoErrAlreadyUpToDate) {
+		return errwrap.WrapErr(err, "git pull")
 	}
 	return nil
 }
