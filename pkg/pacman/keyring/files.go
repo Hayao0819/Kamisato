@@ -8,6 +8,8 @@ package keyring
 import (
 	"bytes"
 	"fmt"
+	"os"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
@@ -44,6 +46,30 @@ type Files struct {
 	GPG     []byte // <name>.gpg — concatenated binary public keys with revocation sigs
 	Trusted []byte // <name>-trusted — "<fpr>:4:" lines
 	Revoked []byte // <name>-revoked — bare fingerprint lines
+}
+
+// Write emits the three files as <name>.gpg, <name>-trusted and <name>-revoked
+// into dir, the layout a keyring source repo (with its own Makefile/PKGBUILD and
+// install hook) consumes. It writes only these files, leaving the repo's
+// packaging untouched, so ayaka can regenerate the key material in place.
+func (f *Files) Write(dir string) error {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return err
+	}
+	items := []struct {
+		name string
+		data []byte
+	}{
+		{f.Name + ".gpg", f.GPG},
+		{f.Name + "-trusted", f.Trusted},
+		{f.Name + "-revoked", f.Revoked},
+	}
+	for _, it := range items {
+		if err := os.WriteFile(filepath.Join(dir, it.name), it.data, 0o644); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // BuildFiles assembles the keyring files. entities are the public keys to bundle
