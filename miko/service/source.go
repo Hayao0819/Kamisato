@@ -1,12 +1,13 @@
 package service
 
 import (
+	"context"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 
 	"github.com/Hayao0819/Kamisato/internal/errwrap"
+	"github.com/Hayao0819/Kamisato/internal/gitcmd"
 	"github.com/Hayao0819/Kamisato/internal/ioutils"
 	"github.com/Hayao0819/Kamisato/miko/domain"
 )
@@ -14,10 +15,10 @@ import (
 // materialize prepares the build source in srcDir from the request. Exactly one
 // source must be provided: a git/AUR clone (req.Git) or a raw PKGBUILD
 // (req.Pkgbuild). It validates that a PKGBUILD exists in srcDir afterwards.
-func materialize(req *domain.BuildRequest, srcDir string) error {
+func materialize(ctx context.Context, req *domain.BuildRequest, srcDir string) error {
 	switch {
 	case req.Git != nil:
-		if err := materializeGit(req.Git, srcDir); err != nil {
+		if err := materializeGit(ctx, req.Git, srcDir); err != nil {
 			return err
 		}
 	case req.Pkgbuild != "":
@@ -37,10 +38,12 @@ func materialize(req *domain.BuildRequest, srcDir string) error {
 // materializeGit clones git.URL into srcDir. When git.Subdir is set the clone
 // happens in a temporary directory and the subdir is copied into srcDir.
 //
-// All git arguments are passed as a vector (never a shell string) and the "--"
-// separator terminates option parsing, so a malicious URL or ref cannot inject
-// extra options or shell syntax.
-func materializeGit(git *domain.GitSource, srcDir string) error {
+// git.URL comes from the build request, so the clone is Strict: it validates the
+// remote and pins the https connection to a public IP, closing the SSRF into
+// internal hosts (e.g. cloud metadata) that a plain clone would leave open. A
+// specified ref triggers a full clone so any branch/tag/commit resolves; the
+// common no-ref case stays a depth-1 shallow clone.
+func materializeGit(ctx context.Context, git *domain.GitSource, srcDir string) error {
 	if git.URL == "" {
 		return errwrap.NewErr("git source has no URL")
 	}
@@ -63,15 +66,12 @@ func materializeGit(git *domain.GitSource, srcDir string) error {
 		dest = tmp
 	}
 
-	args := []string{"clone", "--depth", "1"}
-	if git.Ref != "" {
-		args = append(args, "--branch", git.Ref)
+	opts := gitcmd.CloneOptions{URL: git.URL, Dir: dest, Ref: git.Ref, Strict: true}
+	if git.Ref == "" {
+		opts.Depth = 1
 	}
-	args = append(args, "--", git.URL, dest)
-
-	cmd := exec.Command("git", args...)
-	if out, err := cmd.CombinedOutput(); err != nil {
-		return errwrap.WrapErr(err, "git clone failed: "+strings.TrimSpace(string(out)))
+	if err := gitcmd.Clone(ctx, opts); err != nil {
+		return errwrap.WrapErr(err, "git clone failed")
 	}
 
 	if git.Subdir != "" {

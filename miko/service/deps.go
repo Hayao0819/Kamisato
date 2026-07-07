@@ -81,7 +81,7 @@ func (s *Service) buildAndPublishDep(ctx context.Context, job *domain.BuildJob, 
 	}
 
 	gitURL := strings.TrimRight(up.GitBase(), "/") + "/" + dep.PackageBase + ".git"
-	if err := materializeGit(&domain.GitSource{URL: gitURL}, depSrc); err != nil {
+	if err := materializeGit(ctx, &domain.GitSource{URL: gitURL}, depSrc); err != nil {
 		return errwrap.WrapErr(err, "failed to clone AUR dependency")
 	}
 

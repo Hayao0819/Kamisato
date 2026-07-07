@@ -25,7 +25,7 @@ func (s *Service) runBuild(ctx context.Context, job *domain.BuildJob) (*builder.
 	}
 	defer func() { _ = os.RemoveAll(srcDir) }()
 
-	if err := materialize(req, srcDir); err != nil {
+	if err := materialize(ctx, req, srcDir); err != nil {
 		return nil, "", errwrap.WrapErr(err, "failed to materialize source")
 	}
 
