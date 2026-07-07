@@ -30,6 +30,7 @@ type DESC struct {
 	Groups       []string            `json:"groups" yml:"groups" toml:"groups"`
 	License      []string            `json:"license" yml:"license" toml:"license"`
 	Validation   string              `json:"validation" yml:"validation" toml:"validation"`
+	InstalledDB  string              `json:"installeddb" yml:"installeddb" toml:"installeddb"`
 	Replaces     []string            `json:"replaces" yml:"replaces" toml:"replaces"`
 	Depends      []string            `json:"depends" yml:"depends" toml:"depends"`
 	OptDepends   []string            `json:"optdepends" yml:"optdepends" toml:"optdepends"`
@@ -139,6 +140,11 @@ func ParseDesc(r io.Reader) (*DESC, error) {
 			desc.License = append(desc.License, buffer...)
 		case "VALIDATION":
 			desc.Validation = first(buffer)
+		case "INSTALLED_DB":
+			// CachyOS's libalpm records the source repo in each local db entry
+			// (be_local.c). It never appears in a sync/repo db, so it is read
+			// here but not emitted by the repo-add writer.
+			desc.InstalledDB = first(buffer)
 		case "REPLACES":
 			desc.Replaces = append(desc.Replaces, buffer...)
 		case "DEPENDS":

@@ -66,6 +66,25 @@ func TestLocalParseAllDescFiles(t *testing.T) {
 	}
 }
 
+// CachyOS's libalpm stamps each local db entry with %INSTALLED_DB%, the sync
+// repo a package came from. The parser must treat it as a known field, not spill
+// it into ExtraFields (which would warn and leak it into PKGINFO's XData).
+func TestParseDescInstalledDB(t *testing.T) {
+	desc := "%NAME%\nlinux-cachyos\n\n%VERSION%\n6.15.4-1\n\n" +
+		"%REASON%\n0\n\n%VALIDATION%\npgp\n\n%INSTALLED_DB%\ncachyos\n"
+
+	d, err := raiou.ParseDescString(desc)
+	if err != nil {
+		t.Fatalf("ParseDescString: %v", err)
+	}
+	if d.InstalledDB != "cachyos" {
+		t.Errorf("InstalledDB = %q, want %q", d.InstalledDB, "cachyos")
+	}
+	if len(d.ExtraFields) > 0 {
+		t.Errorf("INSTALLED_DB must be a known field, got ExtraFields %v", keysOf(d.ExtraFields))
+	}
+}
+
 func keysOf[T any](m map[string]T) []string {
 	keys := make([]string, 0, len(m))
 	for k := range m {
