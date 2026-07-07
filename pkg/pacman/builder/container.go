@@ -143,9 +143,7 @@ func (b *containerBackend) Build(ctx context.Context, spec Spec) (*Result, error
 	// then Spec.Repos (repo.json build.repos).
 	effectiveRepos := append(append([]RepoSpec{}, b.extraRepos...), spec.Repos...)
 
-	script := buildScript
-	script = strings.ReplaceAll(script, "__EXTRA_REPOS__", extraReposScript(effectiveRepos))
-	script = strings.ReplaceAll(script, "__INSTALL__", strings.TrimRight(installCmd.String(), "\n"))
+	script := substituteBuildPlaceholders(buildScript, extraReposScript(effectiveRepos), strings.TrimRight(installCmd.String(), "\n"))
 
 	// Stage the override as a real host file so the entrypoint copies it into
 	// place instead of generating it via a heredoc. The per-build makepkg

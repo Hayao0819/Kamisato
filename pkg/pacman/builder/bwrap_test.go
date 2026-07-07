@@ -51,12 +51,15 @@ func TestBwrapInstallBinds(t *testing.T) {
 	if !strings.Contains(script, "pacman -U --noconfirm "+shellQuote(binds[0][1])) {
 		t.Errorf("install command not substituted: %q", script)
 	}
-	if strings.Contains(script, "__INSTALL__") {
-		t.Error("__INSTALL__ placeholder not replaced")
+	// The standalone placeholder lines must be filled in; a mention inside the
+	// script's doc comment is intentionally left untouched (see the anchored
+	// substituteBuildPlaceholders).
+	if strings.Contains(script, "\n__INSTALL__\n") {
+		t.Error("__INSTALL__ placeholder line not replaced")
 	}
 	// With no extra repos the placeholder collapses to nothing.
-	if strings.Contains(script, "__EXTRA_REPOS__") {
-		t.Error("__EXTRA_REPOS__ placeholder not replaced")
+	if strings.Contains(script, "\n__EXTRA_REPOS__\n") {
+		t.Error("__EXTRA_REPOS__ placeholder line not replaced")
 	}
 	// The dep phase must disable pacman's nested download sandbox.
 	if !strings.Contains(script, "DisableSandbox") {

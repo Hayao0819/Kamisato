@@ -35,6 +35,17 @@ func pacmanRepoStanzas(repos []RepoSpec) string {
 	return b.String()
 }
 
+// substituteBuildPlaceholders fills the standalone __EXTRA_REPOS__ and __INSTALL__
+// lines of an embedded build script. It anchors on the surrounding newlines so a
+// mention of either token in a doc comment is left intact: a plain ReplaceAll
+// would expand the comment too, and the repo heredoc opened inside a `#` comment
+// leaks its body lines as bare commands.
+func substituteBuildPlaceholders(script, reposScript, installScript string) string {
+	script = strings.ReplaceAll(script, "\n__EXTRA_REPOS__\n", "\n"+reposScript+"\n")
+	script = strings.ReplaceAll(script, "\n__INSTALL__\n", "\n"+installScript+"\n")
+	return script
+}
+
 // extraReposScript renders a shell snippet that appends the repo stanzas to
 // /etc/pacman.conf inside the build environment. It returns "" when there is
 // nothing to add so the script placeholder collapses to nothing. The heredoc

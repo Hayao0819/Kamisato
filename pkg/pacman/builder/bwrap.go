@@ -176,8 +176,7 @@ func bwrapInstall(installPkgs []string, extraRepos []RepoSpec) (script string, b
 		// the bash -c deps script, mirroring the container backend.
 		fmt.Fprintf(&cmds, "pacman -U --noconfirm %s\n", shellQuote(dest))
 	}
-	script = strings.ReplaceAll(bwrapDepsScript, "__EXTRA_REPOS__", extraReposScript(extraRepos))
-	script = strings.ReplaceAll(script, "__INSTALL__", strings.TrimRight(cmds.String(), "\n"))
+	script = substituteBuildPlaceholders(bwrapDepsScript, extraReposScript(extraRepos), strings.TrimRight(cmds.String(), "\n"))
 	return script, binds
 }
 
