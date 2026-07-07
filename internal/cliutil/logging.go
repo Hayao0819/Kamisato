@@ -1,4 +1,4 @@
-package logging
+package cliutil
 
 import (
 	"log/slog"

@@ -15,9 +15,9 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/Hayao0819/Kamisato/internal/apikey"
+	"github.com/Hayao0819/Kamisato/internal/cliutil"
 	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/internal/errwrap"
-	"github.com/Hayao0819/Kamisato/internal/logging"
 	"github.com/Hayao0819/Kamisato/miko/signer"
 )
 
@@ -37,10 +37,10 @@ func signerCmd() *cobra.Command {
 				return err
 			}
 			if cfg.Debug {
-				logging.UseColorLog(slog.LevelDebug)
+				cliutil.UseColorLog(slog.LevelDebug)
 				gin.SetMode(gin.DebugMode)
 			} else {
-				logging.UseColorLog(slog.LevelInfo)
+				cliutil.UseColorLog(slog.LevelInfo)
 				gin.SetMode(gin.ReleaseMode)
 			}
 

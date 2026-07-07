@@ -16,7 +16,6 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/cliutil"
 	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/internal/errwrap"
-	"github.com/Hayao0819/Kamisato/internal/logging"
 	"github.com/Hayao0819/Kamisato/internal/version"
 	"github.com/Hayao0819/Kamisato/internal/weblog"
 	"github.com/Hayao0819/Kamisato/miko/handler"
@@ -111,11 +110,11 @@ func RootCmd() *cobra.Command {
 			}
 
 			if cfg.Debug {
-				logging.Setup(slog.LevelDebug, cliutil.ColorEnabled(cmd))
+				cliutil.Setup(slog.LevelDebug, cliutil.ColorEnabled(cmd))
 				slog.Debug("Debug mode enabled")
 				gin.SetMode(gin.DebugMode)
 			} else {
-				logging.Setup(slog.LevelInfo, cliutil.ColorEnabled(cmd))
+				cliutil.Setup(slog.LevelInfo, cliutil.ColorEnabled(cmd))
 				gin.SetMode(gin.ReleaseMode)
 			}
 

@@ -20,7 +20,6 @@ import (
 	submodulescmd "github.com/Hayao0819/Kamisato/ayaka/cmd/submodules"
 	"github.com/Hayao0819/Kamisato/internal/cliutil"
 	"github.com/Hayao0819/Kamisato/internal/conf"
-	"github.com/Hayao0819/Kamisato/internal/logging"
 	"github.com/Hayao0819/Kamisato/internal/version"
 	"github.com/Hayao0819/nahi/cobrautils"
 	"github.com/spf13/cobra"
@@ -44,7 +43,7 @@ func RootCmd() *cobra.Command {
 			if c.Debug {
 				level = slog.LevelDebug
 			}
-			logging.Setup(level, cliutil.ColorEnabled(cmd))
+			cliutil.Setup(level, cliutil.ColorEnabled(cmd))
 
 			app, err := shared.NewApp(c)
 			if err != nil {

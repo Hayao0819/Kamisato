@@ -13,7 +13,6 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/cliutil"
 	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/internal/errwrap"
-	"github.com/Hayao0819/Kamisato/internal/logging"
 	"github.com/Hayao0819/Kamisato/internal/version"
 	"github.com/Hayao0819/Kamisato/internal/weblog"
 	ayatocmd "github.com/Hayao0819/Kamisato/kayo/cmd/ayato"
@@ -57,10 +56,10 @@ func run(cmd *cobra.Command, _ []string) error {
 	}
 
 	if cfg.Debug {
-		logging.Setup(slog.LevelDebug, cliutil.ColorEnabled(cmd))
+		cliutil.Setup(slog.LevelDebug, cliutil.ColorEnabled(cmd))
 		gin.SetMode(gin.DebugMode)
 	} else {
-		logging.Setup(slog.LevelInfo, cliutil.ColorEnabled(cmd))
+		cliutil.Setup(slog.LevelInfo, cliutil.ColorEnabled(cmd))
 		gin.SetMode(gin.ReleaseMode)
 	}
 
