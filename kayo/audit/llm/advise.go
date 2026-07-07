@@ -1,10 +1,10 @@
-// Package llmaudit adds an optional LLM advisory pass over a PKGBUILD: it asks a
+// Package llm adds an optional LLM advisory pass over a PKGBUILD: it asks a
 // model to triage obfuscation and supply-chain red flags that a static scan
 // misses. It is ADVISORY ONLY and never gates an install — an LLM is
 // nondeterministic and prompt-injectable, so its verdict is surfaced next to the
 // static audit, never in place of it. The build path never calls it; only the
 // human-driven audit/trust commands do.
-package llmaudit
+package llm
 
 import (
 	"context"

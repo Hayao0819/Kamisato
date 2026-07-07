@@ -10,7 +10,7 @@ import (
 
 	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/kayo/audit"
-	"github.com/Hayao0819/Kamisato/kayo/llmaudit"
+	"github.com/Hayao0819/Kamisato/kayo/audit/llm"
 	"github.com/Hayao0819/Kamisato/kayo/trust"
 )
 
@@ -36,12 +36,12 @@ func PrintLLMAdvisory(ctx context.Context, w io.Writer, cfg *conf.KayoConfig, di
 		}
 	}
 
-	model, err := llmaudit.NewModel(cfg.LLM.Provider, cfg.LLM.Model, cfg.LLM.BaseURL)
+	model, err := llm.NewModel(cfg.LLM.Provider, cfg.LLM.Model, cfg.LLM.BaseURL)
 	if err != nil {
 		fmt.Fprintf(w, "llm:        unavailable (%v)\n", err)
 		return
 	}
-	adv, err := llmaudit.Advise(ctx, model, string(pkgbuild), install.String())
+	adv, err := llm.Advise(ctx, model, string(pkgbuild), install.String())
 	if err != nil {
 		fmt.Fprintf(w, "llm:        advisory failed (%v)\n", err)
 		return
@@ -49,7 +49,7 @@ func PrintLLMAdvisory(ctx context.Context, w io.Writer, cfg *conf.KayoConfig, di
 	printAdvisory(w, adv)
 }
 
-func printAdvisory(w io.Writer, a *llmaudit.Advisory) {
+func printAdvisory(w io.Writer, a *llm.Advisory) {
 	fmt.Fprintf(w, "llm advisory: risk=%s (not a gate)\n", sanitizeLLM(a.Risk))
 	if a.Summary != "" {
 		fmt.Fprintf(w, "  %s\n", sanitizeLLM(a.Summary))

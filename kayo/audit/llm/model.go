@@ -1,4 +1,4 @@
-package llmaudit
+package llm
 
 import (
 	"strings"
