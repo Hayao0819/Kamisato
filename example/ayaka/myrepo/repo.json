@@ -1,6 +1,17 @@
 {
     "name": "myrepo",
     "maintainer": "hayao <shun819.mail at gmail.com>",
-    "server": "",
-    "archbuild": "extra-x86_64-build"
+    "url": "http://127.0.0.1:8080/repo/myrepo",
+    "build": {
+        "repos": [],
+        "makepkg": {
+            "packager": "Kamisato Example <example@kamisato.test>",
+            "options": ["!debug"]
+        },
+        "archbuild": "extra-x86_64-build"
+    },
+    "installpkgs": {
+        "files": [],
+        "names": []
+    }
 }
