@@ -27,6 +27,7 @@ type ThomaConfig struct {
 }
 
 func LoadThomaConfig(flags *pflag.FlagSet) (*ThomaConfig, error) {
+	loadDotEnv()
 	cfg, err := loadConfig[ThomaConfig](
 		commonConfigDirs(),
 		[]string{".thomarc.json", ".thomarc.toml", ".thomarc.yaml"},
