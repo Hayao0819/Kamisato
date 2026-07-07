@@ -67,7 +67,12 @@ func updateAurPkg(cobraCmd *cobra.Command, repoDir, name string, force bool) err
 			return errwrap.WrapErr(err, "failed to create parent directory")
 		}
 
-		relPath, err := filepath.Rel(root, targetDir)
+		absTarget, err := filepath.Abs(targetDir)
+		if err != nil {
+			return errwrap.WrapErr(err, "failed to resolve absolute target path")
+		}
+
+		relPath, err := filepath.Rel(root, absTarget)
 		if err != nil {
 			return errwrap.WrapErr(err, "failed to get relative path for submodule")
 		}
