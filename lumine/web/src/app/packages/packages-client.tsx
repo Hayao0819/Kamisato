@@ -193,6 +193,18 @@ export default function PackagesClient() {
         updateUrl({ arch: arches[0], group: null, type: null, page: 1 });
     }, [query.repo, query.arch, arches, updateUrl]);
 
+    // Promote the auto-selected scope into the URL (the source of truth) when the
+    // address bar is bare — e.g. arriving via the sidebar's plain /packages link —
+    // so the view activates instead of staying on the "select repo/arch" prompt.
+    // Guard on repo OR arch so this owns only the fully-empty URL, keeping its
+    // domain disjoint from the URL→atoms hydration and the arch-canon effect above;
+    // an overlapping domain would double-write and race an interactive repo switch.
+    useEffect(() => {
+        if (query.repo || query.arch) return;
+        if (!selectedRepo || !selectedArch) return;
+        updateUrl({ repo: selectedRepo, arch: selectedArch });
+    }, [query.repo, query.arch, selectedRepo, selectedArch, updateUrl]);
+
     // Keep the refine box reflecting the active q after URL-driven hydration,
     // but don't clobber an in-progress edit before submit.
     const lastSyncedQ = useRef(query.q);
