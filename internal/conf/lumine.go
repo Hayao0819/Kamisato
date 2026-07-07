@@ -17,6 +17,10 @@ type LumineConfig struct {
 	// there; in bearer mode the SPA calls it directly. Also set via LUMINE_AYATO_URL.
 	AyatoURL string `koanf:"ayato_url"`
 	AuthMode string `koanf:"auth_mode"` // "cookie" (default) or "bearer"
+	// Title and Description override the SPA's landing heading and subtitle. Empty
+	// keeps the SPA's built-in default. Set via LUMINE_TITLE / LUMINE_DESCRIPTION.
+	Title       string `koanf:"title"`
+	Description string `koanf:"description"`
 }
 
 func LoadLumineConfig(flags *pflag.FlagSet, configFile string) (*LumineConfig, error) {

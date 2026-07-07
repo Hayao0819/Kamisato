@@ -4,6 +4,7 @@ import { Package, Search } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
+import { useAPIClient } from "@/components/lumine-provider";
 import { PageContainer } from "@/components/page-container";
 import {
     Select,
@@ -13,6 +14,11 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { useRepoArch } from "@/hooks/use-repo-arch";
+
+// Shown when the deployment does not override them via LUMINE_TITLE / LUMINE_DESCRIPTION.
+const DEFAULT_TITLE = "Lumine";
+const DEFAULT_DESCRIPTION =
+    "Ayaka が支える Arch Linux 向けパッケージリポジトリのフロントエンドです。";
 
 // The calm centered landing for "/": the Lumine mark, the repo/arch scope
 // selects fused into one dominant search box, and nothing else. Submitting
@@ -30,6 +36,10 @@ export function ScopeHero() {
     const router = useRouter();
     const [keyword, setKeyword] = useState("");
     const inputRef = useRef<HTMLInputElement>(null);
+
+    const { lumineEnv } = useAPIClient();
+    const title = lumineEnv.TITLE?.trim() || DEFAULT_TITLE;
+    const description = lumineEnv.DESCRIPTION?.trim() || DEFAULT_DESCRIPTION;
 
     const scopeReady = Boolean(selectedRepo && selectedArch);
 
@@ -76,11 +86,10 @@ export function ScopeHero() {
                         <Package className="h-8 w-8 text-primary-foreground" />
                     </div>
                     <h1 className="text-[32px] font-bold tracking-tight">
-                        Lumine
+                        {title}
                     </h1>
                     <p className="mx-auto mt-2 max-w-md text-[15px] leading-relaxed text-muted-foreground">
-                        Ayaka が支える Arch Linux
-                        向けパッケージリポジトリのフロントエンドです。
+                        {description}
                     </p>
                     <p className="mt-4 text-[15px] text-muted-foreground">
                         {scopeReady ? (

@@ -45,6 +45,10 @@ type LumineEnv = {
     AYATO_URL: string | null;
     AUTH_MODE?: AuthMode;
     FALLBACK: boolean;
+    // Optional branding overrides for the landing heading/subtitle; the SPA falls
+    // back to its built-in default when unset.
+    TITLE?: string;
+    DESCRIPTION?: string;
 };
 
 const fallbackLumineEnv: LumineEnv = {

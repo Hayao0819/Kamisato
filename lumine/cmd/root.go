@@ -22,9 +22,11 @@ import (
 // "cookie" (same-origin session cookie via this proxy) or "bearer" (SPA calls
 // ayato cross-origin with a token, no proxy).
 type lumineEnv struct {
-	AyatoURL *string `json:"AYATO_URL"`
-	AuthMode string  `json:"AUTH_MODE"`
-	Fallback bool    `json:"FALLBACK"`
+	AyatoURL    *string `json:"AYATO_URL"`
+	AuthMode    string  `json:"AUTH_MODE"`
+	Fallback    bool    `json:"FALLBACK"`
+	Title       string  `json:"TITLE,omitempty"`
+	Description string  `json:"DESCRIPTION,omitempty"`
 }
 
 // newReverseProxy uses a Rewrite hook, not the default Director: the Director
@@ -103,6 +105,10 @@ func RootCmd() *cobra.Command {
 					env = lumineEnv{AuthMode: "cookie"}
 				}
 			}
+
+			// Optional branding overrides, independent of the auth mode above.
+			env.Title = cfg.Title
+			env.Description = cfg.Description
 
 			envJSON, err := json.Marshal(env)
 			if err != nil {
