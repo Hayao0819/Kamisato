@@ -16,12 +16,27 @@ import (
 type SrcConfig struct {
 	Name        string
 	Maintainer  string
-	ArchBuild   string
-	Server      string
+	URL         string
+	Build       BuildConfig
 	InstallPkgs struct {
 		Files []string
 		Names []string
 	}
+}
+
+type BuildRepo struct{ Name, Server, SigLevel string }
+
+type MakepkgSettings struct {
+	Packager     string
+	Microarch    string
+	CFlagsAppend string
+	Options      []string
+}
+
+type BuildConfig struct {
+	Repos     []BuildRepo
+	Makepkg   MakepkgSettings
+	ArchBuild string
 }
 
 type SourceRepo struct {

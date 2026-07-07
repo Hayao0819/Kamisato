@@ -45,8 +45,10 @@ func BuildPkgRows(repos []*repo.SourceRepo, format, server string) []PkgRow {
 	var rows []PkgRow
 	for _, r := range repos {
 		var remote *repo.RemoteRepo
-		if wantRemote && r.Config.Server != "" {
-			remote, _ = repo.RepoFromURL(r.Config.Server, r.Config.Name)
+		if wantRemote && r.Config.URL != "" {
+			// Config.URL is arch-less; the list column reports the default x86_64
+			// remote, matching the build command's default --arch.
+			remote, _ = repo.RepoFromURL(strings.TrimRight(r.Config.URL, "/")+"/x86_64", r.Config.Name)
 		}
 
 		for _, p := range r.Pkgs {

@@ -50,6 +50,8 @@ func Package(p *pkg.SourcePackage, target *builder.Target, dest string) error {
 		OutDir:      dest,
 		Arch:        target.Arch,
 		ArchBuild:   target.ArchBuild,
+		Repos:       target.Repos,
+		Makepkg:     target.Makepkg,
 		InstallPkgs: target.InstallPkgs,
 		LogWriter:   target.Output,
 	})

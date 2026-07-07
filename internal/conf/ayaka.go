@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"path/filepath"
+	"strings"
 
 	"github.com/Hayao0819/Kamisato/internal/confloader"
 	"github.com/spf13/pflag"
@@ -71,15 +72,40 @@ func (c *AyakaConfig) Validate() error {
 	return nil
 }
 
+type BuildRepo struct {
+	Name     string `koanf:"name" json:"name"`
+	Server   string `koanf:"server" json:"server"`
+	SigLevel string `koanf:"siglevel" json:"siglevel,omitempty"`
+}
+
+type MakepkgConfig struct {
+	Packager     string   `koanf:"packager" json:"packager,omitempty"`
+	Microarch    string   `koanf:"microarch" json:"microarch,omitempty"`
+	CFlagsAppend string   `koanf:"cflags_append" json:"cflags_append,omitempty"`
+	Options      []string `koanf:"options" json:"options,omitempty"`
+}
+
+type SrcBuildConfig struct {
+	Repos     []BuildRepo   `koanf:"repos" json:"repos,omitempty"`
+	Makepkg   MakepkgConfig `koanf:"makepkg" json:"makepkg,omitempty"`
+	ArchBuild string        `koanf:"archbuild" json:"archbuild,omitempty"`
+}
+
+type InstallPkgsConfig struct {
+	Files []string `koanf:"files" json:"files"`
+	Names []string `koanf:"names" json:"names"`
+}
+
 type SrcRepoConfig struct {
-	Name        string `koanf:"name"`
-	Maintainer  string `koanf:"maintainer"`
-	ArchBuild   string `koanf:"archbuild"`
-	Server      string `koanf:"server"`
-	InstallPkgs struct {
-		Files []string `koanf:"files"`
-		Names []string `koanf:"names"`
-	} `koanf:"installpkgs"`
+	Name        string            `koanf:"name" json:"name"`
+	Maintainer  string            `koanf:"maintainer" json:"maintainer"`
+	URL         string            `koanf:"url" json:"url,omitempty"`
+	Build       SrcBuildConfig    `koanf:"build" json:"build,omitempty"`
+	InstallPkgs InstallPkgsConfig `koanf:"installpkgs" json:"installpkgs"`
+
+	// Deprecated top-level aliases, folded into URL / Build.ArchBuild by migrateLegacy.
+	LegacyServer    string `koanf:"server" json:"server,omitempty"`
+	LegacyArchBuild string `koanf:"archbuild" json:"archbuild,omitempty"`
 }
 
 func (c *SrcRepoConfig) Marshal() ([]byte, error) {
@@ -92,8 +118,41 @@ func LoadSrcRepoConfig(repodir string) (*SrcRepoConfig, error) {
 		[]string{"repo.json"},
 		nil,
 		"REPO",
-		nil,
+		(*SrcRepoConfig).migrateLegacy,
 	)
+}
+
+// migrateLegacy folds the deprecated top-level server/archbuild into the current
+// url / build.archbuild shape so the rest of the CLI only sees the new fields.
+func (c *SrcRepoConfig) migrateLegacy() {
+	if c.LegacyServer != "" {
+		slog.Warn("repo.json: top-level 'server' is deprecated; use 'url'")
+		if c.URL == "" {
+			c.URL = stripArchSuffix(c.LegacyServer)
+		}
+		c.LegacyServer = ""
+	}
+	if c.LegacyArchBuild != "" {
+		slog.Warn("repo.json: top-level 'archbuild' is deprecated; use 'build.archbuild'")
+		if c.Build.ArchBuild == "" {
+			c.Build.ArchBuild = c.LegacyArchBuild
+		}
+		c.LegacyArchBuild = ""
+	}
+}
+
+// archSuffixes are the trailing arch segments stripArchSuffix trims so a legacy
+// arch-ful server URL migrates to the arch-less url ayaka now appends --arch to.
+var archSuffixes = []string{"x86_64_v2", "x86_64_v3", "x86_64_v4", "x86_64", "aarch64", "armv7h", "any"}
+
+func stripArchSuffix(server string) string {
+	s := strings.TrimRight(server, "/")
+	for _, a := range archSuffixes {
+		if strings.HasSuffix(s, "/"+a) {
+			return strings.TrimSuffix(s, "/"+a)
+		}
+	}
+	return s
 }
 
 // Validate requires a name, the key every source repo is looked up by; an

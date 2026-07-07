@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path"
 	"slices"
+	"strings"
 
 	"github.com/Hayao0819/Kamisato/ayaka/build"
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
@@ -28,6 +29,7 @@ func Cmd() *cobra.Command {
 	var executor string
 	var arch string
 	var updateSrcinfo bool
+	var diffURL string
 	cmd := cobra.Command{
 		Use:   "build <srcrepo> [pkgname...]",
 		Short: "Build packages locally (--diff to build only changed packages)",
@@ -130,13 +132,18 @@ func Cmd() *cobra.Command {
 				}
 			}
 
+			mk := srcrepo.Config.Build.Makepkg
+			if mk.Microarch != "" && !builder.ValidMicroarch(mk.Microarch) {
+				return errwrap.NewErr("build.makepkg.microarch " + mk.Microarch + " is not a known x86-64 feature level (x86_64_v2/v3/v4)")
+			}
+
 			pkgs, cleanup, err := alpm.GetCleanPkgBinary(srcrepo.Config.InstallPkgs.Names...)
 			if err != nil {
 				return errwrap.WrapErr(err, "failed to get clean package binaries")
 			}
 			defer func() { _ = cleanup.Close() }()
 
-			slog.Info("Creating build target", "arch", srcrepo.Config.ArchBuild, "installpkgs", pkgs)
+			slog.Info("Creating build target", "archbuild", srcrepo.Config.Build.ArchBuild, "installpkgs", pkgs)
 
 			var signKey string
 			if sign {
@@ -144,24 +151,39 @@ func Cmd() *cobra.Command {
 			}
 			buildTarget := builder.Target{
 				Arch:        arch,
-				ArchBuild:   srcrepo.Config.ArchBuild,
+				ArchBuild:   srcrepo.Config.Build.ArchBuild,
 				SignKey:     signKey,
 				InstallPkgs: append(srcrepo.Config.InstallPkgs.Files, pkgs...),
-				Executor:    builder.Kind(executor),
+				Repos:       repoSpecsFromConfig(srcrepo.Config.Build.Repos),
+				Makepkg: builder.MakepkgSettings{
+					Packager:     mk.Packager,
+					Microarch:    mk.Microarch,
+					CFlagsAppend: mk.CFlagsAppend,
+					Options:      mk.Options,
+				},
+				Executor: builder.Kind(executor),
 			}
 
-			if server == "" {
-				server = srcrepo.Config.Server
+			// The chroot backend still shells out to the devtools wrapper, so it
+			// cannot yet apply per-repo build.repos/build.makepkg (Stage 2). Warn so
+			// the drop is not silent.
+			mkSet := mk.Packager != "" || mk.Microarch != "" || mk.CFlagsAppend != "" || len(mk.Options) > 0
+			if buildTarget.Executor == "" || buildTarget.Executor == builder.KindChroot {
+				if len(buildTarget.Repos) > 0 || mkSet {
+					slog.Warn("chroot backend does not yet apply per-repo build.repos/build.makepkg (Stage 2); using the devtools wrapper without them")
+				}
 			}
+
 			outDir := path.Join(destDir, srcrepo.Config.Name)
 			writeDir := path.Join(outDir, buildTarget.Arch)
 
 			if diffMode {
-				slog.Info("Starting diff build", "repo", srcdir, "outdir", writeDir, "gpgkey", gpgkey, "server", server)
-				remoteRepo, err := pacmanrepo.RepoFromURL(server, srcrepo.Config.Name)
+				diffServer := resolveDiffServer(diffURL, server, srcrepo.Config.URL, buildTarget.Arch)
+				slog.Info("Starting diff build", "repo", srcdir, "outdir", writeDir, "gpgkey", gpgkey, "server", diffServer)
+				remoteRepo, err := pacmanrepo.RepoFromURL(diffServer, srcrepo.Config.Name)
 				if err != nil {
 					if errors.Is(err, pacmanrepo.ErrRepoNotFound) {
-						return errwrap.WrapErr(err, "remote repo not found; configure it on ayato and point --server at the repo db dir (.../repo/<repo>/<arch>)")
+						return errwrap.WrapErr(err, "remote repo not found; configure it on ayato and set repo.json url (or --diff-url) to the repo db dir (.../repo/<repo>/<arch>)")
 					}
 					return errwrap.WrapErr(err, "failed to get remote repository")
 				}
@@ -184,8 +206,39 @@ func Cmd() *cobra.Command {
 	cmd.Flags().StringVar(&gpgkey, "key", "", "GPG key ID for package signing (requires --sign)")
 	cmd.Flags().BoolVar(&diffMode, "diff", false, "Enable diff build mode (build only new packages)")
 	shared.AddServerFlag(&cmd)
+	_ = cmd.Flags().MarkDeprecated("server", "use --diff-url to point diff builds at the remote repo db dir")
+	cmd.Flags().StringVar(&diffURL, "diff-url", "", "Remote repo db dir for diff builds (.../repo/<repo>/<arch>); overrides repo.json url")
 	cmd.Flags().StringVar(&executor, "executor", "chroot", "Local build backend: chroot or container")
 	cmd.Flags().StringVar(&arch, "arch", "x86_64", "Target architecture for the build")
 	cmd.Flags().BoolVar(&updateSrcinfo, "update-srcinfo", true, "Regenerate .SRCINFO from PKGBUILD before building (requires makepkg; skipped when absent)")
 	return &cmd
+}
+
+// repoSpecsFromConfig maps the repo.json build.repos entries to the builder's
+// RepoSpec so per-build repositories reach the container/bwrap backends.
+func repoSpecsFromConfig(repos []pacmanrepo.BuildRepo) []builder.RepoSpec {
+	if len(repos) == 0 {
+		return nil
+	}
+	out := make([]builder.RepoSpec, 0, len(repos))
+	for _, r := range repos {
+		out = append(out, builder.RepoSpec{Name: r.Name, Server: r.Server, SigLevel: r.SigLevel})
+	}
+	return out
+}
+
+// resolveDiffServer picks the remote repo db dir for a diff build: the explicit
+// --diff-url, else the deprecated --server, else the arch-less repo.json url with
+// the build arch appended. Empty when none is configured.
+func resolveDiffServer(diffURL, server, configURL, arch string) string {
+	if diffURL != "" {
+		return diffURL
+	}
+	if server != "" {
+		return server
+	}
+	if configURL != "" {
+		return strings.TrimRight(configURL, "/") + "/" + arch
+	}
+	return ""
 }
