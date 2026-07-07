@@ -50,11 +50,11 @@ with the example CI key — the upload route accepts a CI API key, so no login i
 needed:
 
 ```sh
-curl -X PUT -H "X-API-Key: example-ci-key" \
+curl -X POST -H "X-API-Key: example-ci-key" \
   -F package=@example/ayaka/out/myrepo/x86_64/dummypkg-1.0.0-1-any.pkg.tar.zst \
-  http://localhost:8080/api/unstable/myrepo/package
+  http://localhost:8080/api/unstable/repos/myrepo/packages
 
-curl http://localhost:8080/api/unstable/myrepo/x86_64/package   # now listed
+curl http://localhost:8080/api/unstable/repos/myrepo/arches/x86_64/packages   # now listed
 ```
 
 ayato also answers aurweb's RPC and serves a signed catalog for kayo:

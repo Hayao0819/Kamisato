@@ -41,11 +41,11 @@ func SetRoute(e *gin.Engine, h *handler.Handler, m *middleware.Middleware) error
 			api.GET("/hello", h.HelloHandler)
 			api.GET("/teapot", h.TeapotHandler)
 			api.GET("/repos", h.ReposHandler)
-			api.GET("/repos/:repo/archs", h.ArchesHandler)
-			api.GET("/:repo/:arch/package", h.AllPkgsHandler)
-			api.GET("/:repo/:arch/package/:name", h.PkgDetailHandler)
-			api.GET("/:repo/:arch/package/:name/files", h.PkgFilesHandler)
-			api.GET("/:repo/:arch/signed-url", h.SignedURLHandler)
+			api.GET("/repos/:repo/arches", h.ArchesHandler)
+			api.GET("/repos/:repo/arches/:arch/packages", h.AllPkgsHandler)
+			api.GET("/repos/:repo/arches/:arch/packages/:name", h.PkgDetailHandler)
+			api.GET("/repos/:repo/arches/:arch/packages/:name/files", h.PkgFilesHandler)
+			api.GET("/repos/:repo/arches/:arch/signed-url", h.SignedURLHandler)
 
 			// Advertises which optional features are configured so the UI hides what
 			// is unavailable (bug reporting, miko build views, GitHub login).
@@ -89,24 +89,24 @@ func SetRoute(e *gin.Engine, h *handler.Handler, m *middleware.Middleware) error
 			}))
 		}
 
-		// Upload accepts an admin user (Basic password = CLI token) or a CI
-		// publisher (API key / GitHub OIDC). Removal stays admin-only.
+		// Native publish. Accepts an admin user (Basic password = CLI token) or a CI
+		// publisher (API key / GitHub OIDC). The blinky-compatible single upload
+		// lives under /blinky (see below).
 		upload := api.Group("")
 		{
 			upload.Use(m.RateLimit(rate.Every(time.Second/10), 30), m.RequireUpload())
-			upload.PUT("/:repo/package", h.BlinkyUploadHandler)  // Blinky compatible (single)
-			upload.POST("/:repo/packages", h.BatchUploadHandler) // atomic multi-package publish
+			upload.POST("/repos/:repo/packages", h.BatchUploadHandler) // atomic multi-package publish
 		}
-		blinky := api.Group("")
+		// Native repo management (admin-only).
+		mgmt := api.Group("")
 		{
-			blinky.Use(m.RateLimit(rate.Every(time.Second/10), 30), m.RequireAdmin(true))
-			blinky.DELETE("/:repo/package/:name", h.BlinkyRemoveHandler)       // Blinky compatible (arch defaults to x86_64)
-			blinky.DELETE("/:repo/:arch/package/:name", h.BlinkyRemoveHandler) // explicit architecture
+			mgmt.Use(m.RateLimit(rate.Every(time.Second/10), 30), m.RequireAdmin(true))
+			mgmt.DELETE("/repos/:repo/arches/:arch/packages/:name", h.BlinkyRemoveHandler)
 			// Tier promotion advances a package through a tiered repo's
 			// staging -> testing -> stable flow; a release action, so admin-gated.
-			blinky.POST("/:repo/promote", h.PromoteHandler)
+			mgmt.POST("/repos/:repo/promote", h.PromoteHandler)
 			// Refresh an upstream-layered repo's merged database from its upstream.
-			blinky.POST("/:repo/sync-upstream", h.SyncUpstreamHandler)
+			mgmt.POST("/repos/:repo/sync-upstream", h.SyncUpstreamHandler)
 		}
 
 		// miko proxy reads and mutations require a session or Bearer CLI token (no
@@ -156,6 +156,16 @@ func SetRoute(e *gin.Engine, h *handler.Handler, m *middleware.Middleware) error
 			signers.POST("", h.RegisterSignerHandler)
 			signers.DELETE("/:fingerprint", h.UnregisterSignerHandler)
 		}
+	}
+	{
+		// Blinky compatibility surface. The blinky clientlib builds
+		// <base>/api/unstable/<repo>/package, so a client configured with
+		// `blinky login https://host/blinky` reaches these routes verbatim. Basic
+		// auth only, matching blinky (native publish is /api/unstable/repos/...).
+		blinky := e.Group("/blinky/api/unstable")
+		blinky.Use(m.RateLimit(rate.Every(time.Second/10), 30), m.RequireAdmin(true))
+		blinky.PUT("/:repo/package", h.BlinkyUploadHandler)
+		blinky.DELETE("/:repo/package/:name", h.BlinkyRemoveHandler)
 	}
 	{
 		repo := e.Group("/repo")

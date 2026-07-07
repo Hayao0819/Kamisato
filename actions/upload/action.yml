@@ -73,12 +73,12 @@ runs:
         for pat in $IN_FILES; do files+=($pat); done
         [ ${#files[@]} -gt 0 ] || { echo "::error::no package files matched: $IN_FILES"; exit 1; }
 
-        url="${IN_SERVER%/}/api/unstable/${IN_REPO}/package"
+        url="${IN_SERVER%/}/api/unstable/repos/${IN_REPO}/packages"
         for f in "${files[@]}"; do
           case "$f" in *.sig) continue ;; esac
           form=(-F "package=@${f}")
           [ -f "${f}.sig" ] && form+=(-F "signature=@${f}.sig")
           echo "uploading $(basename "$f")"
-          code="$(curl -sS -o /dev/null -w '%{http_code}' -X PUT -K "$curlcfg" "${form[@]}" "$url")"
+          code="$(curl -sS -o /dev/null -w '%{http_code}' -X POST -K "$curlcfg" "${form[@]}" "$url")"
           [ "$code" = "200" ] || { echo "::error::upload failed for $(basename "$f") (HTTP $code)"; exit 1; }
         done

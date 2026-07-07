@@ -97,10 +97,10 @@ func TestArchesHandler(t *testing.T) {
 	mockSvc.EXPECT().Arches("myrepo").Return([]string{"x86_64"}, nil)
 
 	r := gin.New()
-	r.GET("/repos/:repo/archs", h.ArchesHandler)
+	r.GET("/repos/:repo/arches", h.ArchesHandler)
 
 	w := httptest.NewRecorder()
-	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/repos/myrepo/archs", nil))
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/repos/myrepo/arches", nil))
 
 	if w.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200: %s", w.Code, w.Body.String())
@@ -139,11 +139,10 @@ func TestRemoveHandlerExplicitArch(t *testing.T) {
 	mockSvc.EXPECT().RemovePkg("myrepo", "aarch64", "mypkg").Return(nil)
 
 	r := gin.New()
-	r.DELETE("/:repo/package/:name", h.BlinkyRemoveHandler)
-	r.DELETE("/:repo/:arch/package/:name", h.BlinkyRemoveHandler)
+	r.DELETE("/repos/:repo/arches/:arch/packages/:name", h.BlinkyRemoveHandler)
 
 	w := httptest.NewRecorder()
-	r.ServeHTTP(w, httptest.NewRequest(http.MethodDelete, "/myrepo/aarch64/package/mypkg", nil))
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodDelete, "/repos/myrepo/arches/aarch64/packages/mypkg", nil))
 
 	if w.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200: %s", w.Code, w.Body.String())
@@ -160,10 +159,10 @@ func TestPkgFilesHandlerNotImplemented(t *testing.T) {
 	mockSvc.EXPECT().PkgFiles("myrepo", "x86_64", "mypkg").Return(nil, domain.ErrNotImplemented)
 
 	r := gin.New()
-	r.GET("/:repo/:arch/package/:name/files", h.PkgFilesHandler)
+	r.GET("/repos/:repo/arches/:arch/packages/:name/files", h.PkgFilesHandler)
 
 	w := httptest.NewRecorder()
-	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/myrepo/x86_64/package/mypkg/files", nil))
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/repos/myrepo/arches/x86_64/packages/mypkg/files", nil))
 
 	if w.Code != http.StatusNotImplemented {
 		t.Fatalf("status = %d, want 501: %s", w.Code, w.Body.String())

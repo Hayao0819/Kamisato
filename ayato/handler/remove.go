@@ -11,9 +11,10 @@ import (
 func (h *Handler) BlinkyRemoveHandler(ctx *gin.Context) {
 	repoName := ctx.Param("repo")
 	packageName := ctx.Param("name")
-	// Empty arch (blinky's /:repo/package/:name route has none) means "remove from
-	// every arch that lists the package" (pkgctl default); the explicit
-	// /:repo/:arch/package/:name route scopes to one arch.
+	// Empty arch (the blinky /blinky/api/unstable/:repo/package/:name route has
+	// none) means "remove from every arch that lists the package" (pkgctl
+	// default); the native /api/unstable/repos/:repo/arches/:arch/packages/:name
+	// route scopes to one arch.
 	archName := ctx.Param("arch")
 	if packageName == "" {
 		ctx.JSON(http.StatusBadRequest, domain.APIError{Message: "Package name is required"})

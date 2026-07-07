@@ -180,11 +180,17 @@ export class APIClient {
         const formData = new FormData();
         formData.append("package", packageFile);
         if (signatureFile) {
-            formData.append("signature", signatureFile);
+            // The native publish endpoint matches a signature to its package by
+            // the "<package-filename>.sig" form filename.
+            formData.append(
+                "signature",
+                signatureFile,
+                `${packageFile.name}.sig`,
+            );
         }
 
         const res = await this.authedFetch(this.endpoints.uploadPackage(repo), {
-            method: "PUT",
+            method: "POST",
             body: formData,
         });
 
@@ -273,7 +279,13 @@ export class APIClient {
             const formData = new FormData();
             formData.append("package", packageFile);
             if (signatureFile) {
-                formData.append("signature", signatureFile);
+                // The native publish endpoint matches a signature to its package
+                // by the "<package-filename>.sig" form filename.
+                formData.append(
+                    "signature",
+                    signatureFile,
+                    `${packageFile.name}.sig`,
+                );
             }
 
             const xhr = new XMLHttpRequest();
@@ -307,7 +319,7 @@ export class APIClient {
                 reject(new Error("アップロードがキャンセルされました"));
             });
 
-            xhr.open("PUT", this.endpoints.uploadPackage(repo));
+            xhr.open("POST", this.endpoints.uploadPackage(repo));
             this.auth.applyXhr(xhr);
             xhr.send(formData);
         });
@@ -377,7 +389,7 @@ class APIEndpoints {
     }
     get packageDetail() {
         return (repo: string, arch: string, pkgbase: string) =>
-            `${this.apiUnstableUrl}/${repo}/${arch}/package/${pkgbase}`;
+            `${this.apiUnstableUrl}/repos/${repo}/arches/${arch}/packages/${pkgbase}`;
     }
     get hello() {
         return () => `${this.apiUnstableUrl}/hello`;
@@ -393,7 +405,7 @@ class APIEndpoints {
     }
     get allPkgs() {
         return (repo: string, arch: string) =>
-            `${this.apiUnstableUrl}/${repo}/${arch}/package`;
+            `${this.apiUnstableUrl}/repos/${repo}/arches/${arch}/packages`;
     }
     get repoFile() {
         return (repo: string, arch: string, file: string) =>
@@ -403,10 +415,11 @@ class APIEndpoints {
         return () => `${this.apiUnstableUrl}/repos`;
     }
     get arches() {
-        return (repo: string) => `${this.apiUnstableUrl}/repos/${repo}/archs`;
+        return (repo: string) => `${this.apiUnstableUrl}/repos/${repo}/arches`;
     }
     get uploadPackage() {
-        return (repo: string) => `${this.apiUnstableUrl}/${repo}/package`;
+        return (repo: string) =>
+            `${this.apiUnstableUrl}/repos/${repo}/packages`;
     }
     get submitBuild() {
         return () => `${this.apiUnstableUrl}/build`;

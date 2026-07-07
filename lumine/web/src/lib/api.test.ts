@@ -20,16 +20,18 @@ describe("APIEndpoints", () => {
     });
 
     it("builds package endpoints", () => {
-        expect(e.allPkgs("core", "x86_64")).toBe(`${api}/core/x86_64/package`);
-        expect(e.packageDetail("core", "x86_64", "bash")).toBe(
-            `${api}/core/x86_64/package/bash`,
+        expect(e.allPkgs("core", "x86_64")).toBe(
+            `${api}/repos/core/arches/x86_64/packages`,
         );
-        expect(e.uploadPackage("core")).toBe(`${api}/core/package`);
+        expect(e.packageDetail("core", "x86_64", "bash")).toBe(
+            `${api}/repos/core/arches/x86_64/packages/bash`,
+        );
+        expect(e.uploadPackage("core")).toBe(`${api}/repos/core/packages`);
     });
 
     it("builds repo and arch endpoints", () => {
         expect(e.repos()).toBe(`${api}/repos`);
-        expect(e.arches("core")).toBe(`${api}/repos/core/archs`);
+        expect(e.arches("core")).toBe(`${api}/repos/core/arches`);
         expect(e.repoFile("core", "x86_64", "core.db")).toBe(
             `${BASE}/repo/core/x86_64/core.db`,
         );
