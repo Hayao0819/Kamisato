@@ -29,6 +29,7 @@ func Cmd() *cobra.Command {
 	shared.AddKeyFlags(cmd)
 	cmd.AddCommand(
 		buildCmd(),
+		filesCmd(),
 		publishCmd(),
 		bootstrapCmd(),
 	)
