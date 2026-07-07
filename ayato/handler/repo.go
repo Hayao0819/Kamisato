@@ -44,10 +44,9 @@ func (h *Handler) RepoFileHandler(ctx *gin.Context) {
 
 	slog.Debug("repoHandler", "repoName", repoName)
 
-	// Offload egress to the object store when it can presign: redirect the client
-	// straight to a presigned GET so the bytes never transit ayato (Cloud Run bills
-	// egress, and packages are the bulk of it). pacman follows redirects. A backend
-	// that cannot presign (localfs) returns "", so we fall through to streaming.
+	// Redirect to a presigned GET when the backend can presign, so package bytes never
+	// transit ayato (Cloud Run bills egress); a backend that cannot (localfs) returns
+	// "" and we fall through to streaming.
 	if h.cfg == nil || h.cfg.RedirectDownloadsEnabled() {
 		if url, err := h.s.SignedURL(repoName, arch, fileName); err == nil && url != "" {
 			ctx.Redirect(http.StatusFound, url)
@@ -66,17 +65,15 @@ func (h *Handler) RepoFileHandler(ctx *gin.Context) {
 	defer s.Close()
 
 	// Advertise validators so a client can skip re-downloading an unchanged file:
-	// pacman drives this off Last-Modified/If-Modified-Since (from the local .db
-	// mtime), while HTTP caches and proxies use the ETag/If-None-Match.
+	// pacman uses Last-Modified/If-Modified-Since, HTTP caches use ETag/If-None-Match.
 	if meta.ETag != "" {
 		ctx.Header("ETag", meta.ETag)
 	}
 	if !meta.LastModified.IsZero() {
 		ctx.Header("Last-Modified", meta.LastModified.UTC().Format(http.TimeFormat))
 	}
-	// A package archive is content-immutable — its version is baked into the file
-	// name — so it can be cached forever. The .db/.files metadata is rewritten in
-	// place on every publish, so it must revalidate (no-cache).
+	// A package archive is content-immutable (version is in the name) so it caches
+	// forever; the .db/.files metadata is rewritten in place so it must revalidate.
 	if isImmutablePackageFile(fileName) {
 		ctx.Header("Cache-Control", "public, max-age=31536000, immutable")
 	} else if meta.ETag != "" || !meta.LastModified.IsZero() {
@@ -96,19 +93,15 @@ func (h *Handler) RepoFileHandler(ctx *gin.Context) {
 	}
 }
 
-// isImmutablePackageFile reports whether name is a package archive (or its
-// detached signature). Those are content-immutable because the version is part
-// of the name; the repo DB/metadata artifacts (.db, .files, .db.tar.gz and their
-// .sig) are rewritten in place and are NOT immutable. The ".pkg.tar." infix is
-// present only in package archives, so it distinguishes the two.
+// isImmutablePackageFile reports whether name is a package archive or its detached
+// signature; the ".pkg.tar." infix (absent from .db/.files metadata) distinguishes them.
 func isImmutablePackageFile(name string) bool {
 	return strings.Contains(name, ".pkg.tar.")
 }
 
-// notModified evaluates the request's conditional headers against the served
-// file's validators. Per RFC 7232 If-None-Match takes precedence, so it is
-// checked first; If-Modified-Since (what pacman sends) is only consulted when no
-// If-None-Match is present.
+// notModified checks the request's conditional headers against the file's validators.
+// Per RFC 7232 If-None-Match takes precedence; If-Modified-Since (what pacman sends)
+// is consulted only when If-None-Match is absent.
 func notModified(req *http.Request, meta domain.FileMeta) bool {
 	if inm := req.Header.Get("If-None-Match"); inm != "" {
 		return meta.ETag != "" && etagMatches(inm, meta.ETag)
@@ -123,9 +116,9 @@ func notModified(req *http.Request, meta domain.FileMeta) bool {
 	return false
 }
 
-// etagMatches reports whether an If-None-Match header (a comma-separated list, or
-// "*") contains an exact match for etag. Strong comparison only: a proxy that
-// weakens the validator simply falls through to a 200, never a wrong-body 304.
+// etagMatches reports whether an If-None-Match header (comma-separated, or "*")
+// exactly matches etag. Strong comparison only, so a weakened validator falls
+// through to a 200 rather than a wrong-body 304.
 func etagMatches(ifNoneMatch, etag string) bool {
 	ifNoneMatch = strings.TrimSpace(ifNoneMatch)
 	if ifNoneMatch == "" {

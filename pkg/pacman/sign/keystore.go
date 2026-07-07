@@ -24,18 +24,14 @@ func keyConfig() *packet.Config {
 	return &packet.Config{Algorithm: packet.PubKeyAlgoEdDSA, DefaultHash: crypto.SHA256}
 }
 
-// Keystore is a worker signing key plus the shared master that certified it. The
-// worker private key signs packages; the master public key is the trust root
-// ayato pins, having certified the worker once at generation.
+// Keystore is a worker signing key (private) plus the certifying master (public); the master is the trust root ayato pins.
 type Keystore struct {
 	dir    string
 	master *openpgp.Entity // public only
 	worker *openpgp.Entity // private
 }
 
-// OpenOrCreate loads the keystore in dir, or on first run generates a master and
-// a worker key and has the master certify the worker. name/email label the UID.
-// A non-empty passphrase encrypts the worker private key at rest.
+// OpenOrCreate loads the keystore in dir, or generates a certified master+worker pair on first run. Passphrase encrypts the worker key at rest.
 func OpenOrCreate(dir, name, email, passphrase string) (*Keystore, error) {
 	if _, err := os.Stat(filepath.Join(dir, workerKeyFile)); err == nil {
 		return load(dir, passphrase)
@@ -134,8 +130,7 @@ func (k *Keystore) WorkerCertArmored() (string, error) {
 	return readString(filepath.Join(k.dir, workerCertFile))
 }
 
-// CertifiedBy returns nil if a UID of child carries a valid certification made by
-// parent's primary key. This is the worker<-master chain ayato enforces.
+// CertifiedBy returns nil if a UID of child carries a valid certification by parent's primary key (the worker←master chain ayato enforces).
 func CertifiedBy(child, parent *openpgp.Entity) error {
 	for name, ident := range child.Identities {
 		for _, sig := range ident.Signatures {
@@ -166,11 +161,8 @@ func readEntity(path string) (*openpgp.Entity, error) {
 	return el[0], nil
 }
 
-// writeArmored writes the serialized armored block to path atomically: it writes
-// a sibling temp file, fsyncs it, then renames over the target. A crash or write
-// error therefore never truncates an existing key, which for the private key is
-// the sole on-disk copy of the trust anchor. os.CreateTemp makes the temp 0600,
-// so the private key is never briefly world-readable.
+// writeArmored writes armored data to path atomically (temp file → fsync → rename) so a crash never truncates the key.
+// os.CreateTemp sets 0600 so the private key is never briefly world-readable.
 func writeArmored(path, blockType string, perm os.FileMode, serialize func(io.Writer) error) (err error) {
 	dir := filepath.Dir(path)
 	tmp, err := os.CreateTemp(dir, "."+filepath.Base(path)+".tmp-*")
@@ -212,8 +204,7 @@ func writeArmored(path, blockType string, perm os.FileMode, serialize func(io.Wr
 	return fsyncDir(dir)
 }
 
-// fsyncDir flushes a directory entry so the rename is durable. A failure to open
-// the directory for sync is not fatal on platforms that disallow it.
+// fsyncDir flushes the directory so the rename is durable; failure to open is non-fatal on platforms that disallow dir fsync.
 func fsyncDir(dir string) error {
 	d, err := os.Open(dir)
 	if err != nil {

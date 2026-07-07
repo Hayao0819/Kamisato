@@ -18,9 +18,9 @@ type Syncer interface {
 	Sync(ctx context.Context) error
 }
 
-// Tier ranks sources by trust. A higher tier always wins a name collision,
+// Tier ranks sources by trust: a higher tier always wins a name collision
 // regardless of configured priority, so a low-trust source can never shadow a
-// higher-trust one. priority only breaks ties within a tier.
+// higher-trust one (priority only breaks ties within a tier).
 type Tier int
 
 const (
@@ -34,8 +34,8 @@ type entry struct {
 	priority int
 	source   string // trust namespace: "overlay" | ayato name
 	// delegated marks a source whose signed catalog is vouched: while verified
-	// reports true, its packages bypass the trust store entirely. verified is the
-	// live check, so a failed re-sync falls closed back to gating.
+	// reports true its packages bypass the trust store, so a failed re-sync falls
+	// closed back to gating.
 	delegated bool
 	verified  func() bool
 }
@@ -65,9 +65,9 @@ func (c *Composite) Add(b aurweb.Backend, tier Tier, priority int, source string
 	c.add(entry{backend: b, tier: tier, priority: priority, source: source})
 }
 
-// AddDelegated registers a source whose verified catalog bypasses the trust
-// gate. verified is the live verification check; the bypass only holds while it
-// returns true, so a failed re-sync fails closed back to ordinary gating.
+// AddDelegated registers a source whose verified catalog bypasses the trust gate;
+// the bypass holds only while verified() returns true, so a failed re-sync fails
+// closed back to ordinary gating.
 func (c *Composite) AddDelegated(b aurweb.Backend, tier Tier, priority int, source string, verified func() bool) {
 	c.add(entry{backend: b, tier: tier, priority: priority, source: source, delegated: true, verified: verified})
 }
@@ -194,12 +194,11 @@ func (c *Composite) SourceURL(ctx context.Context, pkgbase string) (string, bool
 	return "", false, nil
 }
 
-// Resolve returns the winning record for a pkgname and the trust namespace of
-// the source that provided it (highest tier, then priority). Unlike Info it is
-// ungated, so a caller can apply its own trust evaluation. delegatedVerified
-// reports the keep() bypass: the winning source is delegated and its attestation
-// currently verifies, so the caller should treat the package as trusted without
-// consulting the trust store.
+// Resolve returns the winning record for a pkgname (highest tier, then priority)
+// and its source's trust namespace. Unlike Info it is ungated, so the caller
+// applies its own trust evaluation; delegatedVerified reports the keep() bypass —
+// the winning source is delegated and currently verifies, so the caller may treat
+// the package as trusted without consulting the store.
 func (c *Composite) Resolve(ctx context.Context, name string) (pkg aurweb.Pkg, source string, delegatedVerified bool, ok bool) {
 	for _, e := range c.entries {
 		pkgs, err := e.backend.Info(ctx, []string{name})

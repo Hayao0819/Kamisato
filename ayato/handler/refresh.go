@@ -22,9 +22,8 @@ func (h *Handler) refreshTTL() time.Duration {
 	return 30 * 24 * time.Hour
 }
 
-// issueAccessRefresh mints a short-lived access token (TypCLI) paired with a
-// long-lived refresh token (TypRefresh). Each carries its own jti so either can be
-// revoked independently via the denylist; name labels the access token's origin.
+// issueAccessRefresh mints a short-lived access token paired with a long-lived
+// refresh token, each with its own jti so either can be revoked independently.
 func (h *Handler) issueAccessRefresh(githubID int64, login, name string) (access, refresh string, expiresIn int, err error) {
 	accessJTI, err := auth.NewJTI()
 	if err != nil {
@@ -59,10 +58,9 @@ func (h *Handler) issueAccessRefresh(githubID int64, login, name string) (access
 	return access, refresh, int(accessTTL / time.Second), nil
 }
 
-// RefreshHandler trades a valid, non-revoked refresh token for a fresh access
-// token, rotating the refresh token as well: the presented refresh token's jti is
-// denylisted so a stolen copy cannot be reused (RFC 6749 §10.4 rotation). The
-// signature is the authorization, so no admin middleware guards this route.
+// RefreshHandler trades a valid, non-revoked refresh token for a fresh access token
+// and rotates the refresh token: the old jti is denylisted so a stolen copy cannot be
+// reused (RFC 6749 §10.4). The signature is the authorization, so no admin middleware guards it.
 func (h *Handler) RefreshHandler(c *gin.Context) {
 	if h.signer == nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "auth not configured"})
@@ -93,8 +91,7 @@ func (h *Handler) RefreshHandler(c *gin.Context) {
 	}
 
 	// Rotate: denylist the consumed refresh token before issuing its replacement.
-	// Best-effort — a deployment without a denylist simply keeps the old refresh
-	// token valid until its own expiry.
+	// Best-effort — without a denylist the old refresh token stays valid until expiry.
 	if rec.JTI != "" {
 		_ = h.s.Revoke(rec.JTI, time.Until(rec.Exp))
 	}

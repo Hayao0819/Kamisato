@@ -27,12 +27,11 @@ type TrustedMaintainer struct {
 	Note    string    `json:"note,omitempty"`
 }
 
-// WhitelistEntry is a pkgbase the user unconditionally auto-approves. Unlike an
-// Approval it pins no commit and records no maintainer: it is a blanket "always
-// trust this pkgbase" escape hatch that skips the new-package inspection AND the
-// maintainer-change check, so a maintainer swap on a whitelisted pkgbase is NOT
-// caught. It is blunter than `trust add` (which reviews and pins a commit); use it
-// only for packages accepted without review.
+// WhitelistEntry is a pkgbase the user unconditionally auto-approves: it pins no
+// commit and records no maintainer, a blanket escape hatch that skips the
+// new-package inspection AND the maintainer-change check, so a maintainer swap on a
+// whitelisted pkgbase is NOT caught. Blunter than `trust add`; use it only for
+// packages accepted without review.
 type WhitelistEntry struct {
 	Pkgbase string    `json:"pkgbase"`
 	AddedAt time.Time `json:"added_at"`

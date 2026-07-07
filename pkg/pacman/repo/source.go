@@ -10,9 +10,7 @@ import (
 	"github.com/Hayao0819/nahi/futils"
 )
 
-// SrcConfig is the source-repository configuration this package needs. It mirrors
-// the fields of conf.SrcRepoConfig so the domain layer stays free of the conf
-// package; callers (which already load the config) pass it into GetSrcRepo.
+// SrcConfig mirrors conf.SrcRepoConfig fields to keep the domain layer free of the conf package; callers pass it into GetSrcRepo.
 type SrcConfig struct {
 	Name        string
 	Maintainer  string

@@ -36,9 +36,8 @@ func InstalledVersions() (map[string]string, error) {
 	return m, nil
 }
 
-// ForeignPackages returns the set of installed packages no sync repo provides
-// (AUR or locally built), via pacman -Qmq. pacman -Q exits 1 with empty stdout
-// AND empty stderr when none are installed — a normal state, not an error.
+// ForeignPackages returns packages no sync repo provides (AUR/local), via pacman -Qmq;
+// exit 1 with empty output is normal (no foreign packages), not an error.
 func ForeignPackages() (map[string]bool, error) {
 	out, err := exec.Command("pacman", "-Qmq").Output()
 	if err != nil {

@@ -112,10 +112,9 @@ func Scan(dir string) (Report, error) {
 	return Report{Findings: findings}, nil
 }
 
-// checksumFindings flags integrity weaknesses from the parsed assignments: a
-// *sums array holding SKIP (an integrity opt-out that is only normal for VCS
-// sources) or a weak md5/sha1 checksum. Reading the AST catches a multi-line
-// array and ignores a commented-out line, which a per-line regex could not.
+// checksumFindings flags a *sums array holding SKIP (an integrity opt-out only
+// normal for VCS sources) or a weak md5/sha1 checksum. Reading the AST catches a
+// multi-line array and ignores a commented-out line, which a per-line regex can't.
 func checksumFindings(decl map[string][]string) []Finding {
 	var out []Finding
 

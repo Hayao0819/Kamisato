@@ -21,11 +21,8 @@ func TestCancelUseString(t *testing.T) {
 }
 
 func TestCancelWritesToCmdOut(t *testing.T) {
-	// Trigger the arg-count error path to confirm the command uses cmd.OutOrStdout()
-	// rather than a package-level writer. We inject a buffer via SetOut and verify
-	// that no output went there (the error path returns before printing). What matters
-	// is that os.Stdout is not referenced — confirmed by the absence of the import
-	// and the use of cmd.OutOrStdout() in the implementation.
+	// Confirm the command writes through cmd.OutOrStdout(), not os.Stdout: drive
+	// the arg-count error path with a buffer injected via SetOut.
 	cmd := mikoCancelCmd()
 	var buf bytes.Buffer
 	cmd.SetOut(&buf)

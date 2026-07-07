@@ -17,9 +17,7 @@ type Conf struct {
 	PKGEXT  string
 }
 
-// sourceChain sources makepkg's config files in makepkg's own order (system conf,
-// drop-ins, then the user override) so bash applies includes and expansion exactly
-// as makepkg would.
+// sourceChain sources makepkg's config in makepkg's own order so bash applies includes and expansion exactly as makepkg would.
 const sourceChain = `confdir=/etc
 [[ -r $confdir/makepkg.conf ]] && source "$confdir/makepkg.conf"
 if [[ -d $confdir/makepkg.conf.d ]]; then
@@ -47,8 +45,7 @@ func Read() (*Conf, error) {
 	return parse(out), nil
 }
 
-// ReadFile resolves makepkg's config from a single file (an AUR helper's
-// --config), sourcing only that path. A missing file yields an all-empty Conf
+// ReadFile resolves makepkg's config from a single file; a missing file yields an all-empty Conf
 // rather than an error, mirroring makepkg's tolerance of an absent override.
 func ReadFile(path string) (*Conf, error) {
 	// path rides in as a bash positional ($1), never interpolated into the script,

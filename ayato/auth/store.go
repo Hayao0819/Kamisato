@@ -40,8 +40,7 @@ func NewDeviceCode() (string, error) { return randToken(32) }
 const userCodeAlphabet = "BCDFGHJKLMNPQRSTVWXZ"
 
 // NewUserCode returns the short, human-typable user_code as two groups of four
-// (e.g. "BCDF-GHJK"). The user reads it off the CLI and types it into the
-// verification page in any browser.
+// (e.g. "BCDF-GHJK").
 func NewUserCode() (string, error) {
 	const groups, per = 2, 4
 	b := make([]byte, groups*per)

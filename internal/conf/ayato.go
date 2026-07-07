@@ -56,8 +56,7 @@ type AyatoConfig struct {
 }
 
 // MirrorConfig configures the pacman mirrorlist ayato generates at
-// /repo/<repo>/mirrorlist. Phase 1 advertises only this instance; peers and
-// health filtering are future work.
+// /repo/<repo>/mirrorlist; it currently advertises only this instance.
 type MirrorConfig struct {
 	// SelfURL is this instance's public base URL (e.g. https://repo.example). The
 	// Server line becomes <SelfURL><RepoPath>/<repo>/$arch. Empty falls back to
@@ -87,9 +86,8 @@ func (m MirrorConfig) ServerPath() string {
 // are stored once under pool/<sha256> and the repo path becomes a pointer, so
 // identical content is deduplicated and old versions can be retained/collected.
 type PoolConfig struct {
-	// Enabled routes new package uploads through the pool. A pointer is nil-by-
-	// default true, so pooling is on unless explicitly disabled; already-published
-	// packages stored directly keep serving regardless.
+	// Enabled routes new package uploads through the pool; nil defaults to on.
+	// Already-published packages stored directly keep serving regardless.
 	Enabled *bool `koanf:"enabled"`
 	// KeepUnreferenced retains this many newest versions per pkgbase even once no
 	// repo references them, so a rollback can re-point at a recent build.
@@ -144,9 +142,8 @@ func (c *AyatoConfig) ExpectedBuildDir() string {
 	return "/build"
 }
 
-// RedirectDownloadsEnabled reports whether downloads should be redirected to a
-// presigned URL. It defaults to true so egress offload is automatic; the redirect
-// still only happens when the backend can actually presign.
+// RedirectDownloadsEnabled reports whether downloads redirect to a presigned URL
+// (default true); the redirect still only happens when the backend can presign.
 func (c *AyatoConfig) RedirectDownloadsEnabled() bool {
 	return c.RedirectDownloads == nil || *c.RedirectDownloads
 }

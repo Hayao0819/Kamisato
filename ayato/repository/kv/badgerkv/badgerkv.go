@@ -19,9 +19,9 @@ import (
 	"github.com/dgraph-io/badger/v4"
 )
 
-// sep separates the namespace from the key. NUL cannot appear in the namespaces
-// or keys callers use (package names, hex digests, ids), so it is a safe and
-// unambiguous boundary for the prefix scan List relies on.
+// NUL cannot appear in the namespaces or keys callers use (package names, hex
+// digests, ids), so it is a safe, unambiguous boundary for the prefix scan List
+// relies on.
 const sep = "\x00"
 
 // BadgerDB only frees space from deleted/overwritten keys when RunValueLogGC is

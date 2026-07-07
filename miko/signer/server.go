@@ -29,9 +29,8 @@ func Handler(signer sign.Signer, verifier *apikey.Verifier) *gin.Engine {
 	return e
 }
 
-// signHandler signs the POSTed package bytes with the loaded key and returns the
-// detached signature. It stages the body in a temp file because Signer works on a
-// path, and removes it once the signature is read back.
+// signHandler stages the POSTed body in a temp file (Signer works on a path) and
+// returns the detached signature.
 func signHandler(signer sign.Signer) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		dir, err := os.MkdirTemp("", "miko-sign-*")

@@ -2,12 +2,9 @@ package alpm
 
 import "strings"
 
-// VerCmp compares two pacman version strings ([epoch:]version[-pkgrel]) and
-// returns -1, 0, or 1 when v1 is older than, equal to, or newer than v2.
-//
-// It is a pure-Go port of libalpm's alpm_pkg_vercmp / rpmvercmp so the depsolver
-// does not fork the external vercmp binary on every comparison. The error result
-// is kept for API compatibility and is always nil.
+// VerCmp compares two pacman version strings ([epoch:]version[-pkgrel]); returns -1, 0, or 1.
+// Pure-Go port of libalpm's alpm_pkg_vercmp so the depsolver avoids forking vercmp;
+// error is always nil (kept for API compatibility).
 func VerCmp(v1, v2 string) (int, error) {
 	if v1 == v2 {
 		return 0, nil

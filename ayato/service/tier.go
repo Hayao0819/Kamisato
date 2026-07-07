@@ -25,13 +25,10 @@ type Promoter interface {
 	PromotePackage(ctx context.Context, repo string, from, to conf.Tier, pkgname, version string) error
 }
 
-// PromotePackage moves a package from one tier of a tiered repo to the next. The
-// package bytes already live once in the content-addressed pool, so promotion is
-// a pointer + database operation, never a re-upload: it re-points the target tier
-// at the SAME pool object (StoreFile dedups on content hash) and registers the
-// entry through the ordinary compare-and-swap commit, so the target tier's
-// database gains the package atomically and a client never sees it half-updated.
-// Per the repo's promotion policy the source tier keeps or drops the package.
+// PromotePackage moves a package to the next tier of a tiered repo. Promotion is a
+// pointer + DB op, never a re-upload: it re-points the target tier at the SAME pool
+// object (content-hash dedup) and registers it via the CAS commit, so the tier's db
+// gains the package atomically. The source tier keeps or drops it per policy.
 func (s *Service) PromotePackage(ctx context.Context, repo string, from, to conf.Tier, pkgname, version string) error {
 	if s.cfg == nil {
 		return fmt.Errorf("%w: promotion requires a repository configuration", domain.ErrInvalid)
@@ -92,9 +89,8 @@ func (s *Service) PromotePackage(ctx context.Context, repo string, from, to conf
 }
 
 // promoteOneArch re-points the destination tier at the shared pool object and
-// registers the package in the destination tier's database. Storing the fetched
-// bytes hits the pool's content-address dedup, so no object is re-stored — only a
-// new pointer plus the atomic database commit.
+// registers the package there; storing the fetched bytes hits the pool's
+// content-address dedup, so no object is re-stored.
 func (s *Service) promoteOneArch(src, dst, arch, storeArch, filename, pkgname string, useSignedDB bool, gnupgDir *string) error {
 	pkgSeek, cleanup, err := s.spoolTierFile(src, storeArch, filename)
 	if err != nil {
@@ -131,9 +127,8 @@ func (s *Service) promoteOneArch(src, dst, arch, storeArch, filename, pkgname st
 }
 
 // dropFromSource removes the package from the source tier under the move policy.
-// It is best-effort: the promotion already succeeded, so a failed source cleanup
-// is logged and leaves the package still published there rather than failing the
-// whole promotion.
+// Best-effort: promotion already succeeded, so a failed cleanup is logged rather
+// than failing the whole promotion.
 func (s *Service) dropFromSource(src, pkgname string, arches []string, useSignedDB bool, gnupgDir *string) {
 	if err := s.RemovePkg(src, "", pkgname); err == nil {
 		return

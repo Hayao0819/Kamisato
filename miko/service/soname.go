@@ -83,11 +83,10 @@ func (s *fileSonameStore) save(pkgbase string, sonames []string) error {
 	return os.Rename(tmp, p)
 }
 
-// maybeRebuildOnSonameBump runs after a successful build+publish: it compares the
-// built package's sonames against the last recorded set and, on a bump, rebuilds
-// the reverse-dependency chain. It is best-effort and observability-only — every
-// error is logged, and a panic is recovered — so it can never fail the primary
-// build (whose status is already final by the time this runs).
+// maybeRebuildOnSonameBump compares the built package's sonames against the last
+// recorded set and, on a bump, rebuilds the reverse-dependency chain. It is
+// best-effort — errors are logged and panics recovered — so it can never fail
+// the primary build, whose status is already final by the time this runs.
 func (s *Service) maybeRebuildOnSonameBump(ctx context.Context, job *domain.BuildJob, packages []string) {
 	if !s.cfg.SonameRebuild {
 		return
@@ -128,9 +127,8 @@ func (s *Service) maybeRebuildOnSonameBump(ctx context.Context, job *domain.Buil
 	}
 }
 
-// triggerReverseDepRebuilds fetches the published repo, builds its dependency
-// graph and enqueues the bumped package's reverse-dependency chain in dependency
-// order, each tagged ReasonSonameRebuild.
+// triggerReverseDepRebuilds enqueues the bumped package's reverse-dependency
+// chain in dependency order, each tagged ReasonSonameRebuild.
 func (s *Service) triggerReverseDepRebuilds(ctx context.Context, job *domain.BuildJob, bumped string) {
 	if s.cfg.Ayato.URL == "" || job.Repo == "" || job.Arch == "" {
 		slog.Warn("cannot resolve reverse deps without a published repo; skipping soname rebuilds", "pkgbase", bumped)
@@ -333,7 +331,6 @@ func pkgbaseOf(pkgFile string) (string, error) {
 	return bp.Name(), nil
 }
 
-// fetchRepoDB downloads and parses ayato's published repo database for repo/arch.
 func (s *Service) fetchRepoDB(ctx context.Context, repoName, arch string) (*repo.RemoteRepo, error) {
 	dbURL := strings.TrimRight(s.cfg.Ayato.URL, "/") + "/repo/" + repoName + "/" + arch + "/" + repoName + ".db"
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, dbURL, nil)

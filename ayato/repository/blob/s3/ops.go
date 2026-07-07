@@ -120,10 +120,9 @@ func (s *S3) RepoNames() ([]string, error) {
 	return s.listDirs("")
 }
 
-// validateListRepo applies the same repo guards as the object-key path before a
-// list prefix is built: a single safe path element, gated by the allowlist when
-// one is configured. The S3 keyspace is flat, so this is for uniform validation
-// rather than traversal defense.
+// validateListRepo applies the same repo guards as the object-key path: a single
+// safe path element, gated by the allowlist when configured. The S3 keyspace is
+// flat, so this is uniform validation rather than traversal defense.
 func (s *S3) validateListRepo(repo string) error {
 	if err := blob.ValidatePathComponent(repo); err != nil {
 		return err

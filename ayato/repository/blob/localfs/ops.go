@@ -59,10 +59,8 @@ func (l *LocalStore) FetchFileWithETag(repo, arch, file string) (stream.File, st
 }
 
 // FetchFileWithMeta returns the file with its on-disk modification time (the ETag
-// stays empty; localfs has no object versioning). The mtime lets a pacman client
-// answer its own If-Modified-Since and skip an unchanged .db. The path components
-// were already validated by FetchFile, so re-stat is safe; any stat error just
-// leaves LastModified zero (no conditional, full body).
+// stays empty; localfs has no object versioning). FetchFile already validated the
+// path, so the re-stat is safe; a stat error just leaves LastModified zero.
 func (l *LocalStore) FetchFileWithMeta(repo, arch, file string) (stream.File, blob.FileMeta, error) {
 	f, err := l.FetchFile(repo, arch, file)
 	if err != nil {

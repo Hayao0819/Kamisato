@@ -12,18 +12,15 @@ import (
 	"github.com/ProtonMail/go-crypto/openpgp"
 )
 
-// Keyring is the trust root used to verify detached package signatures. entities
-// is the set of public keys loaded from disk; trusted is an optional allowlist of
-// uppercased, space-stripped primary-key fingerprints. An empty trusted map means
-// "accept any key present in the keyring".
+// Keyring is the trust root for detached package signature verification;
+// trusted is an optional fingerprint allowlist (empty means accept any key present).
 type Keyring struct {
 	entities openpgp.EntityList
 	trusted  map[string]bool
 }
 
-// normalizeFingerprint uppercases and strips all whitespace so fingerprints from
-// config (often spaced in groups of four) compare equal to the hex we derive from
-// a key.
+// normalizeFingerprint uppercases and strips whitespace so config fingerprints (often spaced in groups)
+// compare equal to the hex derived from keys.
 func normalizeFingerprint(s string) string {
 	var b strings.Builder
 	for _, r := range strings.ToUpper(s) {
@@ -72,17 +69,12 @@ func LoadKeyring(pubkeyPath string, trustedFprs []string) (*Keyring, error) {
 	return NewKeyring(entities, trustedFprs), nil
 }
 
-// allowedHashes pins the digest algorithms accepted on a detached signature.
-// Restricting to SHA-256/384/512 rejects a downgrade to the broken SHA-1 (and
-// other weak digests) before the signer is resolved, closing the signature
-// algorithm-substitution attack.
+// allowedHashes pins accepted digest algorithms; restricting to SHA-256/384/512 rejects SHA-1 downgrade
+// before the signer resolves, closing the algorithm-substitution attack.
 var allowedHashes = []crypto.Hash{crypto.SHA256, crypto.SHA384, crypto.SHA512}
 
-// VerifyDetached verifies a binary detached signature (sig) against the package
-// bytes (signed). It fails closed: a signature over a non-allowlisted digest
-// (e.g. SHA-1), any verification error, an expired or revoked signing key, or a
-// key absent from a non-empty trusted allowlist is rejected. On success it
-// returns the uppercase hex fingerprint of the signer's primary key.
+// VerifyDetached verifies a detached signature against signed, failing closed (SHA-1, expired/revoked key,
+// or untrusted fingerprint all rejected); returns the signer's uppercase primary-key fingerprint.
 func (k *Keyring) VerifyDetached(signed, sig io.Reader) (string, error) {
 	signer, err := openpgp.CheckDetachedSignatureAndHash(k.entities, signed, sig, allowedHashes, nil)
 	if err != nil {

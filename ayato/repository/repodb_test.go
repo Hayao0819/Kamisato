@@ -322,10 +322,9 @@ func contains(s []string, v string) bool {
 	return false
 }
 
-// fakeTool stands in for the repo-add/repo-remove CLI: it just writes the
-// canonical DB quartet next to the db path, so the binaryRepository
-// orchestration (fetch -> tool -> store) can be exercised without the repo-add
-// binary. This is the payoff of the repoDBTool port.
+// fakeTool stands in for the repo-add/repo-remove CLI: it writes the canonical DB
+// quartet next to the db path, so the binaryRepository orchestration (fetch -> tool
+// -> store) can be exercised without the repo-add binary.
 type fakeTool struct{}
 
 func (fakeTool) RepoAdd(dbPath, _ string, _ bool, _ *string) error { return writeFakeQuartet(dbPath) }

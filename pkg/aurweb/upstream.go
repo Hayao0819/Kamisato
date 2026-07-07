@@ -20,8 +20,7 @@ const defaultUserAgent = "kamisato-aurweb/1.0 (+https://github.com/Hayao0819/Kam
 
 const defaultAURBase = "https://aur.archlinux.org"
 
-// upstreamBatchSize bounds how many pkgnames go into one info GET, matching the
-// AUR helper convention and keeping the URL within limits.
+// upstreamBatchSize bounds pkgnames per info GET to match AUR helper convention and URL length limits.
 const upstreamBatchSize = 150
 
 // AURUpstream calls a real aurweb instance's /rpc endpoint to satisfy packages

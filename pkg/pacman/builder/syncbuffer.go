@@ -8,9 +8,7 @@ import (
 	"sync"
 )
 
-// drainPullStream consumes the image-pull progress stream and surfaces any
-// error delivered as a JSON message in the body (ImagePull only reports the
-// initial request error directly).
+// drainPullStream consumes the image-pull progress stream; errors come as JSON body messages (ImagePull only reports the initial request error).
 func drainPullStream(r io.ReadCloser) error {
 	defer r.Close()
 	dec := json.NewDecoder(r)

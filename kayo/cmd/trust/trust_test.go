@@ -11,8 +11,6 @@ import (
 	"github.com/Hayao0819/Kamisato/kayo/trust"
 )
 
-// seedStore prepopulates a trust store at the path embedded in the config file
-// written by buildRoot.
 func seedStore(t *testing.T, dir string) {
 	t.Helper()
 	storePath := filepath.Join(dir, "trust.json")

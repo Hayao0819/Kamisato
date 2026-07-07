@@ -17,7 +17,6 @@ var pkgHeader = shared.PkgRow{
 	Build:     "BUILD",
 }
 
-// renderRows renders package rows through the shared Docker-style formatter.
 func renderRows(out io.Writer, format string, rows []shared.PkgRow) error {
 	return cliutil.RenderList(out, format, pkgHeader, rows)
 }

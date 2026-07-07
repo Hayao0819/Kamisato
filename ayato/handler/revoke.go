@@ -9,13 +9,11 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// RevokeCLIHandler denylists the presented tokens by their jti, invalidating them
-// server-side before their TTL. It revokes the Bearer access token and, when a
-// refresh_token is supplied in the body, that too — so a logout kills both halves
-// of the session. Possessing a validly-signed token is the authorization (as with
-// logout), and the signature check stops a caller from denylisting arbitrary jtis,
-// so no admin middleware guards this route. A valid refresh token alone suffices,
-// which matters once the short-lived access token has already expired.
+// RevokeCLIHandler denylists the presented tokens by jti before their TTL: the Bearer
+// access token and, if supplied, the refresh_token, so logout kills both halves.
+// Possessing a validly-signed token is the authorization (the signature stops a caller
+// denylisting arbitrary jtis), so no admin middleware guards this route; a refresh
+// token alone suffices once the access token has expired.
 func (h *Handler) RevokeCLIHandler(c *gin.Context) {
 	if h.signer == nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "revocation not configured"})

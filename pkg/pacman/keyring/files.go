@@ -18,11 +18,8 @@ import (
 	"github.com/ProtonMail/go-crypto/openpgp"
 )
 
-// nameRe constrains a keyring name to what is safe as a pacman pkgname stem, a
-// path segment under usr/share/pacman/keyrings, and an argument to the root-run
-// `pacman-key --populate` in the install hook. It rejects slashes, whitespace and
-// shell metacharacters, so a stray or hostile name can neither escape the keyring
-// directory in the tarball nor inject into the install script.
+// nameRe constrains a keyring name to a safe pkgname/path/arg; rejects slashes, whitespace,
+// and shell metacharacters to prevent directory escape in the tarball or injection into the install hook.
 var nameRe = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9@._+-]*$`)
 
 // ValidateName reports whether name is usable as a keyring identifier.
@@ -33,10 +30,8 @@ func ValidateName(name string) error {
 	return nil
 }
 
-// trustFull is gpg's ownertrust value for full trust (level 4). pacman-key
-// --populate lsigns every fingerprint in the -trusted file, so a single anchor
-// listed here becomes a valid signer; subkeys inherit trust through their binding
-// to the anchor and need not be listed.
+// trustFull is gpg's ownertrust level 4; pacman-key --populate lsigns every -trusted fingerprint,
+// so subkeys inherit trust through their anchor binding and need not be listed separately.
 const trustFull = "4"
 
 // Files are the three keyring artifacts installed under
@@ -48,10 +43,8 @@ type Files struct {
 	Revoked []byte // <name>-revoked — bare fingerprint lines
 }
 
-// Write emits the three files as <name>.gpg, <name>-trusted and <name>-revoked
-// into dir, the layout a keyring source repo (with its own Makefile/PKGBUILD and
-// install hook) consumes. It writes only these files, leaving the repo's
-// packaging untouched, so ayaka can regenerate the key material in place.
+// Write emits the three keyring files into dir, leaving repo packaging untouched
+// so ayaka can regenerate key material in place.
 func (f *Files) Write(dir string) error {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
@@ -72,12 +65,8 @@ func (f *Files) Write(dir string) error {
 	return nil
 }
 
-// BuildFiles assembles the keyring files. entities are the public keys to bundle
-// (each serialized with its revocation signatures). trustedFprs are the trust
-// anchors written to -trusted (typically each key's primary fingerprint).
-// revokedFprs are disabled in the local keyring by --populate; the revocation
-// signatures embedded in the .gpg are the cryptographic record, the -revoked list
-// is the pacman-side belt-and-suspenders.
+// BuildFiles assembles the three keyring artifacts; revokedFprs are disabled by --populate
+// (the -revoked list is belt-and-suspenders alongside the revocation sigs embedded in the .gpg).
 func BuildFiles(name string, entities []*openpgp.Entity, trustedFprs, revokedFprs []string) (*Files, error) {
 	if err := ValidateName(name); err != nil {
 		return nil, err
@@ -101,8 +90,7 @@ func BuildFiles(name string, entities []*openpgp.Entity, trustedFprs, revokedFpr
 	}, nil
 }
 
-// fingerprintLines renders one uppercase fingerprint per line with an optional
-// suffix, deduplicated and sorted for a reproducible file.
+// fingerprintLines renders deduplicated, sorted uppercase fingerprints one per line with an optional suffix.
 func fingerprintLines(fprs []string, suffix string) []byte {
 	seen := make(map[string]struct{}, len(fprs))
 	uniq := make([]string, 0, len(fprs))

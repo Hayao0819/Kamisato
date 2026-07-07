@@ -30,9 +30,8 @@ func SaveServerDB(db ServerDB) error {
 	return errwrap.WrapErr(blinky_util.SaveServerDB(db), "failed to save server database")
 }
 
-// ServerNames returns the registered server names starting with prefix, sorted.
-// It is the single source for the server-name shell completions, so each command
-// no longer reimplements the same db scan.
+// ServerNames returns the registered server names starting with prefix, sorted. It
+// is the single source for the server-name shell completions.
 func ServerNames(prefix string) []string {
 	db, err := blinky_util.ReadServerDB()
 	if err != nil {

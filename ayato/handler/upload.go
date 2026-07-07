@@ -13,14 +13,12 @@ import (
 	"github.com/samber/lo"
 )
 
-// defaultMaxUploadBytes caps an upload body when cfg.MaxSize is unset, so a
-// single authenticated request cannot spool an unbounded body into memory or the
-// tmpfs-backed /tmp on Cloud Run.
+// defaultMaxUploadBytes caps an upload body when cfg.MaxSize is unset, so one request
+// cannot spool an unbounded body into memory or the tmpfs-backed /tmp on Cloud Run.
 const defaultMaxUploadBytes = 512 << 20
 
-// maxUploadBytes is the byte ceiling enforced before the multipart body is
-// spooled. cfg.MaxSize bounds a single package; the margin covers multipart
-// framing and the small detached-signature part.
+// maxUploadBytes is the ceiling enforced before spooling; the margin over cfg.MaxSize
+// covers multipart framing and the detached-signature part.
 func maxUploadBytes(maxSize int) int64 {
 	if maxSize > 0 {
 		return int64(maxSize) + (1 << 20)
@@ -118,12 +116,9 @@ func (h *Handler) BlinkyUploadHandler(ctx *gin.Context) {
 	ctx.String(http.StatusOK, fmt.Sprintf("'%s' uploaded!", pkgHeader.Filename))
 }
 
-// BatchUploadHandler publishes several packages atomically. The multipart form
-// carries one or more "package" files and any matching "signature" files (a
-// signature for "<name>" is named "<name>.sig"); ayato registers them all with
-// one RepoAddBatch per arch. Use it instead of the single PUT to publish a split
-// package or a rebuild set as one atomic database update. RequireSign and
-// signature verification are enforced by the service per package.
+// BatchUploadHandler publishes several packages atomically (one RepoAddBatch per arch),
+// matching a "<name>.sig" signature to each package. RequireSign and signature
+// verification are enforced by the service per package.
 func (h *Handler) BatchUploadHandler(ctx *gin.Context) {
 	repoName := ctx.Param("repo")
 	if repoName == "" {

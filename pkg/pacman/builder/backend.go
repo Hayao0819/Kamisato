@@ -16,31 +16,25 @@ type Spec struct {
 	OutDir string
 	// Arch is the target CARCH (x86_64, aarch64, armv7h, ...).
 	Arch string
-	// Repos are per-build pacman repositories (the repo.json build.repos channel),
-	// merged after Options.ExtraRepos. All backends inject them into pacman.conf;
-	// the chroot backend via the generated pacman.conf passed to mkarchroot with -C.
+	// Repos are per-build pacman repositories (repo.json build.repos), merged after Options.ExtraRepos.
+	// All backends inject them into pacman.conf; chroot does it via the generated -C config.
 	Repos []RepoSpec
-	// Makepkg carries per-build makepkg.conf overrides (packager, microarch tier,
-	// extra CFLAGS, OPTIONS). All backends append them to the build's makepkg.conf;
-	// the chroot backend via the generated makepkg.conf passed to mkarchroot with -M.
+	// Makepkg carries per-build makepkg.conf overrides; all backends append them after source.
+	// Chroot does it via the generated -M config.
 	Makepkg MakepkgSettings
-	// ArchBuild is the devtools wrapper (e.g. extra-x86_64-build). With build config
-	// present the chroot backend only derives its pacman.conf base repo from it; with
-	// none it shells out to the wrapper directly. Container and bwrap ignore it.
+	// ArchBuild is the devtools wrapper (e.g. extra-x86_64-build); with a build config the chroot backend
+	// only derives its base repo from it; without one it shells out directly. Container and bwrap ignore it.
 	ArchBuild string
-	// InstallPkgs are local package files installed into the build environment
-	// before building (makechrootpkg -I / pacman -U), for not-yet-published
-	// build-chain dependencies.
+	// InstallPkgs are local package files installed before building (makechrootpkg -I / pacman -U)
+	// for not-yet-published build-chain dependencies.
 	InstallPkgs []string
-	// LogWriter, when non-nil, receives the build's combined stdout/stderr in
-	// addition to the process console. Used by callers (e.g. miko) to capture
-	// per-job build logs.
+	// LogWriter, when non-nil, receives the build's combined stdout/stderr (in addition to the console)
+	// for per-job log capture.
 	LogWriter io.Writer
 }
 
-// MakepkgSettings are per-build makepkg.conf overrides rendered after a source of
-// the base makepkg.conf, so each set value replaces (or, for CFLAGS/OPTIONS,
-// appends to) the distro default. A zero value leaves the base config untouched.
+// MakepkgSettings are per-build makepkg.conf overrides rendered after the base;
+// each set value replaces (or for CFLAGS/OPTIONS appends to) the distro default. A zero value is a no-op.
 type MakepkgSettings struct {
 	Packager     string
 	Microarch    string
@@ -91,9 +85,8 @@ type Options struct {
 	// Empty falls back to DOCKER_HOST, then the active docker context, then the
 	// default socket.
 	DockerHost string
-	// PacmanCacheDir, when set, is bind-mounted at /var/cache/pacman/pkg by the
-	// container and bwrap backends to persist packages across builds and resume
-	// interrupted downloads (chroot ignores it).
+	// PacmanCacheDir, when set, is bind-mounted at /var/cache/pacman/pkg by container and bwrap
+	// to persist packages across builds (chroot ignores it).
 	PacmanCacheDir string
 	// CcacheDir, when set, is bind-mounted at /build/ccache by the container
 	// backend to persist a compiler cache across builds (chroot ignores it).
@@ -102,11 +95,8 @@ type Options struct {
 	// populated pacman keyring) used as the read-only lower layer by the bwrap
 	// backend. Required for KindBwrap.
 	BwrapRootfs string
-	// ExtraRepos are pacman repositories added to the build environment (e.g. the
-	// ayato repo) so already-published dependencies resolve during the build. This
-	// is the miko/server-config channel; all backends inject it into pacman.conf
-	// ahead of Spec.Repos (the repo.json channel) — the chroot backend via the
-	// generated -C config (any build config switches it off the wrapper path).
+	// ExtraRepos are the server-config pacman repos (e.g. the ayato repo), injected into pacman.conf
+	// ahead of Spec.Repos; chroot does it via the generated -C config.
 	ExtraRepos []RepoSpec
 }
 

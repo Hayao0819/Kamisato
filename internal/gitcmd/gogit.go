@@ -95,11 +95,9 @@ func installSafeHTTPSClient() {
 func cloneGoGit(ctx context.Context, o CloneOptions) error {
 	installSafeHTTPSClient()
 
-	// Clone the default branch (with its tags) at the requested depth, then check
-	// out Ref by resolving it — a branch, tag, or commit — so this matches the
-	// git CLI's `clone --depth N` + `checkout <ref>` semantics rather than
-	// accepting only branch names. An off-history ref has the same shallow-clone
-	// limitation the CLI path had.
+	// Clone then resolve Ref (branch, tag, or commit) to match the CLI's
+	// `clone --depth N` + `checkout <ref>` semantics rather than only branch names;
+	// an off-history ref keeps the same shallow-clone limitation.
 	repo, err := git.PlainCloneContext(ctx, o.Dir, o.Bare, &git.CloneOptions{URL: o.URL, Depth: o.Depth})
 	if err != nil {
 		return errwrap.WrapErr(err, "git clone: "+o.URL)
@@ -121,10 +119,9 @@ func cloneGoGit(ctx context.Context, o CloneOptions) error {
 	return nil
 }
 
-// Pull fast-forwards the checkout in dir from its origin, through go-git so no
-// git process is spawned. It returns nil when already up to date, and errors
-// (like the CLI's --ff-only) when the local branch has diverged. https fetches
-// are pinned to a validated public IP, the same as clones.
+// Pull fast-forwards the checkout in dir from origin via go-git (no git process
+// spawned). It returns nil when already up to date and errors on divergence (like
+// the CLI's --ff-only); https fetches are pinned to a validated public IP.
 func Pull(ctx context.Context, dir string) error {
 	installSafeHTTPSClient()
 	repo, err := git.PlainOpen(dir)

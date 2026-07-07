@@ -5,17 +5,14 @@ import (
 	"strings"
 )
 
-// microarchLevels maps a supported x86-64 feature level (Arch's pseudo-arch
-// name) to the gcc -march value that selects it. Only x86_64 has feature levels,
-// so aarch64/armv7h have no entry and reject a tier.
+// microarchLevels maps Arch's x86-64 feature level names to gcc -march values; other arches have no entry and reject a tier.
 var microarchLevels = map[string]string{
 	"x86_64_v2": "x86-64-v2",
 	"x86_64_v3": "x86-64-v3",
 	"x86_64_v4": "x86-64-v4",
 }
 
-// ValidMicroarch reports whether tier is empty (no tier, the default build) or a
-// known x86-64 feature level.
+// ValidMicroarch reports whether tier is empty (default build) or a known x86-64 feature level.
 func ValidMicroarch(tier string) bool {
 	if tier == "" {
 		return true
@@ -24,16 +21,9 @@ func ValidMicroarch(tier string) bool {
 	return ok
 }
 
-// microarchOverride returns the makepkg.conf lines that pin the compiler feature
-// level for tier. They are meant to be appended after `source /etc/makepkg.conf`,
-// so they raise the distro's baseline -march to the tier without dropping its
-// other flags (gcc honours the last -march). It returns "" for an empty tier so a
-// default build stays byte-for-byte unchanged, and an error for an unknown tier.
-//
-// CARCH is deliberately left as x86_64: makepkg validates it against the
-// PKGBUILD's arch=() array, and the container platform maps from it, so a v3
-// build keeps the x86_64 CARCH and is separated by repo — the same approach as
-// Arch's official x86-64-v3 rebuild.
+// microarchOverride returns makepkg.conf lines to pin the feature level for tier, appended after source (gcc honours the last -march).
+// Returns "" for empty tier. CARCH is left as x86_64: makepkg validates against arch=(), and a v3 build is separated by repo
+// (same approach as Arch's official x86-64-v3 rebuild).
 func microarchOverride(tier string) (string, error) {
 	if tier == "" {
 		return "", nil
@@ -48,9 +38,7 @@ func microarchOverride(tier string) (string, error) {
 	), nil
 }
 
-// makepkgOverrideLines renders the makepkg.conf override lines for per-repo build
-// settings, meant to be appended after a `source` of the base makepkg.conf (gcc/
-// makepkg honour the last value). Returns "" for zero settings.
+// makepkgOverrideLines renders makepkg.conf override lines for per-build settings, appended after source so the last value wins; returns "" for zero settings.
 func makepkgOverrideLines(s MakepkgSettings) (string, error) {
 	var b strings.Builder
 	if s.Packager != "" {

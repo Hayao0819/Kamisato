@@ -7,8 +7,8 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/errwrap"
 )
 
-// denyNS holds revoked token ids (jti). Entries carry a TTL equal to the token's
-// remaining lifetime so they self-evict once the token would have expired anyway.
+// denyNS holds revoked token ids (jti); entries carry a TTL of the token's remaining
+// lifetime so they self-evict once the token expires.
 const denyNS = "deny"
 
 type DenylistRepository interface {

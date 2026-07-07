@@ -140,7 +140,6 @@ func RootCmd() *cobra.Command {
 			h := handler.New(s, cfg)
 			verifier := apikey.NewVerifier(cfg.APIKeys)
 
-			// Cancel the workers (and in-flight builds) on SIGINT/SIGTERM.
 			ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
 			defer stop()
 			for i := 0; i < cfg.Concurrency; i++ {

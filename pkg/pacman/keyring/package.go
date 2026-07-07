@@ -28,16 +28,13 @@ type PackageOpts struct {
 // PkgName is the package name for a keyring identifier: "<name>-keyring".
 func PkgName(name string) string { return name + "-keyring" }
 
-// FileName is the conventional package filename for the given keyring name and
-// version: "<name>-keyring-<version>-any.pkg.tar.zst".
+// FileName is the conventional package filename: "<name>-keyring-<version>-any.pkg.tar.zst".
 func FileName(name, version string) string {
 	return fmt.Sprintf("%s-%s-any.pkg.tar.zst", PkgName(name), version)
 }
 
-// BuildPackage assembles the keyring .pkg.tar.zst. The archive holds .PKGINFO
-// (first, as pacman expects), the .INSTALL hook, and the three keyring files
-// under usr/share/pacman/keyrings/. The result is unsigned; the caller signs the
-// bytes with a detached OpenPGP signature via pkg/pacman/sign.
+// BuildPackage assembles the keyring .pkg.tar.zst (.PKGINFO first, then .INSTALL, then the three keyring files).
+// The result is unsigned; callers sign it with a detached OpenPGP signature.
 func BuildPackage(opts PackageOpts) ([]byte, error) {
 	if opts.Files == nil {
 		return nil, fmt.Errorf("keyring files are required")

@@ -11,10 +11,9 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/errwrap"
 )
 
-// ageHeader is the intro of the age v1 binary format. A stored value carrying it
-// is ciphertext; anything else is a pre-encryption plaintext value (see IsSealed),
-// which is what lets encryption be turned on over an existing store without
-// stranding the data already written.
+// ageHeader is the intro of the age v1 binary format; a value carrying it is
+// ciphertext, anything else a pre-encryption plaintext value (see IsSealed). This
+// lets encryption be enabled over an existing store without stranding old data.
 const ageHeader = "age-encryption.org/v1"
 
 // IsSealed reports whether v is an age ciphertext rather than a plaintext value

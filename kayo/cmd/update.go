@@ -99,8 +99,8 @@ func updateCmd() *cobra.Command {
 	return cmd
 }
 
-// diffNames lists files changed between two commits, best-effort: empty on any error,
-// e.g. a force-pushed history where the old commit is gone.
+// diffNames is best-effort: nil on any git error, e.g. a force-pushed history
+// where the old commit is gone.
 func diffNames(ctx context.Context, dir, from, to string) []string {
 	if from == "" || to == "" {
 		return nil

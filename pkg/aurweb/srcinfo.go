@@ -8,9 +8,7 @@ import (
 	"github.com/Hayao0819/Kamisato/pkg/raiou"
 )
 
-// SrcinfoMeta carries the account-level facts a .SRCINFO cannot provide. A
-// private instance typically sets a fixed Maintainer and uses the source's last
-// commit time for the timestamps.
+// SrcinfoMeta carries account-level facts a .SRCINFO cannot provide (maintainer, submitter, timestamps).
 type SrcinfoMeta struct {
 	Maintainer     string
 	Submitter      string
@@ -21,9 +19,8 @@ type SrcinfoMeta struct {
 	URLPath string
 }
 
-// FromSrcinfo turns a parsed .SRCINFO into one Pkg per split package, merging the
-// pkgbase-level (global) relations with each package's own across all
-// architectures so the result matches what aurweb emits for that pkgname.
+// FromSrcinfo converts a parsed .SRCINFO into one Pkg per split package, merging pkgbase-level
+// relations with per-package ones across all architectures to match aurweb's output.
 func FromSrcinfo(si *raiou.SRCINFO, meta SrcinfoMeta) []Pkg {
 	if si == nil {
 		return nil

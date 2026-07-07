@@ -26,10 +26,9 @@ type Enqueuer interface {
 	EnqueueVersionUpdate(entry Entry, newVersion string) error
 }
 
-// CurrentFunc reports the version currently built/published for an entry. It is
-// the pluggable seam the task calls for: production queries the published repo,
-// tests return a fixed value. An empty result means "unknown" (treated as
-// out-of-date so the first check publishes a baseline).
+// CurrentFunc reports the version currently built/published for an entry. An
+// empty result means "unknown" (treated as out-of-date so the first check
+// publishes a baseline).
 type CurrentFunc func(ctx context.Context, entry Entry) (string, error)
 
 // Result records the outcome of checking one entry.
@@ -110,9 +109,8 @@ func (c *Checker) checkOne(ctx context.Context, e Entry) Result {
 	return res
 }
 
-// isNewer reports whether latest is a newer version than current. An unknown
-// current (empty) counts as newer so the first observation establishes a
-// baseline rather than being silently skipped.
+// isNewer treats an unknown (empty) current as older, so the first observation
+// establishes a baseline rather than being silently skipped.
 func isNewer(latest, current string) bool {
 	if latest == "" {
 		return false

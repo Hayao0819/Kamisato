@@ -1,8 +1,7 @@
-// Package ciauth authorizes non-interactive CI uploads. A CI caller is a
-// repository identity, not a GitHub user: a distinct principal that may only
-// publish to scoped repos. Credentials route by header shape to exactly one
-// verifier, and a presented-but-invalid credential is terminal (no fallback to a
-// weaker check), which is what makes the routing safe.
+// Package ciauth authorizes non-interactive CI uploads by a repository identity
+// (not a GitHub user) scoped to specific repos. Credentials route by header shape
+// to exactly one verifier, and a presented-but-invalid credential is terminal
+// (no weaker fallback), which keeps the routing safe.
 package ciauth
 
 import (

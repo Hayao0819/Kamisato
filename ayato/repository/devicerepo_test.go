@@ -33,7 +33,6 @@ func TestDeviceCreateApproveConsume(t *testing.T) {
 		t.Fatalf("fresh status = %q, want pending", status)
 	}
 
-	// Approval attaches the identity and flips the status the client polls for.
 	if ok, err := r.ApproveDevice("US-ER", 42, "alice"); err != nil || !ok {
 		t.Fatalf("ApproveDevice ok=%v err=%v", ok, err)
 	}
@@ -42,7 +41,6 @@ func TestDeviceCreateApproveConsume(t *testing.T) {
 		t.Fatalf("after approve: status=%q id=%d login=%q ok=%v err=%v", status, id, login, ok, err)
 	}
 
-	// Consuming clears both the record and its user-code index.
 	if err := r.ConsumeDevice("dc"); err != nil {
 		t.Fatalf("ConsumeDevice: %v", err)
 	}

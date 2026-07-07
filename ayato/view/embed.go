@@ -28,10 +28,9 @@ func Set(e *gin.Engine) error {
 	return nil
 }
 
-// SetRepoAssets registers the /repo index page's external CSS and JS on g. The
-// files ship embedded in the binary and are served same-origin so the strict CSP
-// (script-src/style-src 'self') allows them without an 'unsafe-inline' exception;
-// the template references them by absolute path so they resolve under any
+// SetRepoAssets registers the /repo index page's embedded CSS and JS on g, served
+// same-origin so the strict CSP (script-src/style-src 'self') needs no
+// 'unsafe-inline', and referenced by absolute path to resolve under any
 // /repo/:repo/:arch URL.
 func SetRepoAssets(g *gin.RouterGroup) error {
 	assets := []struct{ route, file, contentType string }{
@@ -45,8 +44,7 @@ func SetRepoAssets(g *gin.RouterGroup) error {
 		}
 		contentType := a.contentType
 		g.GET(a.route, func(c *gin.Context) {
-			// The bytes are baked into the binary and change only on rebuild, so a
-			// long immutable cache is safe on this fixed URL.
+			// Baked into the binary and fixed per build, so immutable caching is safe.
 			c.Header("Cache-Control", "public, max-age=31536000, immutable")
 			c.Data(http.StatusOK, contentType, body)
 		})

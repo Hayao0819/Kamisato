@@ -106,10 +106,8 @@ func Cmd() *cobra.Command {
 				return errwrap.WrapErr(shared.ErrNoSourceDir, repo)
 			}
 
-			// Keep .SRCINFO in sync with PKGBUILD before building: the source
-			// versions read here (and the diff comparison below) come from .SRCINFO,
-			// so a stale one would build or skip the wrong packages. Needs makepkg,
-			// which a container/CI host may lack — warn and carry on there.
+			// Regenerate .SRCINFO first so a stale one doesn't build or skip the
+			// wrong packages; makepkg may be absent on CI, so warn and carry on.
 			if updateSrcinfo {
 				if _, lookErr := exec.LookPath("makepkg"); lookErr != nil {
 					slog.Warn("skipping .SRCINFO update: makepkg not found on PATH", "error", lookErr)

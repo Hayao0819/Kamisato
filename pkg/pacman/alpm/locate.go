@@ -29,9 +29,8 @@ func FilterForeign(names []string, foreign map[string]bool) []string {
 	return out
 }
 
-// pkgFileTail matches the part after the name-version- prefix of a built package
-// file: a dash-free arch field, .pkg.tar, one optional compression suffix. The
-// dash-free arch rejects look-alike names; the end anchor rejects .sig/.part.
+// pkgFileTail matches the arch/.pkg.tar/suffix tail of a package file name;
+// the dash-free arch and end anchor exclude look-alikes, .sig, and .part files.
 var pkgFileTail = regexp.MustCompile(`^[^-]+\.pkg\.tar(\.[A-Za-z0-9]+)?$`)
 
 // FindCachedPackage finds the built file for name-version; the prefix and strict

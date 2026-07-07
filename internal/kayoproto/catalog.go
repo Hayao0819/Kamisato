@@ -17,10 +17,9 @@ import (
 const keyIDHexLen = 16
 
 // KeyID is the wire handle for a catalog-signing public key: the first 16 hex
-// chars of its SHA-256. The signing (ayato) and verifying (kayo) sides both
-// derive the handle this way so a key_id printed on one matches the other. It is
-// a human-comparable handle for logs and out-of-band pin confirmation, never a
-// crypto decision.
+// chars of its SHA-256. Both ayato and kayo derive it identically so a printed
+// key_id matches. It is a human-comparable handle for logs and out-of-band pin
+// confirmation, never a crypto decision.
 func KeyID(pub []byte) string {
 	sum := sha256.Sum256(pub)
 	return hex.EncodeToString(sum[:])[:keyIDHexLen]

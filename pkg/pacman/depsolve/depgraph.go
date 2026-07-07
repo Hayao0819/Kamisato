@@ -2,22 +2,16 @@ package depsolve
 
 import "slices"
 
-// DepGraph is a resolved dependency graph over a set of packages, holding both
-// directions of every edge. Forward edges point from a package to the packages it
-// depends on; reverse edges point from a package to the packages that depend on
-// it. The reverse edges are the foundation for rebuild-chain work: when a package
-// changes (a soname bump, a version update), its dependents are what must rebuild.
+// DepGraph holds both forward and reverse edges of a resolved dependency graph.
+// Reverse edges power rebuild-chain detection: when a package changes, its dependents are what must rebuild.
 type DepGraph struct {
 	nodes   []string
 	forward map[string][]string
 	reverse map[string][]string
 }
 
-// NewDepGraph builds the forward and reverse dependency maps from a set of
-// packages and their dependency edges. deps maps a package to the packages it
-// depends on; a dependency referenced there but absent from pkgs is still added
-// as a node so both maps cover the whole graph. Self-loops are dropped and edge
-// lists are deduped and sorted, so every accessor is deterministic.
+// NewDepGraph builds forward and reverse dependency maps from pkgs and deps;
+// edges referencing packages absent from pkgs are still added. Self-loops are dropped; edge lists are deduped and sorted.
 func NewDepGraph(pkgs []string, deps map[string][]string) *DepGraph {
 	set := nodeSet(pkgs, deps)
 	forward := make(map[string]map[string]struct{}, len(set))

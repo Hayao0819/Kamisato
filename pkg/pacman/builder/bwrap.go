@@ -28,22 +28,12 @@ const bwrapBuildScript = "set -e\ncd /build\nmakepkg --noconfirm --log --holdver
 // settings are staged; makepkg reads them from the bind-mounted override.conf.
 const bwrapBuildScriptOverride = "set -e\ncd /build\nmakepkg --config /build/makepkg.override.conf --noconfirm --log --holdver\n"
 
-// bwrapBuildUID is the unprivileged uid the build phase maps to. The host uid is
-// mapped 1:1 to it inside the user namespace.
+// bwrapBuildUID is the unprivileged uid the build phase maps the host uid 1:1 to inside the user namespace.
 const bwrapBuildUID = "1000"
 
-// bwrapBackend builds packages in a rootless bubblewrap clean room: a pristine
-// Arch rootfs (read-only lower) with a throwaway per-build overlay upper. Because
-// rootless bwrap maps only a single uid, the build runs in two phases over the
-// shared overlay — phase 1 (uid 0) installs deps via pacman, phase 2 (uid 1000)
-// runs makepkg, which refuses to run as root.
-//
-// It is host-only and rootless: it refuses to run nested inside a container, and
-// needs no root or daemon, only host-enabled unprivileged user namespaces.
-//
-// NOTE: this path needs validation on a real Arch host (bwrap >= 0.11 for
-// --overlay, unprivileged overlayfs, a keyring-populated rootfs); it cannot run
-// in this CI sandbox. Cross-arch (CARCH override / qemu) is not yet supported.
+// bwrapBackend builds in a rootless bubblewrap clean room (pristine Arch rootfs as lower, throwaway upper). Two phases because
+// rootless bwrap maps only one uid: phase 1 (uid 0) installs deps, phase 2 (uid 1000) runs makepkg. Host-only; refuses containers.
+// NOTE: needs validation on a real Arch host (bwrap >= 0.11, unprivileged overlayfs, keyring-populated rootfs). Cross-arch not yet supported.
 type bwrapBackend struct {
 	rootfs     string
 	timeout    time.Duration

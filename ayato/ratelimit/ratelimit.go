@@ -1,9 +1,8 @@
 // Package ratelimit is a fixed-window request limiter backed by the shared
-// kv.Store, so a limit holds ACROSS ayato's Cloud Run replicas instead of each
-// process granting its own quota (which made an N-replica deployment N times too
-// loose and reset on every restart). The per-window counter lives in kv with a
-// TTL, keyed by scope+client+window; each request increments it and is rejected
-// once the count exceeds the limit, until the window rolls over.
+// kv.Store, so a limit holds across ayato's Cloud Run replicas instead of each
+// process granting its own quota. The per-window counter lives in kv with a TTL,
+// keyed by scope+client+window, and a request is rejected once the count exceeds
+// the limit until the window rolls over.
 package ratelimit
 
 import (
@@ -17,11 +16,10 @@ import (
 // ns partitions the limiter's counters from every other kv consumer.
 const ns = "ratelimit"
 
-// minTTL floors a counter's TTL. BadgerDB stores expiry at one-second
-// granularity, so a sub-second window's counter would otherwise read back as
-// already expired the instant it is written. The window boundary is carried by
-// the KEY, not the TTL, so a floored (over-long) TTL only leaves a harmless stale
-// counter that the next window never consults.
+// minTTL floors a counter's TTL: BadgerDB stores expiry at one-second granularity,
+// so a sub-second window's counter would otherwise read back as already expired.
+// The window boundary is carried by the KEY, not the TTL, so an over-long TTL only
+// leaves a harmless stale counter the next window never consults.
 const minTTL = 3 * time.Second
 
 // Limiter enforces a fixed-window request limit on a shared kv.Store. It is safe
@@ -37,11 +35,10 @@ func New(store kv.Store) *Limiter {
 
 // Allow records one request for (scope, client) in the current window and reports
 // whether it stays within limit, plus a retry hint (time until the window rolls
-// over) when it does not. scope separates independent limiters sharing the one kv
-// (e.g. per route group); client is the caller identity (a trusted-proxy-aware
-// IP). A non-positive limit or window disables limiting. On a kv error it fails
-// OPEN — a limiter outage must not turn every request into a 500 — logging is left
-// to the caller.
+// over) when it does not. scope separates independent limiters sharing the one kv;
+// client is the caller identity (a trusted-proxy-aware IP). A non-positive limit or
+// window disables limiting. On a kv error it fails OPEN so a limiter outage does
+// not turn every request into a 500; logging is left to the caller.
 func (l *Limiter) Allow(scope, client string, limit int, window time.Duration) (bool, time.Duration) {
 	if limit <= 0 || window <= 0 {
 		return true, 0
@@ -62,15 +59,13 @@ func (l *Limiter) Allow(scope, client string, limit int, window time.Duration) (
 }
 
 // bump increments the window counter and returns the resulting count. The first
-// request in a window is created atomically via kv.Adder when the backend offers
-// it, so two racing first requests cannot both under-count. Subsequent increments
-// are a Get-then-Set read-modify-write: kv has no atomic add, so two concurrent
-// increments can both read n and both write n+1, admitting ONE extra request. That
-// over-admission is bounded by the in-flight concurrency per key per window and
-// never resets the limit; it is the documented residual for a non-atomic backend.
-// A serializable store (badger, sqlkv) makes at least the create race-free; an
-// eventually-consistent one (cfkv) widens the residual because a stale read can
-// miss a just-written increment.
+// request in a window is created atomically via kv.Adder (when offered), so two
+// racing first requests cannot both under-count. Subsequent increments are a
+// Get-then-Set read-modify-write: kv has no atomic add, so two concurrent
+// increments can both read n and write n+1, admitting ONE extra request — a
+// residual bounded by in-flight concurrency per key per window that never resets
+// the limit. An eventually-consistent store (cfkv) widens it because a stale read
+// can miss a just-written increment.
 func (l *Limiter) bump(key string, limit int, ttl time.Duration) (int, error) {
 	b, err := l.store.Get(ns, key)
 	if errors.Is(err, kv.ErrNotFound) {
@@ -82,8 +77,7 @@ func (l *Limiter) bump(key string, limit int, ttl time.Duration) (int, error) {
 			if created {
 				return 1, nil
 			}
-			// Lost the create race: another request created the counter first. Re-read
-			// and fall through to the increment path.
+			// Lost the create race: re-read and fall through to the increment path.
 			b, err = l.store.Get(ns, key)
 		} else {
 			if serr := l.store.Set(ns, key, itob(1), ttl); serr != nil {

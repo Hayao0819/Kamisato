@@ -5,11 +5,8 @@ import (
 	"io"
 )
 
-// Merge writes a merged repository database that layers a local overlay on top of
-// an upstream one: a package present in both is taken from the local overlay, so
-// LOCAL SHADOWS UPSTREAM on a name collision. Any reader may be nil (an absent
-// archive is treated as empty). It reuses the native db builder, so the merged
-// .db/.files are byte-identical in format to a normally written database.
+// Merge writes a database layering the local overlay on top of upstream: LOCAL SHADOWS UPSTREAM on name collision.
+// Nil readers are empty; output is byte-identical to a normally written database.
 func Merge(upstreamDB, upstreamFiles, localDB, localFiles io.Reader, dbOut, filesOut io.Writer) error {
 	// Buffer the (small) local overlay: its names are read once to shadow upstream
 	// and its entries are loaded again on top of the merged builder.
@@ -51,9 +48,7 @@ func Merge(upstreamDB, upstreamFiles, localDB, localFiles io.Reader, dbOut, file
 	return merged.WriteFiles(filesOut)
 }
 
-// DBDiff is the change between two database snapshots by package name: names only
-// in the new one (Added), only in the old one (Removed), and present in both at a
-// different version (Updated). It makes an incremental upstream sync observable.
+// DBDiff is the change between two database snapshots (Added/Removed/Updated by package name) for observing an incremental sync.
 type DBDiff struct {
 	Added   []string
 	Removed []string
@@ -65,9 +60,7 @@ func (d DBDiff) Empty() bool {
 	return len(d.Added) == 0 && len(d.Removed) == 0 && len(d.Updated) == 0
 }
 
-// DiffDB computes what changed between an old and a new database snapshot. A nil
-// reader is an empty snapshot, so the first sync reports every upstream package
-// as Added.
+// DiffDB computes the diff between two snapshots; nil is an empty snapshot, so the first sync reports every package as Added.
 func DiffDB(oldDB, newDB io.Reader) (DBDiff, error) {
 	oldIdx, err := indexVersions(oldDB)
 	if err != nil {
@@ -94,8 +87,7 @@ func DiffDB(oldDB, newDB io.Reader) (DBDiff, error) {
 	return diff, nil
 }
 
-// indexVersions parses a .db stream into a name->version map. A nil reader is an
-// empty index.
+// indexVersions parses a .db stream into a name→version map; nil is an empty index.
 func indexVersions(db io.Reader) (map[string]string, error) {
 	if db == nil {
 		return map[string]string{}, nil

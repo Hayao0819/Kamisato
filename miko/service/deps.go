@@ -16,11 +16,9 @@ import (
 	"github.com/Hayao0819/Kamisato/pkg/raiou"
 )
 
-// resolveAndBuildDeps resolves a target's unbuilt AUR dependencies, builds each in
-// dependency order and publishes it to ayato so the target build can install it.
-// It is a no-op unless enabled by config. Dependencies are read from the source's
-// .SRCINFO (never by sourcing the untrusted PKGBUILD on the host); a source
-// without a .SRCINFO is skipped.
+// resolveAndBuildDeps builds a target's unbuilt AUR dependencies in order and
+// publishes each to ayato so the target can install it. No-op unless enabled; deps
+// are read from .SRCINFO, never by sourcing the untrusted PKGBUILD on the host.
 func (s *Service) resolveAndBuildDeps(ctx context.Context, job *domain.BuildJob, backend builder.Backend, srcDir string) error {
 	if !s.cfg.Build.ResolveAURDeps {
 		return nil
@@ -66,9 +64,8 @@ func (s *Service) resolveAndBuildDeps(ctx context.Context, job *domain.BuildJob,
 	return nil
 }
 
-// buildAndPublishDep clones one AUR dependency's PKGBUILD, builds it with the same
-// backend and target arch, and publishes it to the target's repo. Once published,
-// the target repo (exposed to every build in this run) makes it installable.
+// buildAndPublishDep builds one AUR dependency and publishes it to the target's
+// repo, which is exposed to every build in this run so later builds can install it.
 func (s *Service) buildAndPublishDep(ctx context.Context, job *domain.BuildJob, backend builder.Backend, up *aurweb.AURUpstream, dep depsolve.Pkg) error {
 	depSrc, err := os.MkdirTemp("", "miko-dep-*")
 	if err != nil {

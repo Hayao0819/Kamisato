@@ -155,8 +155,7 @@ func stripArchSuffix(server string) string {
 	return s
 }
 
-// Validate requires a name, the key every source repo is looked up by; an
-// unnamed repo can never be resolved by the commands that address it by name.
+// Validate requires a name, the key every source repo is looked up by.
 func (c *SrcRepoConfig) Validate() error {
 	if c.Name == "" {
 		return fmt.Errorf("name is required")

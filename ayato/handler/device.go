@@ -13,9 +13,8 @@ import (
 
 const deviceVerifyPath = "/api/unstable/auth/device"
 
-// deviceFormTmpl is the browser page where the user types the code shown on the
-// CLI. The code value is auto-escaped by html/template; the form GETs the approval
-// endpoint, which then runs the ordinary GitHub OAuth + allowlist flow.
+// deviceFormTmpl is the code-entry page; the code value is auto-escaped by
+// html/template.
 var deviceFormTmpl = template.Must(template.New("device").Parse(
 	`<!doctype html><meta charset="utf-8"><title>Device login</title>
 <body style="font-family:sans-serif;max-width:32rem;margin:4rem auto">
@@ -47,9 +46,8 @@ func (h *Handler) renderDeviceMessage(c *gin.Context, status int, title, body st
 	_ = deviceMessageTmpl.Execute(c.Writer, struct{ Title, Body string }{title, body})
 }
 
-// normalizeUserCode uppercases user input and reformats it to the canonical
-// XXXX-XXXX grouping so a code typed without the dash or in lowercase still
-// matches the stored value.
+// normalizeUserCode reformats input to canonical XXXX-XXXX so a code typed
+// lowercase or without the dash still matches the stored value.
 func normalizeUserCode(s string) string {
 	var b strings.Builder
 	for _, r := range strings.ToUpper(s) {
@@ -64,9 +62,8 @@ func normalizeUserCode(s string) string {
 	return letters
 }
 
-// DeviceCodeHandler issues a device_code + user_code pair (RFC 8628 §3.2) and
-// records the pending authorization in kv, so ayaka on a browserless box can log
-// in by having the user approve the code from any other browser.
+// DeviceCodeHandler issues a device_code + user_code pair (RFC 8628 §3.2) so a
+// browserless box can log in by having the user approve the code from any browser.
 func (h *Handler) DeviceCodeHandler(c *gin.Context) {
 	if !h.oauthEnabled() || h.device == nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "device login not configured"})
@@ -98,8 +95,8 @@ func (h *Handler) DeviceCodeHandler(c *gin.Context) {
 	})
 }
 
-// DeviceVerifyHandler serves the code-entry page the user opens in any browser
-// (the verification_uri). A user_code query pre-fills it (verification_uri_complete).
+// DeviceVerifyHandler serves the code-entry page (verification_uri); a user_code
+// query pre-fills it.
 func (h *Handler) DeviceVerifyHandler(c *gin.Context) {
 	if !h.oauthEnabled() || h.device == nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "device login not configured"})
@@ -108,10 +105,9 @@ func (h *Handler) DeviceVerifyHandler(c *gin.Context) {
 	h.renderDeviceForm(c, http.StatusOK, normalizeUserCode(c.Query("user_code")), "")
 }
 
-// DeviceApproveHandler takes the entered user_code and hands off to the existing
-// GitHub OAuth flow, carrying the code through the signed state so the callback
-// can approve the matching device authorization. A binding cookie ties the flow to
-// this browser (login-CSRF defense), exactly like the web login start.
+// DeviceApproveHandler hands the entered user_code to the GitHub OAuth flow via
+// the signed state; a binding cookie ties the flow to this browser (login-CSRF
+// defense).
 func (h *Handler) DeviceApproveHandler(c *gin.Context) {
 	if !h.oauthEnabled() || h.device == nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "device login not configured"})
@@ -152,9 +148,8 @@ func (h *Handler) DeviceApproveHandler(c *gin.Context) {
 	c.Redirect(http.StatusFound, h.oauthConfig(c).AuthCodeURL(state))
 }
 
-// finishDeviceLogin marks the pending authorization approved with the resolved
-// identity; the polling client then receives its token. Called from the OAuth
-// callback after the allowlist check passes.
+// finishDeviceLogin marks the pending authorization approved; called from the
+// OAuth callback after the allowlist check passes.
 func (h *Handler) finishDeviceLogin(c *gin.Context, st *auth.Claims, user githubUser) {
 	if h.device == nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "device login not configured"})
@@ -181,10 +176,8 @@ func (h *Handler) denyDeviceLogin(c *gin.Context, st *auth.Claims) {
 	h.renderDeviceMessage(c, http.StatusForbidden, "許可されていません", "このアカウントはこのサーバーへのログインを許可されていません。")
 }
 
-// DeviceTokenHandler is the RFC 8628 §3.4 polling endpoint. It reports the
-// authorization's state (authorization_pending / slow_down / expired_token /
-// access_denied) or, once approved, mints and returns the CLI token, consuming the
-// device_code so it cannot be redeemed twice.
+// DeviceTokenHandler is the RFC 8628 §3.4 polling endpoint; once approved it mints
+// the CLI token and consumes the device_code so it cannot be redeemed twice.
 func (h *Handler) DeviceTokenHandler(c *gin.Context) {
 	if h.signer == nil || h.device == nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "device login not configured"})

@@ -20,16 +20,14 @@ import (
 	"github.com/Hayao0819/Kamisato/pkg/pacman/sign"
 )
 
-// defaultEncryptedNamespaces is the sensitive kv namespace set at-rest encryption
-// seals when enabled. Kept beside the namespace constants so the set is explicit
-// and reviewable; only the durable admin allowlist qualifies today (sessions,
-// tokens, replay and rate-limit state are stateless-signed or ephemeral).
+// defaultEncryptedNamespaces is the kv namespace set at-rest encryption seals when
+// enabled; only the durable admin allowlist qualifies (sessions, tokens, replay and
+// rate-limit state are stateless-signed or ephemeral).
 var defaultEncryptedNamespaces = []string{allowNS}
 
-// secureKV wraps store with at-rest encryption when an age identity is configured;
-// otherwise it returns store unchanged so plaintext behaviour is preserved. The
-// secret key is read from the environment (AYATO_SECRETS_AGE_IDENTITY) or the
-// configured file, never the config value itself.
+// secureKV wraps store with at-rest encryption when an age identity is configured,
+// else returns it unchanged. The key is read from the environment
+// (AYATO_SECRETS_AGE_IDENTITY) or configured file, never the config value itself.
 func secureKV(store kv.Store, cfg *conf.AyatoConfig) (kv.Store, error) {
 	identity, err := secretbox.LoadAgeIdentity(os.Getenv("AYATO_SECRETS_AGE_IDENTITY"), cfg.Secrets.AgeIdentityFile)
 	if err != nil {
@@ -142,8 +140,8 @@ func New(cfg *conf.AyatoConfig) (NameStore, BinaryRepository, AuthRepository, kv
 	}
 
 	// The pool decorates the raw store so package writes are content-addressed and
-	// reads resolve through pointers; serializing wraps it so per-(repo, arch)
-	// writes stay serialized exactly as before.
+	// reads resolve through pointers; serializing wraps it to keep per-(repo, arch)
+	// writes serialized.
 	var pool *poolStore
 	inner := binStore
 	if cfg == nil || cfg.PoolEnabled() {
@@ -159,10 +157,9 @@ func New(cfg *conf.AyatoConfig) (NameStore, BinaryRepository, AuthRepository, kv
 	return NewPackageMetadataRepo(kvStore), binRepo, NewAuthRepository(kvStore), kvStore, collector, nil
 }
 
-// loadDBSigner loads the repo-db signing key from the environment (never the
-// config file, since it is a private key), unlocking it with an optional
-// passphrase. It fails closed: sign.db enabled with no key is a startup error, so
-// ayato never silently serves an unsigned database when a signed one was asked for.
+// loadDBSigner loads the repo-db signing key from the environment (never the config
+// file, since it is a private key). Fails closed: sign.db enabled with no key is a
+// startup error, so ayato never silently serves an unsigned database.
 func loadDBSigner() (*openpgp.Entity, error) {
 	armored := os.Getenv("AYATO_DB_SIGNING_KEY")
 	if armored == "" {

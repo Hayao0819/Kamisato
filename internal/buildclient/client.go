@@ -26,11 +26,9 @@ const accessTokenExpiredHeader = "X-Access-Token-Expired" //nolint:gosec // G101
 // access token expired. Callers wrap the call with WithRefresh to recover from it.
 var ErrAccessTokenExpired = errwrap.NewErr("access token expired")
 
-// apiClient handles regular JSON API calls; httpx.Default gives it a per-attempt
-// timeout and bounded retries so a hung or flaky ayato cannot hang the CLI.
-// Streaming and download requests use streamClient instead — a total timeout
-// would abort a long log stream or a large package transfer — and rely on
-// context cancellation.
+// apiClient gives regular JSON calls a per-attempt timeout and bounded retries so a
+// hung ayato cannot hang the CLI; streamClient has no timeout because one would abort
+// long log streams or large downloads, relying on context cancellation instead.
 var (
 	apiClient    = httpx.Default()
 	streamClient = &http.Client{}
@@ -77,10 +75,8 @@ func responseErr(resp *http.Response, op string) error {
 	return errwrap.NewErrf("%s failed: %s: %s", op, resp.Status, msg)
 }
 
-// doJSON runs a JSON API call on apiClient: it attaches the Bearer token when
-// token is set, sends body as a JSON request body when body is non-nil, maps a
-// status other than want to responseErr, and decodes the reply into out when out
-// is non-nil. op labels the operation in wrapped errors.
+// doJSON runs a JSON API call on apiClient, decoding the reply into out when non-nil;
+// op labels the operation in wrapped errors.
 func doJSON(ctx context.Context, method, url, token string, body, out any, want int, op string) error {
 	var reader io.Reader
 	if body != nil {

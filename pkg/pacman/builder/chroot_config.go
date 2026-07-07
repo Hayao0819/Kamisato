@@ -8,15 +8,11 @@ import (
 	"strings"
 )
 
-// devtoolsDataDir is where devtools ships its pacman/makepkg config pairs. A var
-// so tests can point it at a fixture dir.
+// devtoolsDataDir is the devtools config dir; a var so tests can substitute a fixture dir.
 var devtoolsDataDir = "/usr/share/devtools"
 
-// renderChrootPacmanConf returns a complete pacman.conf for the clean chroot: the
-// devtools base for repoName (falling back to extra.conf when that repo has no
-// base) with the per-build repo stanzas appended, so build.repos reach mkarchroot
-// via -C. The base must stay complete because arch-nspawn copies it into the
-// chroot verbatim.
+// renderChrootPacmanConf returns the devtools pacman.conf for repoName (falling back to extra.conf) with
+// per-build repo stanzas appended for -C. The base is kept complete: arch-nspawn copies it verbatim.
 func renderChrootPacmanConf(repoName string, repos []RepoSpec) (string, error) {
 	dir := filepath.Join(devtoolsDataDir, "pacman.conf.d")
 	base := filepath.Join(dir, repoName+".conf")
@@ -34,11 +30,8 @@ func renderChrootPacmanConf(repoName string, repos []RepoSpec) (string, error) {
 	return string(data) + pacmanRepoStanzas(repos), nil
 }
 
-// renderChrootMakepkgConf returns a complete makepkg.conf for the clean chroot: the
-// devtools base for arch with the per-build override lines appended inline (the
-// base is complete, so the overrides come last for gcc/makepkg to honour). It adds
-// no `source` line: arch-nspawn copies this file into the chroot's
-// /etc/makepkg.conf verbatim, so a source of that path would self-recurse.
+// renderChrootMakepkgConf returns the devtools makepkg.conf for arch with override lines appended.
+// No `source` directive is added: arch-nspawn copies this verbatim into /etc/makepkg.conf, so a source would self-recurse.
 func renderChrootMakepkgConf(arch string, mk MakepkgSettings) (string, error) {
 	base := filepath.Join(devtoolsDataDir, "makepkg.conf.d", arch+".conf")
 	data, err := os.ReadFile(base) //nolint:gosec // path derived from the target arch, not request input
@@ -61,9 +54,7 @@ func renderChrootMakepkgConf(arch string, mk MakepkgSettings) (string, error) {
 	return conf + overrides, nil
 }
 
-// repoFromArchBuild derives the repo name from a devtools wrapper the way archbuild
-// does: strip the "-build" suffix, then take everything before the last '-' (the
-// arch), e.g. "alterlinux-x86_64-build" -> "alterlinux".
+// repoFromArchBuild strips "-build" then takes everything before the last '-', e.g. "alterlinux-x86_64-build" -> "alterlinux".
 func repoFromArchBuild(archBuild string) string {
 	tag := strings.TrimSuffix(filepath.Base(archBuild), "-build")
 	if i := strings.LastIndex(tag, "-"); i >= 0 {
@@ -72,9 +63,7 @@ func repoFromArchBuild(archBuild string) string {
 	return tag
 }
 
-// mkarchrootArgs assembles the argv that creates the clean chroot with the
-// generated pacman.conf (-C) and makepkg.conf (-M):
-// setarch <arch> mkarchroot -C <pac> -M <mk> <chrootRoot> base-devel.
+// mkarchrootArgs assembles 'setarch <arch> mkarchroot -C <pac> -M <mk> <chrootRoot> base-devel'.
 func mkarchrootArgs(arch, pacConf, mkConf, chrootRoot string) []string {
 	return []string{
 		"setarch", arch,
@@ -85,9 +74,7 @@ func mkarchrootArgs(arch, pacConf, mkConf, chrootRoot string) []string {
 	}
 }
 
-// makechrootpkgArgs assembles the full build argv, including the trailing makepkg
-// args after the `--`:
-// makechrootpkg -c -r <chrootDir> [-I pkg]... -- --syncdeps --noconfirm --log --holdver.
+// makechrootpkgArgs assembles 'makechrootpkg -c -r <chrootDir> [-I pkg]... -- --syncdeps --noconfirm --log --holdver'.
 func makechrootpkgArgs(chrootDir string, installPkgs []string) []string {
 	args := []string{"makechrootpkg", "-c", "-r", chrootDir}
 	for _, pkg := range installPkgs {

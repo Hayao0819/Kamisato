@@ -48,9 +48,8 @@ type BinaryPackage struct {
 	info *raiou.PKGINFO
 }
 
-// walkPackageTar decompresses r and calls fn for each tar entry. Returning
-// stop=true from fn ends the walk early. It centralizes the decompress + tar
-// scaffolding shared by ReadBinaryPackage and ReadBinaryPackageMeta.
+// walkPackageTar decompresses r and calls fn for each tar entry; stop=true ends early.
+// Shared by ReadBinaryPackage and ReadBinaryPackageMeta.
 func walkPackageTar(r io.Reader, fn func(hdr *tar.Header, content io.Reader) (stop bool, err error)) error {
 	decoder, _, err := compress.DetectCompression(r)
 	if err != nil {
@@ -106,8 +105,7 @@ func ReadBinaryPackage(binPath string, r io.Reader) (*BinaryPackage, error) {
 	return &BinaryPackage{path: binPath, info: info}, nil
 }
 
-// NewBinaryPackage wraps parsed metadata with its file path. For packages read
-// from a repository .db, filePath is the desc %FILENAME% (a bare filename).
+// NewBinaryPackage wraps metadata with its file path; for DB desc packages filePath is the %FILENAME%.
 func NewBinaryPackage(filePath string, info *raiou.PKGINFO) *BinaryPackage {
 	return &BinaryPackage{path: filePath, info: info}
 }

@@ -8,8 +8,8 @@ import (
 	"github.com/google/go-github/v88/github"
 )
 
-// issue is the tracker-agnostic shape of an issue to open; business logic builds
-// it from a Report and never touches the GitHub client.
+// issue is the tracker-agnostic shape of an issue to open, built from a Report
+// without touching the GitHub client.
 type issue struct {
 	Title  string
 	Body   string

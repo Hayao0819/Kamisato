@@ -1,7 +1,6 @@
-// Package bugreport forwards user-submitted bug reports to external trackers.
-// ayato stores nothing itself: it wraps concrete backends (GitHub, SMTP, a
-// generic webhook) behind Reporter and fans a report out to every configured
-// one. An unconfigured server has no Reporter, so reporting is simply off.
+// Package bugreport forwards user-submitted bug reports to external trackers
+// (GitHub, SMTP, a generic webhook) behind Reporter, fanning each out to every
+// configured backend. With no backend configured, reporting is off.
 package bugreport
 
 import (
@@ -17,8 +16,8 @@ type Report struct {
 	Email       string
 	Severity    string
 	Description string
-	// MaintainerEmail is the package maintainer's address, resolved server-side by
-	// the caller (never client-supplied). SMTP routing mails them when enabled.
+	// MaintainerEmail is the maintainer's address, resolved server-side and never
+	// client-supplied. SMTP routing mails them when enabled.
 	MaintainerEmail string
 }
 
@@ -27,8 +26,8 @@ type Reporter interface {
 	Report(ctx context.Context, r Report) (url string, err error)
 }
 
-// Config is the bug-report backend configuration. It mirrors conf.BugReportConfig
-// but lives here so the package never imports internal/conf (avoiding a cycle).
+// Config is the bug-report backend configuration, mirrored here rather than
+// imported from internal/conf to avoid an import cycle.
 type Config struct {
 	Backends []string
 	GitHub   GitHubConfig
@@ -55,10 +54,8 @@ type WebhookConfig struct {
 	URL string
 }
 
-// New builds a Reporter from cfg. Each name in cfg.Backends selects a backend
-// (github/smtp/webhook); an unknown name is an error. With no backends it returns
-// (nil, nil) so callers treat reporting as off; a single backend is returned
-// directly, and several are wrapped in a composite that fans out.
+// New builds a Reporter from cfg.Backends (github/smtp/webhook). With no backends
+// it returns (nil, nil), so callers treat reporting as off; unknown names error.
 func New(cfg Config) (Reporter, error) {
 	var reporters []Reporter
 	for _, name := range cfg.Backends {

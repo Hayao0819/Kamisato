@@ -7,12 +7,9 @@ import (
 	"strings"
 )
 
-// Deptest returns the subset of deps not satisfied by the locally installed
-// packages, via `pacman -T`. Unlike a name-set lookup, pacman -T resolves provides
-// and version constraints (e.g. "glibc>=2.38"), but it consults only the local
-// database, not sync repos. pacman -T exits 127 when some deps are unsatisfied —
-// printing them on stdout — which is the normal "missing" case, not an error;
-// exit 0 means all are satisfied.
+// Deptest returns the subset of deps unsatisfied by locally installed packages via `pacman -T`.
+// pacman -T resolves provides/version constraints but consults only the local db;
+// exit 127 (some missing, printed on stdout) is the normal case, not an error.
 func Deptest(deps []string) ([]string, error) {
 	if len(deps) == 0 {
 		return nil, nil

@@ -78,7 +78,6 @@ func BuildPkgRows(repos []*repo.SourceRepo, format, server string) []PkgRow {
 	return rows
 }
 
-// formatNeeds reports whether format references field, gating that column's lookup.
 func formatNeeds(format, field string) bool {
 	if format == "json" {
 		return true
@@ -140,7 +139,6 @@ func ayatoBaseBestEffort(server string) (base, token string) {
 	return srv.URL, srv.Password
 }
 
-// orDash renders an empty value as "-" so columns stay aligned.
 func orDash(s string) string {
 	if s == "" {
 		return "-"

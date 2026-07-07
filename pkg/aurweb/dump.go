@@ -15,10 +15,8 @@ import (
 	"time"
 )
 
-// DumpSource is an optional Upstream capability: the bulk package dumps an AUR
-// helper downloads in its default (non-RPC) discovery mode. When the upstream
-// implements it, the Server serves dumps that merge local packages over the
-// upstream set, so a helper pointed at this host still sees the full AUR.
+// DumpSource is an optional Upstream capability for bulk package dumps AUR helpers use in discovery mode.
+// When implemented, the Server merges local packages over the upstream so helpers pointed here see the full AUR.
 type DumpSource interface {
 	// DumpReader streams the decompressed JSON array of the upstream meta dump.
 	// ext selects the -ext- variant that carries dependency arrays.
@@ -29,8 +27,7 @@ type DumpSource interface {
 
 const dumpTTL = 30 * time.Minute
 
-// maxDumpBytes caps the decompressed upstream dump we will read, bounding memory
-// against a decompression bomb from a hostile or compromised upstream.
+// maxDumpBytes caps decompressed upstream dump size to bound memory against a decompression bomb.
 const maxDumpBytes = 256 << 20
 
 type dumpEntry struct {
@@ -43,8 +40,7 @@ type dumpCache struct {
 	mu      sync.Mutex
 	entries map[string]dumpEntry
 
-	// build serializes cache-miss builds so a cold cache doesn't trigger one
-	// full upstream fetch per concurrent request (single-flight).
+	// build serializes cache-miss builds (single-flight) so a cold cache triggers only one upstream fetch.
 	build sync.Mutex
 }
 
@@ -67,8 +63,7 @@ func (c *dumpCache) put(key string, e dumpEntry) {
 	c.entries[key] = e
 }
 
-// getOrBuild returns a fresh cached entry, building it under a single-flight
-// lock (with a double-check) on a miss.
+// getOrBuild returns a fresh cached entry, using a single-flight lock with double-check on miss.
 func (c *dumpCache) getOrBuild(key string, now time.Time, build func() ([]byte, error)) (dumpEntry, error) {
 	if e, ok := c.get(key, now); ok {
 		return e, nil
@@ -118,9 +113,8 @@ func (s *Server) serveDump(w http.ResponseWriter, r *http.Request, key string, b
 	_, _ = w.Write(entry.body)
 }
 
-// buildMetaDump writes a gzipped JSON array of every local package followed by
-// the upstream packages a local package does not shadow. Upstream elements pass
-// through unchanged; only their Name is read, so the full set is never resident.
+// buildMetaDump writes a gzipped JSON array of all local packages plus upstream packages not shadowed locally;
+// only %NAME% is read from upstream elements so the full set is never in memory.
 func (s *Server) buildMetaDump(ctx context.Context, ext bool) ([]byte, error) {
 	local, err := s.backend.All(ctx)
 	if err != nil {
@@ -152,10 +146,8 @@ func (s *Server) buildMetaDump(ctx context.Context, ext bool) ([]byte, error) {
 			s.log.Warn("aurweb: upstream dump unavailable", "error", derr)
 		} else {
 			defer func() { _ = rc.Close() }()
-			// Bound the read with one byte of slack so a complete dump (lr.N stays
-			// > 0) is distinguishable from one truncated by the cap (lr.N hits 0). A
-			// truncated or malformed upstream must NOT be cached as if complete, or
-			// clients would see an incomplete package set for the whole TTL.
+			// One byte of slack: lr.N > 0 = complete, lr.N = 0 = truncated by cap.
+			// A truncated upstream must not be cached as complete or clients get an incomplete set for the TTL.
 			lr := &io.LimitedReader{R: rc, N: maxDumpBytes + 1}
 			if err := streamUpstream(gz, lr, localNames, &first); err != nil {
 				return nil, fmt.Errorf("aurweb: upstream dump stream failed, refusing to cache: %w", err)
@@ -175,8 +167,7 @@ func (s *Server) buildMetaDump(ctx context.Context, ext bool) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// streamUpstream copies upstream array elements into gz, skipping any whose Name
-// a local package already provided.
+// streamUpstream copies upstream JSON array elements into gz, skipping names already provided locally.
 func streamUpstream(gz io.Writer, rc io.Reader, skip map[string]bool, first *bool) error {
 	dec := json.NewDecoder(rc)
 	if _, err := dec.Token(); err != nil { // opening '['

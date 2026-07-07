@@ -11,8 +11,8 @@ import (
 )
 
 // AURHandler is the gin-facing surface for AUR source management and the
-// kayo-facing catalog. Request parsing and response writing live here so the
-// ayato/aur backend stays free of any web framework.
+// kayo-facing catalog; parsing and responses live here so the ayato/aur backend
+// stays free of any web framework.
 type AURHandler struct {
 	svc *aur.Service
 }
@@ -51,9 +51,8 @@ func (h *AURHandler) RegisterHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"pkgbase": pkgbase, "packages": names})
 }
 
-// CatalogHandler serves the catalog as a signed envelope. It is public: kayo
-// verifies the signature instead of credentials. The envelope is built (or served
-// from cache) by the backend.
+// CatalogHandler serves the catalog as a signed envelope. Public: kayo verifies
+// the signature instead of credentials.
 func (h *AURHandler) CatalogHandler(c *gin.Context) {
 	env, err := h.svc.Envelope(c.Request.Context())
 	if err != nil {

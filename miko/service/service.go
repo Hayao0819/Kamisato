@@ -62,11 +62,9 @@ type Service struct {
 	// running maps in-flight job IDs to their cancel func (guarded by mu).
 	running map[string]context.CancelFunc
 
-	// logs holds the live, streaming log buffer of each in-flight job, keyed by
-	// job ID and guarded by logsMu. This operational state is deliberately kept
-	// out of the domain job (which stays pure data) so status snapshots never
-	// share a live buffer; it is created on Submit and dropped once the job
-	// reaches a terminal state, its text having been snapshotted into job.Logs.
+	// logs holds each in-flight job's live log buffer, keyed by job ID and guarded
+	// by logsMu. It is kept out of the domain job so status snapshots never share a
+	// live buffer.
 	logsMu sync.Mutex
 	logs   map[string]*joblog.Buffer
 }
@@ -140,7 +138,6 @@ func (s *Service) persistRemove(id string) {
 	}
 }
 
-// newLogBuffer creates a job's live log buffer and registers it under id.
 func (s *Service) newLogBuffer(id string) *joblog.Buffer {
 	b := joblog.New(s.cfg.MaxLogBytes)
 	s.logsMu.Lock()
@@ -156,9 +153,9 @@ func (s *Service) LogBuffer(id string) *joblog.Buffer {
 	return s.logs[id]
 }
 
-// finalizeLog closes a job's live buffer, snapshots its text into the durable
-// job record so later reads still see the logs, then drops the live buffer.
-// Closing lets SSE readers finish. It is a no-op when there is no live buffer.
+// finalizeLog closes a job's live buffer (letting SSE readers finish) and
+// snapshots its text into the durable job record so later reads still see the
+// logs. It is a no-op when there is no live buffer.
 func (s *Service) finalizeLog(id string) {
 	s.logsMu.Lock()
 	b := s.logs[id]

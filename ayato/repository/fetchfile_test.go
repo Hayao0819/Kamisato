@@ -9,10 +9,9 @@ import (
 	"github.com/Hayao0819/Kamisato/ayato/stream"
 )
 
-// transientAliasStore wraps memStore to return a transient (non-NotFound) error
-// for one object name (the .db.tar.gz archive) while every other name behaves
-// normally — modelling a backend read hiccup on a populated repo, where the bare
-// <repo>.db always misses and the db is readable only via its archive alias.
+// transientAliasStore returns a transient (non-NotFound) error for one object name
+// (the .db.tar.gz archive) while every other name behaves normally, modelling a
+// backend read hiccup on a populated repo.
 type transientAliasStore struct {
 	*memStore
 	failName string

@@ -30,8 +30,7 @@ func (s *Server) writeError(w http.ResponseWriter, r *http.Request, callback str
 	})
 }
 
-// versionOrNull renders the RPC version field: the client's value, or JSON null
-// when it was omitted (version 0), the way aurweb echoes it.
+// versionOrNull returns the client's RPC version or JSON null when omitted (version 0), mirroring aurweb.
 func versionOrNull(version int) any {
 	if version == 0 {
 		return nil
@@ -55,8 +54,7 @@ func (s *Server) writeJSON(w http.ResponseWriter, r *http.Request, callback stri
 		return
 	}
 
-	// aurweb answers with HTTP 200 even for app-level errors. Set it explicitly:
-	// a host may have preset another status (gin's NoRoute defaults to 404).
+	// aurweb returns HTTP 200 even for app-level errors; set it explicitly in case a host preset another status.
 	if callback != "" {
 		w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
 		w.WriteHeader(http.StatusOK)

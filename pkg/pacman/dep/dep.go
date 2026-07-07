@@ -32,9 +32,8 @@ type Constraint struct {
 // twoChar operators must be tried before their one-char prefixes (">=" before ">").
 var ops = []Op{OpGE, OpLE, OpGT, OpLT, OpEQ}
 
-// Parse splits a dependency spec into its name and optional version constraint.
-// A spec with no operator yields OpAny. The version part keeps any epoch/pkgrel
-// (e.g. "1:2.3-4") for alpm's vercmp to interpret.
+// Parse splits a dep spec into name and optional version constraint;
+// epoch/pkgrel are preserved (e.g. "1:2.3-4") for alpm's vercmp.
 func Parse(spec string) Constraint {
 	s := strings.TrimSpace(spec)
 	for _, op := range ops {

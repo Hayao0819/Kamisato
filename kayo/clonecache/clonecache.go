@@ -1,8 +1,8 @@
 // Package clonecache verifies an AUR helper's local clone cache against kayo's
-// pinned commit. kayo approves a pkgbase at a reviewed commit, but the helper
-// (yay) builds from its OWN checked-out clone under ~/.cache/yay/<pkgbase>. That
-// checkout can be advanced past the approved commit or tampered with locally, so
-// before a build the checked-out HEAD must be reconciled with the approved pin.
+// pinned commit. The helper (yay) builds from its own checkout under
+// ~/.cache/yay/<pkgbase>, which can be advanced past the approved commit or
+// tampered with locally, so before a build that HEAD must be reconciled with
+// the pin.
 package clonecache
 
 import (

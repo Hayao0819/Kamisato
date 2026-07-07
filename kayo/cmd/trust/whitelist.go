@@ -7,9 +7,8 @@ import (
 )
 
 // whitelistCmd manages the unconditional per-pkgbase allowlist: a whitelisted
-// pkgbase evaluates as trusted without a reviewed pin, bypassing the new-package
-// and maintainer-change checks. It is blunter than `trust add` (which reviews and
-// pins a commit); use it only for packages you never want gated.
+// pkgbase is trusted without a reviewed pin, bypassing the new-package and
+// maintainer-change checks — for packages you never want gated.
 func whitelistCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "whitelist",

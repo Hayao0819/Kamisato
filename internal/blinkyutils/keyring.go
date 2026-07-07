@@ -13,10 +13,8 @@ import (
 const keyringService = "kamisato-ayato"
 
 // refreshKeySuffix distinguishes a server's refresh-token keyring entry from its
-// access-token entry (the plain server name). The refresh token has no slot in the
-// blinky server DB (only username/password), so the keyring is its only home; on a
-// box without a keyring it is simply not persisted and the short-lived access token
-// is re-obtained by a fresh login when it expires.
+// access-token entry. The refresh token has no file-DB slot, so the keyring is its
+// only home; without one it is not persisted and a fresh login re-obtains it.
 const refreshKeySuffix = "\x00refresh"
 
 // Keyring is the slice of the OS secret store blinkyutils needs. It is an
@@ -44,12 +42,10 @@ func (osKeyring) Delete(service, key string) error        { return keyring.Delet
 // server commands are thin and share one keyring rather than threading it through.
 var secretKeyring Keyring = osKeyring{}
 
-// StoreSecret saves a server credential secret in the OS keyring so it is not
-// written to disk in plaintext. It returns true when the keyring accepted it (the
-// caller should then leave the file-DB password empty); false means the keyring is
-// unavailable — a headless box with no Secret Service — and the caller must keep
-// the secret in the file DB as a fallback. An empty secret stores nothing and
-// clears any stale keyring entry.
+// StoreSecret saves a server credential in the OS keyring so it is not written to
+// disk in plaintext. It returns true when the keyring accepted it (caller then
+// clears the file-DB password) and false when the keyring is unavailable and the
+// caller must keep the file-DB fallback. An empty secret clears any stale entry.
 func StoreSecret(server, secret string) bool {
 	if secret == "" {
 		ForgetSecret(server)

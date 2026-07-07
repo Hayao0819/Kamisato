@@ -31,9 +31,7 @@ type bugReportRequest struct {
 }
 
 // FeaturesHandler advertises which optional features are configured so the web
-// UI can hide what is not available (the report button, miko-backed build/jobs
-// views, the GitHub login). recaptcha_site_key is non-empty only when the bug
-// form must render a reCAPTCHA widget.
+// UI can hide what is unavailable.
 func (h *Handler) FeaturesHandler(c *gin.Context) {
 	feat := gin.H{
 		"bug_report":         h.reporter != nil,
@@ -102,10 +100,8 @@ func (h *Handler) SubmitBugReportHandler(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{"url": url})
 }
 
-// maintainerEmail looks up the package's stored PKGINFO and extracts the
-// maintainer address from its Packager field. The address is resolved here, never
-// taken from the request, so a reporter cannot spoof who gets mailed. A missing
-// package or unparseable Packager yields "" and maintainer routing is skipped.
+// The maintainer address is resolved from the stored PKGINFO Packager, never from
+// the request, so a reporter cannot spoof who gets mailed.
 func (h *Handler) maintainerEmail(repo, arch, pkgname string) string {
 	if repo == "" || arch == "" || pkgname == "" || h.s == nil {
 		return ""
@@ -117,8 +113,6 @@ func (h *Handler) maintainerEmail(repo, arch, pkgname string) string {
 	return parsePackagerEmail(detail.Packager)
 }
 
-// parsePackagerEmail pulls the address out of a "Real Name <email>" packager
-// string, falling back to a bare <...> extraction for non-RFC values.
 func parsePackagerEmail(packager string) string {
 	packager = strings.TrimSpace(packager)
 	if packager == "" {

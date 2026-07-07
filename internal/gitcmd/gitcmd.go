@@ -107,12 +107,11 @@ func Clone(ctx context.Context, o CloneOptions) error {
 	return nil
 }
 
-// ValidateRemote rejects remotes that an untrusted caller could abuse: only
-// https, git, and ssh are allowed; plaintext http, file paths, and ext:: are
-// refused, and a host resolving to a private, loopback, or link-local address
-// is rejected to narrow SSRF. The host check covers https, git, ssh, and the
-// scp-like "user@host:path" form alike. It inspects only the initial URL and its
-// first resolution, so it does not fully close SSRF (see rejectInternalHost).
+// ValidateRemote rejects remotes an untrusted caller could abuse: only https,
+// git, and ssh are allowed (plaintext http, file paths, and ext:: refused), and a
+// host resolving to a private, loopback, or link-local address is rejected to
+// narrow SSRF. It inspects only the initial URL and first resolution, so it does
+// not fully close SSRF (see rejectInternalHost).
 func ValidateRemote(raw string) error {
 	// "<helper>::<addr>" is git's transport-helper syntax; ext:: runs an
 	// arbitrary command. Reject it before any scp-like heuristic can match it.
@@ -157,14 +156,12 @@ func scpLikeSSH(raw string) (host string, ok bool) {
 	return host, true
 }
 
-// rejectInternalHost checks the host's resolution now, but the check and the
-// clone resolve the name separately, so on its own it leaves a DNS-rebinding
-// TOCTOU. For strict https that window is closed downstream: Clone routes https
-// through go-git, whose dialer re-validates and pins the connection to the
-// checked public IP (see gogit.go). ssh and git:// stay on the CLI, which
-// re-resolves the host at connect time outside that pin — a DNS-controlling
-// caller can pass this check and then rebind to an internal IP, and only network
-// egress restriction fully closes that.
+// rejectInternalHost rejects a host resolving to an internal address, but the
+// check and the clone resolve the name separately, leaving a DNS-rebinding TOCTOU.
+// For strict https it is closed downstream (Clone routes https through go-git,
+// which pins the connection to the checked public IP). ssh and git:// stay on the
+// CLI and re-resolve at connect time, so a DNS-controlling caller can rebind to an
+// internal IP after this check — only network egress restriction fully closes that.
 func rejectInternalHost(host string) error {
 	if host == "" {
 		return errwrap.NewErr("remote URL has no host")

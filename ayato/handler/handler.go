@@ -22,9 +22,8 @@ type Handler struct {
 	device    deviceStore        // nil when the device-authorization flow is not wired
 }
 
-// deviceStore is the RFC 8628 device-authorization rendezvous the handlers need.
-// A narrow local interface keeps the handler off the repository package, matching
-// replayGuard/logTokenMinter.
+// deviceStore is the RFC 8628 device-authorization rendezvous; a narrow local
+// interface keeps the handler off the repository package.
 type deviceStore interface {
 	CreateDevice(deviceCode, userCode string, ttl time.Duration) error
 	LookupByUserCode(userCode string) (status string, ok bool, err error)
@@ -35,7 +34,7 @@ type deviceStore interface {
 }
 
 // replayGuard records a one-time PKCE code id at redemption so a replayed code is
-// rejected. A narrow local interface keeps the handler off the repository package.
+// rejected.
 type replayGuard interface {
 	Consume(id string, ttl time.Duration) (firstUse bool, err error)
 }
@@ -88,7 +87,7 @@ func (h *Handler) WithAuth(signer *auth.Signer) *Handler {
 }
 
 // WithReplayGuard attaches the kv-backed one-time code guard. Unwired (nil) means
-// codes are replay-limited only by their TTL, as before this feature.
+// codes are replay-limited only by their TTL.
 func (h *Handler) WithReplayGuard(g replayGuard) *Handler {
 	h.replay = g
 	return h

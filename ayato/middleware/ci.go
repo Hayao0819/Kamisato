@@ -14,9 +14,9 @@ func (m *Middleware) WithCIAuth(ci *ciauth.Authorizer) *Middleware {
 	return m
 }
 
-// RequireUpload authorizes a CI publisher (scoped to the :repo param) or falls
-// back to RequireAdmin. A presented-but-failed CI credential is a hard 403,
-// never a fallthrough to the admin path.
+// RequireUpload authorizes a CI publisher (scoped to :repo) or falls back to
+// RequireAdmin; a presented-but-failed CI credential is a hard 403, never a
+// fallthrough to the admin path.
 func (m *Middleware) RequireUpload() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if m.ci != nil && m.ci.Enabled() {

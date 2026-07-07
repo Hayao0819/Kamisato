@@ -15,20 +15,17 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// adminChecker is the narrow contract the middleware depends on, so it never
-// touches kv or the allowlist directly.
+// adminChecker keeps the middleware from touching kv or the allowlist directly.
 type adminChecker interface {
 	IsAdmin(id int64) bool
 }
 
-// denylistChecker reports whether a token id has been revoked.
 type denylistChecker interface {
 	IsRevoked(jti string) bool
 }
 
-// logTokenConsumer redeems a one-time SSE log token, returning the job id it was
-// bound to and spending it. A false ok means the token is absent, unknown, or
-// already used.
+// logTokenConsumer redeems a one-time SSE log token, returning its bound job id;
+// ok is false if the token is absent, unknown, or already spent.
 type logTokenConsumer interface {
 	ConsumeLogToken(token string) (jobID string, ok bool)
 }
@@ -41,9 +38,8 @@ type Middleware struct {
 	denylist  denylistChecker    // nil = per-token revocation not wired
 	logTokens logTokenConsumer   // nil = one-time SSE log tokens not wired
 	// limiter is the shared kv-backed rate limiter; nil leaves RateLimit a
-	// pass-through (a minimal/test setup with no kv wired). rlScope hands each
-	// RateLimit call site a distinct, wiring-order-stable scope so independent
-	// route limiters do not share a counter on the one kv.
+	// pass-through. rlScope gives each RateLimit call site a distinct scope so
+	// independent route limiters do not share one counter.
 	limiter *ratelimit.Limiter
 	rlScope atomic.Int64
 }
@@ -54,8 +50,8 @@ func New(cfg *conf.AyatoConfig) *Middleware {
 	}
 }
 
-// WithRateLimiter wires the shared kv-backed limiter so RateLimit enforces a
-// limit across replicas. Unwired (nil) leaves RateLimit a pass-through.
+// WithRateLimiter wires the shared kv-backed limiter so RateLimit enforces
+// across replicas; unwired leaves RateLimit a pass-through.
 func (m *Middleware) WithRateLimiter(store kv.Store) *Middleware {
 	m.limiter = ratelimit.New(store)
 	return m
@@ -67,22 +63,21 @@ func (m *Middleware) WithAuth(checker adminChecker, signer *auth.Signer) *Middle
 	return m
 }
 
-// WithDenylist attaches the per-token revocation check. Unwired (nil) means no
-// per-token revocation, same as before this feature.
+// WithDenylist attaches the per-token revocation check; unwired disables it.
 func (m *Middleware) WithDenylist(dl denylistChecker) *Middleware {
 	m.denylist = dl
 	return m
 }
 
 // WithLogTokens attaches the one-time SSE log-token consumer used by
-// RequireLogAccess. Unwired (nil) means only bearer/session access to /logs works.
+// RequireLogAccess; unwired leaves only bearer/session access to /logs.
 func (m *Middleware) WithLogTokens(c logTokenConsumer) *Middleware {
 	m.logTokens = c
 	return m
 }
 
-// revoked reports whether a verified token has been individually revoked. Tokens
-// without a JTI (sessions, pre-feature tokens) are never denylisted here.
+// revoked reports whether a verified token is individually revoked; a JTI-less
+// token (sessions, pre-feature tokens) is never denylisted.
 func (m *Middleware) revoked(c *auth.Claims) bool {
 	return m.denylist != nil && c.JTI != "" && m.denylist.IsRevoked(c.JTI)
 }
@@ -183,10 +178,9 @@ func (m *Middleware) expiredAccessToken(c *gin.Context, allowBasic bool) bool {
 
 // RequireLogAccess gates the SSE build-log stream. A browser EventSource cannot
 // send a bearer, so it presents a one-time token (query "token" or X-Log-Token)
-// that an authenticated caller minted and bound to this job id; the token is spent
-// on first use. A CLI or same-origin session admin may instead authenticate the
-// normal way. A presented-but-invalid token fails closed rather than falling
-// through to the admin path, so a burned token cannot probe for an open door.
+// bound to this job id and spent on first use; a CLI or same-origin session admin
+// may authenticate normally. A presented-but-invalid token fails closed rather
+// than falling through to the admin path.
 func (m *Middleware) RequireLogAccess() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if tok := logTokenFromRequest(c); tok != "" {
@@ -236,10 +230,9 @@ func logTokenFromRequest(c *gin.Context) string {
 	return c.GetHeader(logTokenHeader)
 }
 
-// sameOriginRequest is the CSRF gate for the cookie path. Sec-Fetch-Site, when
-// the browser sends it, is authoritative. When it is absent, fall back to an
-// Origin/Referer allowlist so a legitimate same-origin request is not blocked
-// while a cross-site one still is. Fails closed when no origin can be resolved.
+// sameOriginRequest is the CSRF gate for the cookie path: Sec-Fetch-Site is
+// authoritative when present, else an Origin/Referer allowlist; fails closed when
+// no origin can be resolved.
 func (m *Middleware) sameOriginRequest(c *gin.Context) bool {
 	if sfs := c.GetHeader("Sec-Fetch-Site"); sfs != "" {
 		return sfs == "same-origin"
@@ -254,9 +247,9 @@ func (m *Middleware) sameOriginRequest(c *gin.Context) bool {
 	return m.allowedOrigin(origin)
 }
 
-// allowedOrigin matches an origin (scheme://host) case-insensitively against the
-// configured PublicOrigin/SelfOrigin allowlist, normalizing each so a trailing
-// slash does not cause a spurious mismatch.
+// allowedOrigin matches an origin case-insensitively against the
+// PublicOrigin/SelfOrigin allowlist, normalizing each so a trailing slash does
+// not cause a spurious mismatch.
 func (m *Middleware) allowedOrigin(origin string) bool {
 	if m.cfg == nil {
 		return false
@@ -269,7 +262,6 @@ func (m *Middleware) allowedOrigin(origin string) bool {
 	return false
 }
 
-// originOfURL returns the scheme://host of a URL, or "" if it cannot be parsed.
 func originOfURL(raw string) string {
 	if raw == "" {
 		return ""

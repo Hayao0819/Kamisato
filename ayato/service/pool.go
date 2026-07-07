@@ -7,19 +7,16 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/errwrap"
 )
 
-// WithPool attaches the content-addressed pool collector so CollectPool can run
-// the retention GC. Unset (nil) means the pool is disabled and CollectPool is a
-// no-op.
+// WithPool attaches the pool collector for CollectPool's retention GC; nil (unset)
+// disables the pool and makes CollectPool a no-op.
 func (s *Service) WithPool(p repository.PoolCollector) *Service {
 	s.pool = p
 	return s
 }
 
-// CollectPool runs the pool retention GC with the deployment's configured policy:
-// it reclaims pool objects no repo points at, keeping the newest
-// pool.keep_unreferenced versions per pkgbase and anything unreferenced for less
-// than pool.retention_window_hours. It is safe to run online and a no-op when the
-// pool is disabled.
+// CollectPool runs the pool retention GC under the configured policy, reclaiming
+// unreferenced pool objects; safe to run online and a no-op when the pool is
+// disabled.
 func (s *Service) CollectPool(ctx context.Context) (repository.PoolGCResult, error) {
 	if s.pool == nil {
 		return repository.PoolGCResult{}, nil

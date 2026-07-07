@@ -15,18 +15,12 @@ const (
 	DefaultRateWindow = 24 * time.Hour
 )
 
-// maxRateBuckets bounds the limiter's memory; once exceeded, expired buckets are
-// swept before inserting a new one.
+// maxRateBuckets bounds the limiter's memory; expired buckets are swept when exceeded.
 const maxRateBuckets = 100_000
 
-// WithRateLimit enables aurweb-style RPC rate limiting: at most n requests per
-// window per client, answered with HTTP 429 once exceeded. Disabled by default
-// (n<=0 is a no-op). keyFn identifies the client; nil uses the request's remote
-// IP. Behind a trusted proxy, pass a keyFn that reads the forwarded address.
-//
-// The counter is in-memory and per-instance — best-effort, like aurweb's, and not
-// shared across replicas; it resets on restart. For a limit that holds across
-// replicas, inject a shared limiter via WithLimiter instead.
+// WithRateLimit enables per-client RPC rate limiting (at most n requests per window, HTTP 429 when exceeded;
+// n<=0 is a no-op; nil keyFn keys on remote IP). The counter is in-memory and per-instance (not shared across
+// replicas); for cross-replica limits use WithLimiter.
 func WithRateLimit(n int, window time.Duration, keyFn func(*http.Request) string) Option {
 	return func(s *Server) {
 		if n > 0 && window > 0 {
@@ -111,9 +105,7 @@ func remoteIP(r *http.Request) string {
 	return r.RemoteAddr
 }
 
-// writeRateLimited answers an over-limit request the way aurweb does: HTTP 429
-// with the error envelope (plain JSON, no JSONP wrapping). version echoes the
-// client's v verbatim, or null when it was omitted, matching aurweb.
+// writeRateLimited answers an over-limit request with HTTP 429 (plain JSON, no JSONP), mirroring aurweb's error envelope.
 func (s *Server) writeRateLimited(w http.ResponseWriter, version int) {
 	body, _ := json.Marshal(map[string]any{
 		"version":     versionOrNull(version),

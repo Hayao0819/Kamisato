@@ -50,7 +50,7 @@ func makePkgWithFiles(t *testing.T, dir, name, ver, arch string, files []string)
 }
 
 // TestPkgFilesRoundTrip proves PkgFiles reads back the file list the native db
-// writer recorded: publish a package with known members, then query it.
+// writer recorded.
 func TestPkgFilesRoundTrip(t *testing.T) {
 	mem := newMemStore()
 	r := &binaryRepository{Store: mem}

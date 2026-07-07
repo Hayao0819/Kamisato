@@ -7,8 +7,8 @@ import (
 	"github.com/wneessen/go-mail"
 )
 
-// smtpReporter mails reports through an SMTP relay. Beyond a fixed To address it
-// can also route a report to the package maintainer when their address is known.
+// smtpReporter mails reports through an SMTP relay, optionally also to the package
+// maintainer when their address is known.
 type smtpReporter struct {
 	cfg SMTPConfig
 }
@@ -26,8 +26,8 @@ func newSMTP(cfg SMTPConfig) (Reporter, error) {
 	return &smtpReporter{cfg: cfg}, nil
 }
 
-// recipients is the To list for a report: the fixed To plus the package
-// maintainer, but only when maintainer routing is on and the address is known.
+// recipients is the To list: the fixed To plus the maintainer, only when routing
+// is on and the address is known.
 func recipients(cfg SMTPConfig, r Report) []string {
 	var to []string
 	if cfg.To != "" {

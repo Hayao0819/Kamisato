@@ -8,7 +8,6 @@ import (
 	"github.com/tmc/langchaingo/llms"
 )
 
-// fakeModel implements llms.Model, returning a canned response.
 type fakeModel struct {
 	reply  string
 	gotMsg string

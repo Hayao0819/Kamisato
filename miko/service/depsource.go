@@ -8,11 +8,9 @@ import (
 	"github.com/Hayao0819/Kamisato/pkg/pacman/depsolve"
 )
 
-// NewRepoChecker returns a RepoChecker backed by `pacman -T` against the running
-// system's locally installed packages. It is a best-effort pre-filter: specs it
-// lets through that are not in the AUR are treated as repo-provided by the
-// resolver, so a dep already available in the build environment's sync repos does
-// not need to be installed on this host for resolution to succeed.
+// NewRepoChecker returns a RepoChecker backed by `pacman -T` on this host: a
+// best-effort pre-filter where specs not in the AUR are treated as repo-provided,
+// so a dep already in the build environment's sync repos need not be installed here.
 func NewRepoChecker() depsolve.RepoChecker { return alpmRepoChecker{} }
 
 type alpmRepoChecker struct{}

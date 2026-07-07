@@ -43,11 +43,10 @@ func JobStatus(ctx context.Context, base, token, id string) (*Job, error) {
 	return &job, nil
 }
 
-// WaitJob blocks until the job reaches a terminal state, streaming its build
-// logs to logs (best-effort) once the job starts running, and returns the final
-// job. A nil logs writer disables log streaming. It returns ctx.Err() when ctx
-// is cancelled, so a job stuck in queued (or an unknown status) cannot hang the
-// caller forever.
+// WaitJob blocks until the job reaches a terminal state, streaming build logs to
+// logs (best-effort, nil disables) once it starts running, and returns the final
+// job. It honors ctx cancellation so a job stuck in queued cannot hang the caller
+// forever.
 func WaitJob(ctx context.Context, base, token, id string, logs io.Writer) (*Job, error) {
 	streamed := false
 	for {

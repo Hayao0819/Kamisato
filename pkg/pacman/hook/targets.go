@@ -6,9 +6,8 @@ import (
 	"strings"
 )
 
-// StdinTargets reads the package targets pacman feeds a NeedsTargets hook, one
-// per line, on stdin. It returns nil when stdin is a terminal (a manual run with
-// no piped targets), so callers can fall back to positional arguments.
+// StdinTargets reads newline-separated pacman hook targets from stdin;
+// returns nil when stdin is a terminal so callers can fall back to positional args.
 func StdinTargets() []string {
 	if info, err := os.Stdin.Stat(); err != nil || info.Mode()&os.ModeCharDevice != 0 {
 		return nil

@@ -34,12 +34,10 @@ type ArchSyncResult struct {
 	Error   string `json:"error,omitempty"`
 }
 
-// SyncUpstream refreshes an upstream-layered repo: for each architecture it does a
-// conditional GET of the upstream .db (so an unchanged upstream is a cheap no-op),
-// and on a change records the new snapshot and rebuilds the merged/served database
-// with the local overlay re-applied on top. It is best-effort and observable — a
-// per-arch failure is recorded and skipped, never breaking serving of the
-// last-good merged database.
+// SyncUpstream refreshes an upstream-layered repo: per arch it conditional-GETs the
+// upstream .db (unchanged is a cheap no-op) and, on a change, records the snapshot
+// and rebuilds the merged db with the local overlay re-applied. Best-effort: a
+// per-arch failure is recorded and skipped, never breaking the last-good merged db.
 func (s *Service) SyncUpstream(ctx context.Context, repo string) (UpstreamSyncResult, error) {
 	rc := s.cfg.ResolveRepo(repo)
 	if rc == nil || !rc.Upstream.Enabled() {
@@ -127,7 +125,6 @@ func (s *Service) conditionalGet(ctx context.Context, url, etag, lastMod string)
 	return b, resp.Header.Get("ETag"), resp.Header.Get("Last-Modified"), true, nil
 }
 
-// isUpstreamRepo reports whether a repo layers an upstream database.
 func (s *Service) isUpstreamRepo(repo string) bool {
 	if s.cfg == nil {
 		return false

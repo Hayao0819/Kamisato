@@ -1,8 +1,6 @@
 // Package hookcmd builds the shared "install"/"uninstall" pacman-hook cobra
-// commands. ayaka and kayo each install a pacman hook that runs one of their own
-// subcommands; only the hook file name, template, and baked Exec line differ, so
-// the scaffolding — resolve the running binary, default the hook dir from
-// pacman.conf, write or remove the file — lives here once.
+// commands for ayaka and kayo. Only the hook file name, template, and baked Exec
+// line differ, so the scaffolding lives here once.
 package hookcmd
 
 import (

@@ -20,9 +20,8 @@ import (
 var ErrPreconditionFailed = errors.New("blob: precondition failed (object changed)")
 
 // ErrNotFound is returned by FetchFile / FetchFileWithETag when the object does
-// not exist. Backends MUST return it (and only it) for absence, so callers can
-// tell a true miss from a transient backend error and never mistake a fetch
-// failure for an empty database.
+// not exist. Backends MUST return only it for absence, so a true miss is never
+// confused with a transient backend error.
 var ErrNotFound = errors.New("blob: not found")
 
 // ValidatePathComponent rejects a repo/arch/name element that could escape its
@@ -38,18 +37,15 @@ func ValidatePathComponent(c string) error {
 
 // FileMeta carries the validators the HTTP layer uses for a conditional GET: an
 // opaque strong ETag (empty when the backend has no object versioning) and the
-// object's last-modified time (zero when unknown). pacman drives its "download
-// only if changed" behaviour off Last-Modified/If-Modified-Since, so a backend
-// that supplies the mtime lets pacman skip an unchanged .db; the ETag serves the
-// same purpose for HTTP caches and proxies that speak If-None-Match.
+// object's last-modified time (zero when unknown).
 type FileMeta struct {
 	ETag         string
 	LastModified time.Time
 }
 
-// MetaFetcher is the optional capability of a Store that can return a file's
-// conditional-GET metadata in a single fetch. localfs and s3 implement it; a
-// store that does not is served without validators (a full body every request).
+// MetaFetcher is the optional capability of a Store that returns a file's
+// conditional-GET metadata in a single fetch; a store without it is served full
+// bodies (no validators).
 type MetaFetcher interface {
 	FetchFileWithMeta(repo, arch, file string) (stream.File, FileMeta, error)
 }

@@ -10,17 +10,12 @@ import (
 	"github.com/ProtonMail/go-crypto/openpgp/packet"
 )
 
-// SignDetached writes a detached OpenPGP signature of r to w, using EdDSA over
-// SHA-256 to match the digests ayato's verification keyring accepts. It is the
-// byte-level primitive the file-based detachSignFile and the merged-db signer
-// share.
+// SignDetached writes a detached EdDSA/SHA-256 OpenPGP signature (matching ayato's verification keyring); the primitive shared by detachSignFile and the merged-db signer.
 func SignDetached(entity *openpgp.Entity, r io.Reader, w io.Writer) error {
 	return openpgp.DetachSign(w, entity, r, &packet.Config{Algorithm: packet.PubKeyAlgoEdDSA, DefaultHash: crypto.SHA256})
 }
 
-// maybeSign detach-signs the .db/.files archives when a signed database is
-// requested. RepoAddBatch/RepoRemove already reject useSignedDB with a nil signer,
-// so this is a no-op unless both are set.
+// maybeSign detach-signs .db/.files when useSignedDB and signer are both set (callers already reject the nil-signer case).
 func (t NativeTool) maybeSign(paths toolPaths, useSignedDB bool) error {
 	if !useSignedDB {
 		return nil
@@ -31,9 +26,7 @@ func (t NativeTool) maybeSign(paths toolPaths, useSignedDB bool) error {
 	return signAndAlias(t.signer, paths.files, paths.filesLink)
 }
 
-// signAndAlias detach-signs archivePath into archivePath+".sig" and, mirroring the
-// bare <repo>.db byte-copy alias, also writes linkPath+".sig" (a blob store has no
-// symlinks) so a pacman client that fetches <repo>.db.sig finds it.
+// signAndAlias detach-signs archivePath and also writes linkPath+".sig" (byte copy, not symlink, for blob stores) so pacman can fetch <repo>.db.sig.
 func signAndAlias(entity *openpgp.Entity, archivePath, linkPath string) error {
 	sigPath := archivePath + ".sig"
 	if err := detachSignFile(entity, archivePath, sigPath); err != nil {
@@ -42,8 +35,7 @@ func signAndAlias(entity *openpgp.Entity, archivePath, linkPath string) error {
 	return copyToolFile(sigPath, linkPath+".sig")
 }
 
-// detachSignFile writes a detached OpenPGP signature of srcPath to sigPath, using
-// SHA-256 to match the digests ayato's verification keyring accepts.
+// detachSignFile writes a detached SHA-256 OpenPGP signature of srcPath to sigPath.
 func detachSignFile(entity *openpgp.Entity, srcPath, sigPath string) error {
 	in, err := os.Open(srcPath)
 	if err != nil {

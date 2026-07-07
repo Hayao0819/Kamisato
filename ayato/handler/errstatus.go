@@ -7,11 +7,9 @@ import (
 	"github.com/Hayao0819/Kamisato/ayato/domain"
 )
 
-// errToStatus maps a service/repository error to its HTTP status via the domain
-// error taxonomy. The service translates infra sentinels (e.g. blob.ErrNotFound)
-// into the domain taxonomy at its boundary, so transport only sees domain errors.
-// Anything the lower layers did not classify is a 500. This is the single place
-// transport decides a status, so handlers do not each invent their own (mis)mapping.
+// errToStatus maps a domain error to its HTTP status. The single place transport
+// decides a status, so handlers do not each invent their own mapping; anything
+// unclassified is a 500.
 func errToStatus(err error) int {
 	switch {
 	case err == nil:

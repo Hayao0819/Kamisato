@@ -11,8 +11,7 @@ import (
 func TestBuildSignerModes(t *testing.T) {
 	ctx := context.Background()
 
-	// Default (local) with no key dir: signing stays disabled, no error — the
-	// current behavior, unchanged.
+	// Default (local) with no key dir: signing stays disabled, no error.
 	s, err := buildSigner(ctx, &conf.MikoConfig{})
 	if err != nil {
 		t.Fatalf("local default: %v", err)

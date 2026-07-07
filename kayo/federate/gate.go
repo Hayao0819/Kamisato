@@ -10,10 +10,10 @@ import (
 
 // gate applies the trust verdict to one resolved package via the canonical
 // trust.EvaluateResolved (so delegatedVerified bypasses the store consistently
-// with the verify hook). A trusted result passes unchanged. A needs-review result
-// is dropped in "enforce" mode; in "warn" mode it is annotated only when it
-// violates an EXISTING approval (e.g. a maintainer change) — never for the normal
-// "never reviewed" state, which would noisily prefix every upstream package.
+// with the verify hook). A needs-review result is dropped in "enforce"; in "warn"
+// it is annotated only when it violates an EXISTING approval (e.g. a maintainer
+// change), never for the normal "never reviewed" state, which would noisily prefix
+// every upstream package.
 func gate(st *trust.Store, mode, source string, delegatedVerified bool, p aurweb.Pkg) (aurweb.Pkg, bool) {
 	v := st.EvaluateResolved(source, p.PackageBase, p.Maintainer, delegatedVerified)
 	if v.Decision == trust.Trusted {

@@ -1,8 +1,7 @@
 // Package recaptcha verifies CAPTCHA response tokens against a provider's
 // siteverify endpoint. Google reCAPTCHA v2 and Cloudflare Turnstile share the same
-// POST contract (secret+response+remoteip in, {success, error-codes} out), so one
-// verifier serves both. An empty secret yields a nil Verifier, so verification is
-// off and callers treat it as disabled.
+// POST contract, so one verifier serves both. An empty secret yields a nil Verifier
+// (verification disabled).
 package recaptcha
 
 import (

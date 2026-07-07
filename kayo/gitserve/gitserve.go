@@ -53,12 +53,10 @@ func Remove(root, pkgbase string) error {
 }
 
 // MaterializePins (re)serves every pkgbase in sources at its approved commit,
-// reconciling the served root with the trust store's pins (e.g. after a cache
-// wipe or an overlay re-sync). pin returns the approved commit for a pkgbase, or
-// ok=false to leave it unserved so it falls through the Handler to the upstream
-// redirect. It is best-effort: a pkgbase whose approved commit is unreachable in
-// its source is logged via the joined error and skipped, not fatal. Returns the
-// number materialized.
+// reconciling the served root with the trust store's pins. pin returns the
+// approved commit, or ok=false to leave a pkgbase unserved so it falls through to
+// the upstream redirect. Best-effort: an unreachable approved commit is logged via
+// the joined error and skipped, not fatal. Returns the number materialized.
 func MaterializePins(ctx context.Context, root string, sources map[string]string, pin func(pkgbase string) (string, bool)) (int, error) {
 	var served int
 	var errs []error

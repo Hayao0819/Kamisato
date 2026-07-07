@@ -5,21 +5,16 @@ import (
 	"strings"
 )
 
-// RepoSpec is an extra pacman repository exposed inside the build environment so
-// dependencies already published there — e.g. the ayato repo holding built AUR or
-// first-party packages — resolve via `pacman -S` during a build.
+// RepoSpec is an extra pacman repository injected into the build environment so pre-published dependencies resolve via pacman.
 type RepoSpec struct {
 	Name   string
 	Server string
-	// SigLevel is the pacman SigLevel for the repo. Empty defaults to
-	// "Optional TrustAll", which needs no keyring setup in the build environment;
-	// set "Required" only when the environment trusts the repo's signing key.
+	// SigLevel defaults to "Optional TrustAll" (no keyring setup needed); set "Required" only when the build env trusts the signing key.
 	SigLevel string
 }
 
-// pacmanRepoStanzas renders pacman.conf [repo] sections for repos. Entries missing
-// a name or server are skipped. The server may contain pacman's $repo/$arch
-// variables; they are emitted verbatim for pacman (not the shell) to expand.
+// pacmanRepoStanzas renders pacman.conf [repo] sections; entries without a name or server are skipped.
+// $repo/$arch are emitted verbatim for pacman (not the shell) to expand.
 func pacmanRepoStanzas(repos []RepoSpec) string {
 	var b strings.Builder
 	for _, r := range repos {
@@ -35,21 +30,16 @@ func pacmanRepoStanzas(repos []RepoSpec) string {
 	return b.String()
 }
 
-// substituteBuildPlaceholders fills the standalone __EXTRA_REPOS__ and __INSTALL__
-// lines of an embedded build script. It anchors on the surrounding newlines so a
-// mention of either token in a doc comment is left intact: a plain ReplaceAll
-// would expand the comment too, and the repo heredoc opened inside a `#` comment
-// leaks its body lines as bare commands.
+// substituteBuildPlaceholders fills __EXTRA_REPOS__ and __INSTALL__ only on their own line (anchored by newlines)
+// so mentions inside script comments are left intact.
 func substituteBuildPlaceholders(script, reposScript, installScript string) string {
 	script = strings.ReplaceAll(script, "\n__EXTRA_REPOS__\n", "\n"+reposScript+"\n")
 	script = strings.ReplaceAll(script, "\n__INSTALL__\n", "\n"+installScript+"\n")
 	return script
 }
 
-// extraReposScript renders a shell snippet that appends the repo stanzas to
-// /etc/pacman.conf inside the build environment. It returns "" when there is
-// nothing to add so the script placeholder collapses to nothing. The heredoc
-// marker is single-quoted so the shell leaves $repo/$arch for pacman.
+// extraReposScript renders the shell snippet that appends repos to /etc/pacman.conf; returns "" when empty so the placeholder collapses.
+// The heredoc marker is single-quoted so $repo/$arch pass through to pacman.
 func extraReposScript(repos []RepoSpec) string {
 	stanzas := pacmanRepoStanzas(repos)
 	if strings.TrimSpace(stanzas) == "" {

@@ -1,12 +1,11 @@
-// Package httpx builds the outbound HTTP clients used to reach third-party
-// services (AUR, GitHub, reCAPTCHA, package mirrors). Those calls cross a
-// network we do not control, so every one shares the same policy here: a
-// per-attempt timeout plus a bounded number of retries with exponential
-// backoff, so a transient blip or a 5xx does not surface on the first try.
+// Package httpx builds the outbound HTTP clients for third-party services
+// (AUR, GitHub, reCAPTCHA, package mirrors). Those calls cross a network we do
+// not control, so each shares one policy: a per-attempt timeout plus bounded
+// retries with exponential backoff.
 //
 // New returns a stdlib *http.Client (via retryablehttp's StandardClient shim)
 // rather than a *retryablehttp.Client so call sites keep depending only on
-// net/http and can be rewired to this constructor without other changes.
+// net/http.
 package httpx
 
 import (

@@ -52,11 +52,10 @@ type BinaryRepository interface {
 	VerifyPkgRepo(name string) error
 }
 
-// binaryRepository embeds blob.Store (pure byte IO) and adds the pacman repo-DB
-// operations and other derived operations on top. dbMu serializes the per-(repo,
-// arch) database read-modify-writes (RepoAdd/RepoRemove/InitArch); it is distinct
-// from any locking the underlying blob.Store performs on StoreFile/DeleteFile, so
-// holding it while calling blob.StoreFile cannot deadlock.
+// binaryRepository embeds blob.Store and adds the pacman repo-DB operations. dbMu
+// serializes the per-(repo, arch) read-modify-writes; it is a distinct lock from any
+// the underlying blob.Store takes on StoreFile/DeleteFile, so holding it while calling
+// blob.StoreFile cannot deadlock.
 type binaryRepository struct {
 	blob.Store
 	dbMu keyedMutex

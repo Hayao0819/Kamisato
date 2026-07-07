@@ -32,9 +32,8 @@ func TestBuildFlagShape(t *testing.T) {
 }
 
 func TestBuildSignRequiresKey(t *testing.T) {
-	// --sign without --key should fail in PreRunE, not in an opaque way.
-	// We can't run PreRunE without a real app context, but we can confirm
-	// that --sign is a bool and --key is a string with no shorthand.
+	// --sign without --key should fail in PreRunE; without an app context here,
+	// just confirm --sign is a bool and --key a string with no shorthand.
 	cmd := Cmd()
 	flags := cmd.Flags()
 

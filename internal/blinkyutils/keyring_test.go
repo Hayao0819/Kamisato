@@ -54,9 +54,8 @@ func useKeyring(t *testing.T, k Keyring) {
 	t.Cleanup(func() { secretKeyring = prev })
 }
 
-// With a working keyring, StoreSecret accepts the secret (so the caller can clear
-// the file-DB password), and LoadSecret reads it back from the keyring, never the
-// file. This is the primary path: the token is not on disk in plaintext.
+// The primary path: with a working keyring the secret round-trips through it and
+// never touches the file, so the token is not on disk in plaintext.
 func TestStoreAndLoadUsesKeyring(t *testing.T) {
 	fake := newFakeKeyring()
 	useKeyring(t, fake)

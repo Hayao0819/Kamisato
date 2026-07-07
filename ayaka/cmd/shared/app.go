@@ -10,10 +10,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// App is the per-invocation dependency set for the ayaka command tree. It is
-// built once in the root PersistentPreRunE and threaded to subcommands through
-// the command context, so commands read their deps from here instead of mutable
-// package globals; that keeps each command testable in isolation.
+// App is the per-invocation dependency set threaded via the command context,
+// so commands read deps from here instead of mutable package globals.
 type App struct {
 	Config   *conf.AyakaConfig
 	SrcRepos []*repo.SourceRepo
@@ -45,9 +43,8 @@ func WithApp(ctx context.Context, app *App) context.Context {
 	return context.WithValue(ctx, appCtxKey{}, app)
 }
 
-// AppFrom returns the App threaded through the command context. Shell completion
-// runs before PersistentPreRunE, so no App is present then; callers get an empty
-// App whose lookups return nothing rather than a nil-pointer panic.
+// AppFrom returns the App from the command context, or an empty App during
+// shell completion (which runs before the App is built) to avoid a nil panic.
 func AppFrom(cmd *cobra.Command) *App {
 	return AppFromContext(cmd.Context())
 }

@@ -79,9 +79,8 @@ func run(cmd *cobra.Command, _ []string) error {
 	comp.SetGate(store, mode)
 
 	// Serve approved overlay pins from their checkouts so a client cloning through
-	// kayo gets the exact reviewed commit, not the overlay's floating HEAD. An
-	// overlay pkgbase with no approval falls through to the redirect. This also
-	// reconciles the served root after a cache wipe or overlay re-sync.
+	// kayo gets the exact reviewed commit, not the overlay's floating HEAD; an
+	// overlay pkgbase with no approval falls through to the redirect.
 	if overlays != nil {
 		n, perr := gitserve.MaterializePins(ctx, cfg.ServedRoot(), overlays.SourceDirs(), func(pkgbase string) (string, bool) {
 			ap, ok := store.Approval(pkgbase)

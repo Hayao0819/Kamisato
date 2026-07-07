@@ -6,10 +6,9 @@ import (
 	"log/slog"
 )
 
-// multiReporter fans a report out to every configured backend. A report counts as
-// delivered when at least one backend accepts it, so a flaky webhook never blocks
-// an opened GitHub issue and the user is never asked to resubmit (which would
-// duplicate on the backends that already succeeded). It errors only when all fail.
+// multiReporter fans a report out to every backend, counting it delivered when at
+// least one accepts (a resubmit would duplicate on those that already succeeded)
+// and erroring only when all fail.
 type multiReporter struct {
 	reporters []Reporter
 }

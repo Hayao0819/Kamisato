@@ -16,21 +16,14 @@ import (
 	"github.com/Hayao0819/Kamisato/pkg/raiou"
 )
 
-// dbHTTPClient downloads repo databases with a bounded timeout so a slow or
-// hung mirror can't block the caller indefinitely.
+// dbHTTPClient is an HTTP client with a bounded timeout to prevent a hung mirror from blocking indefinitely.
 var dbHTTPClient = &http.Client{Timeout: 30 * time.Second}
 
-// ErrRepoNotFound reports that the remote db is absent (HTTP 404): the repo is
-// not configured on the server, or the URL/arch is wrong. It is distinct from a
-// transport failure or a 5xx/auth error so callers can tell a fix-your-config
-// problem from an unreachable server, and never mistake either for an empty repo.
+// ErrRepoNotFound is an HTTP 404: the repo is absent (misconfigured URL/arch), distinct from transport failures so callers can tell a config error from an unreachable server.
 var ErrRepoNotFound = errors.New("remote repository not found")
 
-// ErrUnsupportedDBFormat reports a database this parser cannot read: a CachyOS
-// `repo-add --use-new-db-format` archive, which embeds a single SQLite pacman.db
-// in place of the per-package text desc/files entries every other Arch repo
-// ships. Detecting it turns a silently-empty repo into a clear failure; the flag
-// is off by default in CachyOS's repo-add and unused by their published mirrors.
+// ErrUnsupportedDBFormat is a CachyOS `--use-new-db-format` archive (SQLite instead of text desc/files);
+// detecting it turns a silently-empty repo into a clear failure. Off by default in CachyOS repo-add and unused by their published mirrors.
 var ErrUnsupportedDBFormat = errors.New("unsupported repository database format")
 
 type RemoteRepo struct {
@@ -93,8 +86,7 @@ func RepoFromDBFile(name string, dbfile string) (*RemoteRepo, error) {
 	return RemoteRepoFromDB(name, db)
 }
 
-// RemoteRepoFromDB parses a repository .db stream (a compressed tar of
-// "<pkg>-<ver>/desc" entries) into a RemoteRepo.
+// RemoteRepoFromDB parses a .db stream (compressed tar of <pkg>-<ver>/desc entries) into a RemoteRepo.
 func RemoteRepoFromDB(name string, db io.Reader) (*RemoteRepo, error) {
 	gzr, _, err := compress.DetectCompression(db)
 	if err != nil {
@@ -136,15 +128,10 @@ func RemoteRepoFromDB(name string, db io.Reader) (*RemoteRepo, error) {
 	return &RemoteRepo{Name: name, Pkgs: pkgs}, nil
 }
 
-// newDBFormatMagic is the leading signature of a SQLite 3 file. CachyOS's Rust
-// repo-add, run with --use-new-db-format, stores the whole repository as one
-// embedded SQLite pacman.db instead of per-package desc entries; that file
-// begins with this magic.
+// newDBFormatMagic is the SQLite 3 signature; CachyOS's --use-new-db-format stores the repo as a single embedded SQLite pacman.db beginning with this magic.
 const newDBFormatMagic = "SQLite format 3\x00"
 
-// isNewDBFormat reports whether a non-desc tar member is the embedded SQLite
-// database of a CachyOS new-db-format repository. It sniffs the SQLite magic so
-// detection does not hinge on the member's exact name.
+// isNewDBFormat reports whether a tar member is CachyOS's embedded SQLite DB by sniffing the magic, not the member name.
 func isNewDBFormat(hdr *tar.Header, r io.Reader) bool {
 	if hdr.Typeflag != tar.TypeReg {
 		return false

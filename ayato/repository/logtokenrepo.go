@@ -9,8 +9,8 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/errwrap"
 )
 
-// logTokenNS holds one-time SSE log-stream tokens. Each entry maps a random token
-// to the job id it grants, with a short TTL so an unused token self-evicts.
+// logTokenNS holds one-time SSE log-stream tokens mapping a random token to the job
+// id it grants, with a short TTL so an unused token self-evicts.
 const logTokenNS = "logtoken"
 
 // LogTokenRepository issues and redeems the one-time tokens that let a browser

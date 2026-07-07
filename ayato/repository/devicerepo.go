@@ -10,19 +10,17 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/errwrap"
 )
 
-// deviceNS maps a device_code to its authorization record; deviceUserNS indexes
-// the human-typed user_code to its device_code so the browser approval page can
-// find the pending record. Both entries carry the same TTL as the authorization
-// window (RFC 8628), so an unredeemed request self-evicts and ayato keeps no
-// device-flow state of its own.
+// deviceNS maps a device_code to its record; deviceUserNS indexes the user_code to
+// its device_code so the approval page can find the pending record. Both carry the
+// authorization-window TTL (RFC 8628) so unredeemed requests self-evict.
 const (
 	deviceNS     = "device"
 	deviceUserNS = "deviceuc"
 )
 
-// deviceRecord is the kv-persisted device authorization. ExpiresAt is stored so a
-// status transition (approve/deny) can re-set the entry with the remaining TTL —
-// kv exposes no read-back of an entry's residual lifetime.
+// deviceRecord is the kv-persisted device authorization. ExpiresAt is stored because
+// kv exposes no read-back of residual TTL, needed to re-set the entry on a status
+// transition.
 type deviceRecord struct {
 	DeviceCode string `json:"device_code"`
 	UserCode   string `json:"user_code"`
@@ -120,8 +118,8 @@ func (r *deviceRepository) ConsumeDevice(deviceCode string) error {
 	return r.kv.Delete(deviceNS, deviceCode)
 }
 
-// transition loads the record a user_code maps to, applies mutate, and re-stores
-// it with the remaining TTL. ok is false when the record is absent or expired.
+// transition re-stores the user_code's record after mutate; ok is false when the
+// record is absent or expired.
 func (r *deviceRepository) transition(userCode string, mutate func(*deviceRecord)) (bool, error) {
 	rec, ok, err := r.getByUserCode(userCode)
 	if err != nil || !ok {

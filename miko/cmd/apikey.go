@@ -60,8 +60,7 @@ func generateAPIKey() (string, error) {
 	return "miko_" + base64.RawURLEncoding.EncodeToString(b), nil
 }
 
-// appendAPIKey adds key to the JSON config's api_keys array, creating the file
-// if absent. Written 0600 because it holds a secret.
+// appendAPIKey adds key to the JSON config's api_keys array, written 0600 because it holds a secret.
 func appendAPIKey(path, key string) error {
 	cfg := map[string]any{}
 	if data, err := os.ReadFile(path); err == nil {

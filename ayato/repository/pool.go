@@ -20,10 +20,9 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/errwrap"
 )
 
-// The pool stores package bytes content-addressed so identical content is held
-// once and old versions can be retained/collected. Objects live under a reserved
-// (repo, arch) in the same blob.Store; the reserved repo name is registered with
-// the backend by initBinaryStore and filtered out of RepoNames so it is never a
+// The pool stores package bytes content-addressed so identical content is held once
+// and old versions can be retained/collected. The reserved (repo, arch) is registered
+// with the backend by initBinaryStore and filtered out of RepoNames so it is never a
 // servable pacman repo.
 const (
 	poolRepo = "_pool_"
@@ -73,13 +72,11 @@ type PoolCollector interface {
 	CollectPool(ctx context.Context, policy PoolPolicy) (PoolGCResult, error)
 }
 
-// poolStore decorates a blob.Store with a content-addressed object pool for
-// package files. Package bytes go to pool/<sha256> once; the (repo, arch, filename)
-// path becomes a kv pointer to that hash, so identical content across repos or
-// versions shares one object. Everything that is not a package file (the repo DB
-// archives, their signatures) passes straight through, and a legacy directly-stored
-// package with no pointer still serves from its original path — so already-published
-// repos keep working while new uploads are pooled.
+// poolStore decorates a blob.Store with a content-addressed object pool: package
+// bytes go to pool/<sha256> once and the (repo, arch, filename) path becomes a kv
+// pointer to it, so identical content shares one object. Non-package files (db
+// archives, signatures) and legacy pointer-less packages pass through unchanged, so
+// already-published repos keep working.
 type poolStore struct {
 	blob.Store
 	kv     kv.Store
@@ -97,9 +94,8 @@ func newPoolStore(under blob.Store, kvStore kv.Store) *poolStore {
 	return &poolStore{Store: under, kv: kvStore, now: time.Now}
 }
 
-// isPoolable reports whether a file name is a pacman package (or its signature),
-// the only content the pool holds. The repo-DB archives (.db.tar.gz/.files.tar.gz)
-// and their signatures never match, so they pass through unpooled.
+// isPoolable reports whether a file name is a pacman package (or its signature), the
+// only content the pool holds; repo-DB archives never match and pass through unpooled.
 func isPoolable(name string) bool {
 	return strings.Contains(name, ".pkg.tar.")
 }
@@ -305,13 +301,12 @@ func (p *poolStore) Arches(repo string) ([]string, error) {
 	return p.Store.Arches(repo)
 }
 
-// CollectPool removes pool objects that no repo pointer references, subject to the
-// retention policy. It is safe to run online: it re-reads the reference set right
-// before deleting and skips anything referenced again, and only deletes objects
-// past the grace window — so an object briefly re-referenced by a concurrent upload
-// is kept. The residual race (a pointer written between the recheck and the byte
-// delete) is closed in practice by a non-zero RetentionWindow, since a just-added
-// pointer means the object was referenced within the window and is skipped.
+// CollectPool removes pool objects no repo pointer references, subject to the
+// retention policy. Safe to run online: it re-reads the reference set right before
+// deleting, skips anything referenced again, and only deletes past the grace window,
+// so an object briefly re-referenced by a concurrent upload is kept. A non-zero
+// RetentionWindow closes the residual pointer-write race, since a just-added pointer
+// means the object was referenced within the window and is skipped.
 func (p *poolStore) CollectPool(ctx context.Context, policy PoolPolicy) (PoolGCResult, error) {
 	var res PoolGCResult
 
@@ -437,8 +432,8 @@ func pkgGroup(filename string) string {
 	return filename
 }
 
-// hashSeek streams file through SHA-256 and returns the hex digest and byte size,
-// leaving the file rewound is the caller's job (ensureObject re-seeks).
+// hashSeek streams file through SHA-256 and returns the hex digest and byte size;
+// rewinding the file afterward is the caller's job (ensureObject re-seeks).
 func hashSeek(file stream.SeekFile) (string, int64, error) {
 	if _, err := file.Seek(0, io.SeekStart); err != nil {
 		return "", 0, errwrap.WrapErr(err, "pool: seek package")

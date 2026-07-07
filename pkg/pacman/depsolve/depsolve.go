@@ -22,10 +22,8 @@ type Pkg struct {
 	Deps        []string // depends + makedepends + checkdepends, raw specs
 }
 
-// RepoChecker reports which of the given dep specs the build environment cannot
-// already provide, so only those need resolving against the AUR. It is a
-// best-effort filter (an optimisation): a spec it lets through but which is not in
-// the AUR is treated as repo-provided and skipped by the resolver.
+// RepoChecker reports which dep specs the build environment cannot satisfy;
+// used as a best-effort filter before querying the AUR (specs not in the AUR are treated as repo-provided).
 type RepoChecker interface {
 	Unsatisfied(deps []string) ([]string, error)
 }
@@ -38,10 +36,8 @@ type AURSource interface {
 	ProvidedBy(ctx context.Context, name string) (*Pkg, error)
 }
 
-// Resolve returns the AUR package bases to build, dependencies first, so that
-// rootDeps the repos cannot satisfy become buildable. Dependencies not found in
-// the AUR are treated as repo-provided (the build environment's pacman installs
-// them) and skipped; it errors on an unsatisfiable version constraint or a cycle.
+// Resolve returns AUR package bases (deps-first) needed for rootDeps the repos cannot satisfy;
+// deps not in the AUR are treated as repo-provided. Errors on unsatisfiable version constraint or cycle.
 func Resolve(ctx context.Context, rootDeps []string, repo RepoChecker, aur AURSource) ([]Pkg, error) {
 	missing, err := repo.Unsatisfied(rootDeps)
 	if err != nil {
@@ -77,8 +73,7 @@ type resolver struct {
 	order []Pkg
 }
 
-// visit does a post-order DFS so a base is appended only after its dependencies,
-// giving build order. A gray node re-encountered is a cycle.
+// visit does a post-order DFS (base appended after all its deps); a gray node re-encountered is a cycle.
 func (r *resolver) visit(p Pkg) error {
 	switch r.color[p.PackageBase] {
 	case black:
@@ -110,10 +105,8 @@ func (r *resolver) visit(p Pkg) error {
 	return nil
 }
 
-// resolveSpec finds the AUR package satisfying one dep spec: by name first, then
-// by provides for a virtual dependency, verifying the version constraint. It
-// returns nil (no error) when the spec is not in the AUR, meaning it is provided
-// by the build environment's repos and needs no build.
+// resolveSpec finds the AUR package satisfying spec: by name, then by provides.
+// Returns nil (no error) when not in the AUR (treated as repo-provided).
 func (r *resolver) resolveSpec(spec string) (*Pkg, error) {
 	c := dep.Parse(spec)
 
@@ -149,9 +142,8 @@ func (r *resolver) resolveSpec(spec string) (*Pkg, error) {
 	return nil, nil
 }
 
-// checkProvides verifies a versioned dependency against a provider's provides
-// entries. An unversioned constraint always passes; a versioned one requires a
-// matching versioned provides ("name=ver"), mirroring pacman.
+// checkProvides verifies a versioned dep against a provider's provides;
+// unversioned constraints always pass, mirroring pacman.
 func checkProvides(c dep.Constraint, p Pkg) error {
 	if c.Op == dep.OpAny {
 		return nil

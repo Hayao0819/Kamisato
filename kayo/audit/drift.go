@@ -7,10 +7,9 @@ import (
 	"mvdan.cc/sh/v3/syntax"
 )
 
-// driftCheck flags "manifest confusion": where the committed .SRCINFO contradicts
-// the PKGBUILD that runs. Static only — a dynamic pkgver() or $()-built value can't
-// be resolved, so it is skipped rather than guessed. decl and dynamicVer come from
-// the shared PKGBUILD parse (declaredFrom).
+// driftCheck flags "manifest confusion" where the committed .SRCINFO contradicts
+// the PKGBUILD that runs. Static only: a dynamic pkgver() or $()-built value can't
+// be resolved, so it is skipped rather than guessed.
 func driftCheck(decl map[string][]string, dynamicVer bool, si *raiou.SRCINFO) []Finding {
 	var out []Finding
 

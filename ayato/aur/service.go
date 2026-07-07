@@ -9,8 +9,7 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/kayoproto"
 )
 
-// SourceManager is the subset of *Backend the service drives: registering and
-// removing sources, listing pkgbases, and building the catalog.
+// SourceManager is the subset of *Backend the service drives.
 type SourceManager interface {
 	Register(ctx context.Context, gitURL, ref, maintainer string) (pkgbase string, names []string, err error)
 	Remove(ctx context.Context, pkgbase string) error
@@ -19,8 +18,7 @@ type SourceManager interface {
 }
 
 // Service is the gin-free backend for AUR source management and the kayo-facing
-// catalog. The request-parsing and response-writing gin glue lives in
-// ayato/handler, keeping this package free of any web framework.
+// catalog; the gin glue lives in ayato/handler.
 type Service struct {
 	sm     SourceManager
 	signer *CatalogSigner
@@ -114,7 +112,6 @@ func (s *Service) SignerPublicKeyB64() string {
 	return s.signer.PublicKeyB64()
 }
 
-// cachedEnvelope returns the cached envelope while it is still fresh, or nil.
 func (s *Service) cachedEnvelope() *kayoproto.CatalogEnvelope {
 	if s.cacheTTL <= 0 {
 		return nil

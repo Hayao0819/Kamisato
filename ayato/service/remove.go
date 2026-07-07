@@ -92,9 +92,8 @@ func (s *Service) stillRegistered(repo, pkgname string, removed []string) bool {
 	return false
 }
 
-// deleteSignatureIfPresent best-effort removes "<pkgFile>.sig". A package may be
-// unsigned, so a missing sig is not an error; listing first avoids the blob
-// backend logging a spurious delete failure.
+// deleteSignatureIfPresent best-effort removes "<pkgFile>.sig"; listing first
+// avoids the blob backend logging a spurious delete failure for an unsigned package.
 func (s *Service) deleteSignatureIfPresent(repo, arch, pkgFile string) {
 	sig := pkgFile + ".sig"
 	files, err := s.pkgBinaryRepo.Files(repo, arch)

@@ -49,10 +49,10 @@ func RefreshAccessToken(ctx context.Context, base, refresh string) (token, newRe
 	return out.Token, out.RefreshToken, out.Login, out.ID, nil
 }
 
-// WithRefresh runs op with the current access token and, if op fails only because
-// the access token expired, transparently trades the refresh token for a new pair,
-// persists it, and retries op exactly once. A failed refresh surfaces a clear
-// re-login error. With no refresh token available it just runs op once.
+// WithRefresh runs op with the access token; if op fails only because the token
+// expired, it trades the refresh token for a new pair, persists it, and retries op
+// once. A failed refresh surfaces a re-login error; with no refresh token it just
+// runs op once.
 func WithRefresh(ctx context.Context, base, access, refresh string, persist func(access, refresh string) error, op func(ctx context.Context, token string) error) error {
 	err := op(ctx, access)
 	if !errors.Is(err, ErrAccessTokenExpired) || refresh == "" {

@@ -8,9 +8,9 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/errwrap"
 )
 
-// replayNS holds redeemed one-time code ids. An entry means the code was already
-// exchanged; its TTL equals the code's remaining lifetime so it self-evicts once
-// the code would have expired anyway (a stale id can no longer be replayed).
+// replayNS holds redeemed one-time code ids; an entry means the code was already
+// exchanged. Its TTL equals the code's remaining lifetime so it self-evicts once the
+// code can no longer be replayed.
 const replayNS = "replay"
 
 // ReplayGuard records a one-time code id at redemption so a second exchange of the
@@ -34,9 +34,9 @@ func (r *replayGuard) Consume(id string, ttl time.Duration) (bool, error) {
 	if id == "" {
 		return false, errwrap.NewErr("replay: empty id")
 	}
-	// A non-positive ttl means the code has already expired; verify rejects it
-	// before we get here, so treat this as a no-op rather than recording the id
-	// forever (a ttl of 0 is "no expiry" to the kv store).
+	// A non-positive ttl means the code already expired (verify rejects it earlier),
+	// so no-op rather than recording the id forever (ttl 0 is "no expiry" to the kv
+	// store).
 	if ttl <= 0 {
 		return true, nil
 	}

@@ -15,11 +15,8 @@ import (
 // ExecPlaceholder is the token in a template that Install swaps for the Exec line.
 const ExecPlaceholder = "@EXEC@"
 
-// ValidateExecArg rejects a value that would re-tokenize on a hook's Exec line.
-// pacman word-splits Exec on whitespace (no shell), so a baked value containing
-// whitespace or quotes injects extra argv flags into the hooked command rather
-// than passing through as one argument. Callers validate user-supplied values
-// before baking them.
+// ValidateExecArg rejects values that would re-tokenize on a pacman hook's Exec line.
+// pacman word-splits Exec on whitespace (no shell), so embedded whitespace/quotes inject extra argv flags.
 func ValidateExecArg(name, v string) error {
 	if strings.ContainsAny(v, " \t\r\n\"'\\") {
 		return fmt.Errorf("%s contains whitespace or quotes and cannot be baked into a hook's Exec line: %q", name, v)

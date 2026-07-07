@@ -33,8 +33,7 @@ type Spec struct {
 }
 
 // NewSource builds the VersionSource for spec, fetching through client. The
-// default upstream hosts are used; source structs are exported within the package
-// so tests can point them at an httptest server.
+// default upstream hosts are used.
 func NewSource(spec Spec, client *http.Client) (VersionSource, error) {
 	if client == nil {
 		return nil, fmt.Errorf("nvcheck: nil http client")

@@ -2,11 +2,8 @@ package keyring
 
 import "fmt"
 
-// installScript renders the .INSTALL hook. post_install/post_upgrade run
-// `pacman-key --populate <name>`, which imports <name>.gpg, lsigns the -trusted
-// fingerprints and disables the -revoked ones. The pacman-key presence guard
-// mirrors the archlinux-keyring/chaotic install scripts so the hook is a no-op on
-// a system whose keyring is not yet initialised.
+// installScript renders the .INSTALL hook; post_install/post_upgrade run pacman-key --populate
+// with a presence guard mirroring archlinux-keyring (no-op when keyring is not yet initialised).
 func installScript(name string) string {
 	return fmt.Sprintf(`post_upgrade() {
 	if usr/bin/pacman-key -l >/dev/null 2>&1; then

@@ -18,25 +18,19 @@ import (
 	"github.com/docker/docker/pkg/stdcopy"
 )
 
-// buildScript is the in-container entrypoint. __EXTRA_REPOS__ and __INSTALL__
-// are substituted per build; the target arch is passed via TARGET_CARCH.
+// buildScript is the in-container entrypoint; __EXTRA_REPOS__ and __INSTALL__ are substituted per build.
 //
 //go:embed buildscript.sh
 var buildScript string
 
-// makepkgOverrideConf is the static base of /build/makepkg.override.conf. The
-// entrypoint copies it in and appends the dynamic CARCH/CHOST, so the file body
-// is a real staged file rather than a heredoc generated inline.
+// makepkgOverrideConf is the static base of /build/makepkg.override.conf;
+// the entrypoint appends dynamic per-build settings so it's a real file rather than a heredoc.
 //
 //go:embed makepkg.override.conf
 var makepkgOverrideConf string
 
-// containerBackend builds packages in a fresh throwaway container, one per
-// build (makecontainerpkg-style clean room).
-//
-// Cross-arch builds rely on the host having qemu-user-static registered with
-// binfmt_misc using the "F" (fix_binary) flag, so the emulated interpreter is
-// available inside the freshly created container.
+// containerBackend builds packages in a fresh throwaway container (makecontainerpkg-style clean room).
+// Cross-arch requires qemu-user-static registered with binfmt_misc using the "F" (fix_binary) flag.
 type containerBackend struct {
 	image          string
 	timeout        time.Duration
@@ -95,8 +89,7 @@ func (b *containerBackend) Build(ctx context.Context, spec Spec) (*Result, error
 		return nil, wrapErr(err, "failed to create out dir")
 	}
 
-	// Record pre-existing packages so a build into a non-empty OutDir (including
-	// OutDir == SrcDir) only reports freshly produced artifacts.
+	// Snapshot baseline so a build into a non-empty OutDir only reports freshly produced artifacts.
 	baseline, err := snapshotPackages(absOut)
 	if err != nil {
 		return nil, err
@@ -120,8 +113,7 @@ func (b *containerBackend) Build(ctx context.Context, spec Spec) (*Result, error
 		return nil, wrapErr(err, "failed to pull image")
 	}
 
-	// Mount each install package at a unique path; shell-quote the install
-	// path so a hostile filename can't inject into `sh -c`.
+	// Shell-quote install paths so a hostile filename can't inject into `sh -c`.
 	installMounts := make([]mount.Mount, 0, len(spec.InstallPkgs))
 	var installCmd strings.Builder
 	for i, pkg := range spec.InstallPkgs {
@@ -139,15 +131,12 @@ func (b *containerBackend) Build(ctx context.Context, spec Spec) (*Result, error
 		fmt.Fprintf(&installCmd, "pacman -U --noconfirm %s\n", shellQuote(target))
 	}
 
-	// Merge the two repo channels: Options.ExtraRepos (miko/server config) first,
-	// then Spec.Repos (repo.json build.repos).
+	// ExtraRepos (server-config) precede Spec.Repos (repo.json) in pacman.conf.
 	effectiveRepos := append(append([]RepoSpec{}, b.extraRepos...), spec.Repos...)
 
 	script := substituteBuildPlaceholders(buildScript, extraReposScript(effectiveRepos), strings.TrimRight(installCmd.String(), "\n"))
 
-	// Stage the override as a real host file so the entrypoint copies it into
-	// place instead of generating it via a heredoc. The per-build makepkg
-	// settings (packager, microarch, cflags, options) are baked in here.
+	// Stage per-build makepkg settings as a host temp file for bind-mounting into the container.
 	overridePath, cleanupOverride, err := stageOverrideConf(spec.Makepkg)
 	if err != nil {
 		return nil, err
@@ -163,8 +152,7 @@ func (b *containerBackend) Build(ctx context.Context, spec Spec) (*Result, error
 		User:       "root",
 	}
 
-	// src is mounted read-only; the script copies it to a writable work dir so
-	// the caller's source tree is never mutated. out collects the artifacts.
+	// src is read-only; the script copies it to a writable work dir so the caller's source tree is never mutated.
 	mounts := []mount.Mount{
 		{
 			Type:     mount.TypeBind,
@@ -215,10 +203,7 @@ func (b *containerBackend) Build(ctx context.Context, spec Spec) (*Result, error
 		return nil, wrapErr(err, "failed to start container")
 	}
 
-	// Stream container output live: stdcopy demuxes the multiplexed log stream
-	// (Tty=false) into a synchronized capture buffer and, when set, the caller's
-	// LogWriter, so SSE clients see logs while the build runs. capture feeds the
-	// error message on failure.
+	// Stream container output live via stdcopy (demuxes the multiplexed log); capture feeds error messages on failure.
 	capture := &syncBuffer{}
 	var logDst io.Writer = capture
 	if spec.LogWriter != nil {
@@ -265,10 +250,8 @@ func (b *containerBackend) Build(ctx context.Context, spec Spec) (*Result, error
 	return &Result{Packages: pkgs}, nil
 }
 
-// stageOverrideConf writes the embedded makepkg override base — plus the
-// per-build makepkg settings (packager/microarch/cflags/options) — to a host temp
-// file for bind-mounting into the container, returning its path and a cleanup. It
-// errors on an unknown microarch tier.
+// stageOverrideConf writes the embedded makepkg override base plus per-build settings to a host temp file
+// for bind-mounting into the container; errors on unknown microarch tier.
 func stageOverrideConf(mk MakepkgSettings) (string, func(), error) {
 	overrides, err := makepkgOverrideLines(mk)
 	if err != nil {

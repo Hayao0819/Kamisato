@@ -12,10 +12,9 @@ import (
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv/badgerkv"
 )
 
-// TestCloseStopsGCLoop checks that Close stops the background value-log GC
-// goroutine cleanly: it must return promptly (not block on the GC ticker) and
-// be safe to call more than once. Close waits on the goroutine, so a prompt
-// return proves the goroutine has exited.
+// TestCloseStopsGCLoop verifies Close stops the background value-log GC goroutine
+// cleanly: it returns promptly (not blocking on the ticker) and is safe to call
+// more than once. Close waits on the goroutine, so a prompt return proves it exited.
 func TestCloseStopsGCLoop(t *testing.T) {
 	s, err := badgerkv.New(t.TempDir())
 	if err != nil {
@@ -153,8 +152,7 @@ func TestTTLExpiry(t *testing.T) {
 }
 
 // TestAddIsFirstWriterWins covers the atomic set-if-absent primitive the one-time
-// code guard relies on: the first Add creates the key (created=true), and a second
-// Add of the same key reports created=false without overwriting the value.
+// code guard relies on.
 func TestAddIsFirstWriterWins(t *testing.T) {
 	s, err := badgerkv.New(t.TempDir())
 	if err != nil {

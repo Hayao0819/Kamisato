@@ -17,11 +17,8 @@ import (
 // signingKeyFile is the armored private key held in a SigningKey directory.
 const signingKeyFile = "signing.key"
 
-// SigningKey is the repository's own OpenPGP identity: a primary key plus a
-// signing subkey, held together in one keyring directory. The primary
-// fingerprint is the trust anchor a keyring package pins, so rotating the signing
-// subkey never changes what downstream users trust. Package signing goes through
-// the subkey; the primary certifies it and issues revocations.
+// SigningKey is the repository's OpenPGP identity (primary + signing subkey). The primary fingerprint is the trust
+// anchor a keyring package pins, so subkey rotation never changes what downstream users trust.
 type SigningKey struct {
 	dir    string
 	entity *openpgp.Entity

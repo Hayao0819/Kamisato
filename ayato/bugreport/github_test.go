@@ -27,7 +27,6 @@ func TestNewDisabledAndValidation(t *testing.T) {
 	}
 }
 
-// fakeIssues records the issue it is asked to create.
 type fakeIssues struct {
 	got issue
 	url string

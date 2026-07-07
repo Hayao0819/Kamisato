@@ -11,13 +11,9 @@ import (
 	"github.com/ProtonMail/go-crypto/openpgp"
 )
 
-// ImportSigningKey adopts an existing OpenPGP private key (e.g. `gpg
-// --export-secret-keys --armor`) into a keystore directory so ayaka can manage
-// it. The key must be a single entity carrying private material; passphrase
-// unlocks it when protected and re-encrypts it at rest. This is how an
-// established repository key (its primary fingerprint already trusted by users)
-// is brought under management without minting a new one. Existing subkeys —
-// including an encryption subkey — are preserved as-is.
+// ImportSigningKey adopts an existing armored private key into the keystore without minting a new one
+// (preserving the trusted primary fingerprint). The key must be a single entity; passphrase unlocks it
+// and re-encrypts at rest; existing subkeys are preserved.
 func ImportSigningKey(dir string, r io.Reader, passphrase string, force bool) (*SigningKey, error) {
 	if _, err := os.Stat(filepath.Join(dir, signingKeyFile)); err == nil && !force {
 		return nil, fmt.Errorf("a signing key already exists in %s (pass --force to overwrite)", dir)
@@ -63,11 +59,8 @@ type ExpireTargets struct {
 	Subkey     string // a single subkey by fingerprint (optional)
 }
 
-// SetExpiry extends validity to dur from now (0 = never) for the selected key
-// parts, re-issuing the affected self-/binding signatures with a fresh timestamp
-// so they supersede the old ones. It requires the primary secret. Because OpenPGP
-// measures validity from a key's creation time, dur is converted per-key into the
-// lifetime that lands the expiry at now+dur.
+// SetExpiry extends validity to dur from now (0 = never) for the selected parts, re-signing with fresh timestamps.
+// Requires the primary secret; OpenPGP measures validity from creation time, so dur is converted per-key to land expiry at now+dur.
 func (k *SigningKey) SetExpiry(dur time.Duration, targets ExpireTargets, passphrase string) error {
 	if !k.HasPrimarySecret() {
 		return errNoPrimarySecret
@@ -121,8 +114,7 @@ func (k *SigningKey) SetExpiry(dur time.Duration, targets ExpireTargets, passphr
 	return k.save(passphrase)
 }
 
-// lifetimeFrom returns the KeyLifetimeSecs that makes a key created at creation
-// expire at now+dur. dur <= 0 means no expiry.
+// lifetimeFrom returns KeyLifetimeSecs for a key created at creation to expire at now+dur; dur <= 0 = no expiry.
 func lifetimeFrom(creation, now time.Time, dur time.Duration) *uint32 {
 	if dur <= 0 {
 		var zero uint32

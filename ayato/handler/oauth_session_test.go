@@ -18,8 +18,6 @@ import (
 	"golang.org/x/oauth2"
 )
 
-// denylistHandler builds a handler whose service has a denylist wired and the
-// given GitHub id seeded into the admin allowlist.
 func denylistHandler(t *testing.T, adminID int64) (*Handler, *fakeDenylistRepo, *auth.Signer) {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
@@ -45,7 +43,6 @@ func denylistHandler(t *testing.T, adminID int64) (*Handler, *fakeDenylistRepo, 
 	return New(svc, cfg).WithAuth(signer), dl, signer
 }
 
-// jtiOf decodes a signed token's payload and returns its JTI claim.
 func jtiOf(t *testing.T, token string) string {
 	t.Helper()
 	payloadB64, _, ok := strings.Cut(token, ".")
@@ -63,10 +60,8 @@ func jtiOf(t *testing.T, token string) string {
 	return c.JTI
 }
 
-// A code redeemed once must be rejected on replay: the first CLI exchange mints a
-// token, an immediate second exchange of the same code reads as used (400). The
-// kv-backed guard is what closes the replay window the stateless code otherwise
-// leaves open.
+// A redeemed code must be rejected on replay: the second exchange of the same code
+// reads as used (400). The kv-backed guard closes the window the stateless code leaves open.
 func TestCLIExchangeRejectsCodeReplay(t *testing.T) {
 	h, _, signer := denylistHandler(t, 42)
 	store, err := badgerkv.New(t.TempDir())

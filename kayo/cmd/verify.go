@@ -25,10 +25,10 @@ type verifyTarget struct {
 	delegatedVerified bool
 }
 
-// reportTrust writes one status line per target (in the order given) and reports
-// whether any target needs review. It routes every target through the canonical
-// trust.EvaluateResolved, the same gate the federation merge uses, so the
-// install-time verdict cannot diverge from the resolve-time one.
+// reportTrust writes a status line per target and reports whether any needs
+// review, routing each through the canonical trust.EvaluateResolved — the same
+// gate the federation merge uses — so the install-time verdict cannot diverge
+// from the resolve-time one.
 func reportTrust(w io.Writer, store *trust.Store, order []string, found map[string]verifyTarget) (needsReview bool) {
 	for _, name := range order {
 		t, ok := found[name]
@@ -46,11 +46,10 @@ func reportTrust(w io.Writer, store *trust.Store, order []string, found map[stri
 	return needsReview
 }
 
-// reportCloneDrift verifies each target's local clone-cache checkout against its
-// approved commit and reports whether any drifted off the pin. A target with no
-// pinned approval, or one the helper has not cloned yet, is skipped: the check
-// only guards packages kayo has actually pinned. A git error is logged, not fatal
-// — a build backstop must not fail on an unreadable local repo.
+// reportCloneDrift reports whether any target's clone-cache checkout drifted off
+// its approved commit; targets with no pin or not yet cloned are skipped, and a
+// git error is logged not fatal — a build backstop must not fail on an unreadable
+// local repo.
 func reportCloneDrift(ctx context.Context, w io.Writer, store *trust.Store, root string, order []string, found map[string]verifyTarget) (drifted bool) {
 	for _, name := range order {
 		t, ok := found[name]

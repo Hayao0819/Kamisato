@@ -9,10 +9,8 @@ import (
 	"github.com/Hayao0819/Kamisato/pkg/compress"
 )
 
-// FilesFromDB parses a repository ".files" archive — a compressed tar of
-// "<pkg>-<ver>/desc" and "<pkg>-<ver>/files" members — into a map from package
-// name to its file list, mirroring the format the native db writer emits. The
-// name comes from the desc %NAME% (not the directory) so it survives a rename.
+// FilesFromDB parses a .files archive (compressed tar of desc/files members) into a map from %NAME% to file list;
+// uses %NAME% (not the dir name) so it survives a rename.
 func FilesFromDB(r io.Reader) (map[string][]string, error) {
 	dec, _, err := compress.DetectCompression(r)
 	if err != nil {

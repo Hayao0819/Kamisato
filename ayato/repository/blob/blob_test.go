@@ -2,8 +2,7 @@ package blob
 
 import "testing"
 
-// Locks the shared guard against attacker-controlled repo / arch / filename
-// escaping the intended directory or key prefix in a backend's concatenated key.
+// Attacker-controlled repo/arch/filename must not escape the directory or key prefix.
 func TestValidatePathComponentRejectsTraversal(t *testing.T) {
 	bad := []string{"", ".", "..", "../x", "a/b", "x/../y", "/abs", "etc/passwd"}
 	for _, c := range bad {

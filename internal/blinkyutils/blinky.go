@@ -67,11 +67,9 @@ func ResolveServer(name string) (*ServerInfo, error) {
 	return &ServerInfo{URL: name, Username: entry.Username, Password: LoadSecret(name, entry.Password)}, nil
 }
 
-// Client builds a blinky client for the resolved endpoint. Our tools upload via
-// the blinky clientlib, so they target ayato's blinky compatibility surface at
-// /blinky (the clientlib appends /api/unstable/<repo>/package to the base). Native
-// publish (/api/unstable/repos/...) is a separate path; job and auth calls use the
-// base URL directly and are unaffected.
+// Client builds a blinky client for the resolved endpoint, targeting ayato's blinky
+// compatibility surface at /blinky (the clientlib appends /api/unstable/<repo>/package).
+// Native publish (/api/unstable/repos/...) is a separate path.
 func (s *ServerInfo) Client() (*Client, error) {
 	return blinky_clientlib.New(strings.TrimRight(s.URL, "/")+"/blinky", s.Username, s.Password)
 }

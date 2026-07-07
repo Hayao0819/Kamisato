@@ -6,9 +6,7 @@ import (
 	"strings"
 )
 
-// Server turns a Backend (and optional Upstream) into the aurweb HTTP surface.
-// It is safe for concurrent use. Mount it directly (it implements http.Handler)
-// or wire its individual handlers (RPC, GitClone, ...) into another router.
+// Server turns a Backend (and optional Upstream) into the aurweb HTTP surface; safe for concurrent use.
 type Server struct {
 	backend   Backend
 	upstream  Upstream
@@ -18,9 +16,7 @@ type Server struct {
 	limiterFn func(*http.Request) string // client key for the limiter (defaults to remoteIP)
 }
 
-// Limiter is the /rpc + NoRoute per-client throttle. It is an interface so a
-// caller can inject a shared (kv-backed, cross-replica) limiter; the built-in
-// per-instance one from WithRateLimit satisfies it too.
+// Limiter throttles per-client /rpc requests; the interface allows injecting a shared kv-backed cross-replica limiter.
 type Limiter interface {
 	// Allow records one request for client and reports whether it is within limit.
 	Allow(client string) bool
@@ -41,9 +37,7 @@ func WithLogger(l *slog.Logger) Option {
 	}
 }
 
-// WithLimiter injects a rate limiter (e.g. a shared kv-backed one that holds the
-// limit across replicas) and the key function that identifies the client. A nil
-// keyFn keys on the request's remote IP.
+// WithLimiter injects a rate limiter and client key function; nil keyFn keys on remote IP.
 func WithLimiter(l Limiter, keyFn func(*http.Request) string) Option {
 	return func(s *Server) {
 		if l != nil {

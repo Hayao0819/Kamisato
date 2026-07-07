@@ -35,8 +35,7 @@ func platformString(p *ocispec.Platform) string {
 	return s
 }
 
-// shellQuote wraps s in single quotes so it can be embedded safely in an
-// `sh -c` command, escaping any embedded single quotes.
+// shellQuote single-quotes s for safe embedding in `sh -c`, escaping any embedded single quotes.
 func shellQuote(s string) string {
 	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
 }

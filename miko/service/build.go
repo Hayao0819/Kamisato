@@ -18,7 +18,6 @@ import (
 func (s *Service) runBuild(ctx context.Context, job *domain.BuildJob) (*builder.Result, string, error) {
 	req := job.Request
 
-	// Disposable source directory (discarded after the build).
 	srcDir, err := os.MkdirTemp("", "miko-src-*")
 	if err != nil {
 		return nil, "", errwrap.WrapErr(err, "failed to create source dir")
@@ -29,8 +28,8 @@ func (s *Service) runBuild(ctx context.Context, job *domain.BuildJob) (*builder.
 		return nil, "", errwrap.WrapErr(err, "failed to materialize source")
 	}
 
-	// The artifact directory must live beyond runBuild (until signing and
-	// upload), so do not remove it here. Clean it up only on failure.
+	// The artifact dir must outlive runBuild (signing/upload), so clean it up
+	// only on failure.
 	outDir, err := os.MkdirTemp("", "miko-out-*")
 	if err != nil {
 		return nil, "", errwrap.WrapErr(err, "failed to create output dir")
@@ -94,7 +93,6 @@ func (s *Service) runBuild(ctx context.Context, job *domain.BuildJob) (*builder.
 	return res, outDir, nil
 }
 
-// extraRepos maps the configured extra repositories to the builder's RepoSpec.
 func extraRepos(repos []conf.ExtraRepo) []builder.RepoSpec {
 	if len(repos) == 0 {
 		return nil

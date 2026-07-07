@@ -10,15 +10,12 @@ import (
 	"golang.org/x/time/rate"
 )
 
-// RateLimit returns a per-client-IP middleware that rejects excess requests with
-// 429 and a Retry-After header. It is backed by the shared kv limiter (wired via
-// WithRateLimiter), so the limit holds across Cloud Run replicas rather than each
-// process granting its own quota. When no limiter is wired it is a pass-through.
-//
-// The historical (sustained rate r, burst) token-bucket parameters are preserved
-// by mapping them to an equivalent fixed window (see fixedWindow): at most `burst`
-// requests per the time a full burst takes to refill at r. Each call site gets a
-// distinct scope so independent route limiters keep independent counters.
+// RateLimit returns a per-client-IP middleware that answers excess requests with
+// 429 and a Retry-After header, backed by the shared kv limiter (wired via
+// WithRateLimiter) so the limit holds across Cloud Run replicas; unwired it is a
+// pass-through. The (rate r, burst) token-bucket params are mapped to an
+// equivalent fixed window (see fixedWindow), and each call site gets a distinct
+// scope so independent route limiters keep independent counters.
 func (m *Middleware) RateLimit(r rate.Limit, burst int) gin.HandlerFunc {
 	limit, window := fixedWindow(r, burst)
 	scope := "mw" + strconv.FormatInt(m.rlScope.Add(1), 10)

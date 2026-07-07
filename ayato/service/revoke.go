@@ -7,9 +7,8 @@ import (
 	"github.com/Hayao0819/Kamisato/ayato/repository"
 )
 
-// WithDenylist attaches the per-token revocation store used by the revoke
-// endpoint and the token checks. Unset (nil) means no per-token revocation is
-// wired, the same as a deployment without a signer.
+// WithDenylist attaches the per-token revocation store; nil (unset) means no
+// per-token revocation is wired.
 func (s *Service) WithDenylist(dl repository.DenylistRepository) *Service {
 	s.denylistRepo = dl
 	return s

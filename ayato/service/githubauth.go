@@ -9,10 +9,8 @@ import (
 	"time"
 )
 
-// ResolveGitHubLogin resolves a GitHub login to its numeric id and canonical
-// login via the public users API. No auth is needed: public GitHub profiles are
-// world-readable. It lives in the service so the handler never makes the outbound
-// call.
+// ResolveGitHubLogin resolves a GitHub login to its numeric id and canonical login
+// via the public users API (no auth: public GitHub profiles are world-readable).
 func (s *Service) ResolveGitHubLogin(ctx context.Context, login string) (int64, string, error) {
 	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()

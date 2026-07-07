@@ -6,19 +6,13 @@ import (
 	"strings"
 )
 
-// TopoSort orders nodes so every node comes after all the nodes it depends on
-// (dependencies first) — the build order for a whole set of packages, the
-// equivalent of Arch's rebuild-order tooling. deps maps a node to the nodes it
-// depends on; a dependency referenced there but absent from nodes is added as its
-// own dependency-free node so no edge dangles. Independent nodes come out in
-// lexical order, making the result deterministic. It returns an error naming a
-// cycle when the edges are not acyclic (it never loops forever on one).
+// TopoSort returns nodes in dependency-first order; missing deps are added as dep-free nodes and
+// independent nodes are sorted lexically for determinism. Returns an error on a cycle.
 func TopoSort(nodes []string, deps map[string][]string) ([]string, error) {
 	set := nodeSet(nodes, deps)
 
-	// remaining[n] counts n's not-yet-emitted dependencies; dependents[d] lists the
-	// nodes that depend on d, so emitting d can unblock them. Duplicate edges are
-	// deduped; a self-loop is left in place so it surfaces as a cycle below.
+	// remaining[n] = unemitted dep count; dependents[d] = nodes unblocked when d emits.
+	// Self-loops are preserved so they surface as cycles.
 	remaining := make(map[string]int, len(set))
 	dependents := make(map[string][]string, len(set))
 	for n := range set {
@@ -36,8 +30,7 @@ func TopoSort(nodes []string, deps map[string][]string) ([]string, error) {
 	order := make([]string, 0, len(set))
 	emitted := make(map[string]struct{}, len(set))
 	for len(order) < len(set) {
-		// Emit the lexically smallest node with no pending dependency, so
-		// independent nodes come out in a stable order.
+		// Emit the lexically smallest ready node for a stable ordering of independent nodes.
 		next, found := "", false
 		for n := range set {
 			if _, done := emitted[n]; done {
@@ -59,8 +52,7 @@ func TopoSort(nodes []string, deps map[string][]string) ([]string, error) {
 	return order, nil
 }
 
-// nodeSet returns the full vertex set: the listed nodes plus any node referenced
-// only as a dependency, so the graph has no dangling edges.
+// nodeSet returns listed nodes plus any referenced only as deps, so there are no dangling edges.
 func nodeSet(nodes []string, deps map[string][]string) map[string]struct{} {
 	set := make(map[string]struct{}, len(nodes))
 	for _, n := range nodes {
@@ -75,10 +67,8 @@ func nodeSet(nodes []string, deps map[string][]string) map[string]struct{} {
 	return set
 }
 
-// cycleError names one dependency cycle among the still-unemitted nodes (those
-// are exactly the nodes on or blocked by a cycle). It walks forward edges
-// depth-first from the lexically smallest remaining node until it re-enters a
-// node already on the current path, then reports that path.
+// cycleError reports one cycle from the unemitted nodes; walks forward edges depth-first
+// from the lexically smallest remaining node until it re-enters a node on the current path.
 func cycleError(set, emitted map[string]struct{}, deps map[string][]string) error {
 	remaining := make([]string, 0, len(set))
 	for n := range set {

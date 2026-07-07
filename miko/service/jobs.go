@@ -25,11 +25,9 @@ var allowedArches = map[string]bool{"x86_64": true, "aarch64": true, "armv7h": t
 // pacman.conf, so a newline or shell metacharacter must be rejected up front.
 var repoNamePattern = regexp.MustCompile(`^[a-zA-Z0-9._-]+$`)
 
-// validateInstallPkgs rejects InstallPkgs that point outside the staging dir.
-// Each entry is bind-mounted into the untrusted build, so an unchecked host
-// path lets a caller exfiltrate arbitrary files (signing keys under data_dir,
-// /etc, ssh keys). miko has no upload endpoint for deps: operators stage them
-// under <data_dir>/staging, and remote callers upload deps as source files.
+// validateInstallPkgs rejects InstallPkgs outside the staging dir. Each entry is
+// bind-mounted into the untrusted build, so an unchecked host path lets a caller
+// exfiltrate arbitrary files (signing keys under data_dir, /etc, ssh keys).
 func (s *Service) validateInstallPkgs(pkgs []string) error {
 	if len(pkgs) == 0 {
 		return nil

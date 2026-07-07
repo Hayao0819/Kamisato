@@ -68,9 +68,9 @@ func ctxSleep(ctx context.Context, d time.Duration) error {
 }
 
 // DeviceLogin runs the RFC 8628 device authorization against serverURL: it
-// requests a code, tells the user which URL to open and which code to type in any
-// browser, then polls until the authorization is approved (returning the access
-// token, its refresh token, and login), denied, or expired.
+// requests a code, shows the user the URL and code to enter in any browser, then
+// polls until approved (returning the access token, refresh token, and login),
+// denied, or expired.
 func DeviceLogin(ctx context.Context, serverURL string, opts ...DeviceOption) (token, refresh, login string, err error) {
 	o := deviceOptions{
 		out:      os.Stdout,

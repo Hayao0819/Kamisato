@@ -5,13 +5,9 @@ import "context"
 // SuggestLimit caps the number of name completions a suggest query returns.
 const SuggestLimit = 20
 
-// Backend is the package set a host manages. The Server queries it first and,
-// when an Upstream is configured, falls back to upstream for anything the
-// backend does not return.
+// Backend is the package set a host manages; the Server falls back to Upstream for names the backend does not return.
 type Backend interface {
-	// Info returns full (info-level) records for the given pkgnames that the
-	// backend manages. Names it does not manage are simply omitted; order is
-	// not significant.
+	// Info returns full records for pkgnames the backend manages; unmanaged names are omitted.
 	Info(ctx context.Context, names []string) ([]Pkg, error)
 
 	// Search returns base-level records matching arg under the given field.
@@ -24,10 +20,8 @@ type Backend interface {
 	// All returns every package the backend manages, for the bulk dump endpoints.
 	All(ctx context.Context) ([]Pkg, error)
 
-	// SourceURL returns the git clone base URL for a pkgbase: a client cloning
-	// "<host>/<pkgbase>.git" is redirected to "<target>" with the trailing git
-	// path preserved. ok is false when the backend does not manage the pkgbase,
-	// in which case the Server falls through to the Upstream git base.
+	// SourceURL returns the clone redirect target for a pkgbase; ok=false when the backend does not manage it
+	// (Server falls through to Upstream git base), preserving any trailing git path.
 	SourceURL(ctx context.Context, pkgbase string) (target string, ok bool, err error)
 }
 

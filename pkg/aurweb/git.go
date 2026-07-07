@@ -5,9 +5,8 @@ import (
 	"strings"
 )
 
-// GitClone redirects "git clone <host>/<pkgbase>.git" to where the source lives:
-// the Backend's SourceURL for managed packages, the Upstream's git base
-// otherwise. The host never proxies pack data.
+// GitClone redirects git clone requests to the Backend's SourceURL (managed) or Upstream's git base (unmanaged);
+// the host never proxies pack data.
 func (s *Server) GitClone(w http.ResponseWriter, r *http.Request) {
 	base := PkgbaseFromGitPath(r.URL.Path)
 	if base == "" {
@@ -37,9 +36,8 @@ func (s *Server) GitClone(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, loc, http.StatusFound)
 }
 
-// Snapshot redirects the cgit snapshot tarball for unmanaged packages to the
-// upstream. Managed packages are served via git clone, not tarball, since the
-// host keeps no built tree.
+// Snapshot redirects cgit snapshot tarballs for unmanaged packages to the upstream;
+// managed packages reject snapshots (no built tree on this host).
 func (s *Server) Snapshot(w http.ResponseWriter, r *http.Request) {
 	name := strings.TrimPrefix(r.URL.Path, "/cgit/aur.git/snapshot/")
 	base := strings.TrimSuffix(name, ".tar.gz")
@@ -59,9 +57,7 @@ func (s *Server) Snapshot(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, s.upstream.SnapshotURL(base), http.StatusFound)
 }
 
-// PlainPKGBUILD redirects the cgit raw-PKGBUILD preview to the upstream. Helpers
-// use it only for the `-G`/print preview; managed previews are out of scope for
-// the redirect-only MVP.
+// PlainPKGBUILD redirects cgit raw-PKGBUILD previews to the upstream (the redirect-only host keeps no built tree).
 func (s *Server) PlainPKGBUILD(w http.ResponseWriter, r *http.Request) {
 	h := r.URL.Query().Get("h")
 	if h == "" || s.upstream == nil {

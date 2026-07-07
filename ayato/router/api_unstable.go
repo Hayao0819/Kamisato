@@ -77,13 +77,12 @@ func SetRoute(e *gin.Engine, h *handler.Handler, m *middleware.Middleware) error
 		}
 
 		if mikoProxy != nil {
-			// The job metadata/artifacts/stats reads are admin-gated below. Live
-			// build-log streaming is browser-facing over EventSource, which cannot
-			// attach a Bearer token; RequireLogAccess therefore accepts a one-time
-			// token (query "token", minted at .../logs/token and bound to this job)
-			// as an alternative to an admin session/bearer, spent on first use. This
-			// closes the formerly-public hole — a build log can echo credentials from
-			// a user-supplied git URL.
+			// Job metadata/artifacts/stats reads are admin-gated below. Live build-log
+			// streaming is browser-facing over EventSource, which cannot attach a Bearer;
+			// RequireLogAccess therefore accepts a one-time token (query "token", bound to
+			// this job, spent on first use) as an alternative to admin session/bearer. This
+			// closes the formerly-public hole — a build log can echo credentials from a
+			// user-supplied git URL.
 			api.GET("/jobs/:id/logs", m.RequireLogAccess(), mikoProxy.HandlerFunc(func(c *gin.Context) string {
 				return "/api/unstable/jobs/" + c.Param("id") + "/logs"
 			}))

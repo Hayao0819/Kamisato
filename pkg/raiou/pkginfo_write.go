@@ -6,15 +6,11 @@ import (
 	"strings"
 )
 
-// Bytes serializes the PKGINFO to the `.PKGINFO` text format makepkg emits and
-// ParsePkginfo reads back. pkgname/pkgver/arch/builddate/size are always written
-// (pacman requires them); other scalars are omitted when empty, matching how the
-// parser treats an empty value as absent. Repeated and xdata fields keep a stable
-// order so the output is reproducible.
+// Bytes serializes PKGINFO to the .PKGINFO text format. Required fields (pkgname/pkgver/arch/builddate/size)
+// are always written; empty scalars are omitted; repeated/xdata fields keep a stable order.
 func (p *PKGINFO) Bytes() []byte {
 	var b strings.Builder
-	// Newlines in a value would inject a spurious key line, so collapse them to
-	// spaces; a well-formed PKGINFO is one key = value per line.
+	// Newlines in a value would inject spurious key lines; collapse to spaces.
 	sanitize := strings.NewReplacer("\r", " ", "\n", " ")
 	write := func(key, value string) {
 		if value == "" {
@@ -36,7 +32,7 @@ func (p *PKGINFO) Bytes() []byte {
 	write("pkgver", p.PkgVer)
 	write("pkgdesc", p.PkgDesc)
 	write("url", p.URL)
-	// builddate/size are numeric and mandatory, so they are written unconditionally.
+	// builddate/size are mandatory numeric fields; write unconditionally.
 	write("builddate", strconv.FormatInt(p.BuildDate, 10))
 	write("packager", p.Packager)
 	write("size", strconv.FormatInt(p.Size, 10))

@@ -17,10 +17,9 @@ import (
 
 const webhookEvent = "bug_report"
 
-// WebhookPayload is the stable wire format POSTed to a webhook endpoint. It is an
-// explicit DTO rather than the internal Report so the server-resolved
-// MaintainerEmail is never forwarded and the snake_case names stay stable for
-// consumers regardless of how Report evolves.
+// WebhookPayload is the stable wire format POSTed to a webhook. It is a separate
+// DTO from Report so MaintainerEmail is never forwarded and the snake_case names
+// stay stable for consumers as Report evolves.
 type WebhookPayload struct {
 	Event     string      `json:"event"`
 	ID        string      `json:"id"`
@@ -39,8 +38,7 @@ type WebhookData struct {
 	Description string `json:"description"`
 }
 
-// webhookReporter POSTs the report as JSON to an arbitrary endpoint, letting an
-// operator wire reports into whatever they already run (chat, a queue, a script).
+// webhookReporter POSTs the report as JSON to an arbitrary operator-supplied endpoint.
 type webhookReporter struct {
 	client *http.Client
 	url    string
@@ -92,8 +90,8 @@ func toWebhookPayload(r Report) WebhookPayload {
 	}
 }
 
-// newDeliveryID gives each delivery a unique id so a consumer can correlate or
-// de-duplicate it. crypto/rand.Read never fails on the platforms we target.
+// newDeliveryID gives each delivery a unique id for correlation/de-dup.
+// crypto/rand.Read never fails on our target platforms, so the error is ignored.
 func newDeliveryID() string {
 	var b [16]byte
 	_, _ = rand.Read(b[:])

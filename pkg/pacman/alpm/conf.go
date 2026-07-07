@@ -12,9 +12,7 @@ const (
 	FallbackCacheDir = "/var/cache/pacman/pkg"
 )
 
-// ConfValues returns the values pacman-conf reports for a config option (e.g.
-// "HookDir", "CacheDir"), one per line, with Include directives and built-in
-// defaults already applied. pacmanConf overrides the config path when non-empty.
+// ConfValues returns pacman-conf's values for a config option, one per line, with Include directives and defaults applied. pacmanConf overrides the config path when non-empty.
 func ConfValues(pacmanConf, option string) ([]string, error) {
 	args := make([]string, 0, 3)
 	if pacmanConf != "" {
@@ -34,9 +32,7 @@ func ConfValues(pacmanConf, option string) ([]string, error) {
 	return vals, nil
 }
 
-// HookDir returns the directory to install an admin hook into: the first HookDir
-// configured in pacman.conf (default /etc/pacman.d/hooks). Custom hooks belong
-// here, not in libalpm's package-owned /usr/share/libalpm/hooks.
+// HookDir returns the first HookDir from pacman.conf (default /etc/pacman.d/hooks); admin hooks go here, not in /usr/share/libalpm/hooks.
 func HookDir(pacmanConf string) string {
 	if vals, err := ConfValues(pacmanConf, "HookDir"); err == nil && len(vals) > 0 {
 		return vals[0]
@@ -44,8 +40,7 @@ func HookDir(pacmanConf string) string {
 	return FallbackHookDir
 }
 
-// CacheDirs returns the package cache directories from pacman.conf (default
-// /var/cache/pacman/pkg), searched in the order pacman lists them.
+// CacheDirs returns the package cache directories from pacman.conf (default /var/cache/pacman/pkg), in the order pacman lists them.
 func CacheDirs(pacmanConf string) []string {
 	if vals, err := ConfValues(pacmanConf, "CacheDir"); err == nil && len(vals) > 0 {
 		return vals

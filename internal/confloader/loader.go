@@ -129,10 +129,9 @@ func (l *Loader[T]) Load() error {
 	return nil
 }
 
-// loadFile merges one config file. A missing file is skipped silently; a file
-// that exists but has an unsupported extension is an error (a likely typo that
-// would otherwise leave the program running on empty defaults). Parse errors are
-// returned too.
+// loadFile merges one config file. A missing file is skipped silently; an
+// unsupported extension is an error (a likely typo that would otherwise leave the
+// program running on empty defaults).
 func (l *Loader[T]) loadFile(path string) error {
 	info, err := os.Stat(path)
 	if err != nil {

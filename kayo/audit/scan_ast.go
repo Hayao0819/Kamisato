@@ -16,8 +16,8 @@ var (
 	installArg = map[string]bool{"install": true, "add": true, "i": true}
 )
 
-// parse parses src as bash. The PKGBUILD and each scriptlet are parsed once and
-// the tree is shared by every AST check, so no file is parsed twice per Scan.
+// parse parses src as bash once; the tree is shared by every AST check, so no file
+// is parsed twice per Scan.
 func parse(src []byte, name string) (*syntax.File, error) {
 	return syntax.NewParser(syntax.Variant(syntax.LangBash)).Parse(bytes.NewReader(src), name)
 }

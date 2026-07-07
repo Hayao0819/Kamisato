@@ -19,8 +19,8 @@ type promoteRequest struct {
 }
 
 // PromoteHandler advances a package through a tiered repo's staging -> testing ->
-// stable flow. It is admin-gated: promotion publishes to a downstream tier, which
-// is a deliberate release action kept separate from building/uploading.
+// stable flow. Admin-gated: promotion is a deliberate release action, kept separate
+// from building/uploading.
 func (h *Handler) PromoteHandler(ctx *gin.Context) {
 	repoName := ctx.Param("repo")
 	if repoName == "" {
@@ -46,9 +46,8 @@ func (h *Handler) PromoteHandler(ctx *gin.Context) {
 	ctx.String(http.StatusOK, fmt.Sprintf("'%s' promoted from %s to %s in %s", req.Pkgname, req.From, req.To, repoName))
 }
 
-// SyncUpstreamHandler refreshes an upstream-layered repo from its upstream
-// database and rebuilds the served merged view. Admin-gated: it fetches a remote
-// database and rewrites the served db. The response reports the per-arch change.
+// SyncUpstreamHandler refreshes an upstream-layered repo from its upstream database
+// and rebuilds the served merged view. Admin-gated because it rewrites the served db.
 func (h *Handler) SyncUpstreamHandler(ctx *gin.Context) {
 	repoName := ctx.Param("repo")
 	if repoName == "" {

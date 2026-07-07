@@ -9,9 +9,8 @@ import (
 	"github.com/Hayao0819/nahi/exutils"
 )
 
-// CleanPkgBinary owns the temp dir holding the packages downloaded by
-// GetCleanPkgBinary. Those files are injected during the build, so the caller
-// must keep it alive until the build finishes and Close() it afterwards.
+// CleanPkgBinary owns the temp dir of packages downloaded by GetCleanPkgBinary;
+// call Close() after the build consumes them.
 type CleanPkgBinary struct {
 	dir string
 }
@@ -27,9 +26,8 @@ func (c *CleanPkgBinary) Close() error {
 	return nil
 }
 
-// GetCleanPkgBinary downloads names from the pacman repos into a temp dir and
-// returns the downloaded .pkg.tar.* file paths together with a handle to remove
-// the temp dir once the build has consumed them.
+// GetCleanPkgBinary downloads names from pacman repos into a temp dir;
+// returns paths and a CleanPkgBinary handle to remove it after the build.
 func GetCleanPkgBinary(names ...string) ([]string, *CleanPkgBinary, error) {
 	if len(names) == 0 {
 		return nil, nil, nil
@@ -52,9 +50,8 @@ func GetCleanPkgBinary(names ...string) ([]string, *CleanPkgBinary, error) {
 		return nil, nil, fmt.Errorf("failed to create cache directory: %w", err)
 	}
 
-	// pacman 7's downloader sandbox (DownloadUser + Landlock) cannot initialize
-	// under fakeroot (no real setuid) or in containers (Landlock unavailable), so
-	// disable it; integrity still comes from pacman's signature verification.
+	// pacman 7's sandbox (DownloadUser+Landlock) fails under fakeroot/containers;
+	// integrity comes from pacman's signature verification.
 	args := []string{"pacman", "--sync", "--refresh", "--noconfirm", "--downloadonly", "--disable-sandbox", "--cachedir", cachepath, "--dbpath", dbpath, "--log", "/dev/null"}
 	args = append(args, names...)
 	c := exutils.CommandWithStdio("fakeroot", args...)

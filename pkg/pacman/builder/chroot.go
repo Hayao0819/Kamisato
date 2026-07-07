@@ -90,8 +90,7 @@ func (b *chrootBackend) Build(ctx context.Context, spec Spec) (*Result, error) {
 	return moveToOutDir(built, spec.SrcDir, spec.OutDir)
 }
 
-// runChrootBuild runs the devtools clean-chroot flow in dir:
-// <archBuild> -- makechrootpkg -c [-I pkg...] -- makepkg --syncdeps ...
+// runChrootBuild shells out to '<archBuild> -- makechrootpkg -c [-I pkg...] -- makepkg --syncdeps ...' from dir.
 func runChrootBuild(ctx context.Context, dir, archBuild string, installPkgs []string, out io.Writer) error {
 	makePkgArgs := []string{"--syncdeps", "--noconfirm", "--log", "--holdver"}
 	makeChrootPkgArgs := []string{"-c"}
@@ -110,11 +109,8 @@ func runChrootBuild(ctx context.Context, dir, archBuild string, installPkgs []st
 	return build.Run()
 }
 
-// runChrootBuildGenerated drives devtools directly with ayaka-generated pacman.conf
-// (-C) and makepkg.conf (-M) so per-build build.repos/build.makepkg are honoured,
-// unlike the wrapper path. It creates a throwaway chroot with mkarchroot, then
-// builds with makechrootpkg from spec.SrcDir (where makechrootpkg reads the
-// PKGBUILD and leaves output, same as the wrapper).
+// runChrootBuildGenerated drives mkarchroot/makechrootpkg directly with ayaka-generated -C/-M confs,
+// bypassing the ArchBuild wrapper to honour per-build build.repos/build.makepkg.
 func runChrootBuildGenerated(ctx context.Context, spec Spec, repos []RepoSpec, out io.Writer) error {
 	arch := spec.Arch
 	if arch == "" {
@@ -163,9 +159,7 @@ func runChrootBuildGenerated(ctx context.Context, spec Spec, repos []RepoSpec, o
 	return build.Run()
 }
 
-// writeTempConf writes content to a host temp file and returns its path and a
-// cleanup. The file is made world-readable because arch-nspawn copies the -M/-C
-// config into the chroot, and must read it, when run under makechrootpkg.
+// writeTempConf writes content to a temp file (world-readable: arch-nspawn copies -M/-C into the chroot and must read it there).
 func writeTempConf(pattern, content string) (string, func(), error) {
 	f, err := os.CreateTemp("", pattern)
 	if err != nil {
@@ -201,9 +195,7 @@ func cmdContext(ctx context.Context, dir string, out io.Writer, args ...string) 
 	return cmd
 }
 
-// moveToOutDir moves built (absolute paths) into outDir and returns the final
-// absolute paths. If outDir equals srcDir (or is empty), it returns them as-is
-// without moving.
+// moveToOutDir moves built into outDir, returning final absolute paths; no-ops when outDir is empty or equals srcDir.
 func moveToOutDir(built []string, srcDir, outDir string) (*Result, error) {
 	if outDir == "" {
 		outDir = srcDir
@@ -233,8 +225,7 @@ func moveToOutDir(built []string, srcDir, outDir string) (*Result, error) {
 	return &Result{Packages: packages}, nil
 }
 
-// moveFile renames src to dst, falling back to a mode-preserving copy+remove
-// when the two live on different filesystems (os.Rename is single-device only).
+// moveFile renames src to dst, falling back to copy+remove when os.Rename crosses filesystems.
 func moveFile(src, dst string) error {
 	if err := os.Rename(src, dst); err == nil {
 		return nil
@@ -245,8 +236,7 @@ func moveFile(src, dst string) error {
 	return os.Remove(src)
 }
 
-// snapshotPackages returns the set of package file names (*.pkg.tar.*)
-// currently present in dir. If dir does not exist, it returns an empty set.
+// snapshotPackages returns the set of *.pkg.tar.* names in dir; returns an empty set when dir is missing.
 func snapshotPackages(dir string) (map[string]struct{}, error) {
 	set := map[string]struct{}{}
 	entries, err := os.ReadDir(dir)
@@ -265,9 +255,7 @@ func snapshotPackages(dir string) (map[string]struct{}, error) {
 	return set, nil
 }
 
-// collectNewPackages returns the absolute paths of package files in dir that
-// are not in baseline (i.e. produced by this build). Signature files (*.sig)
-// are excluded.
+// collectNewPackages returns absolute paths of package files in dir not in baseline; .sig files are excluded.
 func collectNewPackages(dir string, baseline map[string]struct{}) ([]string, error) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
@@ -302,8 +290,7 @@ var pkgFileExts = []string{
 	".pkg.tar",
 }
 
-// isPackageFile reports whether name is a build-output package (*.pkg.tar.*).
-// Signature files (*.sig) are not considered output.
+// isPackageFile reports whether name is a *.pkg.tar.* file (signature files excluded).
 func isPackageFile(name string) bool {
 	if strings.HasSuffix(name, ".sig") {
 		return false

@@ -21,10 +21,9 @@ func (s *Service) nvcheckInterval() time.Duration {
 	return time.Duration(s.cfg.NvCheck.IntervalMin) * time.Minute
 }
 
-// CheckUpstreamVersions runs one version-check pass over the configured monitor
-// entries, enqueuing a ReasonVersionUpdate rebuild for each pkgbase whose
-// upstream has moved ahead of the published version. It is best-effort: a
-// per-entry failure is logged and does not stop the pass.
+// CheckUpstreamVersions runs one version-check pass, enqueuing a
+// ReasonVersionUpdate rebuild for each pkgbase whose upstream moved ahead of the
+// published version. Best-effort: a per-entry failure is logged, not fatal.
 func (s *Service) CheckUpstreamVersions(ctx context.Context) []nvcheck.Result {
 	return s.runNvCheck(ctx, &versionUpdateEnqueuer{s: s})
 }
@@ -116,10 +115,9 @@ func (e *versionUpdateEnqueuer) EnqueueVersionUpdate(entry nvcheck.Entry, newVer
 	return nil
 }
 
-// publishedVersion returns a CurrentFunc that reads the version currently
-// published for an entry from ayato's repo database. An entry that is not yet in
-// the repo (or an unreachable repo) resolves to an empty version, which the
-// checker treats as out-of-date so the first pass establishes a baseline.
+// publishedVersion returns a CurrentFunc reading an entry's published version from
+// ayato's repo DB. A missing entry or unreachable repo resolves to an empty
+// version, which the checker treats as out-of-date so the first pass baselines.
 func (s *Service) publishedVersion(client *http.Client) nvcheck.CurrentFunc {
 	return func(ctx context.Context, entry nvcheck.Entry) (string, error) {
 		if s.cfg.Ayato.URL == "" || entry.Repo == "" || entry.Arch == "" {

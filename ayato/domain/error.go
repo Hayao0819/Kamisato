@@ -14,9 +14,8 @@ func (e *APIError) Error() string {
 	return e.Message
 }
 
-// The error taxonomy below lets any layer signal the HTTP class a failure should
-// map to, without importing net/http: a service/repository wraps its error with
-// the matching sentinel and the transport layer's errToStatus resolves the code.
+// These sentinels let any layer signal an HTTP class without importing net/http;
+// the transport layer's errToStatus resolves the code.
 var (
 	// ErrNotImplemented answers 501 instead of a misleading success.
 	ErrNotImplemented = errors.New("not implemented")
@@ -28,7 +27,6 @@ var (
 	ErrConflict = errors.New("conflict")
 )
 
-// ErrInvalidUpload marks an upload rejected for a client-side reason — a malformed
-// package, a missing required signature, an unverifiable signature, or a bad arch
-// — so a handler can answer 400. It is a specialization of ErrInvalid.
+// ErrInvalidUpload specializes ErrInvalid for a rejected upload (bad package,
+// missing/unverifiable signature, or bad arch).
 var ErrInvalidUpload = fmt.Errorf("%w: invalid upload", ErrInvalid)
