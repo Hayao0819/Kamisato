@@ -24,6 +24,10 @@ var bwrapDepsScript string
 // so makepkg builds without --syncdeps.
 const bwrapBuildScript = "set -e\ncd /build\nmakepkg --noconfirm --log --holdver\n"
 
+// bwrapBuildScriptOverride is the phase-2 entrypoint when per-build makepkg
+// settings are staged; makepkg reads them from the bind-mounted override.conf.
+const bwrapBuildScriptOverride = "set -e\ncd /build\nmakepkg --config /build/makepkg.override.conf --noconfirm --log --holdver\n"
+
 // bwrapBuildUID is the unprivileged uid the build phase maps to. The host uid is
 // mapped 1:1 to it inside the user namespace.
 const bwrapBuildUID = "1000"
@@ -114,7 +118,10 @@ func (b *bwrapBackend) Build(ctx context.Context, spec Spec) (*Result, error) {
 		out = io.MultiWriter(os.Stdout, spec.LogWriter)
 	}
 
-	depsScript, installBinds := bwrapInstall(spec.InstallPkgs, b.extraRepos)
+	// Merge the two repo channels: Options.ExtraRepos (miko/server config) first,
+	// then Spec.Repos (repo.json build.repos).
+	effectiveRepos := append(append([]RepoSpec{}, b.extraRepos...), spec.Repos...)
+	depsScript, installBinds := bwrapInstall(spec.InstallPkgs, effectiveRepos)
 
 	// Phase 1: install deps as root-in-userns into depsUpper over the rootfs.
 	slog.Info("bwrap phase 1: installing dependencies", "dir", srcAbs, "rootfs", b.rootfs)
@@ -123,11 +130,26 @@ func (b *bwrapBackend) Build(ctx context.Context, spec Spec) (*Result, error) {
 		return nil, wrapErr(err, "bwrap dependency phase failed (ensure unprivileged user namespaces and bwrap >= 0.11 with overlay support)")
 	}
 
+	// Per-build makepkg settings, when set, are staged to a host temp file and
+	// bind-mounted into phase 2 so makepkg --config picks them up. A zero Makepkg
+	// keeps the plain build script, byte-for-byte unchanged from a default build.
+	buildScript := bwrapBuildScript
+	var buildBinds [][2]string
+	if !spec.Makepkg.isZero() {
+		overridePath, cleanupOverride, err := stageOverrideConf(spec.Makepkg)
+		if err != nil {
+			return nil, err
+		}
+		defer cleanupOverride()
+		buildScript = bwrapBuildScriptOverride
+		buildBinds = [][2]string{{overridePath, "/build/makepkg.override.conf"}}
+	}
+
 	// Phase 2: build as the unprivileged user, stacking phase 1's deps as a
 	// read-only lower (rootfs at the bottom, depsUpper on top) with a fresh
 	// writable buildUpper — see the depsUpper comment for why it is not reused.
 	slog.Info("bwrap phase 2: building package", "dir", srcAbs, "arch", spec.Arch)
-	p2 := bwrapArgs([]string{b.rootfs, depsUpper}, buildUpper, work2, srcAbs, b.cacheDir, bwrapBuildUID, bwrapBuildScript, nil)
+	p2 := bwrapArgs([]string{b.rootfs, depsUpper}, buildUpper, work2, srcAbs, b.cacheDir, bwrapBuildUID, buildScript, buildBinds)
 	if err := runBwrap(ctx, p2, out); err != nil {
 		return nil, wrapErr(err, "bwrap build phase failed")
 	}

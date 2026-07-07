@@ -16,12 +16,16 @@ type Spec struct {
 	OutDir string
 	// Arch is the target CARCH (x86_64, aarch64, armv7h, ...).
 	Arch string
-	// Microarch, when set, targets an x86-64 feature level (x86_64_v2/v3/v4): the
-	// backend injects the matching -march into the build's makepkg.conf. Empty
-	// builds at the arch's baseline. Only the container backend honours it.
-	Microarch string
+	// Repos are per-build pacman repositories (the repo.json build.repos channel).
+	// The container and bwrap backends inject them into pacman.conf, merged after
+	// Options.ExtraRepos; the chroot backend ignores them (Stage 2).
+	Repos []RepoSpec
+	// Makepkg carries per-build makepkg.conf overrides (packager, microarch tier,
+	// extra CFLAGS, OPTIONS). The container and bwrap backends append them to the
+	// build's makepkg.conf; the chroot backend ignores them (Stage 2).
+	Makepkg MakepkgSettings
 	// ArchBuild is the devtools wrapper used by the chroot backend
-	// (e.g. extra-x86_64-build). The container backend ignores it.
+	// (e.g. extra-x86_64-build). The container and bwrap backends ignore it.
 	ArchBuild string
 	// InstallPkgs are local package files installed into the build environment
 	// before building (makechrootpkg -I / pacman -U), for not-yet-published
@@ -31,6 +35,20 @@ type Spec struct {
 	// addition to the process console. Used by callers (e.g. miko) to capture
 	// per-job build logs.
 	LogWriter io.Writer
+}
+
+// MakepkgSettings are per-build makepkg.conf overrides rendered after a source of
+// the base makepkg.conf, so each set value replaces (or, for CFLAGS/OPTIONS,
+// appends to) the distro default. A zero value leaves the base config untouched.
+type MakepkgSettings struct {
+	Packager     string
+	Microarch    string
+	CFlagsAppend string
+	Options      []string
+}
+
+func (s MakepkgSettings) isZero() bool {
+	return s.Packager == "" && s.Microarch == "" && s.CFlagsAppend == "" && len(s.Options) == 0
 }
 
 // Result reports what a build produced.
@@ -84,8 +102,9 @@ type Options struct {
 	// backend. Required for KindBwrap.
 	BwrapRootfs string
 	// ExtraRepos are pacman repositories added to the build environment (e.g. the
-	// ayato repo) so already-published dependencies resolve during the build. The
-	// container and bwrap backends inject them into /etc/pacman.conf; the chroot
+	// ayato repo) so already-published dependencies resolve during the build. This
+	// is the miko/server-config channel; the container and bwrap backends inject it
+	// into /etc/pacman.conf ahead of Spec.Repos (the repo.json channel). The chroot
 	// backend does not (use InstallPkgs for its build-chain dependencies).
 	ExtraRepos []RepoSpec
 }

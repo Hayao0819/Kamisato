@@ -58,10 +58,43 @@ func TestValidMicroarch(t *testing.T) {
 	}
 }
 
+func TestMakepkgOverrideLines(t *testing.T) {
+	// Zero settings produce no override lines so a default build is unchanged.
+	if got, err := makepkgOverrideLines(MakepkgSettings{}); err != nil || got != "" {
+		t.Fatalf("makepkgOverrideLines(zero) = %q, %v; want empty, nil", got, err)
+	}
+
+	got, err := makepkgOverrideLines(MakepkgSettings{
+		Packager:     "Foo Bar <foo@example.com>",
+		Microarch:    "x86_64_v3",
+		CFlagsAppend: "-O3",
+		Options:      []string{"!strip", "ccache"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		"PACKAGER='Foo Bar <foo@example.com>'",
+		"-march=x86-64-v3",
+		"CFLAGS+=' -O3'",
+		"CXXFLAGS+=' -O3'",
+		"OPTIONS+=(!strip ccache)",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("makepkgOverrideLines missing %q in:\n%s", want, got)
+		}
+	}
+
+	// An unknown microarch tier is rejected rather than silently ignored.
+	if _, err := makepkgOverrideLines(MakepkgSettings{Microarch: "x86_64_v9"}); err == nil {
+		t.Error("makepkgOverrideLines(unknown tier): want error, got nil")
+	}
+}
+
 // The staged override the container backend bind-mounts must carry the tier's
 // -march for a v3 build and carry no -march at all for a default build.
 func TestStageOverrideConfMicroarch(t *testing.T) {
-	v3Path, cleanup, err := stageOverrideConf("x86_64_v3")
+	v3Path, cleanup, err := stageOverrideConf(MakepkgSettings{Microarch: "x86_64_v3"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -74,7 +107,7 @@ func TestStageOverrideConfMicroarch(t *testing.T) {
 		t.Errorf("v3 override missing -march=x86-64-v3:\n%s", data)
 	}
 
-	defPath, cleanupDef, err := stageOverrideConf("")
+	defPath, cleanupDef, err := stageOverrideConf(MakepkgSettings{})
 	if err != nil {
 		t.Fatal(err)
 	}

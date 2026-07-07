@@ -1,6 +1,9 @@
 package builder
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 // microarchLevels maps a supported x86-64 feature level (Arch's pseudo-arch
 // name) to the gcc -march value that selects it. Only x86_64 has feature levels,
@@ -43,4 +46,26 @@ func microarchOverride(tier string) (string, error) {
 		"CFLAGS+=\" -march=%s\"\nCXXFLAGS+=\" -march=%s\"\nRUSTFLAGS+=\" -Ctarget-cpu=%s\"\n",
 		march, march, march,
 	), nil
+}
+
+// makepkgOverrideLines renders the makepkg.conf override lines for per-repo build
+// settings, meant to be appended after a `source` of the base makepkg.conf (gcc/
+// makepkg honour the last value). Returns "" for zero settings.
+func makepkgOverrideLines(s MakepkgSettings) (string, error) {
+	var b strings.Builder
+	if s.Packager != "" {
+		fmt.Fprintf(&b, "PACKAGER=%s\n", shellQuote(s.Packager))
+	}
+	march, err := microarchOverride(s.Microarch)
+	if err != nil {
+		return "", err
+	}
+	b.WriteString(march)
+	if s.CFlagsAppend != "" {
+		fmt.Fprintf(&b, "CFLAGS+=%s\nCXXFLAGS+=%s\n", shellQuote(" "+s.CFlagsAppend), shellQuote(" "+s.CFlagsAppend))
+	}
+	if len(s.Options) > 0 {
+		fmt.Fprintf(&b, "OPTIONS+=(%s)\n", strings.Join(s.Options, " "))
+	}
+	return b.String(), nil
 }

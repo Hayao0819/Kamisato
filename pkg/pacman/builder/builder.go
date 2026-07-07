@@ -3,13 +3,19 @@ package builder
 import "io"
 
 // Target is the build configuration ayaka assembles for a local build: which
-// backend to use, the signing key, and the chroot inputs. The backend it maps
-// to consumes a Spec; only the chroot backend reads the chroot fields.
+// backend to use, the signing key, and the per-build environment (chroot wrapper,
+// extra repos, makepkg overrides). It maps to a Spec the chosen backend consumes;
+// the chroot backend reads only ArchBuild, the container/bwrap backends read
+// Repos and Makepkg.
 type Target struct {
 	Arch        string
 	ArchBuild   string
 	SignKey     string
 	InstallPkgs []string
+	// Repos are per-build pacman repositories from repo.json build.repos.
+	Repos []RepoSpec
+	// Makepkg carries per-build makepkg.conf overrides from repo.json build.makepkg.
+	Makepkg MakepkgSettings
 	// Executor selects the build backend. Empty means chroot.
 	Executor Kind
 	// Output, when non-nil, receives the build command's stdout/stderr instead
