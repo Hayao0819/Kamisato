@@ -1,7 +1,6 @@
 package audit
 
 import (
-	"bytes"
 	"fmt"
 
 	"github.com/Hayao0819/Kamisato/pkg/raiou"
@@ -10,9 +9,9 @@ import (
 
 // driftCheck flags "manifest confusion": where the committed .SRCINFO contradicts
 // the PKGBUILD that runs. Static only — a dynamic pkgver() or $()-built value can't
-// be resolved, so it is skipped rather than guessed.
-func driftCheck(pkgbuild []byte, si *raiou.SRCINFO) []Finding {
-	decl, dynamicVer := declared(pkgbuild)
+// be resolved, so it is skipped rather than guessed. decl and dynamicVer come from
+// the shared PKGBUILD parse (declaredFrom).
+func driftCheck(decl map[string][]string, dynamicVer bool, si *raiou.SRCINFO) []Finding {
 	var out []Finding
 
 	if pv := first(decl["pkgver"]); pv != "" && si.PkgVer != "" && pv != si.PkgVer && !dynamicVer {
@@ -37,14 +36,10 @@ func driftCheck(pkgbuild []byte, si *raiou.SRCINFO) []Finding {
 	return out
 }
 
-// declared extracts literal top-level assignments from the PKGBUILD AST; the bool
-// reports whether a pkgver() makes the version dynamic. Non-literals are omitted.
-func declared(src []byte) (map[string][]string, bool) {
-	f, err := syntax.NewParser(syntax.Variant(syntax.LangBash)).Parse(bytes.NewReader(src), "PKGBUILD")
-	if err != nil {
-		return nil, false
-	}
-
+// declaredFrom extracts literal top-level assignments from the parsed PKGBUILD;
+// the bool reports whether a pkgver() makes the version dynamic. Non-literals are
+// omitted.
+func declaredFrom(f *syntax.File) (map[string][]string, bool) {
 	out := map[string][]string{}
 	dynamicVer := false
 	syntax.Walk(f, func(n syntax.Node) bool {
@@ -60,12 +55,12 @@ func declared(src []byte) (map[string][]string, bool) {
 			switch {
 			case x.Array != nil:
 				for _, el := range x.Array.Elems {
-					if v := el.Value.Lit(); v != "" {
+					if v, ok := staticText(el.Value); ok && v != "" {
 						out[x.Name.Value] = append(out[x.Name.Value], v)
 					}
 				}
 			case x.Value != nil:
-				if v := x.Value.Lit(); v != "" {
+				if v, ok := staticText(x.Value); ok && v != "" {
 					out[x.Name.Value] = append(out[x.Name.Value], v)
 				}
 			}

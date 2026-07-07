@@ -136,3 +136,71 @@ func TestNoDriftOnVCS(t *testing.T) {
 		t.Errorf("dynamic pkgver() must suppress DRIFT-VERSION: %v", rep.Findings)
 	}
 }
+
+const goodSum = "1111111111111111111111111111111111111111111111111111111111111111"
+
+// AST value: SKIP in a multi-line sums array defeats the old per-line regex.
+func TestScanChecksumSkipMultiline(t *testing.T) {
+	dir := t.TempDir()
+	write(t, dir, "PKGBUILD", "pkgname=x\npkgver=1\nsource=(a.tar.gz b.tar.gz)\nsha256sums=(\n  '"+goodSum+"'\n  SKIP\n)\nbuild(){ make; }\n")
+	rep, err := Scan(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !codes(rep)["CHECKSUM-SKIP"] {
+		t.Errorf("multi-line SKIP should trigger CHECKSUM-SKIP: %v", codes(rep))
+	}
+}
+
+// AST value: a commented-out sums=(SKIP) must NOT trigger CHECKSUM-SKIP.
+func TestScanIgnoresCommentedChecksumSkip(t *testing.T) {
+	dir := t.TempDir()
+	write(t, dir, "PKGBUILD", "pkgname=x\npkgver=1\nsource=(a.tar.gz)\nsha256sums=('"+goodSum+"')\n# sha256sums=(SKIP)\nbuild(){ make; }\n")
+	rep, err := Scan(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if codes(rep)["CHECKSUM-SKIP"] {
+		t.Errorf("commented SKIP must be ignored by the AST: %v", codes(rep))
+	}
+}
+
+func TestScanChecksumWeak(t *testing.T) {
+	dir := t.TempDir()
+	write(t, dir, "PKGBUILD", "pkgname=x\npkgver=1\nsource=(a.tar.gz)\nmd5sums=('d41d8cd98f00b204e9800998ecf8427e')\nbuild(){ make; }\n")
+	rep, err := Scan(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !codes(rep)["CHECKSUM-WEAK"] {
+		t.Errorf("md5sums should trigger CHECKSUM-WEAK: %v", codes(rep))
+	}
+}
+
+// AST value: a persistence write to a quoted system path still flags.
+func TestScanInstallPersistPathQuoted(t *testing.T) {
+	dir := t.TempDir()
+	write(t, dir, "PKGBUILD", cleanPKGBUILD)
+	write(t, dir, "x.install", "post_install(){\n  install -Dm644 x.service \"/etc/systemd/system/x.service\"\n}\n")
+	rep, err := Scan(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !codes(rep)["INSTALL-PERSIST"] {
+		t.Errorf("quoted /etc/systemd/system path should trigger INSTALL-PERSIST: %v", codes(rep))
+	}
+}
+
+// AST value: a commented-out systemctl enable in a scriptlet must NOT flag.
+func TestScanIgnoresCommentedPersist(t *testing.T) {
+	dir := t.TempDir()
+	write(t, dir, "PKGBUILD", cleanPKGBUILD)
+	write(t, dir, "x.install", "post_install(){\n  echo hi\n  # systemctl enable x.timer\n}\n")
+	rep, err := Scan(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if codes(rep)["INSTALL-PERSIST"] {
+		t.Errorf("commented systemctl enable must be ignored: %v", codes(rep))
+	}
+}
