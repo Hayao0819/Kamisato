@@ -36,11 +36,18 @@ func listCmd() *cobra.Command {
 			if k.Revoked() {
 				primaryStatus = "revoked"
 			}
+			primaryExpires := "never"
+			if e := k.PrimaryExpiry(); !e.IsZero() {
+				primaryExpires = e.Format("2006-01-02")
+				if e.Before(time.Now()) && primaryStatus == "valid" {
+					primaryStatus = "expired"
+				}
+			}
 			rows := []keyRow{{
 				Kind:        "primary",
 				Fingerprint: k.PrimaryFingerprint(),
 				Created:     "-",
-				Expires:     "-",
+				Expires:     primaryExpires,
 				Status:      primaryStatus,
 			}}
 			for _, s := range k.Subkeys() {

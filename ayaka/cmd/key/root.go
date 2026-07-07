@@ -15,13 +15,15 @@ func Cmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "key",
 		Short: "Manage the repository signing key",
-		Long:  "Generate and maintain the OpenPGP key that signs this repository's packages: create it, list its subkeys, export it, rotate or revoke subkeys, and revoke the whole key.",
+		Long:  "Generate or import the OpenPGP key that signs this repository's packages, then maintain it: list its subkeys, export it, extend its validity, rotate or revoke subkeys, and revoke the whole key.",
 	}
 	shared.AddKeyFlags(cmd)
 	cmd.AddCommand(
 		generateCmd(),
+		importCmd(),
 		listCmd(),
 		exportCmd(),
+		expireCmd(),
 		revokeCmd(),
 		subkeyCmd(),
 	)
