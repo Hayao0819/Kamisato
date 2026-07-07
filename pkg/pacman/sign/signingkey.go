@@ -209,6 +209,16 @@ func (k *SigningKey) Subkeys() []SubkeyInfo {
 // Revoked reports whether the primary key itself has been revoked.
 func (k *SigningKey) Revoked() bool { return k.entity.Revoked(time.Now()) }
 
+// PrimaryExpiry returns when the primary key expires, or the zero time when it
+// never expires.
+func (k *SigningKey) PrimaryExpiry() time.Time {
+	sig, _ := k.entity.PrimarySelfSignature()
+	if sig == nil || sig.KeyLifetimeSecs == nil || *sig.KeyLifetimeSecs == 0 {
+		return time.Time{}
+	}
+	return k.entity.PrimaryKey.CreationTime.Add(time.Duration(*sig.KeyLifetimeSecs) * time.Second)
+}
+
 // AddSubkey binds a new signing subkey with the given validity. Requires the
 // primary secret.
 func (k *SigningKey) AddSubkey(subkeyTTL time.Duration, passphrase string) error {
@@ -220,7 +230,6 @@ func (k *SigningKey) AddSubkey(subkeyTTL time.Duration, passphrase string) error
 	if err := k.entity.AddSigningSubkey(cfg); err != nil {
 		return fmt.Errorf("add signing subkey: %w", err)
 	}
-	dropEncryptionSubkeys(k.entity)
 	return k.save(passphrase)
 }
 
@@ -267,7 +276,6 @@ func (k *SigningKey) RotateSubkey(reason packet.ReasonForRevocation, reasonText 
 	if err := k.entity.AddSigningSubkey(cfg); err != nil {
 		return fmt.Errorf("add new subkey: %w", err)
 	}
-	dropEncryptionSubkeys(k.entity)
 	return k.save(passphrase)
 }
 
