@@ -4,6 +4,7 @@ Use from another repo as `Hayao0819/Kamisato/actions/<name>@<ref>`.
 
 - `install` — install selected Kamisato CLIs (ayaka/ayato/miko/lumine) and add them to `PATH`.
 - `upload` — publish package files to ayato (`ayaka repo add`); needs `install` first.
+- `build-lumine` — build the lumine web UI to a static directory with `env.json`/CSP injected, ready for any static host (the host-specific upload is the caller's step).
 
 ```yaml
 - uses: actions/setup-go@v5
@@ -16,6 +17,20 @@ Use from another repo as `Hayao0819/Kamisato/actions/<name>@<ref>`.
     repo: alterlinux
     token: ${{ secrets.AYATO_TOKEN }}
     files: out/alterlinux/**/*.pkg.tar.*
+```
+
+```yaml
+# build the static site, then upload it wherever it is hosted
+- uses: Hayao0819/Kamisato/actions/build-lumine@<ref>
+  id: lumine
+  with:
+    ayato_url: https://repo.example.com
+    auth_mode: bearer
+- uses: cloudflare/wrangler-action@v3
+  with:
+    apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+    accountId: ${{ vars.CF_ACCOUNT_ID }}
+    command: pages deploy ${{ steps.lumine.outputs.dir }} --project-name=alterlinux --branch=main
 ```
 
 See each `action.yml` for the full input list.

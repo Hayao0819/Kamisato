@@ -1,0 +1,83 @@
+name: Build lumine
+description: Build the lumine static site (Next.js export) with runtime config injected, producing a directory ready for any static host. Host-agnostic — deploy the output with whatever tool the target needs.
+
+inputs:
+  ayato_url:
+    description: ayato base URL the SPA calls, written to env.json AYATO_URL (e.g. https://repo.example.com). Empty means same-origin.
+    default: ""
+  auth_mode:
+    description: '"bearer" (cross-origin, the SPA holds the token) or "cookie" (same-origin/BFF).'
+    default: bearer
+  ayato_origin:
+    description: ayato origin added to the _headers CSP connect-src for cross-origin (bearer) deploys. Defaults to the origin of ayato_url.
+    default: ""
+  ref:
+    description: Kamisato git ref to build the frontend from.
+    default: master
+  repository:
+    description: owner/repo providing the lumine frontend.
+    default: Hayao0819/Kamisato
+  source_dir:
+    description: Build from this local checkout instead of cloning (skips ref/repository).
+    default: ""
+  node_version:
+    description: Node.js version to build with.
+    default: "22"
+
+outputs:
+  dir:
+    description: Path to the built static site directory, ready to upload to a static host.
+    value: ${{ steps.build.outputs.dir }}
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node_version }}
+    - id: build
+      shell: bash
+      env:
+        IN_AYATO_URL: ${{ inputs.ayato_url }}
+        IN_AUTH_MODE: ${{ inputs.auth_mode }}
+        IN_AYATO_ORIGIN: ${{ inputs.ayato_origin }}
+        IN_REF: ${{ inputs.ref }}
+        IN_REPO: ${{ inputs.repository }}
+        IN_SOURCE_DIR: ${{ inputs.source_dir }}
+      run: |
+        set -euo pipefail
+
+        if [ -n "$IN_SOURCE_DIR" ]; then
+          src="$IN_SOURCE_DIR"
+        else
+          src="$RUNNER_TEMP/lumine-src"
+          rm -rf "$src"
+          git clone --filter=blob:none "https://github.com/$IN_REPO" "$src"
+          git -C "$src" checkout "$IN_REF"
+        fi
+        web="$src/lumine/web"
+        out="$src/lumine/embed/out"
+
+        # pnpm comes from the packageManager field via corepack.
+        corepack enable
+        (cd "$web" && pnpm install --frozen-lockfile && pnpm build)
+
+        if [ ! -d "$out" ]; then
+          echo "::error::expected static export at $out; did next config still set output: export?"
+          exit 1
+        fi
+
+        # env.json is the SPA's runtime config contract (fetched at /env.json).
+        printf '{"AYATO_URL":"%s","AUTH_MODE":"%s"}\n' "$IN_AYATO_URL" "$IN_AUTH_MODE" >"$out/env.json"
+
+        # Point the _headers CSP connect-src at the ayato origin for cross-origin deploys.
+        origin="$IN_AYATO_ORIGIN"
+        if [ -z "$origin" ] && [ -n "$IN_AYATO_URL" ]; then
+          origin="$(printf '%s' "$IN_AYATO_URL" | sed -E 's#(https?://[^/]+).*#\1#')"
+        fi
+        if [ -n "$origin" ] && [ -f "$out/_headers" ]; then
+          sed -i "s#https://ayato.example.com#$origin#g" "$out/_headers"
+        fi
+
+        echo "dir=$out" >>"$GITHUB_OUTPUT"
+        echo "Built lumine static site at $out (auth_mode=$IN_AUTH_MODE, ayato_url=${IN_AYATO_URL:-<same-origin>})"
