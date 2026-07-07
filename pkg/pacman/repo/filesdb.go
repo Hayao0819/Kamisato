@@ -39,6 +39,9 @@ func FilesFromDB(r io.Reader) (map[string][]string, error) {
 		}
 		dir, member, ok := splitEntryPath(hdr.Name)
 		if !ok {
+			if isNewDBFormat(hdr, tr) {
+				return nil, fmt.Errorf("%w: %q is a SQLite pacman.db", ErrUnsupportedDBFormat, hdr.Name)
+			}
 			continue
 		}
 		data, err := io.ReadAll(tr)

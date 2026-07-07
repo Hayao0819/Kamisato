@@ -54,6 +54,32 @@ func TestRemoteRepoFromDB(t *testing.T) {
 	}
 }
 
+// A CachyOS db built with `repo-add --use-new-db-format` carries a single SQLite
+// pacman.db instead of desc entries. Parsing it must fail loudly, not silently
+// return an empty repo (which a diff build would read as "rebuild everything").
+func TestRemoteRepoFromDB_NewDBFormat(t *testing.T) {
+	var gz bytes.Buffer
+	gw := gzip.NewWriter(&gz)
+	tw := tar.NewWriter(gw)
+	body := append([]byte("SQLite format 3\x00"), make([]byte, 100)...)
+	if err := tw.WriteHeader(&tar.Header{Name: "pacman.db", Mode: 0o644, Size: int64(len(body)), Typeflag: tar.TypeReg}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := tw.Write(body); err != nil {
+		t.Fatal(err)
+	}
+	if err := tw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := gw.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := RemoteRepoFromDB("cachyos", &gz); !errors.Is(err, ErrUnsupportedDBFormat) {
+		t.Fatalf("new-db-format db: want ErrUnsupportedDBFormat, got %v", err)
+	}
+}
+
 func TestRepoFromURL_NotFound(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusNotFound)

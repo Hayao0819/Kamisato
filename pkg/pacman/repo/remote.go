@@ -26,6 +26,13 @@ var dbHTTPClient = &http.Client{Timeout: 30 * time.Second}
 // problem from an unreachable server, and never mistake either for an empty repo.
 var ErrRepoNotFound = errors.New("remote repository not found")
 
+// ErrUnsupportedDBFormat reports a database this parser cannot read: a CachyOS
+// `repo-add --use-new-db-format` archive, which embeds a single SQLite pacman.db
+// in place of the per-package text desc/files entries every other Arch repo
+// ships. Detecting it turns a silently-empty repo into a clear failure; the flag
+// is off by default in CachyOS's repo-add and unused by their published mirrors.
+var ErrUnsupportedDBFormat = errors.New("unsupported repository database format")
+
 type RemoteRepo struct {
 	Name   string
 	Server string
@@ -106,6 +113,9 @@ func RemoteRepoFromDB(name string, db io.Reader) (*RemoteRepo, error) {
 			return nil, fmt.Errorf("failed to read db tar: %w", err)
 		}
 		if hdr.Typeflag == tar.TypeDir || !strings.HasSuffix(hdr.Name, "/desc") {
+			if isNewDBFormat(hdr, tr) {
+				return nil, fmt.Errorf("%w: %q is a SQLite pacman.db", ErrUnsupportedDBFormat, hdr.Name)
+			}
 			continue
 		}
 
@@ -124,4 +134,22 @@ func RemoteRepoFromDB(name string, db io.Reader) (*RemoteRepo, error) {
 		pkgs = append(pkgs, pkg.NewBinaryPackage(desc.FileName, info))
 	}
 	return &RemoteRepo{Name: name, Pkgs: pkgs}, nil
+}
+
+// newDBFormatMagic is the leading signature of a SQLite 3 file. CachyOS's Rust
+// repo-add, run with --use-new-db-format, stores the whole repository as one
+// embedded SQLite pacman.db instead of per-package desc entries; that file
+// begins with this magic.
+const newDBFormatMagic = "SQLite format 3\x00"
+
+// isNewDBFormat reports whether a non-desc tar member is the embedded SQLite
+// database of a CachyOS new-db-format repository. It sniffs the SQLite magic so
+// detection does not hinge on the member's exact name.
+func isNewDBFormat(hdr *tar.Header, r io.Reader) bool {
+	if hdr.Typeflag != tar.TypeReg {
+		return false
+	}
+	var magic [len(newDBFormatMagic)]byte
+	n, _ := io.ReadFull(r, magic[:])
+	return n == len(magic) && string(magic[:]) == newDBFormatMagic
 }

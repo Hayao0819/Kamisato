@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"bytes"
 	"compress/gzip"
+	"errors"
 	"reflect"
 	"testing"
 )
@@ -59,5 +60,28 @@ func TestFilesFromDB(t *testing.T) {
 	}
 	if got := byName["bar"]; !reflect.DeepEqual(got, []string{"usr/lib/libbar.so"}) {
 		t.Errorf("bar files = %v, want [usr/lib/libbar.so]", got)
+	}
+}
+
+func TestFilesFromDB_NewDBFormat(t *testing.T) {
+	var buf bytes.Buffer
+	gz := gzip.NewWriter(&buf)
+	tw := tar.NewWriter(gz)
+	body := append([]byte("SQLite format 3\x00"), make([]byte, 100)...)
+	if err := tw.WriteHeader(&tar.Header{Name: "pacman.db", Mode: 0o644, Size: int64(len(body)), Typeflag: tar.TypeReg}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := tw.Write(body); err != nil {
+		t.Fatal(err)
+	}
+	if err := tw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := gz.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := FilesFromDB(&buf); !errors.Is(err, ErrUnsupportedDBFormat) {
+		t.Fatalf("new-db-format files db: want ErrUnsupportedDBFormat, got %v", err)
 	}
 }
