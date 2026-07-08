@@ -146,7 +146,7 @@ func (b *containerBackend) Build(ctx context.Context, spec Spec) (*Result, error
 	containerConfig := &container.Config{
 		Image:      b.image,
 		Cmd:        []string{"sh", "-c", script},
-		Env:        []string{"TARGET_CARCH=" + spec.Arch},
+		Env:        []string{"TARGET_CARCH=" + spec.Arch, "TARGET_CHOST=" + archToCHOST(spec.Arch)},
 		WorkingDir: "/build",
 		Tty:        false,
 		User:       "root",

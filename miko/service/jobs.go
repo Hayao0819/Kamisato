@@ -18,7 +18,10 @@ import (
 
 // allowedArches are the architectures a build may target. Arch flows into shell
 // and command construction in the backends, so reject anything else up front.
-var allowedArches = map[string]bool{"x86_64": true, "aarch64": true, "armv7h": true}
+var allowedArches = map[string]bool{
+	"x86_64": true, "aarch64": true, "armv7h": true,
+	"i486": true, "i686": true, "pentium4": true,
+}
 
 // repoNamePattern bounds the repo name to a pacman-safe charset. Repo flows into
 // the upload target and, with resolve_aur_deps, into the generated build script's

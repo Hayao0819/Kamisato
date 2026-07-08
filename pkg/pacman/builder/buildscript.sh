@@ -4,6 +4,7 @@
 set -euo pipefail
 
 : "${TARGET_CARCH:?TARGET_CARCH must be set by the container backend}"
+: "${TARGET_CHOST:?TARGET_CHOST must be set by the container backend}"
 
 # Extra repositories (e.g. ayato) are appended to pacman.conf before the first
 # sync so their databases feed dependency resolution below.
@@ -23,7 +24,7 @@ chmod 0440 /etc/sudoers.d/builduser
 cp /build/staging/makepkg.override.conf /build/makepkg.override.conf
 {
 	printf 'CARCH="%s"\n' "$TARGET_CARCH"
-	printf 'CHOST="%s-pc-linux-gnu"\n' "$TARGET_CARCH"
+	printf 'CHOST="%s"\n' "$TARGET_CHOST"
 } >>/build/makepkg.override.conf
 
 # src is mounted read-only; copy it to a writable work dir so the caller's tree

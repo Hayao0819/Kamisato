@@ -30,6 +30,19 @@ func TestIsPackageFile(t *testing.T) {
 	}
 }
 
+func TestArchToCHOST(t *testing.T) {
+	for arch, want := range map[string]string{
+		"x86_64":   "x86_64-pc-linux-gnu",
+		"i686":     "i686-pc-linux-gnu",
+		"i486":     "i486-pc-linux-gnu",
+		"pentium4": "i686-pc-linux-gnu", // archlinux32 pentium4 uses the i686 toolchain
+	} {
+		if got := archToCHOST(arch); got != want {
+			t.Errorf("archToCHOST(%q) = %q, want %q", arch, got, want)
+		}
+	}
+}
+
 func TestArchToPlatform(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -42,7 +55,10 @@ func TestArchToPlatform(t *testing.T) {
 		{"x86_64", "x86_64", "linux", "amd64", "", false},
 		{"aarch64", "aarch64", "linux", "arm64", "", false},
 		{"armv7h", "armv7h", "linux", "arm", "v7", false},
-		{"unsupported", "i686", "", "", "", true},
+		{"i486", "i486", "linux", "386", "", false},
+		{"i686", "i686", "linux", "386", "", false},
+		{"pentium4", "pentium4", "linux", "386", "", false},
+		{"unsupported", "riscv64", "", "", "", true},
 		{"empty", "", "", "", "", true},
 	}
 
