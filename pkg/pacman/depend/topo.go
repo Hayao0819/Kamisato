@@ -1,4 +1,4 @@
-package depsolve
+package depend
 
 import (
 	"fmt"
@@ -106,8 +106,8 @@ func cycleError(set, emitted map[string]struct{}, deps map[string][]string) erro
 	}
 	for _, n := range remaining {
 		if c := walk(n); c != nil {
-			return fmt.Errorf("depsolve: dependency cycle: %s", strings.Join(c, " -> "))
+			return fmt.Errorf("depend: dependency cycle: %s", strings.Join(c, " -> "))
 		}
 	}
-	return fmt.Errorf("depsolve: dependency cycle among %s", strings.Join(remaining, ", "))
+	return fmt.Errorf("depend: dependency cycle among %s", strings.Join(remaining, ", "))
 }

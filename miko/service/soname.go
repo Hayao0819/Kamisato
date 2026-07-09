@@ -11,9 +11,9 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/Hayao0819/Kamisato/internal/httpx"
 	"github.com/Hayao0819/Kamisato/miko/domain"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/depsolve"
+	"github.com/Hayao0819/Kamisato/pkg/httpx"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/depend"
 	ppkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
 )
@@ -183,7 +183,7 @@ func (e *sonameRebuildEnqueuer) enqueueRebuild(pkgbase string) error {
 // enqueueRebuildChain enqueues the transitive reverse-dependency chain of bumped
 // in dependency order (a dependency rebuilds before its dependents), so a chain
 // of rebuilds resolves against freshly-built links.
-func enqueueRebuildChain(g *depsolve.DepGraph, bumped string, enq rebuildEnqueuer) ([]string, error) {
+func enqueueRebuildChain(g *depend.DepGraph, bumped string, enq rebuildEnqueuer) ([]string, error) {
 	chain, err := rebuildChain(g, bumped)
 	if err != nil {
 		return nil, err
@@ -199,7 +199,7 @@ func enqueueRebuildChain(g *depsolve.DepGraph, bumped string, enq rebuildEnqueue
 // rebuildChain returns the transitive dependents of bumped, ordered by the
 // graph's topological build order so dependencies precede the packages that
 // depend on them. bumped itself is excluded — it was just built.
-func rebuildChain(g *depsolve.DepGraph, bumped string) ([]string, error) {
+func rebuildChain(g *depend.DepGraph, bumped string) ([]string, error) {
 	affected := map[string]bool{}
 	queue := slices.Clone(g.Dependents(bumped))
 	for _, d := range queue {
@@ -235,7 +235,7 @@ func rebuildChain(g *depsolve.DepGraph, bumped string) ([]string, error) {
 // package's %DEPENDS% (including soname deps like "libfoo.so=1-64") is resolved
 // to the pkgbase that provides it (by pkgname or a %PROVIDES% entry), so the
 // reverse map answers "who links against this package".
-func repoDepGraph(rr *repo.RemoteRepo) *depsolve.DepGraph {
+func repoDepGraph(rr *repo.RemoteRepo) *depend.DepGraph {
 	provider := map[string]string{}
 	bases := map[string]struct{}{}
 	baseOf := func(p *ppkgBinary) string {
@@ -265,7 +265,7 @@ func repoDepGraph(rr *repo.RemoteRepo) *depsolve.DepGraph {
 	for b := range bases {
 		nodes = append(nodes, b)
 	}
-	return depsolve.NewDepGraph(nodes, deps)
+	return depend.NewDepGraph(nodes, deps)
 }
 
 // ppkgBinary is the concrete binary-package type; aliased so repoDepGraph reads

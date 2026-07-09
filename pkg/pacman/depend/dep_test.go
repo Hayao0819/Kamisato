@@ -1,26 +1,28 @@
-package dep
+package depend_test
 
 import (
 	"os/exec"
 	"testing"
+
+	"github.com/Hayao0819/Kamisato/pkg/pacman/depend"
 )
 
 func TestParse(t *testing.T) {
 	cases := []struct {
 		in   string
-		want Constraint
+		want depend.Constraint
 	}{
-		{"glibc", Constraint{Name: "glibc"}},
-		{"glibc>=2.38", Constraint{Name: "glibc", Op: OpGE, Ver: "2.38"}},
-		{"foo<=1.0", Constraint{Name: "foo", Op: OpLE, Ver: "1.0"}},
-		{"foo>1", Constraint{Name: "foo", Op: OpGT, Ver: "1"}},
-		{"foo<1", Constraint{Name: "foo", Op: OpLT, Ver: "1"}},
-		{"foo=1.2-3", Constraint{Name: "foo", Op: OpEQ, Ver: "1.2-3"}},
-		{"foo=1:2.3-4", Constraint{Name: "foo", Op: OpEQ, Ver: "1:2.3-4"}},
-		{"  spaced >= 2 ", Constraint{Name: "spaced", Op: OpGE, Ver: "2"}},
+		{"glibc", depend.Constraint{Name: "glibc"}},
+		{"glibc>=2.38", depend.Constraint{Name: "glibc", Op: depend.OpGE, Ver: "2.38"}},
+		{"foo<=1.0", depend.Constraint{Name: "foo", Op: depend.OpLE, Ver: "1.0"}},
+		{"foo>1", depend.Constraint{Name: "foo", Op: depend.OpGT, Ver: "1"}},
+		{"foo<1", depend.Constraint{Name: "foo", Op: depend.OpLT, Ver: "1"}},
+		{"foo=1.2-3", depend.Constraint{Name: "foo", Op: depend.OpEQ, Ver: "1.2-3"}},
+		{"foo=1:2.3-4", depend.Constraint{Name: "foo", Op: depend.OpEQ, Ver: "1:2.3-4"}},
+		{"  spaced >= 2 ", depend.Constraint{Name: "spaced", Op: depend.OpGE, Ver: "2"}},
 	}
 	for _, c := range cases {
-		got := Parse(c.in)
+		got := depend.Parse(c.in)
 		if got != c.want {
 			t.Errorf("Parse(%q) = %+v, want %+v", c.in, got, c.want)
 		}
@@ -45,7 +47,7 @@ func TestSatisfies(t *testing.T) {
 		{"foo=1.0", "1.1", false},
 	}
 	for _, c := range cases {
-		ok, err := Parse(c.spec).Satisfies(c.version)
+		ok, err := depend.Parse(c.spec).Satisfies(c.version)
 		if err != nil {
 			t.Fatalf("Satisfies(%q, %q): %v", c.spec, c.version, err)
 		}

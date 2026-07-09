@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/Hayao0819/Kamisato/pkg/pacman/depsolve"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/depend"
 	ppkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
 	"github.com/Hayao0819/Kamisato/pkg/raiou"
@@ -22,7 +22,7 @@ func (f *fakeRebuildEnqueuer) enqueueRebuild(pkgbase string) error {
 // must not rebuild the bumped package itself.
 func TestEnqueueRebuildChainUsesDependentsInTopoOrder(t *testing.T) {
 	// libbase <- a <- b, and libbase <- c.
-	g := depsolve.NewDepGraph(
+	g := depend.NewDepGraph(
 		[]string{"libbase", "a", "b", "c"},
 		map[string][]string{
 			"a": {"libbase"},
@@ -52,7 +52,7 @@ func TestEnqueueRebuildChainUsesDependentsInTopoOrder(t *testing.T) {
 }
 
 func TestRebuildChainNoDependents(t *testing.T) {
-	g := depsolve.NewDepGraph([]string{"leaf", "other"}, map[string][]string{"other": {"unrelated"}})
+	g := depend.NewDepGraph([]string{"leaf", "other"}, map[string][]string{"other": {"unrelated"}})
 	chain, err := rebuildChain(g, "leaf")
 	if err != nil {
 		t.Fatalf("rebuildChain: %v", err)

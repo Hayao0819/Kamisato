@@ -1,16 +1,16 @@
-package depsolve_test
+package depend_test
 
 import (
 	"slices"
 	"strings"
 	"testing"
 
-	"github.com/Hayao0819/Kamisato/pkg/pacman/depsolve"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/depend"
 )
 
 func TestTopoSortLinearChain(t *testing.T) {
 	// A depends on B depends on C: build the deepest dependency first.
-	order, err := depsolve.TopoSort([]string{"A", "B", "C"}, map[string][]string{
+	order, err := depend.TopoSort([]string{"A", "B", "C"}, map[string][]string{
 		"A": {"B"},
 		"B": {"C"},
 	})
@@ -24,7 +24,7 @@ func TestTopoSortLinearChain(t *testing.T) {
 
 func TestTopoSortDiamond(t *testing.T) {
 	// A -> {B, C} -> D: D first, its two dependents in lexical order, then A.
-	order, err := depsolve.TopoSort([]string{"A", "B", "C", "D"}, map[string][]string{
+	order, err := depend.TopoSort([]string{"A", "B", "C", "D"}, map[string][]string{
 		"A": {"B", "C"},
 		"B": {"D"},
 		"C": {"D"},
@@ -40,7 +40,7 @@ func TestTopoSortDiamond(t *testing.T) {
 func TestTopoSortIndependentSetIsLexical(t *testing.T) {
 	// No edges: the order is fully determined by the lexical tie-break and must
 	// not depend on the input or map iteration order.
-	order, err := depsolve.TopoSort([]string{"c", "a", "b"}, nil)
+	order, err := depend.TopoSort([]string{"c", "a", "b"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -51,7 +51,7 @@ func TestTopoSortIndependentSetIsLexical(t *testing.T) {
 
 func TestTopoSortIncludesReferencedDep(t *testing.T) {
 	// A dependency named only in the edges (not in nodes) is still built.
-	order, err := depsolve.TopoSort([]string{"A"}, map[string][]string{"A": {"B"}})
+	order, err := depend.TopoSort([]string{"A"}, map[string][]string{"A": {"B"}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -61,7 +61,7 @@ func TestTopoSortIncludesReferencedDep(t *testing.T) {
 }
 
 func TestTopoSortCycleErrors(t *testing.T) {
-	_, err := depsolve.TopoSort([]string{"A", "B"}, map[string][]string{
+	_, err := depend.TopoSort([]string{"A", "B"}, map[string][]string{
 		"A": {"B"},
 		"B": {"A"},
 	})
@@ -78,7 +78,7 @@ func TestTopoSortCycleErrors(t *testing.T) {
 }
 
 func TestTopoSortSelfLoopErrors(t *testing.T) {
-	if _, err := depsolve.TopoSort([]string{"A"}, map[string][]string{"A": {"A"}}); err == nil {
+	if _, err := depend.TopoSort([]string{"A"}, map[string][]string{"A": {"A"}}); err == nil {
 		t.Fatal("expected a cycle error for a self-loop")
 	}
 }

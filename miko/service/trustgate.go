@@ -6,9 +6,9 @@ import (
 	"log/slog"
 
 	"github.com/Hayao0819/Kamisato/internal/conf"
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
+	"github.com/Hayao0819/Kamisato/internal/errors"
 	"github.com/Hayao0819/Kamisato/pkg/aurweb"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/depsolve"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/depend"
 )
 
 // maintainerLookup is the slice of the aurweb upstream the trust gate needs:
@@ -24,10 +24,10 @@ type maintainerLookup interface {
 // closed. The target the user submitted is never passed here — only its
 // transitive AUR deps are gated, since a malicious dep would otherwise be built
 // and published silently.
-func (s *Service) checkDepTrust(ctx context.Context, up maintainerLookup, dep depsolve.Pkg) error {
+func (s *Service) checkDepTrust(ctx context.Context, up maintainerLookup, dep depend.Pkg) error {
 	maintainer, err := depMaintainer(ctx, up, dep)
 	if err != nil {
-		return errwrap.WrapErr(err, "failed to look up AUR maintainer for "+dep.PackageBase)
+		return errors.WrapErr(err, "failed to look up AUR maintainer for "+dep.PackageBase)
 	}
 
 	switch s.cfg.AURTrust.Decide(dep.PackageBase, maintainer) {
@@ -49,7 +49,7 @@ func (s *Service) checkDepTrust(ctx context.Context, up maintainerLookup, dep de
 // depMaintainer returns the AUR maintainer of dep's package base. An empty
 // string means the package is orphaned (or no longer in the AUR), which the
 // trust policy treats as untrusted.
-func depMaintainer(ctx context.Context, up maintainerLookup, dep depsolve.Pkg) (string, error) {
+func depMaintainer(ctx context.Context, up maintainerLookup, dep depend.Pkg) (string, error) {
 	infos, err := up.Info(ctx, []string{dep.Name})
 	if err != nil {
 		return "", err

@@ -5,13 +5,13 @@ import (
 
 	"github.com/Hayao0819/Kamisato/pkg/aurweb"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/alpm"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/depsolve"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/depend"
 )
 
 // NewRepoChecker returns a RepoChecker backed by `pacman -T` on this host: a
 // best-effort pre-filter where specs not in the AUR are treated as repo-provided,
 // so a dep already in the build environment's sync repos need not be installed here.
-func NewRepoChecker() depsolve.RepoChecker { return alpmRepoChecker{} }
+func NewRepoChecker() depend.RepoChecker { return alpmRepoChecker{} }
 
 type alpmRepoChecker struct{}
 
@@ -20,25 +20,25 @@ func (alpmRepoChecker) Unsatisfied(deps []string) ([]string, error) {
 }
 
 // NewAURSource adapts an aurweb upstream client to the AURSource seam.
-func NewAURSource(up *aurweb.AURUpstream) depsolve.AURSource { return aurSource{up: up} }
+func NewAURSource(up *aurweb.AURUpstream) depend.AURSource { return aurSource{up: up} }
 
 type aurSource struct {
 	up *aurweb.AURUpstream
 }
 
-func (a aurSource) Info(ctx context.Context, names []string) ([]depsolve.Pkg, error) {
+func (a aurSource) Info(ctx context.Context, names []string) ([]depend.Pkg, error) {
 	ps, err := a.up.Info(ctx, names)
 	if err != nil {
 		return nil, err
 	}
-	out := make([]depsolve.Pkg, 0, len(ps))
+	out := make([]depend.Pkg, 0, len(ps))
 	for _, p := range ps {
 		out = append(out, fromAUR(p))
 	}
 	return out, nil
 }
 
-func (a aurSource) ProvidedBy(ctx context.Context, name string) (*depsolve.Pkg, error) {
+func (a aurSource) ProvidedBy(ctx context.Context, name string) (*depend.Pkg, error) {
 	ps, err := a.up.Search(ctx, aurweb.ByProvides, name)
 	if err != nil {
 		return nil, err
@@ -61,12 +61,12 @@ func (a aurSource) ProvidedBy(ctx context.Context, name string) (*depsolve.Pkg, 
 	return &p, nil
 }
 
-func fromAUR(p aurweb.Pkg) depsolve.Pkg {
+func fromAUR(p aurweb.Pkg) depend.Pkg {
 	deps := make([]string, 0, len(p.Depends)+len(p.MakeDepends)+len(p.CheckDepends))
 	deps = append(deps, p.Depends...)
 	deps = append(deps, p.MakeDepends...)
 	deps = append(deps, p.CheckDepends...)
-	return depsolve.Pkg{
+	return depend.Pkg{
 		Name:        p.Name,
 		PackageBase: p.PackageBase,
 		Version:     p.Version,

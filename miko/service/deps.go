@@ -8,11 +8,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
+	"github.com/Hayao0819/Kamisato/internal/errors"
 	"github.com/Hayao0819/Kamisato/miko/domain"
 	"github.com/Hayao0819/Kamisato/pkg/aurweb"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/builder"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/depsolve"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/depend"
 	"github.com/Hayao0819/Kamisato/pkg/raiou"
 )
 
@@ -39,9 +39,9 @@ func (s *Service) resolveAndBuildDeps(ctx context.Context, job *domain.BuildJob,
 	}
 
 	up := aurweb.NewAURUpstream(s.cfg.Build.AURRPCURL)
-	order, err := depsolve.Resolve(ctx, rootDeps, NewRepoChecker(), NewAURSource(up))
+	order, err := depend.Resolve(ctx, rootDeps, NewRepoChecker(), NewAURSource(up))
 	if err != nil {
-		return errwrap.WrapErr(err, "failed to resolve AUR dependencies")
+		return errors.WrapErr(err, "failed to resolve AUR dependencies")
 	}
 	if len(order) == 0 {
 		return nil
@@ -58,7 +58,7 @@ func (s *Service) resolveAndBuildDeps(ctx context.Context, job *domain.BuildJob,
 	slog.Info("building AUR dependencies before target", "count", len(order), "repo", job.Request.Repo)
 	for _, dep := range order {
 		if err := s.buildAndPublishDep(ctx, job, backend, up, dep); err != nil {
-			return errwrap.WrapErr(err, "failed to build AUR dependency "+dep.PackageBase)
+			return errors.WrapErr(err, "failed to build AUR dependency "+dep.PackageBase)
 		}
 	}
 	return nil
@@ -66,10 +66,10 @@ func (s *Service) resolveAndBuildDeps(ctx context.Context, job *domain.BuildJob,
 
 // buildAndPublishDep builds one AUR dependency and publishes it to the target's
 // repo, which is exposed to every build in this run so later builds can install it.
-func (s *Service) buildAndPublishDep(ctx context.Context, job *domain.BuildJob, backend builder.Backend, up *aurweb.AURUpstream, dep depsolve.Pkg) error {
+func (s *Service) buildAndPublishDep(ctx context.Context, job *domain.BuildJob, backend builder.Backend, up *aurweb.AURUpstream, dep depend.Pkg) error {
 	depSrc, err := os.MkdirTemp("", "miko-dep-*")
 	if err != nil {
-		return errwrap.WrapErr(err, "failed to create dependency source dir")
+		return errors.WrapErr(err, "failed to create dependency source dir")
 	}
 	defer func() { _ = os.RemoveAll(depSrc) }()
 
@@ -79,12 +79,12 @@ func (s *Service) buildAndPublishDep(ctx context.Context, job *domain.BuildJob, 
 
 	gitURL := strings.TrimRight(up.GitBase(), "/") + "/" + dep.PackageBase + ".git"
 	if err := materializeGit(ctx, &domain.GitSource{URL: gitURL}, depSrc); err != nil {
-		return errwrap.WrapErr(err, "failed to clone AUR dependency")
+		return errors.WrapErr(err, "failed to clone AUR dependency")
 	}
 
 	depOut, err := os.MkdirTemp("", "miko-depout-*")
 	if err != nil {
-		return errwrap.WrapErr(err, "failed to create dependency output dir")
+		return errors.WrapErr(err, "failed to create dependency output dir")
 	}
 	defer func() { _ = os.RemoveAll(depOut) }()
 
@@ -98,7 +98,7 @@ func (s *Service) buildAndPublishDep(ctx context.Context, job *domain.BuildJob, 
 	}
 	res, err := backend.Build(ctx, spec)
 	if err != nil {
-		return errwrap.WrapErr(err, "dependency build failed")
+		return errors.WrapErr(err, "dependency build failed")
 	}
 	return s.signAndUpload(ctx, job.Request.Repo, res.Packages)
 }

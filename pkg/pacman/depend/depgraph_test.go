@@ -1,15 +1,15 @@
-package depsolve_test
+package depend_test
 
 import (
 	"slices"
 	"testing"
 
-	"github.com/Hayao0819/Kamisato/pkg/pacman/depsolve"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/depend"
 )
 
 func TestDepGraphForwardAndReverse(t *testing.T) {
 	// A -> {B, C}, B -> D, C -> D.
-	g := depsolve.NewDepGraph([]string{"A", "B", "C", "D"}, map[string][]string{
+	g := depend.NewDepGraph([]string{"A", "B", "C", "D"}, map[string][]string{
 		"A": {"C", "B"}, // unsorted input: accessors must still return sorted
 		"B": {"D"},
 		"C": {"D"},
@@ -36,14 +36,14 @@ func TestDepGraphForwardAndReverse(t *testing.T) {
 func TestDepGraphIncludesReferencedDep(t *testing.T) {
 	// E is named only as a dependency, yet must appear as a node with A as its
 	// dependent so the reverse map is complete for rebuild-chain lookups.
-	g := depsolve.NewDepGraph([]string{"A"}, map[string][]string{"A": {"E"}})
+	g := depend.NewDepGraph([]string{"A"}, map[string][]string{"A": {"E"}})
 	if got := g.Dependents("E"); !slices.Equal(got, []string{"A"}) {
 		t.Errorf("Dependents(E) = %v, want [A]", got)
 	}
 }
 
 func TestDepGraphBuildOrderMatchesTopoSort(t *testing.T) {
-	g := depsolve.NewDepGraph([]string{"A", "B", "C", "D"}, map[string][]string{
+	g := depend.NewDepGraph([]string{"A", "B", "C", "D"}, map[string][]string{
 		"A": {"B", "C"},
 		"B": {"D"},
 		"C": {"D"},
@@ -59,7 +59,7 @@ func TestDepGraphBuildOrderMatchesTopoSort(t *testing.T) {
 
 func TestDepGraphDropsSelfLoop(t *testing.T) {
 	// A self-dependency must not appear as its own edge; BuildOrder stays acyclic.
-	g := depsolve.NewDepGraph([]string{"A"}, map[string][]string{"A": {"A"}})
+	g := depend.NewDepGraph([]string{"A"}, map[string][]string{"A": {"A"}})
 	if got := g.Deps("A"); len(got) != 0 {
 		t.Errorf("Deps(A) = %v, want no self-edge", got)
 	}

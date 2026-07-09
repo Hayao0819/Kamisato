@@ -1,8 +1,7 @@
-// Package dep parses pacman dependency specifications — a package name with an
-// optional version constraint, e.g. "glibc>=2.38" — and tests whether a concrete
-// version satisfies one. The same syntax appears in depends/makedepends and in
-// provides entries.
-package dep
+// Dependency-spec parsing: a package name with an optional version constraint,
+// e.g. "glibc>=2.38", and whether a concrete version satisfies one. The same
+// syntax appears in depends/makedepends and in provides entries.
+package depend
 
 import (
 	"fmt"

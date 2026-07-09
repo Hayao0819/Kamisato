@@ -1,4 +1,4 @@
-package depsolve
+package depend
 
 import "slices"
 
