@@ -11,7 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Hayao0819/Kamisato/pkg/compress"
 	pkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
 	"github.com/Hayao0819/Kamisato/pkg/raiou"
 )
@@ -88,7 +87,7 @@ func RepoFromDBFile(name string, dbfile string) (*RemoteRepo, error) {
 
 // RemoteRepoFromDB parses a .db stream (compressed tar of <pkg>-<ver>/desc entries) into a RemoteRepo.
 func RemoteRepoFromDB(name string, db io.Reader) (*RemoteRepo, error) {
-	gzr, _, err := compress.DetectCompression(db)
+	gzr, _, err := pkg.DetectCompression(db)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create decompressor: %w", err)
 	}

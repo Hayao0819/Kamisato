@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Hayao0819/Kamisato/pkg/compress"
 	pkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
 	"github.com/Hayao0819/Kamisato/pkg/raiou"
 )
@@ -55,7 +54,7 @@ func (b *dbBuilder) load(r io.Reader, withFiles bool) error {
 	if r == nil {
 		return nil
 	}
-	dec, _, err := compress.DetectCompression(r)
+	dec, _, err := pkg.DetectCompression(r)
 	if err != nil {
 		return fmt.Errorf("failed to decompress db: %w", err)
 	}

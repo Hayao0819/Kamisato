@@ -6,13 +6,13 @@ import (
 	"io"
 	"strings"
 
-	"github.com/Hayao0819/Kamisato/pkg/compress"
+	pkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
 )
 
 // FilesFromDB parses a .files archive (compressed tar of desc/files members) into a map from %NAME% to file list;
 // uses %NAME% (not the dir name) so it survives a rename.
 func FilesFromDB(r io.Reader) (map[string][]string, error) {
-	dec, _, err := compress.DetectCompression(r)
+	dec, _, err := pkg.DetectCompression(r)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decompress files db: %w", err)
 	}
