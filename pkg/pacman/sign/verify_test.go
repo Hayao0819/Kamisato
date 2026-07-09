@@ -1,4 +1,4 @@
-package gpg_test
+package sign_test
 
 import (
 	"bytes"
@@ -14,7 +14,7 @@ import (
 	"github.com/ProtonMail/go-crypto/openpgp/armor"
 	"github.com/ProtonMail/go-crypto/openpgp/packet"
 
-	"github.com/Hayao0819/Kamisato/pkg/pacman/gpg"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/sign"
 )
 
 // serializeArmored writes the entity's public part as an ASCII-armored keyring.
@@ -109,7 +109,7 @@ func TestVerifyDetached_Valid(t *testing.T) {
 	sig := detachSign(t, signer, payload)
 
 	keyPath := writePubKeyFile(t, signer)
-	kr, err := gpg.LoadKeyring(keyPath, nil)
+	kr, err := sign.LoadKeyring(keyPath, nil)
 	if err != nil {
 		t.Fatalf("LoadKeyring: %v", err)
 	}
@@ -129,7 +129,7 @@ func TestVerifyDetached_TamperedPayload(t *testing.T) {
 	sig := detachSign(t, signer, payload)
 
 	keyPath := writePubKeyFile(t, signer)
-	kr, err := gpg.LoadKeyring(keyPath, nil)
+	kr, err := sign.LoadKeyring(keyPath, nil)
 	if err != nil {
 		t.Fatalf("LoadKeyring: %v", err)
 	}
@@ -148,7 +148,7 @@ func TestVerifyDetached_SignerNotInKeyring(t *testing.T) {
 
 	// keyring only contains "other", not the actual signer.
 	keyPath := writePubKeyFile(t, other)
-	kr, err := gpg.LoadKeyring(keyPath, nil)
+	kr, err := sign.LoadKeyring(keyPath, nil)
 	if err != nil {
 		t.Fatalf("LoadKeyring: %v", err)
 	}
@@ -165,7 +165,7 @@ func TestVerifyDetached_NotInTrustedAllowlist(t *testing.T) {
 
 	keyPath := writePubKeyFile(t, signer)
 	// allowlist a different fingerprint than the signer's.
-	kr, err := gpg.LoadKeyring(keyPath, []string{"DEAD BEEF DEAD BEEF DEAD BEEF DEAD BEEF DEAD BEEF"})
+	kr, err := sign.LoadKeyring(keyPath, []string{"DEAD BEEF DEAD BEEF DEAD BEEF DEAD BEEF DEAD BEEF"})
 	if err != nil {
 		t.Fatalf("LoadKeyring: %v", err)
 	}
@@ -184,7 +184,7 @@ func TestVerifyDetached_TrustedAllowlistMatch(t *testing.T) {
 	// supply the signer's fingerprint with spaces and lowercase to exercise
 	// normalization.
 	spaced := spaceEvery4(strings.ToLower(upperFingerprint(signer)))
-	kr, err := gpg.LoadKeyring(keyPath, []string{spaced})
+	kr, err := sign.LoadKeyring(keyPath, []string{spaced})
 	if err != nil {
 		t.Fatalf("LoadKeyring: %v", err)
 	}
@@ -216,7 +216,7 @@ func TestVerifyDetached_ExpiredKey(t *testing.T) {
 	}
 
 	keyPath := writePubKeyFile(t, signer)
-	kr, err := gpg.LoadKeyring(keyPath, nil)
+	kr, err := sign.LoadKeyring(keyPath, nil)
 	if err != nil {
 		t.Fatalf("LoadKeyring: %v", err)
 	}
@@ -242,7 +242,7 @@ func TestLoadKeyring_Armored(t *testing.T) {
 		t.Fatalf("write armored: %v", err)
 	}
 
-	kr, err := gpg.LoadKeyring(p, nil)
+	kr, err := sign.LoadKeyring(p, nil)
 	if err != nil {
 		t.Fatalf("LoadKeyring armored: %v", err)
 	}
@@ -309,7 +309,7 @@ func TestVerifyDetached_RejectsSHA1(t *testing.T) {
 	payload := []byte("a binary package payload")
 
 	keyPath := writePubKeyFile(t, signer)
-	kr, err := gpg.LoadKeyring(keyPath, nil)
+	kr, err := sign.LoadKeyring(keyPath, nil)
 	if err != nil {
 		t.Fatalf("LoadKeyring: %v", err)
 	}
@@ -328,14 +328,14 @@ func TestVerifyDetached_RejectsSHA1(t *testing.T) {
 }
 
 func TestLoadKeyring_Errors(t *testing.T) {
-	if _, err := gpg.LoadKeyring(filepath.Join(t.TempDir(), "nope.gpg"), nil); err == nil {
+	if _, err := sign.LoadKeyring(filepath.Join(t.TempDir(), "nope.gpg"), nil); err == nil {
 		t.Error("expected error for missing keyring file")
 	}
 	empty := filepath.Join(t.TempDir(), "empty.gpg")
 	if err := os.WriteFile(empty, nil, 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := gpg.LoadKeyring(empty, nil); err == nil {
+	if _, err := sign.LoadKeyring(empty, nil); err == nil {
 		t.Error("expected error for empty keyring file")
 	}
 }

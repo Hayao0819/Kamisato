@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/Hayao0819/Kamisato/pkg/pacman/gpg"
 	"github.com/ProtonMail/go-crypto/openpgp"
 )
 
@@ -21,7 +20,7 @@ func writePkg(t *testing.T, dir, name string, data []byte) string {
 
 func verify(t *testing.T, pubPath, pkgPath, sigPath string) (string, error) {
 	t.Helper()
-	kr, err := gpg.LoadKeyring(pubPath, nil)
+	kr, err := LoadKeyring(pubPath, nil)
 	if err != nil {
 		t.Fatalf("load keyring: %v", err)
 	}

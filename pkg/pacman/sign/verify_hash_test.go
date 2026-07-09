@@ -1,4 +1,4 @@
-package gpg_test
+package sign_test
 
 import (
 	"bytes"
@@ -14,7 +14,7 @@ import (
 	"github.com/ProtonMail/go-crypto/openpgp"
 	"github.com/ProtonMail/go-crypto/openpgp/packet"
 
-	"github.com/Hayao0819/Kamisato/pkg/pacman/gpg"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/sign"
 )
 
 // rtRSAConfig is a local V4 RSA signing config; RSA permits weak digests.
@@ -64,7 +64,7 @@ func forgeDetachedWithHash(t *testing.T, signer *openpgp.Entity, payload []byte,
 	return buf.Bytes(), true
 }
 
-func rtWriteKeyring(t *testing.T, e *openpgp.Entity) *gpg.Keyring {
+func rtWriteKeyring(t *testing.T, e *openpgp.Entity) *sign.Keyring {
 	t.Helper()
 	var buf bytes.Buffer
 	if err := e.Serialize(&buf); err != nil {
@@ -75,7 +75,7 @@ func rtWriteKeyring(t *testing.T, e *openpgp.Entity) *gpg.Keyring {
 	if err := os.WriteFile(p, buf.Bytes(), 0o600); err != nil {
 		t.Fatalf("write keyring: %v", err)
 	}
-	kr, err := gpg.LoadKeyring(p, nil)
+	kr, err := sign.LoadKeyring(p, nil)
 	if err != nil {
 		t.Fatalf("LoadKeyring: %v", err)
 	}

@@ -15,8 +15,7 @@ import (
 	"github.com/Hayao0819/Kamisato/ayato/repository"
 	"github.com/Hayao0819/Kamisato/ayato/stream"
 	"github.com/Hayao0819/Kamisato/internal/conf"
-	"github.com/Hayao0819/Kamisato/internal/httpx"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/gpg"
+	"github.com/Hayao0819/Kamisato/pkg/httpx"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/sign"
 	"github.com/Hayao0819/Kamisato/pkg/raiou"
 )
@@ -30,7 +29,7 @@ type Service struct {
 	pool          repository.PoolCollector      // nil when the content-addressed pool is disabled
 	cfg           *conf.AyatoConfig
 	// upstreamClient fetches upstream repo databases for the overlay/merge sync,
-	// with the shared retry/timeout policy of internal/httpx.
+	// with the shared retry/timeout policy of pkg/httpx.
 	upstreamClient *http.Client
 
 	// Signature trust roots: baseEntities from verify.keyring, trustedFprs from
@@ -132,7 +131,7 @@ func New(pkgNameRepo repository.NameStore, pkgBinaryRepo repository.BinaryReposi
 	if config.Verify.Keyring != "" {
 		data, err := os.ReadFile(config.Verify.Keyring)
 		if err == nil {
-			s.baseEntities, err = gpg.ReadEntities(data)
+			s.baseEntities, err = sign.ReadEntities(data)
 		}
 		if err != nil {
 			s.verifierErr = fmt.Errorf("load package-signature keyring: %w", err)
@@ -143,7 +142,7 @@ func New(pkgNameRepo repository.NameStore, pkgBinaryRepo repository.BinaryReposi
 	}
 
 	for i, armored := range config.Verify.MasterKeys {
-		ents, err := gpg.ReadEntities([]byte(armored))
+		ents, err := sign.ReadEntities([]byte(armored))
 		if err != nil {
 			s.verifierErr = fmt.Errorf("parse verify.master_keys[%d]: %w", i, err)
 			slog.Error("failed to parse master key", "index", i, "err", err)
@@ -165,7 +164,7 @@ func New(pkgNameRepo repository.NameStore, pkgBinaryRepo repository.BinaryReposi
 // verifyKeyring composes the trust root for package verification: the configured
 // keyring plus every registered worker key. It returns nil when no entity is
 // available, so a present signature with no trust root is rejected by the caller.
-func (s *Service) verifyKeyring() (*gpg.Keyring, error) {
+func (s *Service) verifyKeyring() (*sign.Keyring, error) {
 	entities := slices.Clone(s.baseEntities)
 	trusted := slices.Clone(s.trustedFprs)
 	if s.signerRepo != nil {
@@ -174,7 +173,7 @@ func (s *Service) verifyKeyring() (*gpg.Keyring, error) {
 			return nil, err
 		}
 		for _, armored := range regs {
-			ents, perr := gpg.ReadEntities(armored)
+			ents, perr := sign.ReadEntities(armored)
 			if perr != nil {
 				slog.Warn("skipping unparseable registered signer key", "err", perr)
 				continue
@@ -192,7 +191,7 @@ func (s *Service) verifyKeyring() (*gpg.Keyring, error) {
 	if len(entities) == 0 {
 		return nil, nil
 	}
-	return gpg.NewKeyring(entities, trusted), nil
+	return sign.NewKeyring(entities, trusted), nil
 }
 
 func (s *Service) UnregisterSigner(fingerprint string) error {
@@ -208,7 +207,7 @@ func (s *Service) RegisterSigner(armoredPub []byte) (string, error) {
 	if s.signerRepo == nil {
 		return "", fmt.Errorf("signer registration is not available")
 	}
-	ents, err := gpg.ReadEntities(armoredPub)
+	ents, err := sign.ReadEntities(armoredPub)
 	if err != nil {
 		return "", fmt.Errorf("parse signer key: %w", err)
 	}
@@ -247,7 +246,7 @@ func (s *Service) ListSigners() ([]string, error) {
 	}
 	var fprs []string
 	for _, armored := range regs {
-		ents, perr := gpg.ReadEntities(armored)
+		ents, perr := sign.ReadEntities(armored)
 		if perr != nil || len(ents) == 0 {
 			continue
 		}

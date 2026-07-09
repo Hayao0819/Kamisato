@@ -13,13 +13,23 @@ func Fingerprint(fpr []byte) string {
 	return strings.ToUpper(fmt.Sprintf("%x", fpr))
 }
 
-// normalizeFingerprint strips spaces and an optional 0x prefix and uppercases, so
-// a user can paste a spaced or lowercase fingerprint.
-func normalizeFingerprint(s string) string {
-	s = strings.ReplaceAll(s, " ", "")
+// NormalizeFingerprint canonicalizes a fingerprint for comparison: it strips all
+// whitespace and an optional 0x/0X prefix and uppercases, so a fingerprint pasted
+// with spaces, tabs, or an 0x prefix compares equal to the hex derived from a key.
+// It is the single normalizer for the whole package (verification allowlist,
+// subkey targeting) and for keyring file generation.
+func NormalizeFingerprint(s string) string {
+	s = strings.TrimSpace(s)
 	s = strings.TrimPrefix(s, "0x")
 	s = strings.TrimPrefix(s, "0X")
-	return strings.ToUpper(s)
+	var b strings.Builder
+	for _, r := range strings.ToUpper(s) {
+		if r == ' ' || r == '\t' || r == '\n' || r == '\r' {
+			continue
+		}
+		b.WriteRune(r)
+	}
+	return b.String()
 }
 
 // ParseRevocationReason maps a user-facing reason word to its OpenPGP code. The

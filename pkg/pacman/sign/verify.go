@@ -1,4 +1,4 @@
-package gpg
+package sign
 
 import (
 	"bytes"
@@ -19,19 +19,6 @@ type Keyring struct {
 	trusted  map[string]bool
 }
 
-// normalizeFingerprint uppercases and strips whitespace so config fingerprints (often spaced in groups)
-// compare equal to the hex derived from keys.
-func normalizeFingerprint(s string) string {
-	var b strings.Builder
-	for _, r := range strings.ToUpper(s) {
-		if r == ' ' || r == '\t' || r == '\n' || r == '\r' {
-			continue
-		}
-		b.WriteRune(r)
-	}
-	return b.String()
-}
-
 // ReadEntities parses OpenPGP public keys from armored or binary bytes.
 func ReadEntities(data []byte) (openpgp.EntityList, error) {
 	if bytes.HasPrefix(data, []byte("-----BEGIN PGP")) {
@@ -45,7 +32,7 @@ func ReadEntities(data []byte) (openpgp.EntityList, error) {
 func NewKeyring(entities openpgp.EntityList, trustedFprs []string) *Keyring {
 	trusted := make(map[string]bool, len(trustedFprs))
 	for _, fpr := range trustedFprs {
-		if n := normalizeFingerprint(fpr); n != "" {
+		if n := NormalizeFingerprint(fpr); n != "" {
 			trusted[n] = true
 		}
 	}

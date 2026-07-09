@@ -95,7 +95,7 @@ func fingerprintLines(fprs []string, suffix string) []byte {
 	seen := make(map[string]struct{}, len(fprs))
 	uniq := make([]string, 0, len(fprs))
 	for _, f := range fprs {
-		f = strings.ToUpper(strings.ReplaceAll(strings.TrimSpace(f), " ", ""))
+		f = sign.NormalizeFingerprint(f)
 		if f == "" {
 			continue
 		}

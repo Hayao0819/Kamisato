@@ -236,7 +236,7 @@ func (k *SigningKey) RevokeSubkey(fingerprint string, reason packet.ReasonForRev
 	if !k.HasPrimarySecret() {
 		return errNoPrimarySecret
 	}
-	want := normalizeFingerprint(fingerprint)
+	want := NormalizeFingerprint(fingerprint)
 	for i := range k.entity.Subkeys {
 		sk := &k.entity.Subkeys[i]
 		if Fingerprint(sk.PublicKey.Fingerprint) != want {

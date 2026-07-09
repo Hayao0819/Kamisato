@@ -12,9 +12,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/Hayao0819/Kamisato/internal/apikey"
+	"github.com/Hayao0819/Kamisato/internal/auth/apikey"
 	"github.com/Hayao0819/Kamisato/miko/signer"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/gpg"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/sign"
 )
 
@@ -27,7 +26,7 @@ func newKeystore(t *testing.T) *sign.Keystore {
 	return ks
 }
 
-// certFile writes the keystore's worker cert to a file so gpg.LoadKeyring can load
+// certFile writes the keystore's worker cert to a file so sign.LoadKeyring can load
 // the trust root for verification.
 func certFile(t *testing.T, ks *sign.Keystore) string {
 	t.Helper()
@@ -67,7 +66,7 @@ func TestSignerServiceSignsAndVerifies(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	kr, err := gpg.LoadKeyring(certFile(t, ks), nil)
+	kr, err := sign.LoadKeyring(certFile(t, ks), nil)
 	if err != nil {
 		t.Fatalf("load keyring: %v", err)
 	}

@@ -80,7 +80,7 @@ func (k *SigningKey) SetExpiry(dur time.Duration, targets ExpireTargets, passphr
 		changed = true
 	}
 
-	want := normalizeFingerprint(targets.Subkey)
+	want := NormalizeFingerprint(targets.Subkey)
 	for i := range k.entity.Subkeys {
 		sk := &k.entity.Subkeys[i]
 		selected := (targets.AllSubkeys && sk.Sig != nil && sk.Sig.FlagSign && !sk.Revoked(now)) ||
