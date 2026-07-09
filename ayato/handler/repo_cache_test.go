@@ -6,9 +6,10 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/gin-gonic/gin"
+
 	"github.com/Hayao0819/Kamisato/ayato/domain"
 	"github.com/Hayao0819/Kamisato/ayato/stream"
-	"github.com/gin-gonic/gin"
 )
 
 // nopSeekCloser adds a no-op Close to a bytes.Reader so it satisfies

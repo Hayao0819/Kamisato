@@ -89,7 +89,7 @@ func sonamesFromArchive(archive string, set map[string]struct{}) error {
 // sonameFromStream spills one shared object to a temp file so debug/elf gets the
 // io.ReaderAt it needs, without buffering a possibly large library in memory.
 func sonameFromStream(r io.Reader, set map[string]struct{}) error {
-	tmp, err := os.CreateTemp("", "miko-so-*")
+	tmp, err := os.CreateTemp("", "kamisato-so-*")
 	if err != nil {
 		return err
 	}

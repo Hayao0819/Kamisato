@@ -6,10 +6,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gin-gonic/gin"
+
 	ayatoaur "github.com/Hayao0819/Kamisato/ayato/aur"
 	"github.com/Hayao0819/Kamisato/ayato/handler"
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv/badgerkv"
-	"github.com/gin-gonic/gin"
 )
 
 // TestAgainstRealAyatoHandler drives kayo's Source against ayato's actual gin

@@ -5,11 +5,12 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/gin-gonic/gin"
+
 	"github.com/Hayao0819/Kamisato/ayato/handler"
 	"github.com/Hayao0819/Kamisato/ayato/middleware"
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv/badgerkv"
 	"github.com/Hayao0819/Kamisato/internal/conf"
-	"github.com/gin-gonic/gin"
 )
 
 // The aurweb NoRoute fallback must be rate-limited: past the burst, a client is

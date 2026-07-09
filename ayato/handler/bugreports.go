@@ -5,9 +5,10 @@ import (
 	"net/mail"
 	"strings"
 
+	"github.com/gin-gonic/gin"
+
 	"github.com/Hayao0819/Kamisato/ayato/bugreport"
 	"github.com/Hayao0819/Kamisato/ayato/domain"
-	"github.com/gin-gonic/gin"
 )
 
 // Field caps so a forwarded report cannot abuse the upstream tracker.

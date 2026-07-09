@@ -3,9 +3,10 @@ package listcmd
 import (
 	"testing"
 
+	"github.com/spf13/cobra"
+
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
 	"github.com/Hayao0819/Kamisato/internal/cliutil"
-	"github.com/spf13/cobra"
 )
 
 func TestListFormatFlagResolution(t *testing.T) {

@@ -7,10 +7,11 @@ import (
 	"mime/multipart"
 	"net/http"
 
-	"github.com/Hayao0819/Kamisato/ayato/domain"
-	"github.com/Hayao0819/Kamisato/ayato/stream"
 	"github.com/gin-gonic/gin"
 	"github.com/samber/lo"
+
+	"github.com/Hayao0819/Kamisato/ayato/domain"
+	"github.com/Hayao0819/Kamisato/ayato/stream"
 )
 
 // defaultMaxUploadBytes caps an upload body when cfg.MaxSize is unset, so one request

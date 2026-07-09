@@ -8,8 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Hayao0819/Kamisato/ayato/domain"
 	"github.com/gin-gonic/gin"
+
+	"github.com/Hayao0819/Kamisato/ayato/domain"
 )
 
 func (h *Handler) ReposHandler(ctx *gin.Context) {

@@ -5,10 +5,11 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
-	"github.com/Hayao0819/Kamisato/internal/blinkyutils"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
+
+	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
+	"github.com/Hayao0819/Kamisato/internal/blinkyutils"
 )
 
 func AddCmd() *cobra.Command {

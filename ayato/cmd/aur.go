@@ -3,8 +3,9 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/Hayao0819/Kamisato/ayato/aur"
 	"github.com/spf13/cobra"
+
+	"github.com/Hayao0819/Kamisato/ayato/aur"
 )
 
 func aurCmd() *cobra.Command {

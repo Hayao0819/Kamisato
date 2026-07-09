@@ -19,7 +19,7 @@ func (p *presignRecorder) StoreFile(string, string, stream.SeekFile) error      
 func (p *presignRecorder) DeleteFile(string, string, string) error               { return nil }
 func (p *presignRecorder) FetchFile(string, string, string) (stream.File, error) { return nil, nil }
 func (p *presignRecorder) RepoNames() ([]string, error)                          { return nil, nil }
-func (p *presignRecorder) Files(string, string) ([]string, error)               { return nil, nil }
+func (p *presignRecorder) Files(string, string) ([]string, error)                { return nil, nil }
 func (p *presignRecorder) Arches(string) ([]string, error)                       { return nil, nil }
 
 func (p *presignRecorder) FetchFileWithETag(string, string, string) (stream.File, string, error) {

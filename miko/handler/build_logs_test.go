@@ -7,12 +7,13 @@ import (
 	"testing"
 	"testing/synctest"
 
+	"github.com/gin-gonic/gin"
+	"go.uber.org/mock/gomock"
+
 	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/miko/domain"
 	"github.com/Hayao0819/Kamisato/miko/joblog"
 	"github.com/Hayao0819/Kamisato/miko/test/mocks"
-	"github.com/gin-gonic/gin"
-	"go.uber.org/mock/gomock"
 )
 
 func TestJobLogsHandlerEmitsLinesOnce(t *testing.T) {

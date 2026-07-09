@@ -7,10 +7,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Hayao0819/Kamisato/ayato/repository/kv/badgerkv"
-	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/time/rate"
+
+	"github.com/Hayao0819/Kamisato/ayato/repository/kv/badgerkv"
+	"github.com/Hayao0819/Kamisato/internal/conf"
 )
 
 func rlEngine(m *Middleware, limit rate.Limit, burst int) *gin.Engine {

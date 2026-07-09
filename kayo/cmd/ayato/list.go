@@ -3,11 +3,12 @@ package ayatocmd
 import (
 	"time"
 
+	"github.com/spf13/cobra"
+
 	"github.com/Hayao0819/Kamisato/internal/cliutil"
 	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/kayo/ayatosrc"
 	"github.com/Hayao0819/Kamisato/kayo/cmd/shared"
-	"github.com/spf13/cobra"
 )
 
 const ayatoListDefaultFmt = "table {{.Kind}}\t{{.Name}}\t{{.URL}}\t{{.Mode}}\t{{.KeyID}}\t{{.LastIssued}}"

@@ -7,8 +7,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Hayao0819/Kamisato/ayato/domain"
 	"github.com/gin-gonic/gin"
+
+	"github.com/Hayao0819/Kamisato/ayato/domain"
 )
 
 // mirrorEntry is one Server line plus the comments rendered above it.

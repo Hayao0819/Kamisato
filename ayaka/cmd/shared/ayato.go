@@ -1,8 +1,9 @@
 package shared
 
 import (
-	"github.com/Hayao0819/Kamisato/internal/blinkyutils"
 	"github.com/spf13/cobra"
+
+	"github.com/Hayao0819/Kamisato/internal/blinkyutils"
 )
 
 // AyatoServer is a resolved ayato endpoint: base URL plus credentials from the blinky server database.

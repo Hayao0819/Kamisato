@@ -4,9 +4,10 @@ import (
 	"fmt"
 	"text/tabwriter"
 
+	"github.com/spf13/cobra"
+
 	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/miko/service"
-	"github.com/spf13/cobra"
 )
 
 func nvcheckCmd() *cobra.Command {

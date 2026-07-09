@@ -4,10 +4,11 @@ import (
 	"log/slog"
 	"net/http"
 
+	"github.com/gin-gonic/gin"
+
 	"github.com/Hayao0819/Kamisato/ayato/aur"
 	"github.com/Hayao0819/Kamisato/ayato/domain"
 	"github.com/Hayao0819/Kamisato/internal/gitcmd"
-	"github.com/gin-gonic/gin"
 )
 
 // AURHandler is the gin-facing surface for AUR source management and the

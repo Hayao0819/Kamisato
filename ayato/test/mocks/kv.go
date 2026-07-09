@@ -13,8 +13,9 @@ import (
 	reflect "reflect"
 	time "time"
 
-	kv "github.com/Hayao0819/Kamisato/ayato/repository/kv"
 	gomock "go.uber.org/mock/gomock"
+
+	kv "github.com/Hayao0819/Kamisato/ayato/repository/kv"
 )
 
 // MockKVStore is a mock of Store interface.

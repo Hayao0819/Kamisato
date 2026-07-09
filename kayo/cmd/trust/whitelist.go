@@ -1,9 +1,10 @@
 package trustcmd
 
 import (
+	"github.com/spf13/cobra"
+
 	"github.com/Hayao0819/Kamisato/kayo/cmd/shared"
 	"github.com/Hayao0819/Kamisato/kayo/trust"
-	"github.com/spf13/cobra"
 )
 
 // whitelistCmd manages the unconditional per-pkgbase allowlist: a whitelisted

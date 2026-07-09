@@ -4,9 +4,10 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/gin-gonic/gin"
+
 	"github.com/Hayao0819/Kamisato/ayato/domain"
 	"github.com/Hayao0819/Kamisato/internal/conf"
-	"github.com/gin-gonic/gin"
 )
 
 // promoteRequest promotes one package by name (and optionally a pinned version)

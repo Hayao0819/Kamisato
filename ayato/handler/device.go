@@ -7,8 +7,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Hayao0819/Kamisato/ayato/auth"
 	"github.com/gin-gonic/gin"
+
+	"github.com/Hayao0819/Kamisato/ayato/auth"
 )
 
 const deviceVerifyPath = "/api/unstable/auth/device"

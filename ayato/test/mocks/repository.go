@@ -12,11 +12,12 @@ package mocks
 import (
 	reflect "reflect"
 
+	gomock "go.uber.org/mock/gomock"
+
 	repository "github.com/Hayao0819/Kamisato/ayato/repository"
 	blob "github.com/Hayao0819/Kamisato/ayato/repository/blob"
 	stream "github.com/Hayao0819/Kamisato/ayato/stream"
 	repo "github.com/Hayao0819/Kamisato/pkg/pacman/repo"
-	gomock "go.uber.org/mock/gomock"
 )
 
 // MockBinaryRepository is a mock of BinaryRepository interface.

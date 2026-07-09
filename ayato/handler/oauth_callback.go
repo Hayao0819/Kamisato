@@ -10,8 +10,9 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/Hayao0819/Kamisato/ayato/auth"
 	"github.com/gin-gonic/gin"
+
+	"github.com/Hayao0819/Kamisato/ayato/auth"
 )
 
 // Completes both the web and CLI OAuth flows.

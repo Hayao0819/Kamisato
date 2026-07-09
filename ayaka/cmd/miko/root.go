@@ -1,8 +1,9 @@
 package mikocmd
 
 import (
-	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
 	"github.com/spf13/cobra"
+
+	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
 )
 
 // Cmd groups the miko build-service commands. ayaka never talks to miko

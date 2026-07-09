@@ -5,9 +5,10 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/spf13/cobra"
+
 	"github.com/Hayao0819/Kamisato/internal/blinkyutils"
 	"github.com/Hayao0819/Kamisato/internal/cliutil"
-	"github.com/spf13/cobra"
 )
 
 type serverRow struct {

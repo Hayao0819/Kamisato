@@ -7,12 +7,13 @@ import (
 	"strings"
 	"sync/atomic"
 
+	"github.com/gin-gonic/gin"
+
 	"github.com/Hayao0819/Kamisato/ayato/auth"
 	"github.com/Hayao0819/Kamisato/ayato/ciauth"
 	"github.com/Hayao0819/Kamisato/ayato/ratelimit"
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
 	"github.com/Hayao0819/Kamisato/internal/conf"
-	"github.com/gin-gonic/gin"
 )
 
 // adminChecker keeps the middleware from touching kv or the allowlist directly.

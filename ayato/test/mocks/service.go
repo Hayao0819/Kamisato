@@ -14,12 +14,13 @@ import (
 	reflect "reflect"
 	time "time"
 
+	gomock "go.uber.org/mock/gomock"
+
 	domain "github.com/Hayao0819/Kamisato/ayato/domain"
 	service "github.com/Hayao0819/Kamisato/ayato/service"
 	stream "github.com/Hayao0819/Kamisato/ayato/stream"
 	conf "github.com/Hayao0819/Kamisato/internal/conf"
 	raiou "github.com/Hayao0819/Kamisato/pkg/raiou"
-	gomock "go.uber.org/mock/gomock"
 )
 
 // MockRepoReader is a mock of RepoReader interface.

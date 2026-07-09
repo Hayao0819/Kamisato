@@ -3,6 +3,9 @@ package cmd
 import (
 	"log/slog"
 
+	"github.com/Hayao0819/nahi/cobrautils"
+	"github.com/spf13/cobra"
+
 	admincmd "github.com/Hayao0819/Kamisato/ayaka/cmd/admin"
 	aurcmd "github.com/Hayao0819/Kamisato/ayaka/cmd/aur"
 	buildcmd "github.com/Hayao0819/Kamisato/ayaka/cmd/build"
@@ -21,8 +24,6 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/cliutil"
 	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/internal/version"
-	"github.com/Hayao0819/nahi/cobrautils"
-	"github.com/spf13/cobra"
 )
 
 func RootCmd() *cobra.Command {

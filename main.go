@@ -3,6 +3,8 @@ package main
 import (
 	"os"
 
+	"github.com/spf13/cobra"
+
 	ayaka "github.com/Hayao0819/Kamisato/ayaka/cmd"
 	ayato "github.com/Hayao0819/Kamisato/ayato/cmd"
 	"github.com/Hayao0819/Kamisato/internal/cliutil"
@@ -10,7 +12,6 @@ import (
 	kayo "github.com/Hayao0819/Kamisato/kayo/cmd"
 	lumine "github.com/Hayao0819/Kamisato/lumine/cmd"
 	miko "github.com/Hayao0819/Kamisato/miko/cmd"
-	"github.com/spf13/cobra"
 )
 
 func rootCmd() *cobra.Command {

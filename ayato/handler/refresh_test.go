@@ -8,8 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Hayao0819/Kamisato/ayato/auth"
 	"github.com/gin-gonic/gin"
+
+	"github.com/Hayao0819/Kamisato/ayato/auth"
 )
 
 func postRefresh(t *testing.T, h *Handler, refreshToken string) *httptest.ResponseRecorder {

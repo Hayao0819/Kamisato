@@ -6,9 +6,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gin-gonic/gin"
+
 	"github.com/Hayao0819/Kamisato/ayato/auth"
 	"github.com/Hayao0819/Kamisato/ayato/service"
-	"github.com/gin-gonic/gin"
 )
 
 // fakeDenylistRepo implements repository.DenylistRepository in-memory.

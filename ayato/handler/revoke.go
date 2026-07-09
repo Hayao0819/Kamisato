@@ -5,8 +5,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Hayao0819/Kamisato/ayato/auth"
 	"github.com/gin-gonic/gin"
+
+	"github.com/Hayao0819/Kamisato/ayato/auth"
 )
 
 // RevokeCLIHandler denylists the presented tokens by jti before their TTL: the Bearer

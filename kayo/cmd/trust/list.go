@@ -1,10 +1,11 @@
 package trustcmd
 
 import (
+	"github.com/spf13/cobra"
+
 	"github.com/Hayao0819/Kamisato/internal/cliutil"
 	"github.com/Hayao0819/Kamisato/kayo/cmd/shared"
 	"github.com/Hayao0819/Kamisato/kayo/trust"
-	"github.com/spf13/cobra"
 )
 
 const trustListDefaultFmt = "table {{.Kind}}\t{{.Name}}\t{{.Source}}\t{{.Maintainer}}\t{{.Commit}}"

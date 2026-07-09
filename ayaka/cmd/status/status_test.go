@@ -6,8 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
 	"github.com/fatih/color"
+
+	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
 )
 
 func TestPrintStatusGroups(t *testing.T) {

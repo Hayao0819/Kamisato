@@ -13,9 +13,10 @@ import (
 	context "context"
 	reflect "reflect"
 
+	gomock "go.uber.org/mock/gomock"
+
 	domain "github.com/Hayao0819/Kamisato/miko/domain"
 	joblog "github.com/Hayao0819/Kamisato/miko/joblog"
-	gomock "go.uber.org/mock/gomock"
 )
 
 // MockServicer is a mock of Servicer interface.

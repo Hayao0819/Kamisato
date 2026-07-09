@@ -12,9 +12,10 @@ package mocks
 import (
 	reflect "reflect"
 
+	gomock "go.uber.org/mock/gomock"
+
 	blob "github.com/Hayao0819/Kamisato/ayato/repository/blob"
 	stream "github.com/Hayao0819/Kamisato/ayato/stream"
-	gomock "go.uber.org/mock/gomock"
 )
 
 // MockMetaFetcher is a mock of MetaFetcher interface.

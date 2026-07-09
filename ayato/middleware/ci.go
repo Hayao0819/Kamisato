@@ -3,8 +3,9 @@ package middleware
 import (
 	"net/http"
 
-	"github.com/Hayao0819/Kamisato/ayato/ciauth"
 	"github.com/gin-gonic/gin"
+
+	"github.com/Hayao0819/Kamisato/ayato/ciauth"
 )
 
 const ctxCIPublisher = "auth_ci"

@@ -8,12 +8,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gin-gonic/gin"
+	"go.uber.org/mock/gomock"
+
 	"github.com/Hayao0819/Kamisato/ayato/domain"
 	"github.com/Hayao0819/Kamisato/ayato/stream"
 	"github.com/Hayao0819/Kamisato/ayato/test/mocks"
 	"github.com/Hayao0819/Kamisato/internal/conf"
-	"github.com/gin-gonic/gin"
-	"go.uber.org/mock/gomock"
 )
 
 func setup(t *testing.T) (*gomock.Controller, *mocks.MockServicer, *Handler) {

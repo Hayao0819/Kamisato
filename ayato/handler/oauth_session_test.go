@@ -9,13 +9,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gin-gonic/gin"
+	"golang.org/x/oauth2"
+
 	"github.com/Hayao0819/Kamisato/ayato/auth"
 	"github.com/Hayao0819/Kamisato/ayato/repository"
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv/badgerkv"
 	"github.com/Hayao0819/Kamisato/ayato/service"
 	"github.com/Hayao0819/Kamisato/internal/conf"
-	"github.com/gin-gonic/gin"
-	"golang.org/x/oauth2"
 )
 
 func denylistHandler(t *testing.T, adminID int64) (*Handler, *fakeDenylistRepo, *auth.Signer) {

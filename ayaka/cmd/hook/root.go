@@ -3,8 +3,9 @@ package hookcmd
 import (
 	_ "embed"
 
-	sharedhook "github.com/Hayao0819/Kamisato/internal/hookcmd"
 	"github.com/spf13/cobra"
+
+	sharedhook "github.com/Hayao0819/Kamisato/internal/hookcmd"
 )
 
 //go:embed ayaka-upload.hook.tmpl

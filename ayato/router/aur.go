@@ -5,10 +5,11 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/Hayao0819/Kamisato/ayato/handler"
-	"github.com/Hayao0819/Kamisato/ayato/middleware"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/time/rate"
+
+	"github.com/Hayao0819/Kamisato/ayato/handler"
+	"github.com/Hayao0819/Kamisato/ayato/middleware"
 )
 
 // Source management is admin-only; the read-only aurweb surface (/rpc,

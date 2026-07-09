@@ -1,7 +1,7 @@
 // Package nvcheck monitors upstream sources for new versions of tracked packages
 // (an nvchecker-style version watch) and drives a rebuild when a newer version
 // appears. It fetches only over the injected *http.Client so callers route every
-// outbound call through internal/httpx.
+// outbound call through pkg/httpx.
 package nvcheck
 
 import (

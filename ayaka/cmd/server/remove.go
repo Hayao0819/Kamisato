@@ -1,8 +1,9 @@
 package servercmd
 
 import (
-	"github.com/Hayao0819/Kamisato/internal/blinkyutils"
 	"github.com/spf13/cobra"
+
+	"github.com/Hayao0819/Kamisato/internal/blinkyutils"
 )
 
 func RemoveCmd() *cobra.Command {
