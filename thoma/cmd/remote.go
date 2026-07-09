@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -11,12 +10,13 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/Hayao0819/Kamisato/internal/errors"
+
 	"github.com/Hayao0819/Kamisato/internal/blinkyutils"
 	"github.com/Hayao0819/Kamisato/internal/buildclient"
 	"github.com/Hayao0819/Kamisato/internal/conf"
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/makepkgconf"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/srcpkg"
+	"github.com/Hayao0819/Kamisato/pkg/raiou"
 )
 
 // resolveServer reads the ayato URL and CLI token from the same server database
@@ -25,7 +25,7 @@ func resolveServer(name string) (url, token string, err error) {
 	info, err := blinkyutils.ResolveServer(name)
 	if err != nil {
 		if errors.Is(err, blinkyutils.ErrNoServerSpecified) {
-			return "", "", errwrap.NewErr("no ayato server configured; set THOMA_SERVER or run 'ayaka server login'")
+			return "", "", errors.NewErr("no ayato server configured; set THOMA_SERVER or run 'ayaka server login'")
 		}
 		return "", "", err
 	}
@@ -39,7 +39,7 @@ func resolveServer(name string) (url, token string, err error) {
 func resolveEndpoint(cfg *conf.ThomaConfig) (base, token string, err error) {
 	if cfg.Direct() {
 		if cfg.Server == "" {
-			return "", "", errwrap.NewErr("direct mode needs THOMA_SERVER set to the miko URL")
+			return "", "", errors.NewErr("direct mode needs THOMA_SERVER set to the miko URL")
 		}
 		return cfg.Server, cfg.ApiKey, nil
 	}
@@ -70,13 +70,13 @@ func detectArch(configPath string) string {
 	return "x86_64"
 }
 
-func remoteBuild(args []string) error {
+func remoteBuild(config string) error {
 	cfg, err := conf.LoadThomaConfig(nil)
 	if err != nil {
 		return err
 	}
 	if cfg.Arch == "" {
-		cfg.Arch = detectArch(configArg(args))
+		cfg.Arch = detectArch(config)
 	}
 
 	base, token, err := resolveEndpoint(cfg)
@@ -86,9 +86,9 @@ func remoteBuild(args []string) error {
 
 	cwd, err := os.Getwd()
 	if err != nil {
-		return errwrap.WrapErr(err, "failed to get working directory")
+		return errors.WrapErr(err, "failed to get working directory")
 	}
-	pkgbuild, files, err := srcpkg.ReadInline(cwd, func(name string, size int64) {
+	pkgbuild, files, err := raiou.ReadInline(cwd, func(name string, size int64) {
 		fmt.Fprintf(os.Stderr, "thoma: skipping large file %q (%d bytes); miko fetches sources itself\n", name, size)
 	})
 	if err != nil {
@@ -121,22 +121,22 @@ func remoteBuild(args []string) error {
 	fmt.Fprintf(os.Stderr, "thoma: delegating build to %s (mode %s, repo %s, arch %s)\n", base, mode, cfg.Repo, cfg.Arch)
 	jobID, err := buildclient.SubmitBuild(ctx, base, token, req)
 	if err != nil {
-		return errwrap.WrapErr(err, "failed to submit build")
+		return errors.WrapErr(err, "failed to submit build")
 	}
 	fmt.Fprintf(os.Stderr, "thoma: build job %s\n", jobID)
 
 	job, err := buildclient.WaitJob(ctx, base, token, jobID, os.Stdout)
 	if err != nil {
-		return errwrap.WrapErr(err, "failed while waiting for build")
+		return errors.WrapErr(err, "failed while waiting for build")
 	}
 	if job.Status != "success" {
 		if job.Err != "" {
-			return errwrap.NewErrf("remote build %s: %s", job.Status, job.Err)
+			return errors.NewErrf("remote build %s: %s", job.Status, job.Err)
 		}
-		return errwrap.NewErrf("remote build %s", job.Status)
+		return errors.NewErrf("remote build %s", job.Status)
 	}
 
-	dests, err := packageDests(realMakepkg(cfg.Makepkg), args)
+	dests, err := packageDests(realMakepkg(cfg.Makepkg), config)
 	if err != nil {
 		return err
 	}
@@ -145,14 +145,14 @@ func remoteBuild(args []string) error {
 
 // packageDests asks the real makepkg where the output packages belong, so the
 // downloaded artifacts land exactly where yay's --packagelist told it to look.
-func packageDests(mkpkg string, incoming []string) ([]string, error) {
+func packageDests(mkpkg, config string) ([]string, error) {
 	args := []string{"--packagelist", "--ignorearch"}
-	if conf := configArg(incoming); conf != "" {
-		args = append(args, "--config", conf)
+	if config != "" {
+		args = append(args, "--config", config)
 	}
 	out, err := exec.Command(mkpkg, args...).Output()
 	if err != nil {
-		return nil, errwrap.WrapErr(err, "failed to run makepkg --packagelist")
+		return nil, errors.WrapErr(err, "failed to run makepkg --packagelist")
 	}
 	var dests []string
 	for _, line := range strings.Split(string(out), "\n") {
@@ -161,23 +161,9 @@ func packageDests(mkpkg string, incoming []string) ([]string, error) {
 		}
 	}
 	if len(dests) == 0 {
-		return nil, errwrap.NewErr("makepkg --packagelist produced no output")
+		return nil, errors.NewErr("makepkg --packagelist produced no output")
 	}
 	return dests, nil
-}
-
-// configArg extracts the makepkg --config value yay forwarded, so the package
-// list is computed with the same makepkg.conf.
-func configArg(args []string) string {
-	for i, a := range args {
-		if a == "--config" && i+1 < len(args) {
-			return args[i+1]
-		}
-		if v, ok := strings.CutPrefix(a, "--config="); ok {
-			return v
-		}
-	}
-	return ""
 }
 
 // placePackages downloads each built package and writes it to the matching
@@ -195,7 +181,7 @@ func placePackages(ctx context.Context, cfg *conf.ThomaConfig, base, token, jobI
 			}
 		}
 		if match == "" {
-			return errwrap.NewErrf("no built package matches %q (built: %s)", filepath.Base(dest), strings.Join(built, ", "))
+			return errors.NewErrf("no built package matches %q (built: %s)", filepath.Base(dest), strings.Join(built, ", "))
 		}
 		if err := downloadBuilt(ctx, cfg, base, token, jobID, match, dest); err != nil {
 			return err
@@ -214,7 +200,7 @@ func downloadBuilt(ctx context.Context, cfg *conf.ThomaConfig, base, token, jobI
 	}
 	f, err := os.Create(dest)
 	if err != nil {
-		return errwrap.WrapErr(err, "failed to create "+dest)
+		return errors.WrapErr(err, "failed to create "+dest)
 	}
 	if err := buildclient.DownloadArtifact(ctx, base, token, jobID, name, f); err != nil {
 		_ = f.Close()

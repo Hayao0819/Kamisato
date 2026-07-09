@@ -8,40 +8,62 @@ package cmd
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"syscall"
 
-	"github.com/Hayao0819/Kamisato/internal/version"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
+
+	"github.com/Hayao0819/Kamisato/internal/version"
 )
 
-// RootCmd builds the thoma command. makepkg forwards clustered short flags and
-// long flags thoma does not define (-f, --noextract, -ofA); DisableFlagParsing
-// hands the whole argv through untouched so cobra never rejects them, and lets
-// query flags such as --help/--version fall through to the real makepkg.
+// RootCmd builds the thoma command. The makepkg flags thoma reacts to are
+// declared on the command like any cobra program, but DisableFlagParsing is kept
+// on because thoma is a shim: it must hand the whole, unreordered argv to the
+// real makepkg on passthrough, and let query flags such as --help/--version and
+// makepkg's own flags fall through untouched. run therefore parses the flags
+// explicitly (whitelisting makepkg's as unknown) and reads them via cmd.Flags().
 func RootCmd() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:                "thoma [makepkg args...]",
 		Short:              "A makepkg drop-in that builds on a remote miko builder",
 		DisableFlagParsing: true,
 		SilenceErrors:      true,
 		SilenceUsage:       true,
-		RunE: func(_ *cobra.Command, args []string) error {
-			return run(args)
-		},
+		RunE:               run,
 	}
+	f := cmd.Flags()
+	f.BoolP("nobuild", "o", false, "makepkg --nobuild")
+	f.Bool("verifysource", false, "makepkg --verifysource")
+	f.Bool("packagelist", false, "makepkg --packagelist")
+	f.Bool("printsrcinfo", false, "makepkg --printsrcinfo")
+	f.BoolP("source", "S", false, "makepkg --source")
+	f.Bool("allsource", false, "makepkg --allsource")
+	f.BoolP("geninteg", "g", false, "makepkg --geninteg")
+	f.BoolP("version", "V", false, "makepkg --version")
+	f.BoolP("help", "h", false, "makepkg --help")
+	f.String("config", "", "makepkg --config")
+	f.ParseErrorsWhitelist.UnknownFlags = true
+	f.SetOutput(io.Discard)
+	return cmd
 }
 
-func run(args []string) error {
+func run(cmd *cobra.Command, args []string) error {
 	// DisableFlagParsing rules out a cobra `version` subcommand, so intercept the
 	// bare verb here; makepkg never takes a "version" positional.
 	if len(args) == 1 && args[0] == "version" {
 		fmt.Printf("thoma version %s\n", version.String())
 		return nil
 	}
-	if isRemoteBuild(args) {
-		return remoteBuild(args)
+	// Parse the raw argv into the command's own flags for classification; makepkg's
+	// flags are whitelisted as unknown and args stays intact for passthrough.
+	f := cmd.Flags()
+	_ = f.Parse(args)
+	if isRemoteBuild(f) {
+		config, _ := f.GetString("config")
+		return remoteBuild(config)
 	}
 	return passthrough(args)
 }
@@ -97,40 +119,24 @@ func passthrough(args []string) error {
 	return syscall.Exec(bin, append([]string{bin}, args...), os.Environ()) //nolint:gosec // bin is a resolved makepkg path, not attacker input
 }
 
-// nonBuildFlags mark a makepkg invocation that does something other than the
-// heavy compile, so thoma passes it through to the real makepkg instead of
-// redirecting it to the remote builder.
-var nonBuildFlags = map[string]bool{
-	"--verifysource": true,
-	"--nobuild":      true, "-o": true,
-	"--packagelist":  true,
-	"--printsrcinfo": true,
-	"--allsource":    true, "-S": true,
-	"--source":   true,
-	"--geninteg": true, "-g": true,
-	"--version": true, "-V": true,
-	"--help": true, "-h": true,
+// nonBuildFlags name the makepkg flags whose presence marks a query/download
+// step rather than the heavy compile, so thoma runs it locally. --config is
+// deliberately excluded: it can accompany a real build.
+var nonBuildFlags = []string{
+	"nobuild", "verifysource", "packagelist", "printsrcinfo",
+	"source", "allsource", "geninteg", "version", "help",
 }
 
 // isRemoteBuild reports whether the invocation is the actual compile+package
 // step — the only one worth sending to the remote builder. yay calls makepkg
 // separately to download sources (--verifysource), extract/bump pkgver
 // (--nobuild), and list outputs (--packagelist); those, and query flags, stay
-// local.
-func isRemoteBuild(args []string) bool {
-	for _, a := range args {
-		if nonBuildFlags[a] {
+// local. f has already parsed the argv, so a bundled short cluster like -ofA has
+// its -o recorded as Changed.
+func isRemoteBuild(f *pflag.FlagSet) bool {
+	for _, name := range nonBuildFlags {
+		if f.Changed(name) {
 			return false
-		}
-		// Catch bundled short flags like -ofA (paru-style): a single-dash cluster
-		// containing one of the non-build short options.
-		if len(a) > 1 && a[0] == '-' && a[1] != '-' {
-			for _, c := range a[1:] {
-				switch c {
-				case 'o', 'g', 'S', 'V', 'h':
-					return false
-				}
-			}
 		}
 	}
 	return true

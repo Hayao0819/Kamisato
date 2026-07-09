@@ -1,6 +1,20 @@
 package cmd
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/spf13/pflag"
+)
+
+// parseArgs runs argv through the real thoma command's flag set, exactly as run
+// does, so the tests exercise the command's declared flags rather than a private
+// parser.
+func parseArgs(t *testing.T, args []string) *pflag.FlagSet {
+	t.Helper()
+	f := RootCmd().Flags()
+	_ = f.Parse(args)
+	return f
+}
 
 func TestIsRemoteBuild(t *testing.T) {
 	cases := []struct {
@@ -33,7 +47,7 @@ func TestIsRemoteBuild(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := isRemoteBuild(tc.args); got != tc.want {
+			if got := isRemoteBuild(parseArgs(t, tc.args)); got != tc.want {
 				t.Errorf("isRemoteBuild(%v) = %v, want %v", tc.args, got, tc.want)
 			}
 		})
@@ -66,8 +80,8 @@ func TestConfigArg(t *testing.T) {
 		{[]string{"--config"}, ""}, // dangling, no value
 	}
 	for _, tc := range cases {
-		if got := configArg(tc.args); got != tc.want {
-			t.Errorf("configArg(%v) = %q, want %q", tc.args, got, tc.want)
+		if got, _ := parseArgs(t, tc.args).GetString("config"); got != tc.want {
+			t.Errorf("--config from %v = %q, want %q", tc.args, got, tc.want)
 		}
 	}
 }
