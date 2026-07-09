@@ -3,7 +3,6 @@ package conf
 import (
 	"fmt"
 
-	"github.com/Hayao0819/Kamisato/internal/confloader"
 	"github.com/spf13/pflag"
 )
 
@@ -25,7 +24,7 @@ type LumineConfig struct {
 
 func LoadLumineConfig(flags *pflag.FlagSet, configFile string) (*LumineConfig, error) {
 	loadDotEnv()
-	return confloader.LoadTyped[LumineConfig](
+	return LoadTyped[LumineConfig](
 		commonConfigDirs(),
 		configFileNames(configFile, "lumine_config"),
 		flags,

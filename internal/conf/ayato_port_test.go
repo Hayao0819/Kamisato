@@ -3,8 +3,6 @@ package conf
 import (
 	"reflect"
 	"testing"
-
-	"github.com/Hayao0819/Kamisato/internal/confloader"
 )
 
 // TestAyatoAPIKeysFromEnvOnly proves the real AyatoConfig accepts its struct-slice
@@ -14,7 +12,7 @@ func TestAyatoAPIKeysFromEnvOnly(t *testing.T) {
 	t.Setenv("AYATO_AUTH_CI_API_KEYS", `[{"name":"ci","key":"s3cr3t","publish_repos":["core"]}]`)
 	t.Setenv("AYATO_AUTH_TRUSTED_PROXIES", "10.0.0.0/8,192.168.0.0/16")
 
-	cfg, err := confloader.Load[AyatoConfig](nil, nil, nil, "AYATO")
+	cfg, err := Load[AyatoConfig](nil, nil, nil, "AYATO")
 	if err != nil {
 		t.Fatal(err)
 	}

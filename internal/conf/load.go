@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/Hayao0819/Kamisato/internal/confloader"
 	"github.com/spf13/pflag"
 )
 
@@ -25,7 +24,7 @@ func commonConfigDirs() []string {
 }
 
 func loadConfig[T any](dirs []string, files []string, flags *pflag.FlagSet, envPrefix string) (*T, error) {
-	return confloader.Load[T](dirs, files, flags, envPrefix)
+	return Load[T](dirs, files, flags, envPrefix)
 }
 
 // configFileNames returns the explicit config file when one is given, else the

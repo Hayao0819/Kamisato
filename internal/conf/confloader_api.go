@@ -1,4 +1,4 @@
-package confloader
+package conf
 
 import "github.com/spf13/pflag"
 

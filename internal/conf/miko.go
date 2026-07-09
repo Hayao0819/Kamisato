@@ -5,7 +5,6 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/Hayao0819/Kamisato/internal/confloader"
 	"github.com/spf13/pflag"
 )
 
@@ -163,7 +162,7 @@ func (c AURTrustConfig) Decide(pkgbase, maintainer string) AURTrustDecision {
 
 func LoadMikoConfig(flags *pflag.FlagSet, configFile string) (*MikoConfig, error) {
 	loadDotEnv()
-	return confloader.LoadTyped[MikoConfig](
+	return LoadTyped[MikoConfig](
 		commonConfigDirs(),
 		configFileNames(configFile, "miko_config"),
 		flags,

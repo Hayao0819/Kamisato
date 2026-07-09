@@ -1,7 +1,7 @@
-// Package confloader is a thin wrapper around koanf that loads config by merging
-// multiple directories, multiple formats (JSON/TOML/YAML), environment variables
-// and pflag.
-package confloader
+// Package conf defines each binary's configuration structs and loads them with a
+// thin koanf wrapper that merges multiple directories, multiple formats
+// (JSON/TOML/YAML), environment variables and pflag.
+package conf
 
 import (
 	encjson "encoding/json"

@@ -5,7 +5,6 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/Hayao0819/Kamisato/internal/confloader"
 	"github.com/spf13/pflag"
 )
 
@@ -86,7 +85,7 @@ type OverlayConfig struct {
 
 func LoadKayoConfig(flags *pflag.FlagSet, configFile string) (*KayoConfig, error) {
 	loadDotEnv()
-	return confloader.LoadTyped[KayoConfig](
+	return LoadTyped[KayoConfig](
 		commonConfigDirs(),
 		configFileNames(configFile, "kayo_config"),
 		flags,
