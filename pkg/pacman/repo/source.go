@@ -34,6 +34,8 @@ type MakepkgSettings struct {
 type BuildConfig struct {
 	Repos     []BuildRepo
 	Makepkg   MakepkgSettings
+	Arches    []string
+	Image     string
 	ArchBuild string
 }
 

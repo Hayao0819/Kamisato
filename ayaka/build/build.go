@@ -7,20 +7,21 @@ package build
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 	"os"
 	"path"
 
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/alpm"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/builder"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/gpg"
-	pkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
+	"github.com/Hayao0819/Kamisato/internal/errors"
+
 	"github.com/otiai10/copy"
 	"github.com/samber/lo"
+
+	"github.com/Hayao0819/Kamisato/pkg/pacman/alpm"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/builder"
+	pkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/sign"
 )
 
 // Package copies the SourcePackage to a temp directory, builds it, and signs it if needed.
@@ -40,9 +41,9 @@ func Package(p *pkg.SourcePackage, target *builder.Target, dest string) error {
 	if kind == "" {
 		kind = builder.KindChroot
 	}
-	backend, err := builder.New(kind, builder.Options{})
+	backend, err := builder.New(kind, builder.Options{Image: target.Image})
 	if err != nil {
-		return errwrap.WrapErr(err, "failed to create build backend")
+		return errors.WrapErr(err, "failed to create build backend")
 	}
 
 	result, err := backend.Build(context.Background(), builder.Spec{
@@ -56,13 +57,13 @@ func Package(p *pkg.SourcePackage, target *builder.Target, dest string) error {
 		LogWriter:   target.Output,
 	})
 	if err != nil {
-		return errwrap.WrapErr(err, "failed to build package")
+		return errors.WrapErr(err, "failed to build package")
 	}
 
 	if target.SignKey != "" {
 		for _, pkgPath := range result.Packages {
-			if err := gpg.SignFile(target.SignKey, "", pkgPath); err != nil {
-				return errwrap.WrapErr(err, "failed to sign file: "+pkgPath)
+			if err := sign.SignFile(target.SignKey, "", pkgPath); err != nil {
+				return errors.WrapErr(err, "failed to sign file: "+pkgPath)
 			}
 		}
 	}
@@ -102,7 +103,7 @@ func diffPackages(src []*pkg.SourcePackage, rr *repo.RemoteRepo) ([]*pkg.SourceP
 		cmp, err := alpm.VerCmp(sp.Version(), rp.Version())
 		if err != nil {
 			slog.Error("Failed to compare versions", "pkgbase", sp.Base(), "error", err)
-			return nil, errwrap.WrapErr(err, "failed to compare package versions")
+			return nil, errors.WrapErr(err, "failed to compare package versions")
 		}
 		if cmp > 0 {
 			slog.Debug("Local package is newer", "pkgbase", sp.Base(), "local", sp.Version(), "remote", rp.Version())
@@ -154,7 +155,7 @@ func Diff(s *repo.SourceRepo, t *builder.Target, rr *repo.RemoteRepo, dest strin
 		slog.Debug("Starting package build", "pkgbase", pkgbase)
 		if err := Package(p, t, outDir); err != nil {
 			slog.Error("Package build failed", "pkgbase", pkgbase, "error", err)
-			return errwrap.WrapErr(err, "failed to build package")
+			return errors.WrapErr(err, "failed to build package")
 		}
 		slog.Debug("Package build completed", "pkgbase", pkgbase)
 	}

@@ -1,7 +1,6 @@
 package buildcmd
 
 import (
-	"errors"
 	"log/slog"
 	"os"
 	"os/exec"
@@ -9,14 +8,16 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/Hayao0819/Kamisato/internal/errors"
+
+	"github.com/spf13/cobra"
+
 	"github.com/Hayao0819/Kamisato/ayaka/build"
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/alpm"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/builder"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/gpg"
 	pacmanrepo "github.com/Hayao0819/Kamisato/pkg/pacman/repo"
-	"github.com/spf13/cobra"
+	pacmansign "github.com/Hayao0819/Kamisato/pkg/pacman/sign"
 )
 
 // Cmd builds packages locally in a clean chroot. Use `ayaka miko build` to
@@ -58,27 +59,27 @@ func Cmd() *cobra.Command {
 			repo = args[0]
 
 			if !slices.Contains(shared.AppFrom(cmd).GetSrcRepoNames(), repo) {
-				return errwrap.WrapErr(shared.ErrInvalidRepoName, repo)
+				return errors.WrapErr(shared.ErrInvalidRepoName, repo)
 			}
 
 			if !sign || diffMode {
 				return nil
 			}
 			if gpgkey == "" {
-				return errwrap.NewErr("--sign requires --key <gpg-key-id>")
+				return errors.NewErr("--sign requires --key <gpg-key-id>")
 			}
 			slog.Info("Verifying GPG key", "key", gpgkey)
 			tmpDir, err := os.MkdirTemp("", "ayaka-")
 			if err != nil {
-				return errwrap.WrapErr(err, "failed to create temporary directory")
+				return errors.WrapErr(err, "failed to create temporary directory")
 			}
 			defer os.RemoveAll(tmpDir)
 			dummyFile := path.Join(tmpDir, "dummy.txt")
 			if err := os.WriteFile(dummyFile, []byte("dummy"), 0o600); err != nil {
-				return errwrap.WrapErr(err, "failed to create dummy file")
+				return errors.WrapErr(err, "failed to create dummy file")
 			}
-			if err := gpg.SignFile(gpgkey, "", dummyFile); err != nil {
-				return errwrap.WrapErr(err, "failed to sign dummy file")
+			if err := pacmansign.SignFile(gpgkey, "", dummyFile); err != nil {
+				return errors.WrapErr(err, "failed to sign dummy file")
 			}
 			return nil
 		},
@@ -95,15 +96,15 @@ func Cmd() *cobra.Command {
 			app := shared.AppFrom(cmd)
 			srcrepo := app.GetSrcRepo(repo)
 			if srcrepo == nil {
-				return errwrap.WrapErr(shared.ErrSourceRepoNotFound, repo)
+				return errors.WrapErr(shared.ErrSourceRepoNotFound, repo)
 			}
 			destDir := app.GetDestDir(repo)
 			if destDir == "" {
-				return errwrap.WrapErr(shared.ErrNoDestDir, repo)
+				return errors.WrapErr(shared.ErrNoDestDir, repo)
 			}
 			srcdir := app.GetSrcDir(repo)
 			if srcdir == "" {
-				return errwrap.WrapErr(shared.ErrNoSourceDir, repo)
+				return errors.WrapErr(shared.ErrNoSourceDir, repo)
 			}
 
 			// Regenerate .SRCINFO first so a stale one doesn't build or skip the
@@ -114,7 +115,7 @@ func Cmd() *cobra.Command {
 				} else {
 					srcdirs, err := pacmanrepo.GetSrcDirs(srcdir)
 					if err != nil {
-						return errwrap.WrapErr(err, "failed to list source directories")
+						return errors.WrapErr(err, "failed to list source directories")
 					}
 					for _, d := range srcdirs {
 						if err := pacmanrepo.GenerateSrcinfo(d, cmd.ErrOrStderr()); err != nil {
@@ -124,7 +125,7 @@ func Cmd() *cobra.Command {
 					// Reload so the freshly written versions drive the diff and build.
 					reloaded, err := pacmanrepo.GetSrcRepo(srcdir, srcrepo.Config)
 					if err != nil {
-						return errwrap.WrapErr(err, "failed to reload source repo after .SRCINFO update")
+						return errors.WrapErr(err, "failed to reload source repo after .SRCINFO update")
 					}
 					srcrepo = reloaded
 				}
@@ -132,12 +133,12 @@ func Cmd() *cobra.Command {
 
 			mk := srcrepo.Config.Build.Makepkg
 			if mk.Microarch != "" && !builder.ValidMicroarch(mk.Microarch) {
-				return errwrap.NewErr("build.makepkg.microarch " + mk.Microarch + " is not a known x86-64 feature level (x86_64_v2/v3/v4)")
+				return errors.NewErr("build.makepkg.microarch " + mk.Microarch + " is not a known x86-64 feature level (x86_64_v2/v3/v4)")
 			}
 
 			pkgs, cleanup, err := alpm.GetCleanPkgBinary(srcrepo.Config.InstallPkgs.Names...)
 			if err != nil {
-				return errwrap.WrapErr(err, "failed to get clean package binaries")
+				return errors.WrapErr(err, "failed to get clean package binaries")
 			}
 			defer func() { _ = cleanup.Close() }()
 
@@ -147,6 +148,10 @@ func Cmd() *cobra.Command {
 			if sign {
 				signKey = gpgkey
 			}
+			if a := srcrepo.Config.Build.Arches; len(a) > 0 && !slices.Contains(a, arch) {
+				return errors.NewErr("arch " + arch + " is not in " + srcrepo.Config.Name + " build.arches (" + strings.Join(a, ",") + ")")
+			}
+
 			buildTarget := builder.Target{
 				Arch:        arch,
 				ArchBuild:   srcrepo.Config.Build.ArchBuild,
@@ -159,6 +164,7 @@ func Cmd() *cobra.Command {
 					CFlagsAppend: mk.CFlagsAppend,
 					Options:      mk.Options,
 				},
+				Image:    srcrepo.Config.Build.Image,
 				Executor: builder.Kind(executor),
 			}
 
@@ -169,14 +175,15 @@ func Cmd() *cobra.Command {
 				diffServer := resolveDiffServer(diffURL, server, srcrepo.Config.URL, buildTarget.Arch)
 				slog.Info("Starting diff build", "repo", srcdir, "outdir", writeDir, "gpgkey", gpgkey, "server", diffServer)
 				remoteRepo, err := pacmanrepo.RepoFromURL(diffServer, srcrepo.Config.Name)
-				if err != nil {
-					if errors.Is(err, pacmanrepo.ErrRepoNotFound) {
-						return errwrap.WrapErr(err, "remote repo not found; configure it on ayato and set repo.json url (or --diff-url) to the repo db dir (.../repo/<repo>/<arch>)")
-					}
-					return errwrap.WrapErr(err, "failed to get remote repository")
+				if errors.Is(err, pacmanrepo.ErrRepoNotFound) {
+					// A repo/arch with no packages yet has no db; treat as empty and build all.
+					slog.Warn("remote repo db not found; building everything", "server", diffServer)
+					remoteRepo = &pacmanrepo.RemoteRepo{Name: srcrepo.Config.Name}
+				} else if err != nil {
+					return errors.WrapErr(err, "failed to get remote repository")
 				}
 				if err := build.Diff(srcrepo, &buildTarget, remoteRepo, outDir, buildPkgs...); err != nil {
-					return errwrap.WrapErr(err, "failed to perform diff build")
+					return errors.WrapErr(err, "failed to perform diff build")
 				}
 				slog.Debug("Diff build completed", "outdir", writeDir)
 				return nil
@@ -184,7 +191,7 @@ func Cmd() *cobra.Command {
 
 			slog.Info("Starting package build", "repo", srcdir, "outdir", writeDir, "gpgkey", gpgkey)
 			if err := build.Repo(srcrepo, &buildTarget, outDir, buildPkgs...); err != nil {
-				return errwrap.WrapErr(err, "failed to build package")
+				return errors.WrapErr(err, "failed to build package")
 			}
 			slog.Debug("Build completed", "outdir", writeDir)
 			return nil

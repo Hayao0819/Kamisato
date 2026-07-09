@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/Hayao0819/Kamisato/internal/confloader"
 	"github.com/spf13/pflag"
 )
 
@@ -38,7 +37,7 @@ func LoadAyakaConfigFrom(configFile string, flags *pflag.FlagSet) (*AyakaConfig,
 	} else {
 		files = configFileNames("", ".ayakarc")
 	}
-	return confloader.LoadTyped[AyakaConfig](
+	return LoadTyped[AyakaConfig](
 		commonConfigDirs(),
 		files,
 		flags,
@@ -88,6 +87,8 @@ type MakepkgConfig struct {
 type SrcBuildConfig struct {
 	Repos     []BuildRepo   `koanf:"repos" json:"repos,omitempty"`
 	Makepkg   MakepkgConfig `koanf:"makepkg" json:"makepkg,omitempty"`
+	Arches    []string      `koanf:"arches" json:"arches,omitempty"`
+	Image     string        `koanf:"image" json:"image,omitempty"`
 	ArchBuild string        `koanf:"archbuild" json:"archbuild,omitempty"`
 }
 
@@ -113,7 +114,7 @@ func (c *SrcRepoConfig) Marshal() ([]byte, error) {
 }
 
 func LoadSrcRepoConfig(repodir string) (*SrcRepoConfig, error) {
-	return confloader.LoadTyped[SrcRepoConfig](
+	return LoadTyped[SrcRepoConfig](
 		[]string{repodir},
 		[]string{"repo.json"},
 		nil,
