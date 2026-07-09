@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -11,13 +10,14 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/Hayao0819/Kamisato/internal/errors"
+
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/cobra"
 
-	"github.com/Hayao0819/Kamisato/internal/apikey"
+	"github.com/Hayao0819/Kamisato/internal/auth/apikey"
 	"github.com/Hayao0819/Kamisato/internal/cliutil"
 	"github.com/Hayao0819/Kamisato/internal/conf"
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
 	"github.com/Hayao0819/Kamisato/miko/signer"
 )
 
@@ -46,10 +46,10 @@ func signerCmd() *cobra.Command {
 
 			hostSigner, err := buildHostSigner(cmd.Context(), cfg)
 			if err != nil {
-				return errwrap.WrapErr(err, "failed to set up host signing key")
+				return errors.WrapErr(err, "failed to set up host signing key")
 			}
 			if hostSigner == nil {
-				return errwrap.NewErr("signer service needs a signing key: set signing.key_dir or data_dir")
+				return errors.NewErr("signer service needs a signing key: set signing.key_dir or data_dir")
 			}
 
 			verifier := apikey.NewVerifier(cfg.APIKeys)

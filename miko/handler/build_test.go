@@ -6,14 +6,15 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Hayao0819/Kamisato/internal/apikey"
+	"github.com/gin-gonic/gin"
+	"go.uber.org/mock/gomock"
+
+	"github.com/Hayao0819/Kamisato/internal/auth/apikey"
 	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/miko/handler"
 	"github.com/Hayao0819/Kamisato/miko/router"
 	"github.com/Hayao0819/Kamisato/miko/service"
 	"github.com/Hayao0819/Kamisato/miko/test/mocks"
-	"github.com/gin-gonic/gin"
-	"go.uber.org/mock/gomock"
 )
 
 // setup wires the mock service through the production router so tests exercise

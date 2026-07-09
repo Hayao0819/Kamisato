@@ -14,9 +14,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Hayao0819/Kamisato/internal/apikey"
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
-	"github.com/Hayao0819/Kamisato/internal/httpx"
+	"github.com/Hayao0819/Kamisato/internal/auth/apikey"
+	"github.com/Hayao0819/Kamisato/internal/errors"
+	"github.com/Hayao0819/Kamisato/pkg/httpx"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/sign"
 )
 
@@ -49,7 +49,7 @@ func NewRemoteSigner(baseURL, apiKey string) *RemoteSigner {
 func (s *RemoteSigner) Sign(ctx context.Context, pkgPath string) (string, error) {
 	pkg, err := os.ReadFile(pkgPath)
 	if err != nil {
-		return "", errwrap.WrapErr(err, "remote signer: read package")
+		return "", errors.WrapErr(err, "remote signer: read package")
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, s.url, bytes.NewReader(pkg))
 	if err != nil {
@@ -62,28 +62,28 @@ func (s *RemoteSigner) Sign(ctx context.Context, pkgPath string) (string, error)
 
 	resp, err := s.client.Do(req)
 	if err != nil {
-		return "", errwrap.WrapErr(err, "remote signer: request")
+		return "", errors.WrapErr(err, "remote signer: request")
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
-		return "", errwrap.NewErrf("remote signer: status %d: %s", resp.StatusCode, string(body))
+		return "", errors.NewErrf("remote signer: status %d: %s", resp.StatusCode, string(body))
 	}
 
 	sig, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return "", errwrap.WrapErr(err, "remote signer: read signature")
+		return "", errors.WrapErr(err, "remote signer: read signature")
 	}
 	// Fail closed: an empty response is not a signature, so refuse it rather than
 	// write a zero-byte .sig that would masquerade as signed.
 	if len(sig) == 0 {
-		return "", errwrap.NewErr("remote signer: empty signature")
+		return "", errors.NewErr("remote signer: empty signature")
 	}
 	sigPath := pkgPath + ".sig"
 	// The signature is transient worker state consumed by the uploader; 0600 is
 	// sufficient and keeps the at-rest footprint minimal.
 	if err := os.WriteFile(sigPath, sig, 0o600); err != nil {
-		return "", errwrap.WrapErr(err, "remote signer: write signature")
+		return "", errors.WrapErr(err, "remote signer: write signature")
 	}
 	return sigPath, nil
 }

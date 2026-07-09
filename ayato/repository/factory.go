@@ -14,9 +14,9 @@ import (
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv/cfkv"
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv/securekv"
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv/sqlkv"
+	"github.com/Hayao0819/Kamisato/internal/auth/secretbox"
 	"github.com/Hayao0819/Kamisato/internal/conf"
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
-	"github.com/Hayao0819/Kamisato/internal/secretbox"
+	"github.com/Hayao0819/Kamisato/internal/errors"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/sign"
 )
 
@@ -31,14 +31,14 @@ var defaultEncryptedNamespaces = []string{allowNS}
 func secureKV(store kv.Store, cfg *conf.AyatoConfig) (kv.Store, error) {
 	identity, err := secretbox.LoadAgeIdentity(os.Getenv("AYATO_SECRETS_AGE_IDENTITY"), cfg.Secrets.AgeIdentityFile)
 	if err != nil {
-		return nil, errwrap.WrapErr(err, "failed to load the secrets age identity")
+		return nil, errors.WrapErr(err, "failed to load the secrets age identity")
 	}
 	if identity == "" {
 		return store, nil
 	}
 	box, err := secretbox.NewAgeX25519(identity)
 	if err != nil {
-		return nil, errwrap.WrapErr(err, "failed to build the secrets encryptor")
+		return nil, errors.WrapErr(err, "failed to build the secrets encryptor")
 	}
 	ns := cfg.Secrets.Namespaces
 	if len(ns) == 0 {
@@ -163,11 +163,11 @@ func New(cfg *conf.AyatoConfig) (NameStore, BinaryRepository, AuthRepository, kv
 func loadDBSigner() (*openpgp.Entity, error) {
 	armored := os.Getenv("AYATO_DB_SIGNING_KEY")
 	if armored == "" {
-		return nil, errwrap.NewErr("sign.db is enabled but AYATO_DB_SIGNING_KEY is unset")
+		return nil, errors.NewErr("sign.db is enabled but AYATO_DB_SIGNING_KEY is unset")
 	}
 	entity, err := sign.LoadArmoredEntity(armored, os.Getenv("AYATO_DB_SIGNING_PASSPHRASE"))
 	if err != nil {
-		return nil, errwrap.WrapErr(err, "failed to load the repo-db signing key")
+		return nil, errors.WrapErr(err, "failed to load the repo-db signing key")
 	}
 	return entity, nil
 }

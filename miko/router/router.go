@@ -1,9 +1,10 @@
 package router
 
 import (
-	"github.com/Hayao0819/Kamisato/internal/apikey"
-	"github.com/Hayao0819/Kamisato/miko/handler"
 	"github.com/gin-gonic/gin"
+
+	"github.com/Hayao0819/Kamisato/internal/auth/apikey"
+	"github.com/Hayao0819/Kamisato/miko/handler"
 )
 
 // SetRoute registers the build API under /api/unstable. Routes require an API

@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -12,19 +11,22 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/Hayao0819/Kamisato/internal/apikey"
+	sloggin "github.com/samber/slog-gin"
+
+	"github.com/Hayao0819/Kamisato/internal/errors"
+
+	"github.com/gin-gonic/gin"
+	"github.com/spf13/cobra"
+
+	"github.com/Hayao0819/Kamisato/internal/auth/apikey"
 	"github.com/Hayao0819/Kamisato/internal/cliutil"
 	"github.com/Hayao0819/Kamisato/internal/conf"
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
 	"github.com/Hayao0819/Kamisato/internal/version"
-	"github.com/Hayao0819/Kamisato/internal/weblog"
 	"github.com/Hayao0819/Kamisato/miko/handler"
 	"github.com/Hayao0819/Kamisato/miko/router"
 	"github.com/Hayao0819/Kamisato/miko/service"
 	"github.com/Hayao0819/Kamisato/miko/signer"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/sign"
-	"github.com/gin-gonic/gin"
-	"github.com/spf13/cobra"
 )
 
 // buildSigner returns the worker's package signer per config: the local host key
@@ -36,7 +38,7 @@ func buildSigner(ctx context.Context, cfg *conf.MikoConfig) (sign.Signer, error)
 		return buildHostSigner(ctx, cfg)
 	case "remote":
 		if cfg.Signing.Remote.URL == "" {
-			return nil, errwrap.NewErr("signing.mode is remote but signing.remote.url is unset")
+			return nil, errors.NewErr("signing.mode is remote but signing.remote.url is unset")
 		}
 		apiKey := cfg.Signing.Remote.APIKey
 		if env := os.Getenv("MIKO_SIGNING_REMOTE_API_KEY"); env != "" {
@@ -45,7 +47,7 @@ func buildSigner(ctx context.Context, cfg *conf.MikoConfig) (sign.Signer, error)
 		slog.Info("remote signing enabled", "url", cfg.Signing.Remote.URL)
 		return signer.NewRemoteSigner(cfg.Signing.Remote.URL, apiKey), nil
 	default:
-		return nil, errwrap.NewErrf("signing.mode: unknown value %q (want local or remote)", cfg.Signing.Mode)
+		return nil, errors.NewErrf("signing.mode: unknown value %q (want local or remote)", cfg.Signing.Mode)
 	}
 }
 
@@ -122,7 +124,7 @@ func RootCmd() *cobra.Command {
 
 			pkgSigner, err := buildSigner(cmd.Context(), cfg)
 			if err != nil {
-				return errwrap.WrapErr(err, "failed to set up package signing")
+				return errors.WrapErr(err, "failed to set up package signing")
 			}
 
 			var persister service.Persister
@@ -149,9 +151,9 @@ func RootCmd() *cobra.Command {
 
 			engine := gin.New()
 			engine.Use(gin.Recovery())
-			engine.Use(weblog.GinLog())
+			engine.Use(sloggin.NewWithConfig(slog.Default(), sloggin.Config{DefaultLevel: slog.LevelDebug, HandleGinDebug: true}))
 			if err := router.SetRoute(engine, h, verifier); err != nil {
-				return errwrap.WrapErr(err, "failed to set routing")
+				return errors.WrapErr(err, "failed to set routing")
 			}
 			slog.Info("Routing initialized")
 
@@ -176,7 +178,7 @@ func RootCmd() *cobra.Command {
 			shutdownCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			defer cancel()
 			if err := srv.Shutdown(shutdownCtx); err != nil {
-				return errwrap.WrapErr(err, "graceful shutdown failed")
+				return errors.WrapErr(err, "graceful shutdown failed")
 			}
 			return nil
 		},

@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/Hayao0819/Kamisato/internal/apikey"
+	"github.com/Hayao0819/Kamisato/internal/auth/apikey"
 	"github.com/Hayao0819/Kamisato/miko/signer"
 )
 

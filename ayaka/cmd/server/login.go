@@ -5,10 +5,11 @@ import (
 	"os"
 	"os/signal"
 
-	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
-	"github.com/Hayao0819/Kamisato/internal/blinkyutils"
-	"github.com/Hayao0819/Kamisato/internal/oauth"
 	"github.com/spf13/cobra"
+
+	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
+	"github.com/Hayao0819/Kamisato/internal/auth/oauth"
+	"github.com/Hayao0819/Kamisato/internal/blinkyutils"
 )
 
 // LoginCmd logs into ayato via a GitHub OAuth loopback (RFC 8252) + PKCE flow

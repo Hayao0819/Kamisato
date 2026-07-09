@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/Hayao0819/Kamisato/internal/buildclient"
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
+	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
 // DeviceRequester starts a device authorization; DevicePoller polls once for the
@@ -85,7 +85,7 @@ func DeviceLogin(ctx context.Context, serverURL string, opts ...DeviceOption) (t
 
 	dc, err := o.request(ctx, serverURL)
 	if err != nil {
-		return "", "", "", errwrap.WrapErr(err, "failed to request a device code")
+		return "", "", "", errors.WrapErr(err, "failed to request a device code")
 	}
 
 	fmt.Fprintf(o.out, "ブラウザで次の URL を開き、コード %s を入力してください:\n%s\n", dc.UserCode, dc.VerificationURI)
@@ -114,7 +114,7 @@ func DeviceLogin(ctx context.Context, serverURL string, opts ...DeviceOption) (t
 	for {
 		res, perr := o.poll(pollCtx, serverURL, dc.DeviceCode)
 		if perr != nil {
-			return "", "", "", errwrap.WrapErr(perr, "failed to poll for the device token")
+			return "", "", "", errors.WrapErr(perr, "failed to poll for the device token")
 		}
 		switch res.Status {
 		case "":
@@ -125,14 +125,14 @@ func DeviceLogin(ctx context.Context, serverURL string, opts ...DeviceOption) (t
 			// RFC 8628 §3.5: back off by 5s and keep polling.
 			interval += 5 * time.Second
 		case "access_denied":
-			return "", "", "", errwrap.NewErrf("device login was denied (account not allowed)")
+			return "", "", "", errors.NewErrf("device login was denied (account not allowed)")
 		case "expired_token":
-			return "", "", "", errwrap.NewErrf("device code expired before approval; run login again")
+			return "", "", "", errors.NewErrf("device code expired before approval; run login again")
 		default:
-			return "", "", "", errwrap.NewErrf("unexpected device authorization status %q", res.Status)
+			return "", "", "", errors.NewErrf("unexpected device authorization status %q", res.Status)
 		}
 		if serr := o.sleep(pollCtx, interval); serr != nil {
-			return "", "", "", errwrap.WrapErr(serr, "device login timed out or was cancelled")
+			return "", "", "", errors.WrapErr(serr, "device login timed out or was cancelled")
 		}
 	}
 }

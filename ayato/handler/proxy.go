@@ -5,9 +5,10 @@ import (
 	"net/http/httputil"
 	"net/url"
 
-	"github.com/Hayao0819/Kamisato/internal/apikey"
-	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/gin-gonic/gin"
+
+	"github.com/Hayao0819/Kamisato/internal/auth/apikey"
+	"github.com/Hayao0819/Kamisato/internal/conf"
 )
 
 // Reverse-proxies build/job requests to the internal miko server; clients never

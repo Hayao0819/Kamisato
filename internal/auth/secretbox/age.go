@@ -8,7 +8,7 @@ import (
 
 	"filippo.io/age"
 
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
+	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
 // ageHeader is the intro of the age v1 binary format; a value carrying it is
@@ -37,7 +37,7 @@ var _ SecretBox = (*ageBox)(nil)
 func NewAgeX25519(secretKey string) (SecretBox, error) {
 	id, err := age.ParseX25519Identity(strings.TrimSpace(secretKey))
 	if err != nil {
-		return nil, errwrap.WrapErr(err, "secretbox: parse age identity")
+		return nil, errors.WrapErr(err, "secretbox: parse age identity")
 	}
 	return &ageBox{recipient: id.Recipient(), identity: id}, nil
 }
@@ -55,7 +55,7 @@ func LoadAgeIdentity(value, path string) (string, error) {
 	}
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return "", errwrap.WrapErr(err, "secretbox: read age identity file")
+		return "", errors.WrapErr(err, "secretbox: read age identity file")
 	}
 	for _, line := range strings.Split(string(data), "\n") {
 		line = strings.TrimSpace(line)
@@ -64,21 +64,21 @@ func LoadAgeIdentity(value, path string) (string, error) {
 		}
 		return line, nil
 	}
-	return "", errwrap.NewErr("secretbox: age identity file contains no key")
+	return "", errors.NewErr("secretbox: age identity file contains no key")
 }
 
 func (b *ageBox) Seal(plaintext []byte) ([]byte, error) {
 	var buf bytes.Buffer
 	w, err := age.Encrypt(&buf, b.recipient)
 	if err != nil {
-		return nil, errwrap.WrapErr(err, "secretbox: seal")
+		return nil, errors.WrapErr(err, "secretbox: seal")
 	}
 	if _, err := w.Write(plaintext); err != nil {
-		return nil, errwrap.WrapErr(err, "secretbox: seal write")
+		return nil, errors.WrapErr(err, "secretbox: seal write")
 	}
 	// Close flushes the age stream; a partial write would otherwise not decrypt.
 	if err := w.Close(); err != nil {
-		return nil, errwrap.WrapErr(err, "secretbox: seal close")
+		return nil, errors.WrapErr(err, "secretbox: seal close")
 	}
 	return buf.Bytes(), nil
 }
@@ -86,11 +86,11 @@ func (b *ageBox) Seal(plaintext []byte) ([]byte, error) {
 func (b *ageBox) Open(ciphertext []byte) ([]byte, error) {
 	r, err := age.Decrypt(bytes.NewReader(ciphertext), b.identity)
 	if err != nil {
-		return nil, errwrap.WrapErr(err, "secretbox: open")
+		return nil, errors.WrapErr(err, "secretbox: open")
 	}
 	out, err := io.ReadAll(r)
 	if err != nil {
-		return nil, errwrap.WrapErr(err, "secretbox: open read")
+		return nil, errors.WrapErr(err, "secretbox: open read")
 	}
 	return out, nil
 }

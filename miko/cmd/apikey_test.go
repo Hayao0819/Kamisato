@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Hayao0819/Kamisato/internal/apikey"
+	"github.com/Hayao0819/Kamisato/internal/auth/apikey"
 )
 
 func TestGenerateAPIKeyRoundTrip(t *testing.T) {

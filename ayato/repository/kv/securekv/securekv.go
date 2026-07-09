@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
-	"github.com/Hayao0819/Kamisato/internal/secretbox"
+	"github.com/Hayao0819/Kamisato/internal/auth/secretbox"
+	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
 type store struct {
@@ -60,7 +60,7 @@ func (s *store) Set(ns, key string, value []byte, ttl time.Duration) error {
 	if s.encrypts(ns) {
 		sealed, err := s.box.Seal(value)
 		if err != nil {
-			return errwrap.WrapErr(err, "securekv: seal")
+			return errors.WrapErr(err, "securekv: seal")
 		}
 		value = sealed
 	}
@@ -95,7 +95,7 @@ func (s *store) open(v []byte) ([]byte, error) {
 	}
 	plain, err := s.box.Open(v)
 	if err != nil {
-		return nil, errwrap.WrapErr(err, "securekv: open")
+		return nil, errors.WrapErr(err, "securekv: open")
 	}
 	return plain, nil
 }
@@ -112,7 +112,7 @@ func (s *adderStore) Add(ns, key string, value []byte, ttl time.Duration) (bool,
 	if s.encrypts(ns) {
 		sealed, err := s.box.Seal(value)
 		if err != nil {
-			return false, errwrap.WrapErr(err, "securekv: seal")
+			return false, errors.WrapErr(err, "securekv: seal")
 		}
 		value = sealed
 	}

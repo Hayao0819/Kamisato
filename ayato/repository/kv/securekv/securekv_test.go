@@ -10,7 +10,7 @@ import (
 
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv/securekv"
-	"github.com/Hayao0819/Kamisato/internal/secretbox"
+	"github.com/Hayao0819/Kamisato/internal/auth/secretbox"
 )
 
 // memStore is a minimal in-memory kv.Store (with Adder) for exercising the
