@@ -3,8 +3,9 @@ package audit
 import (
 	"fmt"
 
-	"github.com/Hayao0819/Kamisato/pkg/raiou"
 	"mvdan.cc/sh/v3/syntax"
+
+	"github.com/Hayao0819/Kamisato/pkg/raiou"
 )
 
 // driftCheck flags "manifest confusion" where the committed .SRCINFO contradicts

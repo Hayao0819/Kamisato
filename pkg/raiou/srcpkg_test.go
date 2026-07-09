@@ -1,4 +1,4 @@
-package srcpkg
+package raiou
 
 import (
 	"os"

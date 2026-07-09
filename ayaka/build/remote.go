@@ -13,11 +13,11 @@ import (
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
 	"github.com/Hayao0819/Kamisato/internal/blinkyutils"
 	"github.com/Hayao0819/Kamisato/internal/buildclient"
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
+	"github.com/Hayao0819/Kamisato/internal/errors"
 	pkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/sign"
-	srcpkg "github.com/Hayao0819/Kamisato/pkg/pacman/srcpkg"
+	"github.com/Hayao0819/Kamisato/pkg/raiou"
 )
 
 type RemoteBuildOpts struct {
@@ -46,7 +46,7 @@ func RunRemoteBuild(ctx context.Context, o RemoteBuildOpts) error {
 	slog.Info("submitting remote build", "server", srv.URL, "repo", o.Repo)
 	jobID, err := buildclient.SubmitBuild(ctx, srv.URL, srv.Password, req)
 	if err != nil {
-		return errwrap.WrapErr(err, "failed to submit build")
+		return errors.WrapErr(err, "failed to submit build")
 	}
 
 	fmt.Println(jobID)
@@ -91,7 +91,7 @@ func RunRemoteBuildLocalSign(ctx context.Context, o RemoteBuildOpts, keyPath, pa
 	}
 	signer, err := sign.NewLocalSigner(keyPath, passphrase)
 	if err != nil {
-		return errwrap.WrapErr(err, "failed to load local signing key")
+		return errors.WrapErr(err, "failed to load local signing key")
 	}
 	req, err := buildRequest(ctx, o)
 	if err != nil {
@@ -101,7 +101,7 @@ func RunRemoteBuildLocalSign(ctx context.Context, o RemoteBuildOpts, keyPath, pa
 
 	jobID, err := buildclient.SubmitBuild(ctx, srv.URL, srv.Password, req)
 	if err != nil {
-		return errwrap.WrapErr(err, "failed to submit build")
+		return errors.WrapErr(err, "failed to submit build")
 	}
 	slog.Info("submitted client-signed build", "job", jobID, "server", srv.URL)
 
@@ -114,9 +114,9 @@ func RunRemoteBuildLocalSign(ctx context.Context, o RemoteBuildOpts, keyPath, pa
 	}
 	switch job.Status {
 	case "failed":
-		return errwrap.NewErrf("build failed: %s", job.Err)
+		return errors.NewErrf("build failed: %s", job.Err)
 	case "cancelled":
-		return errwrap.NewErr("build cancelled")
+		return errors.NewErr("build cancelled")
 	}
 
 	names, err := buildclient.ListArtifacts(ctx, srv.URL, srv.Password, jobID)
@@ -124,7 +124,7 @@ func RunRemoteBuildLocalSign(ctx context.Context, o RemoteBuildOpts, keyPath, pa
 		return err
 	}
 	if len(names) == 0 {
-		return errwrap.NewErr("build produced no artifacts")
+		return errors.NewErr("build produced no artifacts")
 	}
 
 	tmp, err := os.MkdirTemp("", "ayaka-dl-*")
@@ -135,7 +135,7 @@ func RunRemoteBuildLocalSign(ctx context.Context, o RemoteBuildOpts, keyPath, pa
 
 	client, err := srv.Client()
 	if err != nil {
-		return errwrap.WrapErr(err, "failed to create upload client")
+		return errors.WrapErr(err, "failed to create upload client")
 	}
 
 	for _, name := range names {
@@ -157,10 +157,10 @@ func RunRemoteBuildLocalSign(ctx context.Context, o RemoteBuildOpts, keyPath, pa
 		}
 		sigPath, serr := signer.Sign(context.Background(), pkgPath)
 		if serr != nil {
-			return errwrap.WrapErr(serr, "failed to sign "+name)
+			return errors.WrapErr(serr, "failed to sign "+name)
 		}
 		if uerr := blinkyutils.Upload(client, o.Repo, pkgPath, sigPath); uerr != nil {
-			return errwrap.WrapErr(uerr, "failed to upload "+name)
+			return errors.WrapErr(uerr, "failed to upload "+name)
 		}
 		slog.Info("signed and uploaded", "pkg", name)
 	}
@@ -176,7 +176,7 @@ const clientBuildTimeout = 2 * time.Hour
 func readLocalSource(ctx context.Context, repoName string, pkgs []string) (string, map[string]string, error) {
 	srcrepo := shared.AppFromContext(ctx).GetSrcRepo(repoName)
 	if srcrepo == nil {
-		return "", nil, errwrap.WrapErr(shared.ErrSourceRepoNotFound, repoName)
+		return "", nil, errors.WrapErr(shared.ErrSourceRepoNotFound, repoName)
 	}
 
 	sp, err := selectSourcePkg(srcrepo, pkgs)
@@ -184,7 +184,7 @@ func readLocalSource(ctx context.Context, repoName string, pkgs []string) (strin
 		return "", nil, err
 	}
 
-	return srcpkg.ReadInline(sp.Dir(), func(name string, size int64) {
+	return raiou.ReadInline(sp.Dir(), func(name string, size int64) {
 		slog.Warn("skipping large source file", "name", name, "size", size)
 	})
 }
@@ -195,15 +195,15 @@ func selectSourcePkg(srcrepo *repo.SourceRepo, pkgs []string) (*pkg.SourcePackag
 	if len(pkgs) == 0 {
 		switch len(srcrepo.Pkgs) {
 		case 0:
-			return nil, errwrap.NewErr("no source packages found in repository")
+			return nil, errors.NewErr("no source packages found in repository")
 		case 1:
 			return srcrepo.Pkgs[0], nil
 		default:
-			return nil, errwrap.NewErr("repository holds multiple packages; specify one to build remotely")
+			return nil, errors.NewErr("repository holds multiple packages; specify one to build remotely")
 		}
 	}
 	if len(pkgs) > 1 {
-		return nil, errwrap.NewErr("remote build accepts only one package at a time")
+		return nil, errors.NewErr("remote build accepts only one package at a time")
 	}
 
 	name := pkgs[0]
@@ -212,5 +212,5 @@ func selectSourcePkg(srcrepo *repo.SourceRepo, pkgs []string) (*pkg.SourcePackag
 			return p, nil
 		}
 	}
-	return nil, errwrap.NewErr("package not found: " + name)
+	return nil, errors.NewErr("package not found: " + name)
 }

@@ -1,8 +1,4 @@
-// Package srcpkg reads a source package's inline files (PKGBUILD and small
-// sidecars) to ship to a remote builder. Build outputs, the regenerated
-// .SRCINFO, logs, and large downloaded sources are skipped so the request stays
-// small and the builder re-fetches sources from the PKGBUILD itself.
-package srcpkg
+package raiou
 
 import (
 	"fmt"
