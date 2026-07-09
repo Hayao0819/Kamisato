@@ -1,22 +1,22 @@
 package service
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 	"path"
 	"strings"
 
+	"github.com/Hayao0819/Kamisato/internal/errors"
+
 	"github.com/Hayao0819/Kamisato/ayato/domain"
 	"github.com/Hayao0819/Kamisato/ayato/repository"
 	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
 	"github.com/Hayao0819/Kamisato/ayato/stream"
 	"github.com/Hayao0819/Kamisato/internal/conf"
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/alpm"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/gpg"
 	pkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/sign"
 	"github.com/Hayao0819/Kamisato/pkg/raiou"
 )
 
@@ -40,7 +40,7 @@ type preparedUpload struct {
 // resolves the storage arch and the db arches. Storing nothing here lets a bad
 // package in a batch fail the whole publish before any state changes. kr is the
 // verification keyring built once per batch; nil means no trust root.
-func (s *Service) prepareUpload(repo string, files *domain.UploadFiles, kr *gpg.Keyring) (preparedUpload, error) {
+func (s *Service) prepareUpload(repo string, files *domain.UploadFiles, kr *sign.Keyring) (preparedUpload, error) {
 	pkgFileStream := files.PkgFile
 	p, err := pkg.ReadBinaryPackage(pkgFileStream.FileName(), pkgFileStream)
 	if err != nil {
@@ -70,10 +70,10 @@ func (s *Service) prepareUpload(repo string, files *domain.UploadFiles, kr *gpg.
 			return preparedUpload{}, fmt.Errorf("package signature present but no trust root (verify.keyring or a registered signer) is configured to validate it")
 		}
 		if _, err := pkgFileStream.Seek(0, io.SeekStart); err != nil {
-			return preparedUpload{}, errwrap.WrapErr(err, "failed to seek package file for verification")
+			return preparedUpload{}, errors.WrapErr(err, "failed to seek package file for verification")
 		}
 		if _, err := files.SigFile.Seek(0, io.SeekStart); err != nil {
-			return preparedUpload{}, errwrap.WrapErr(err, "failed to seek signature file for verification")
+			return preparedUpload{}, errors.WrapErr(err, "failed to seek signature file for verification")
 		}
 		fpr, verr := kr.VerifyDetached(pkgFileStream, files.SigFile)
 		if verr != nil {
@@ -135,7 +135,7 @@ func (s *Service) prepareUpload(repo string, files *domain.UploadFiles, kr *gpg.
 // .BUILDINFO at all. It leaves the stream re-seekable for the caller.
 func (s *Service) checkBuildinfoProvenance(pkgFileStream stream.SeekFile) error {
 	if _, err := pkgFileStream.Seek(0, io.SeekStart); err != nil {
-		return errwrap.WrapErr(err, "failed to seek package file for buildinfo check")
+		return errors.WrapErr(err, "failed to seek package file for buildinfo check")
 	}
 	bi, err := pkg.ReadBuildInfo(pkgFileStream)
 	if err != nil {
@@ -216,14 +216,14 @@ func (s *Service) UploadFiles(repo string, files []*domain.UploadFiles) error {
 	if s.pkgBinaryRepo.VerifyPkgRepo(repo) != nil {
 		slog.Warn("repository directory not found", "repo", repo)
 		if err := s.initRepo(repo, useSignedDB, gnupgDir); err != nil {
-			return errwrap.WrapErr(err, "failed to initialize repo")
+			return errors.WrapErr(err, "failed to initialize repo")
 		}
 	}
 
 	// Build the verification keyring once for the whole batch: it is identical for
 	// every package and rebuilding it per file re-runs the (KV-backed) signer
 	// lookup N times. Skip it entirely when nothing in the batch is signed.
-	var kr *gpg.Keyring
+	var kr *sign.Keyring
 	for _, f := range files {
 		if f.SigFile != nil {
 			var kerr error
@@ -271,24 +271,24 @@ func (s *Service) UploadFiles(repo string, files []*domain.UploadFiles) error {
 	for _, p := range preps {
 		if _, err := p.pkgStream.Seek(0, io.SeekStart); err != nil {
 			rollback()
-			return errwrap.WrapErr(err, "failed to seek package file")
+			return errors.WrapErr(err, "failed to seek package file")
 		}
 		if err := s.pkgBinaryRepo.StoreFile(repo, p.storeArch, p.pkgStream); err != nil {
 			rollback()
-			return errwrap.WrapErr(err, "failed to store file")
+			return errors.WrapErr(err, "failed to store file")
 		}
 		stored = append(stored, archKey{p.storeArch, p.storedName})
 		if p.sigStream != nil {
 			if _, err := p.sigStream.Seek(0, io.SeekStart); err != nil {
 				rollback()
-				return errwrap.WrapErr(err, "failed to seek signature file")
+				return errors.WrapErr(err, "failed to seek signature file")
 			}
 			// StoreFile keys the on-disk name off FileName(), so re-wrap the sig
 			// under "<storedName>.sig". Verification already rejected bad sigs.
 			sigToStore := stream.NewFileStream(p.sigName, p.sigStream.ContentType(), p.sigStream)
 			if err := s.pkgBinaryRepo.StoreFile(repo, p.storeArch, sigToStore); err != nil {
 				rollback()
-				return errwrap.WrapErr(err, "failed to store signature file")
+				return errors.WrapErr(err, "failed to store signature file")
 			}
 			stored = append(stored, archKey{p.storeArch, p.sigName})
 		}
@@ -310,7 +310,7 @@ func (s *Service) UploadFiles(repo string, files []*domain.UploadFiles) error {
 	for _, a := range archOrder {
 		if err := s.pkgBinaryRepo.RepoAddBatch(repo, a, byArch[a], useSignedDB, gnupgDir); err != nil {
 			rollback()
-			return errwrap.WrapErr(err, "failed to add to repo database")
+			return errors.WrapErr(err, "failed to add to repo database")
 		}
 		for _, pn := range pkgsByArch[a] {
 			added = append(added, archKey{a, pn})
@@ -321,7 +321,7 @@ func (s *Service) UploadFiles(repo string, files []*domain.UploadFiles) error {
 	for _, p := range preps {
 		if err := s.pkgNameRepo.StorePackageFile(p.storeArch, p.pkgName, p.storedName); err != nil {
 			rollback()
-			return errwrap.WrapErr(err, "failed to store package file name")
+			return errors.WrapErr(err, "failed to store package file name")
 		}
 		named = append(named, archKey{p.storeArch, p.pkgName})
 	}
@@ -331,21 +331,15 @@ func (s *Service) UploadFiles(repo string, files []*domain.UploadFiles) error {
 	return nil
 }
 
-// configuredArches returns the repo's concrete arches, dropping "" and "any"
-// (pacman has no os/any database; an arch=any package is registered in each
-// concrete arch instead).
-func (s *Service) configuredArches(repo string) []string {
-	rc := s.cfg.ResolveRepo(repo)
-	if rc == nil {
+// repoArches returns the arches the repo currently has packages for, derived from
+// storage. The repository layer already excludes "any" (pacman has no os/any db;
+// an arch=any package is registered in each concrete arch instead).
+func (s *Service) repoArches(repo string) []string {
+	arches, err := s.pkgBinaryRepo.Arches(repo)
+	if err != nil {
 		return nil
 	}
-	out := make([]string, 0, len(rc.Arches))
-	for _, a := range rc.Arches {
-		if a != "" && a != "any" {
-			out = append(out, a)
-		}
-	}
-	return out
+	return arches
 }
 
 // signedDB reports whether uploads should produce a signed pacman database. The
@@ -377,7 +371,7 @@ func (s *Service) publishedVersion(repo, arch, pkgname string) (string, bool, er
 		if errors.Is(err, blob.ErrNotFound) {
 			return "", false, nil
 		}
-		return "", false, errwrap.WrapErr(err, "read repo db for version gate")
+		return "", false, errors.WrapErr(err, "read repo db for version gate")
 	}
 	p := rr.PkgByPkgName(pkgname)
 	if p == nil {
@@ -393,7 +387,7 @@ func (s *Service) targetArches(repo, pkgArch string) ([]string, error) {
 	if pkgArch != "any" {
 		return []string{pkgArch}, nil
 	}
-	arches := s.configuredArches(repo)
+	arches := s.repoArches(repo)
 	if len(arches) == 0 {
 		return nil, fmt.Errorf("repository %q has no architectures configured for an arch=any package", repo)
 	}

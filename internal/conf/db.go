@@ -1,12 +1,13 @@
 package conf
 
 import (
-	"errors"
 	"fmt"
 	"net"
 	"net/url"
 	"path/filepath"
 	"strings"
+
+	"github.com/Hayao0819/Kamisato/internal/errors"
 
 	"github.com/go-sql-driver/mysql"
 )

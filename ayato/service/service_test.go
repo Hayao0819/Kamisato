@@ -2,10 +2,13 @@ package service_test
 
 import (
 	"bytes"
-	"errors"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/Hayao0819/Kamisato/internal/errors"
+
+	"go.uber.org/mock/gomock"
 
 	"github.com/Hayao0819/Kamisato/ayato/repository"
 	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
@@ -17,7 +20,6 @@ import (
 	pkgpkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
 	"github.com/Hayao0819/Kamisato/pkg/raiou"
-	"go.uber.org/mock/gomock"
 )
 
 type readSeekCloser struct{ *bytes.Reader }
@@ -137,10 +139,11 @@ func TestServiceRemovePkgAny(t *testing.T) {
 	name := mocks.NewMockNameStore(ctrl)
 
 	cfg := &conf.AyatoConfig{
-		Repos: []conf.BinRepoConfig{{Name: "myrepo", Arches: []string{"x86_64", "aarch64"}}},
+		Repos: []conf.BinRepoConfig{{Name: "myrepo"}},
 	}
 
 	bin.EXPECT().RepoNames().Return([]string{"myrepo"}, nil) // ValidateRepoName
+	bin.EXPECT().Arches("myrepo").Return([]string{"x86_64", "aarch64"}, nil).AnyTimes()
 	name.EXPECT().PackageFile("any", "mypkg").Return("mypkg-1.0-1-any.pkg.tar.zst", nil)
 	// arch="" (blinky route) on an any package: de-registered from every arch db; its file and sig live once under "any/" and go with the last arch.
 	bin.EXPECT().RepoRemove("myrepo", "x86_64", "mypkg", false, gomock.Nil()).Return(nil)
@@ -164,10 +167,11 @@ func TestServiceRemovePkgAnyOneArch(t *testing.T) {
 	name := mocks.NewMockNameStore(ctrl)
 
 	cfg := &conf.AyatoConfig{
-		Repos: []conf.BinRepoConfig{{Name: "myrepo", Arches: []string{"x86_64", "aarch64"}}},
+		Repos: []conf.BinRepoConfig{{Name: "myrepo"}},
 	}
 
 	bin.EXPECT().RepoNames().Return([]string{"myrepo"}, nil) // ValidateRepoName
+	bin.EXPECT().Arches("myrepo").Return([]string{"x86_64", "aarch64"}, nil).AnyTimes()
 	// Scoped to x86_64; the any package's file is keyed under "any".
 	name.EXPECT().PackageFile("x86_64", "mypkg").Return("", nil) // concrete miss
 	name.EXPECT().PackageFile("any", "mypkg").Return("mypkg-1.0-1-any.pkg.tar.zst", nil)
@@ -209,7 +213,7 @@ func TestServiceLocalfsIntegration(t *testing.T) {
 	}
 
 	cfg := &conf.AyatoConfig{
-		Repos: []conf.BinRepoConfig{{Name: "myrepo", Arches: []string{"x86_64"}}},
+		Repos: []conf.BinRepoConfig{{Name: "myrepo"}},
 	}
 	cfg.Store.StorageType = "localfs"
 	cfg.Store.LocalRepoDir = repoRoot

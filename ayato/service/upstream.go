@@ -45,7 +45,7 @@ func (s *Service) SyncUpstream(ctx context.Context, repo string) (UpstreamSyncRe
 	}
 	useSignedDB := s.signedDB()
 	res := UpstreamSyncResult{Repo: rc.Name}
-	for _, arch := range s.configuredArches(rc.Name) {
+	for _, arch := range s.repoArches(rc.Name) {
 		if err := ctx.Err(); err != nil {
 			return res, err
 		}

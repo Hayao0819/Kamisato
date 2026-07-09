@@ -2,19 +2,19 @@ package service
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 	"os"
 	"path"
 
+	"github.com/Hayao0819/Kamisato/internal/errors"
+
 	"github.com/Hayao0819/Kamisato/ayato/domain"
 	"github.com/Hayao0819/Kamisato/ayato/repository"
 	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
 	"github.com/Hayao0819/Kamisato/ayato/stream"
 	"github.com/Hayao0819/Kamisato/internal/conf"
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
 )
 
 // Promoter advances a package through a tiered repo's staging -> testing -> stable
@@ -49,7 +49,7 @@ func (s *Service) PromotePackage(ctx context.Context, repo string, from, to conf
 	// A package may be registered in several arches (an arch=any package is in
 	// every configured arch); promote each arch the source tier lists it under.
 	var promotedArches []string
-	for _, arch := range s.configuredArches(src) {
+	for _, arch := range s.repoArches(src) {
 		if err := ctx.Err(); err != nil {
 			return err
 		}
@@ -58,7 +58,7 @@ func (s *Service) PromotePackage(ctx context.Context, repo string, from, to conf
 			if errors.Is(err, blob.ErrNotFound) {
 				continue // this arch's tier db is empty
 			}
-			return errwrap.WrapErr(err, "read source tier db")
+			return errors.WrapErr(err, "read source tier db")
 		}
 		p := rr.PkgByPkgName(pkgname)
 		if p == nil {
@@ -74,7 +74,7 @@ func (s *Service) PromotePackage(ctx context.Context, repo string, from, to conf
 			storeArch = "any"
 		}
 		if err := s.promoteOneArch(src, dst, arch, storeArch, p.Path(), p.Name(), useSignedDB, gnupgDir); err != nil {
-			return errwrap.WrapErr(err, fmt.Sprintf("promote %s %s/%s", pkgname, dst, arch))
+			return errors.WrapErr(err, fmt.Sprintf("promote %s %s/%s", pkgname, dst, arch))
 		}
 		promotedArches = append(promotedArches, arch)
 	}
@@ -99,7 +99,7 @@ func (s *Service) promoteOneArch(src, dst, arch, storeArch, filename, pkgname st
 	defer cleanup()
 
 	if err := s.pkgBinaryRepo.StoreFile(dst, storeArch, pkgSeek); err != nil {
-		return errwrap.WrapErr(err, "store package pointer in target tier")
+		return errors.WrapErr(err, "store package pointer in target tier")
 	}
 
 	// Carry the detached signature across too when the source tier has one.
@@ -108,20 +108,20 @@ func (s *Service) promoteOneArch(src, dst, arch, storeArch, filename, pkgname st
 		defer sigCleanup()
 		named := stream.NewFileStream(sigName, sigSeek.ContentType(), sigSeek)
 		if err := s.pkgBinaryRepo.StoreFile(dst, storeArch, named); err != nil {
-			return errwrap.WrapErr(err, "store signature pointer in target tier")
+			return errors.WrapErr(err, "store signature pointer in target tier")
 		}
 	} else if !errors.Is(serr, blob.ErrNotFound) {
-		return errwrap.WrapErr(serr, "read source tier signature")
+		return errors.WrapErr(serr, "read source tier signature")
 	}
 
 	if _, err := pkgSeek.Seek(0, io.SeekStart); err != nil {
-		return errwrap.WrapErr(err, "rewind package for registration")
+		return errors.WrapErr(err, "rewind package for registration")
 	}
 	if err := s.pkgBinaryRepo.RepoAddBatch(dst, arch, []repository.RepoAddItem{{Pkg: pkgSeek}}, useSignedDB, gnupgDir); err != nil {
-		return errwrap.WrapErr(err, "register package in target tier db")
+		return errors.WrapErr(err, "register package in target tier db")
 	}
 	if err := s.pkgNameRepo.StorePackageFile(storeArch, pkgname, filename); err != nil {
-		return errwrap.WrapErr(err, "record promoted package file name")
+		return errors.WrapErr(err, "record promoted package file name")
 	}
 	return nil
 }
@@ -160,7 +160,7 @@ func (s *Service) spoolTierFile(repo, arch, filename string) (stream.SeekFile, f
 	remove := func() { _ = tmp.Close(); _ = os.Remove(tmp.Name()) }
 	if _, err := io.Copy(tmp, f); err != nil {
 		remove()
-		return nil, nil, errwrap.WrapErr(err, "spool tier file")
+		return nil, nil, errors.WrapErr(err, "spool tier file")
 	}
 	if _, err := tmp.Seek(0, io.SeekStart); err != nil {
 		remove()

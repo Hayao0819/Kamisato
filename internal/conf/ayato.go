@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Hayao0819/Kamisato/internal/confloader"
 	"github.com/spf13/pflag"
 )
 
@@ -316,8 +315,7 @@ func (a AuthConfig) RefreshTokenTTL() time.Duration {
 }
 
 type BinRepoConfig struct {
-	Name   string   `koanf:"name"`
-	Arches []string `koanf:"arches"`
+	Name string `koanf:"name"`
 	// TrustedKeys optionally layers per-repo fingerprint pinning on top of the
 	// global Verify.TrustedKeys allowlist. The global keyring is the baseline.
 	TrustedKeys []string `koanf:"trusted_keys,omitempty"`
@@ -412,7 +410,7 @@ func (c *BinRepoConfig) PhysicalRepos() []string {
 
 func LoadAyatoConfig(flags *pflag.FlagSet, configFile string) (*AyatoConfig, error) {
 	loadDotEnv()
-	return confloader.LoadTyped[AyatoConfig](
+	return LoadTyped[AyatoConfig](
 		commonConfigDirs(),
 		configFileNames(configFile, "ayato_config"),
 		flags,

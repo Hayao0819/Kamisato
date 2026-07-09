@@ -147,7 +147,6 @@ func TestUpstreamLayeringAndSync(t *testing.T) {
 
 	svc, _, _ := newTieredService(t, []conf.BinRepoConfig{{
 		Name:     "myrepo",
-		Arches:   []string{"x86_64"},
 		Upstream: conf.UpstreamRepoConfig{DBURL: srv.URL + "/extra.db"},
 	}})
 	ctx := context.Background()
@@ -216,7 +215,7 @@ func TestUpstreamLayeringAndSync(t *testing.T) {
 // TestSyncUpstreamRejectsNonUpstream proves sync is refused on a repo with no
 // upstream configured.
 func TestSyncUpstreamRejectsNonUpstream(t *testing.T) {
-	svc, _, _ := newTieredService(t, []conf.BinRepoConfig{{Name: "plain", Arches: []string{"x86_64"}}})
+	svc, _, _ := newTieredService(t, []conf.BinRepoConfig{{Name: "plain"}})
 	if _, err := svc.SyncUpstream(context.Background(), "plain"); err == nil {
 		t.Fatal("SyncUpstream on a non-upstream repo = nil, want error")
 	}

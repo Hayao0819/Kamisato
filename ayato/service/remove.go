@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
+	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
 // arch "" or "any" de-registers the package from every arch database; a concrete
@@ -14,12 +14,12 @@ import (
 func (s *Service) RemovePkg(rname string, arch string, pkgname string) error {
 	if err := s.ValidateRepoName(rname); err != nil {
 		slog.Error("validate repo name failed", "repo", rname, "error", err.Error())
-		return errwrap.WrapErr(err, "validate repo name failed")
+		return errors.WrapErr(err, "validate repo name failed")
 	}
 
 	filename, storeArch, err := s.resolvePackage(rname, arch, pkgname)
 	if err != nil {
-		return errwrap.WrapErr(err, "resolve package")
+		return errors.WrapErr(err, "resolve package")
 	}
 
 	allArches := arch == "" || arch == "any"
@@ -29,7 +29,7 @@ func (s *Service) RemovePkg(rname string, arch string, pkgname string) error {
 	var dbArches []string
 	if storeArch == "any" {
 		if allArches {
-			dbArches = s.configuredArches(rname)
+			dbArches = s.repoArches(rname)
 		} else {
 			dbArches = []string{arch}
 		}
@@ -47,7 +47,7 @@ func (s *Service) RemovePkg(rname string, arch string, pkgname string) error {
 	var gnupgDir *string
 	for _, a := range dbArches {
 		if err := s.pkgBinaryRepo.RepoRemove(rname, a, pkgname, useSignedDB, gnupgDir); err != nil {
-			return errwrap.WrapErr(err, fmt.Sprintf("repo-remove %s from %s/%s", pkgname, rname, a))
+			return errors.WrapErr(err, fmt.Sprintf("repo-remove %s from %s/%s", pkgname, rname, a))
 		}
 	}
 	// For an upstream-layered repo, refresh the served merged database so the
@@ -61,11 +61,11 @@ func (s *Service) RemovePkg(rname string, arch string, pkgname string) error {
 	}
 
 	if err := s.pkgBinaryRepo.DeleteFile(rname, storeArch, filename); err != nil {
-		return errwrap.WrapErr(err, "delete package file")
+		return errors.WrapErr(err, "delete package file")
 	}
 	s.deleteSignatureIfPresent(rname, storeArch, filename)
 	if err := s.pkgNameRepo.DeletePackageFileEntry(storeArch, pkgname); err != nil {
-		return errwrap.WrapErr(err, "delete package metadata entry")
+		return errors.WrapErr(err, "delete package metadata entry")
 	}
 	return nil
 }
@@ -77,7 +77,7 @@ func (s *Service) stillRegistered(repo, pkgname string, removed []string) bool {
 	for _, a := range removed {
 		removedSet[a] = struct{}{}
 	}
-	for _, a := range s.configuredArches(repo) {
+	for _, a := range s.repoArches(repo) {
 		if _, ok := removedSet[a]; ok {
 			continue
 		}

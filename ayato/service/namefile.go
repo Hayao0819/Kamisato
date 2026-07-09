@@ -6,7 +6,7 @@ import (
 	"path"
 
 	"github.com/Hayao0819/Kamisato/ayato/domain"
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
+	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
 // NameStore is a cache keyed by (store arch, name); a miss falls through to the
@@ -28,7 +28,7 @@ func (s *Service) resolvePackage(repo, reqArch, pkgname string) (filename, store
 	if reqArch != "" && reqArch != "any" {
 		arches = append(arches, reqArch)
 	}
-	arches = append(arches, s.configuredArches(repo)...)
+	arches = append(arches, s.repoArches(repo)...)
 	for _, a := range arches {
 		fn, sa, dbErr := s.packageEntryFromDB(repo, a, pkgname)
 		if dbErr != nil {
@@ -46,7 +46,7 @@ func (s *Service) resolvePackage(repo, reqArch, pkgname string) (filename, store
 func (s *Service) packageEntryFromDB(repo, arch, pkgname string) (filename, pkgArch string, err error) {
 	rr, err := s.pkgBinaryRepo.RemoteRepo(repo, arch)
 	if err != nil {
-		return "", "", errwrap.WrapErr(err, "fetch remote repo db")
+		return "", "", errors.WrapErr(err, "fetch remote repo db")
 	}
 
 	p := rr.PkgByPkgName(pkgname)

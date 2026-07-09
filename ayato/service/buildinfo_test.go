@@ -3,8 +3,9 @@ package service_test
 import (
 	"archive/tar"
 	"bytes"
-	"errors"
 	"testing"
+
+	"github.com/Hayao0819/Kamisato/internal/errors"
 
 	"github.com/klauspost/compress/zstd"
 	"go.uber.org/mock/gomock"
@@ -54,7 +55,7 @@ func buildPkgWithBuildinfo(t *testing.T, buildDir string, includeBuildinfo bool)
 func provenanceConfig() *conf.AyatoConfig {
 	cfg := &conf.AyatoConfig{
 		RequireBuildinfoProvenance: true,
-		Repos:                      []conf.BinRepoConfig{{Name: "myrepo", Arches: []string{"x86_64"}}},
+		Repos:                      []conf.BinRepoConfig{{Name: "myrepo"}},
 	}
 	return cfg
 }

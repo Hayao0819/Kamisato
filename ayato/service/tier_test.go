@@ -2,13 +2,15 @@ package service_test
 
 import (
 	"context"
-	"errors"
 	"os"
 	"path/filepath"
 	"testing"
 
+	"github.com/Hayao0819/Kamisato/internal/errors"
+
 	"github.com/Hayao0819/Kamisato/ayato/domain"
 	"github.com/Hayao0819/Kamisato/ayato/repository"
+	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
 	"github.com/Hayao0819/Kamisato/ayato/service"
 	"github.com/Hayao0819/Kamisato/internal/conf"
 )
@@ -50,6 +52,10 @@ func pkgNames(t *testing.T, svc *service.Service, repo, arch string) []string {
 	t.Helper()
 	pkgs, err := svc.Pkgs(repo, arch)
 	if err != nil {
+		// A tier with no published package has no db yet; that is an empty tier.
+		if errors.Is(err, blob.ErrNotFound) {
+			return nil
+		}
 		t.Fatalf("Pkgs(%s, %s): %v", repo, arch, err)
 	}
 	names := make([]string, 0, len(pkgs.Packages))
@@ -89,7 +95,7 @@ func has(names []string, want string) bool {
 // clears the source tier.
 func TestTieredPromotionFlow(t *testing.T) {
 	svc, _, repoDir := newTieredService(t, []conf.BinRepoConfig{
-		{Name: "myrepo", Arches: []string{"x86_64"}, Tiered: true},
+		{Name: "myrepo", Tiered: true},
 	})
 	ctx := context.Background()
 
@@ -142,7 +148,7 @@ func TestTieredPromotionFlow(t *testing.T) {
 // package published in both tiers after a promotion.
 func TestTieredPromotionKeepInSource(t *testing.T) {
 	svc, _, _ := newTieredService(t, []conf.BinRepoConfig{
-		{Name: "myrepo", Arches: []string{"x86_64"}, Tiered: true, PromotionKeepInSource: true},
+		{Name: "myrepo", Tiered: true, PromotionKeepInSource: true},
 	})
 
 	uploadPkg(t, svc, "myrepo", "foo")
@@ -163,8 +169,8 @@ func TestTieredPromotionKeepInSource(t *testing.T) {
 // commit is all-or-nothing — a target tier db is never half-updated).
 func TestPromotionRejectsInvalidRequests(t *testing.T) {
 	svc, _, _ := newTieredService(t, []conf.BinRepoConfig{
-		{Name: "myrepo", Arches: []string{"x86_64"}, Tiered: true},
-		{Name: "single", Arches: []string{"x86_64"}},
+		{Name: "myrepo", Tiered: true},
+		{Name: "single"},
 	})
 	ctx := context.Background()
 	uploadPkg(t, svc, "myrepo", "foo")
@@ -195,7 +201,7 @@ func TestPromotionRejectsInvalidRequests(t *testing.T) {
 // an upload lands directly in the single repo and there are no tier repos.
 func TestTieredOffUnchanged(t *testing.T) {
 	svc, cfg, _ := newTieredService(t, []conf.BinRepoConfig{
-		{Name: "single", Arches: []string{"x86_64"}},
+		{Name: "single"},
 	})
 	if names := cfg.PhysicalRepoNames(); len(names) != 1 || names[0] != "single" {
 		t.Fatalf("PhysicalRepoNames = %v, want [single] for a non-tiered repo", names)

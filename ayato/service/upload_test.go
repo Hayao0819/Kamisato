@@ -3,10 +3,11 @@ package service_test
 import (
 	"archive/tar"
 	"bytes"
-	"errors"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/Hayao0819/Kamisato/internal/errors"
 
 	"github.com/ProtonMail/go-crypto/openpgp"
 	"github.com/ProtonMail/go-crypto/openpgp/packet"
@@ -107,7 +108,7 @@ const uploadName = "foo-1.0-1-x86_64.pkg.tar.zst"
 func baseConfig(requireSign bool, keyring string) *conf.AyatoConfig {
 	cfg := &conf.AyatoConfig{
 		RequireSign: requireSign,
-		Repos:       []conf.BinRepoConfig{{Name: "myrepo", Arches: []string{"x86_64"}}},
+		Repos:       []conf.BinRepoConfig{{Name: "myrepo"}},
 	}
 	cfg.Verify.Keyring = keyring
 	return cfg

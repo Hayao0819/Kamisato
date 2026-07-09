@@ -76,8 +76,8 @@ func TestSqlConfigDSN(t *testing.T) {
 func TestAyatoConfigRepoHelpers(t *testing.T) {
 	cfg := AyatoConfig{
 		Repos: []BinRepoConfig{
-			{Name: "core", Arches: []string{"x86_64"}},
-			{Name: "extra", Arches: []string{"x86_64", "aarch64"}},
+			{Name: "core"},
+			{Name: "extra"},
 		},
 	}
 
@@ -86,8 +86,8 @@ func TestAyatoConfigRepoHelpers(t *testing.T) {
 		t.Errorf("RepoNames() = %v, want [core extra]", names)
 	}
 
-	if r := cfg.Repo("extra"); r == nil || len(r.Arches) != 2 {
-		t.Errorf("Repo(extra) = %v, want config with 2 arches", r)
+	if r := cfg.Repo("extra"); r == nil {
+		t.Errorf("Repo(extra) = %v, want a config", r)
 	}
 	if r := cfg.Repo("missing"); r != nil {
 		t.Errorf("Repo(missing) = %v, want nil", r)

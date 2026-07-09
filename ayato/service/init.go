@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
+	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
 func (s *Service) InitAll() error {
@@ -23,35 +23,16 @@ func (s *Service) InitAll() error {
 	for _, repo := range repos {
 		slog.Debug("init pkg repo", "name", repo)
 		if err := s.initRepo(repo, s.signedDB(), nil); err != nil {
-			return errwrap.WrapErr(err, fmt.Sprintf("failed to init repo %s", repo))
+			return errors.WrapErr(err, fmt.Sprintf("failed to init repo %s", repo))
 		}
 	}
 	return nil
 }
 
-// Arch expansion lives in the service, not the repository layer: union the
-// on-disk and configured arches, dropping "any" (pacman has no os/any database).
+// initRepo seeds an empty db for each arch the repo already has packages for. A
+// fresh repo has none, so this is a no-op until the first upload creates one.
 func (s *Service) initRepo(repo string, useSignedDB bool, gnupgDir *string) error {
-	existing, err := s.pkgBinaryRepo.Arches(repo)
-	if err != nil {
-		existing = nil // a not-yet-created repo has no architecture directories
-	}
-	seen := make(map[string]struct{})
-	arches := make([]string, 0, len(existing))
-	for _, a := range append(existing, s.configuredArches(repo)...) {
-		if a == "" || a == "any" {
-			continue
-		}
-		if _, ok := seen[a]; ok {
-			continue
-		}
-		seen[a] = struct{}{}
-		arches = append(arches, a)
-	}
-	if len(arches) == 0 {
-		return fmt.Errorf("repository %q has no architectures configured", repo)
-	}
-	for _, a := range arches {
+	for _, a := range s.repoArches(repo) {
 		if err := s.pkgBinaryRepo.InitArch(repo, a, useSignedDB, gnupgDir); err != nil {
 			return err
 		}

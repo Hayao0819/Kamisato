@@ -30,7 +30,7 @@ func getMirrorlist(r *gin.Engine, repo string) *httptest.ResponseRecorder {
 
 func TestMirrorlistHandler_SelfEntry(t *testing.T) {
 	cfg := &conf.AyatoConfig{
-		Repos:  []conf.BinRepoConfig{{Name: "myrepo", Arches: []string{"x86_64"}}},
+		Repos:  []conf.BinRepoConfig{{Name: "myrepo"}},
 		Mirror: conf.MirrorConfig{SelfURL: "https://repo.example"},
 	}
 	w := getMirrorlist(mirrorlistHandler(cfg), "myrepo")
