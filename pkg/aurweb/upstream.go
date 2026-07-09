@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Hayao0819/Kamisato/internal/httpx"
+	"github.com/Hayao0819/Kamisato/pkg/httpx"
 )
 
 // defaultUserAgent is sent on every upstream request; the AUR blocks the default

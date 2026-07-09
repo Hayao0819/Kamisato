@@ -9,8 +9,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Hayao0819/Kamisato/internal/httpx"
 	"github.com/Hayao0819/Kamisato/kayo/pkgindex"
+	"github.com/Hayao0819/Kamisato/pkg/httpx"
 )
 
 const (

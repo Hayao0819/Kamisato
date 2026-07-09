@@ -14,8 +14,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
-	"github.com/Hayao0819/Kamisato/internal/httpx"
+	"github.com/Hayao0819/Kamisato/internal/errors"
+	"github.com/Hayao0819/Kamisato/pkg/httpx"
 )
 
 // accessTokenExpiredHeader is ayato's hint (on a 401) that the presented access
@@ -24,7 +24,7 @@ const accessTokenExpiredHeader = "X-Access-Token-Expired" //nolint:gosec // G101
 
 // ErrAccessTokenExpired is returned by an authenticated call when ayato reports the
 // access token expired. Callers wrap the call with WithRefresh to recover from it.
-var ErrAccessTokenExpired = errwrap.NewErr("access token expired")
+var ErrAccessTokenExpired = errors.NewErr("access token expired")
 
 // apiClient gives regular JSON calls a per-attempt timeout and bounded retries so a
 // hung ayato cannot hang the CLI; streamClient has no timeout because one would abort
@@ -70,9 +70,9 @@ func responseErr(resp *http.Response, op string) error {
 		}
 	}
 	if msg == "" {
-		return errwrap.NewErrf("%s failed: %s", op, resp.Status)
+		return errors.NewErrf("%s failed: %s", op, resp.Status)
 	}
-	return errwrap.NewErrf("%s failed: %s: %s", op, resp.Status, msg)
+	return errors.NewErrf("%s failed: %s: %s", op, resp.Status, msg)
 }
 
 // doJSON runs a JSON API call on apiClient, decoding the reply into out when non-nil;
@@ -82,14 +82,14 @@ func doJSON(ctx context.Context, method, url, token string, body, out any, want 
 	if body != nil {
 		encoded, err := json.Marshal(body)
 		if err != nil {
-			return errwrap.WrapErr(err, "failed to encode "+op+" request")
+			return errors.WrapErr(err, "failed to encode "+op+" request")
 		}
 		reader = bytes.NewReader(encoded)
 	}
 
 	req, err := http.NewRequestWithContext(ctx, method, url, reader)
 	if err != nil {
-		return errwrap.WrapErr(err, "failed to create "+op+" request")
+		return errors.WrapErr(err, "failed to create "+op+" request")
 	}
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
@@ -100,19 +100,19 @@ func doJSON(ctx context.Context, method, url, token string, body, out any, want 
 
 	resp, err := apiClient.Do(req)
 	if err != nil {
-		return errwrap.WrapErr(err, "failed to send "+op+" request")
+		return errors.WrapErr(err, "failed to send "+op+" request")
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != want {
 		if resp.StatusCode == http.StatusUnauthorized && resp.Header.Get(accessTokenExpiredHeader) == "1" {
-			return errwrap.WrapErr(ErrAccessTokenExpired, op)
+			return errors.WrapErr(ErrAccessTokenExpired, op)
 		}
 		return responseErr(resp, op)
 	}
 	if out != nil {
 		if err := json.NewDecoder(resp.Body).Decode(out); err != nil {
-			return errwrap.WrapErr(err, "failed to decode "+op+" response")
+			return errors.WrapErr(err, "failed to decode "+op+" response")
 		}
 	}
 	return nil

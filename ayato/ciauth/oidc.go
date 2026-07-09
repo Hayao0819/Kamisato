@@ -5,10 +5,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Hayao0819/Kamisato/internal/conf"
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
-	"github.com/Hayao0819/Kamisato/internal/httpx"
 	"github.com/coreos/go-oidc/v3/oidc"
+
+	"github.com/Hayao0819/Kamisato/internal/conf"
+	"github.com/Hayao0819/Kamisato/internal/errors"
+	"github.com/Hayao0819/Kamisato/pkg/httpx"
 )
 
 const githubOIDCIssuer = "https://token.actions.githubusercontent.com"
@@ -29,7 +30,7 @@ func newOIDCAuth(ctx context.Context, cfg conf.CIGitHubOIDC) (*oidcAuth, error) 
 	client := httpx.New(10*time.Second, 3)
 	provider, err := oidc.NewProvider(oidc.ClientContext(ctx, client), githubOIDCIssuer)
 	if err != nil {
-		return nil, errwrap.WrapErr(err, "discover github oidc issuer")
+		return nil, errors.WrapErr(err, "discover github oidc issuer")
 	}
 	// Pin RS256 (GitHub signs only RS256) and require the configured audience;
 	// never skip the issuer/audience/signature checks.

@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Hayao0819/Kamisato/internal/httpx"
+	"github.com/Hayao0819/Kamisato/pkg/httpx"
 )
 
 const (
