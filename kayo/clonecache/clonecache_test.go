@@ -29,11 +29,11 @@ func commitRepo(t *testing.T, dir, body string, first bool) string {
 			t.Fatalf("git %v: %v (%s)", args, err, out)
 		}
 	}
-	head, err := gitcmd.Output(context.Background(), dir, "rev-parse", "HEAD")
+	head, err := gitcmd.HeadCommit(context.Background(), dir)
 	if err != nil {
 		t.Fatal(err)
 	}
-	return head[:len(head)-1]
+	return head
 }
 
 func TestCheck(t *testing.T) {

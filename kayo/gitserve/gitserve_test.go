@@ -28,11 +28,11 @@ func initRepo(t *testing.T) (dir, commit string) {
 			t.Fatalf("git %v: %v (%s)", args, err, out)
 		}
 	}
-	c, err := gitcmd.Output(context.Background(), dir, "rev-parse", "HEAD")
+	c, err := gitcmd.HeadCommit(context.Background(), dir)
 	if err != nil {
 		t.Fatal(err)
 	}
-	return dir, c[:len(c)-1] // strip newline
+	return dir, c
 }
 
 func TestMaterialize(t *testing.T) {
@@ -47,11 +47,11 @@ func TestMaterialize(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(repo, "info", "refs")); err != nil {
 		t.Errorf("dumb-HTTP info/refs not generated: %v", err)
 	}
-	head, err := gitcmd.Output(ctx, repo, "rev-parse", "HEAD")
+	head, err := gitcmd.HeadCommit(ctx, repo)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if head[:len(head)-1] != commit {
+	if head != commit {
 		t.Errorf("served HEAD = %q, want pinned %q", head, commit)
 	}
 }

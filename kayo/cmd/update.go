@@ -3,15 +3,15 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"strings"
 
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
+	"github.com/spf13/cobra"
+
+	"github.com/Hayao0819/Kamisato/internal/errors"
 	"github.com/Hayao0819/Kamisato/internal/gitcmd"
 	"github.com/Hayao0819/Kamisato/kayo/audit"
 	"github.com/Hayao0819/Kamisato/kayo/cmd/shared"
 	"github.com/Hayao0819/Kamisato/kayo/gitserve"
 	"github.com/Hayao0819/Kamisato/kayo/trust"
-	"github.com/spf13/cobra"
 )
 
 func updateCmd() *cobra.Command {
@@ -38,7 +38,7 @@ func updateCmd() *cobra.Command {
 			}
 			ap, ok := store.Approval(r.Pkgbase)
 			if !ok {
-				return errwrap.NewErrf("%s is not tracked; use 'kayo trust add' first", r.Pkgbase)
+				return errors.NewErrf("%s is not tracked; use 'kayo trust add' first", r.Pkgbase)
 			}
 
 			report, err := audit.Scan(r.Dir)
@@ -70,14 +70,14 @@ func updateCmd() *cobra.Command {
 				return nil
 			}
 			if report.Max() >= audit.SevHigh && !force {
-				return errwrap.NewErr("refusing to approve: high-severity findings (use --force)")
+				return errors.NewErr("refusing to approve: high-severity findings (use --force)")
 			}
 
 			if err := r.RequirePinnedCommit(); err != nil {
 				return err
 			}
 			if err := gitserve.Materialize(cmd.Context(), cfg.ServedRoot(), r.Pkgbase, r.Dir, r.Commit); err != nil {
-				return errwrap.WrapErr(err, "failed to re-pin reviewed commit")
+				return errors.WrapErr(err, "failed to re-pin reviewed commit")
 			}
 			store.Approve(trust.Approval{
 				Pkgbase:    r.Pkgbase,
@@ -101,19 +101,13 @@ func updateCmd() *cobra.Command {
 
 // diffNames is best-effort: nil on any git error, e.g. a force-pushed history
 // where the old commit is gone.
-func diffNames(ctx context.Context, dir, from, to string) []string {
+func diffNames(_ context.Context, dir, from, to string) []string {
 	if from == "" || to == "" {
 		return nil
 	}
-	out, err := gitcmd.Output(ctx, dir, "diff", "--name-only", from, to)
+	names, err := gitcmd.ChangedFiles(dir, from, to)
 	if err != nil {
 		return nil
-	}
-	var names []string
-	for _, line := range strings.Split(out, "\n") {
-		if line = strings.TrimSpace(line); line != "" {
-			names = append(names, line)
-		}
 	}
 	return names
 }

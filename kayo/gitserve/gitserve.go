@@ -8,12 +8,12 @@ package gitserve
 
 import (
 	"context"
-	"errors"
 	"net/http"
 	"os"
 	"path/filepath"
 
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
+	"github.com/Hayao0819/Kamisato/internal/errors"
+
 	"github.com/Hayao0819/Kamisato/internal/gitcmd"
 	"github.com/Hayao0819/Kamisato/pkg/aurweb"
 )
@@ -24,28 +24,28 @@ const pinnedBranch = "kayo-pinned"
 // reviewed commit, cloned from the already-checked-out sourceDir.
 func Materialize(ctx context.Context, root, pkgbase, sourceDir, commit string) error {
 	if commit == "" {
-		return errwrap.NewErr("cannot materialize without a pinned commit")
+		return errors.NewErr("cannot materialize without a pinned commit")
 	}
 	if err := os.MkdirAll(root, 0o755); err != nil { //nolint:gosec // served git root is exposed over dumb-HTTP and is world-readable by design
-		return errwrap.WrapErr(err, "failed to create served root")
+		return errors.WrapErr(err, "failed to create served root")
 	}
 	repo := filepath.Join(root, pkgbase+".git")
 	if err := os.RemoveAll(repo); err != nil {
-		return errwrap.WrapErr(err, "failed to clear served repo")
+		return errors.WrapErr(err, "failed to clear served repo")
 	}
 
 	if err := gitcmd.Clone(ctx, gitcmd.CloneOptions{URL: sourceDir, Dir: repo, Bare: true}); err != nil {
 		return err
 	}
 	// Point HEAD at the reviewed commit so a clone checks out the pinned tree,
-	// then refresh the dumb-HTTP index.
-	if err := gitcmd.Run(ctx, repo, "update-ref", "refs/heads/"+pinnedBranch, commit); err != nil {
+	// then refresh the dumb-HTTP index — all through go-git, no git process.
+	if err := gitcmd.SetRef(repo, "refs/heads/"+pinnedBranch, commit); err != nil {
 		return err
 	}
-	if err := gitcmd.Run(ctx, repo, "symbolic-ref", "HEAD", "refs/heads/"+pinnedBranch); err != nil {
+	if err := gitcmd.SetHead(repo, "refs/heads/"+pinnedBranch); err != nil {
 		return err
 	}
-	return gitcmd.Run(ctx, repo, "update-server-info")
+	return gitcmd.UpdateServerInfo(repo)
 }
 
 func Remove(root, pkgbase string) error {
@@ -66,7 +66,7 @@ func MaterializePins(ctx context.Context, root string, sources map[string]string
 			continue
 		}
 		if err := Materialize(ctx, root, pkgbase, dir, commit); err != nil {
-			errs = append(errs, errwrap.WrapErr(err, "pin "+pkgbase))
+			errs = append(errs, errors.WrapErr(err, "pin "+pkgbase))
 			continue
 		}
 		served++

@@ -3,20 +3,15 @@ package audit
 import (
 	"context"
 	"os"
-	"strings"
 
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
+	"github.com/Hayao0819/Kamisato/internal/errors"
 	"github.com/Hayao0819/Kamisato/internal/gitcmd"
 )
 
 // HeadCommit returns the HEAD commit hash of the git repo in dir. Author emails are
 // deliberately not read: aurweb does not validate them, so they are not a trust anchor.
 func HeadCommit(ctx context.Context, dir string) (string, error) {
-	out, err := gitcmd.Output(ctx, dir, "rev-parse", "HEAD")
-	if err != nil {
-		return "", err
-	}
-	return strings.TrimSpace(out), nil
+	return gitcmd.HeadCommit(ctx, dir)
 }
 
 // Clone clones url (optionally at ref) into a temp dir for auditing. The caller
@@ -24,7 +19,7 @@ func HeadCommit(ctx context.Context, dir string) (string, error) {
 func Clone(ctx context.Context, url, ref string) (dir string, cleanup func(), err error) {
 	dir, err = os.MkdirTemp("", "kayo-audit-*")
 	if err != nil {
-		return "", func() {}, errwrap.WrapErr(err, "failed to create temp dir")
+		return "", func() {}, errors.WrapErr(err, "failed to create temp dir")
 	}
 	cleanup = func() { _ = os.RemoveAll(dir) }
 
