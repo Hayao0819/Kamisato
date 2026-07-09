@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
+	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
 // Token type discriminators. Callers must pin the expected Typ via VerifyTyp so a
@@ -35,7 +35,7 @@ const (
 // ErrExpired is returned by verification when a token's signature and type are
 // valid but its Exp has elapsed. Exposed as a sentinel so the middleware can tell
 // an expired access token (client should refresh) apart from an invalid one.
-var ErrExpired = errwrap.NewErr("auth: token expired")
+var ErrExpired = errors.NewErr("auth: token expired")
 
 // minSecretBytes (32) matches the SHA-256 output so the key isn't the weak point.
 const minSecretBytes = 32
@@ -74,12 +74,12 @@ type Signer struct {
 // 32 bytes; an empty list or any short secret is rejected (fail-closed).
 func NewSigner(secrets []string) (*Signer, error) {
 	if len(secrets) == 0 {
-		return nil, errwrap.NewErr("auth: at least one session secret is required")
+		return nil, errors.NewErr("auth: at least one session secret is required")
 	}
 	keys := make([][]byte, 0, len(secrets))
 	for _, s := range secrets {
 		if len(s) < minSecretBytes {
-			return nil, errwrap.NewErrf("auth: session secret must be at least %d bytes", minSecretBytes)
+			return nil, errors.NewErrf("auth: session secret must be at least %d bytes", minSecretBytes)
 		}
 		keys = append(keys, []byte(s))
 	}
@@ -96,7 +96,7 @@ func mac(key []byte, payloadB64 string) []byte {
 func (s *Signer) Sign(c Claims) (string, error) {
 	payload, err := json.Marshal(c)
 	if err != nil {
-		return "", errwrap.WrapErr(err, "auth: marshal claims")
+		return "", errors.WrapErr(err, "auth: marshal claims")
 	}
 	payloadB64 := base64.RawURLEncoding.EncodeToString(payload)
 	sigB64 := base64.RawURLEncoding.EncodeToString(mac(s.secrets[0], payloadB64))
@@ -110,11 +110,11 @@ func (s *Signer) Sign(c Claims) (string, error) {
 func (s *Signer) parse(token string) (*Claims, error) {
 	payloadB64, sigB64, ok := strings.Cut(token, ".")
 	if !ok || payloadB64 == "" || sigB64 == "" {
-		return nil, errwrap.NewErr("auth: malformed token")
+		return nil, errors.NewErr("auth: malformed token")
 	}
 	want, err := base64.RawURLEncoding.DecodeString(sigB64)
 	if err != nil {
-		return nil, errwrap.NewErr("auth: malformed token signature")
+		return nil, errors.NewErr("auth: malformed token signature")
 	}
 	matched := false
 	for _, key := range s.secrets {
@@ -124,15 +124,15 @@ func (s *Signer) parse(token string) (*Claims, error) {
 		}
 	}
 	if !matched {
-		return nil, errwrap.NewErr("auth: bad token signature")
+		return nil, errors.NewErr("auth: bad token signature")
 	}
 	payload, err := base64.RawURLEncoding.DecodeString(payloadB64)
 	if err != nil {
-		return nil, errwrap.NewErr("auth: malformed token payload")
+		return nil, errors.NewErr("auth: malformed token payload")
 	}
 	var c Claims
 	if err := json.Unmarshal(payload, &c); err != nil {
-		return nil, errwrap.NewErr("auth: malformed token claims")
+		return nil, errors.NewErr("auth: malformed token claims")
 	}
 	return &c, nil
 }
@@ -158,7 +158,7 @@ func (s *Signer) VerifyTyp(token, typ string) (*Claims, error) {
 		return nil, err
 	}
 	if c.Typ != typ {
-		return nil, errwrap.NewErrf("auth: token type %q, want %q", c.Typ, typ)
+		return nil, errors.NewErrf("auth: token type %q, want %q", c.Typ, typ)
 	}
 	return c, nil
 }
@@ -172,7 +172,7 @@ func (s *Signer) VerifyTypAllowExpired(token, typ string) (claims *Claims, expir
 		return nil, false, err
 	}
 	if c.Typ != typ {
-		return nil, false, errwrap.NewErrf("auth: token type %q, want %q", c.Typ, typ)
+		return nil, false, errors.NewErrf("auth: token type %q, want %q", c.Typ, typ)
 	}
 	return c, time.Now().After(c.Exp), nil
 }

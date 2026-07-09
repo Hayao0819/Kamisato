@@ -1,8 +1,9 @@
 package stream
 
 import (
-	"errors"
 	"io"
+
+	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
 var errNilStream = errors.New("stream: nil underlying stream")

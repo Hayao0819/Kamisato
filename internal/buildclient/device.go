@@ -7,7 +7,7 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
+	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
 // DeviceCodeResponse is ayato's reply to a device authorization request (RFC 8628
@@ -51,17 +51,17 @@ func PollDeviceToken(ctx context.Context, base, deviceCode string) (DeviceTokenR
 	}{DeviceCode: deviceCode}
 	encoded, err := json.Marshal(reqBody)
 	if err != nil {
-		return DeviceTokenResult{}, errwrap.WrapErr(err, "failed to encode device token request")
+		return DeviceTokenResult{}, errors.WrapErr(err, "failed to encode device token request")
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint(base, "/api/unstable/auth/device/token"), bytes.NewReader(encoded))
 	if err != nil {
-		return DeviceTokenResult{}, errwrap.WrapErr(err, "failed to create device token request")
+		return DeviceTokenResult{}, errors.WrapErr(err, "failed to create device token request")
 	}
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := apiClient.Do(req)
 	if err != nil {
-		return DeviceTokenResult{}, errwrap.WrapErr(err, "failed to send device token request")
+		return DeviceTokenResult{}, errors.WrapErr(err, "failed to send device token request")
 	}
 	defer resp.Body.Close()
 
@@ -81,6 +81,6 @@ func PollDeviceToken(ctx context.Context, base, deviceCode string) (DeviceTokenR
 	case resp.StatusCode == http.StatusBadRequest && out.Error != "":
 		return DeviceTokenResult{Status: out.Error}, nil
 	default:
-		return DeviceTokenResult{}, errwrap.NewErrf("device token poll failed: %s: %s", resp.Status, out.Error)
+		return DeviceTokenResult{}, errors.NewErrf("device token poll failed: %s: %s", resp.Status, out.Error)
 	}
 }

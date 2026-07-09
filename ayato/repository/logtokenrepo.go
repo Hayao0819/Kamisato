@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
+	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
 // logTokenNS holds one-time SSE log-stream tokens mapping a random token to the job
@@ -35,15 +35,15 @@ func NewLogTokenRepository(store kv.Store) LogTokenRepository {
 
 func (r *logTokenRepository) Mint(jobID string, ttl time.Duration) (string, error) {
 	if jobID == "" {
-		return "", errwrap.NewErr("logtoken: empty job id")
+		return "", errors.NewErr("logtoken: empty job id")
 	}
 	b := make([]byte, 32)
 	if _, err := rand.Read(b); err != nil {
-		return "", errwrap.WrapErr(err, "logtoken: read random")
+		return "", errors.WrapErr(err, "logtoken: read random")
 	}
 	tok := base64.RawURLEncoding.EncodeToString(b)
 	if err := r.kv.Set(logTokenNS, tok, []byte(jobID), ttl); err != nil {
-		return "", errwrap.WrapErr(err, "logtoken: store")
+		return "", errors.WrapErr(err, "logtoken: store")
 	}
 	return tok, nil
 }

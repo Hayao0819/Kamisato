@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
+	"github.com/Hayao0819/Kamisato/internal/errors"
 	"github.com/Hayao0819/Kamisato/miko/domain"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/builder"
 )
@@ -109,7 +109,7 @@ func (s *Service) submitWithReason(req *domain.BuildRequest, reason domain.Build
 		// or SSE readers of this job would block forever.
 		s.finalizeLog(job.ID)
 		s.setStatus(job.ID, domain.JobStatusFailed, err)
-		return "", errwrap.WrapErr(err, "failed to enqueue build job")
+		return "", errors.WrapErr(err, "failed to enqueue build job")
 	}
 
 	slog.Info("Build job submitted", "id", job.ID, "repo", job.Repo, "arch", job.Arch)
@@ -123,7 +123,7 @@ func (s *Service) Status(id string) (*domain.BuildJob, error) {
 
 	job, ok := s.store[id]
 	if !ok {
-		return nil, errwrap.NewErrf("job not found: %s", id)
+		return nil, errors.NewErrf("job not found: %s", id)
 	}
 	clone := *job
 	return &clone, nil
@@ -152,7 +152,7 @@ func (s *Service) Cancel(id string) error {
 	job, ok := s.store[id]
 	if !ok {
 		s.mu.Unlock()
-		return errwrap.NewErrf("job not found: %s", id)
+		return errors.NewErrf("job not found: %s", id)
 	}
 	switch job.Status {
 	case domain.JobStatusSuccess, domain.JobStatusFailed, domain.JobStatusCancelled:

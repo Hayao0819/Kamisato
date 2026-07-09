@@ -7,7 +7,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
+	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
 func exportCmd() *cobra.Command {
@@ -35,7 +35,7 @@ func exportCmd() *cobra.Command {
 				armored, err = k.ExportPublicArmored()
 			}
 			if err != nil {
-				return errwrap.WrapErr(err, "failed to export key")
+				return errors.WrapErr(err, "failed to export key")
 			}
 			if output == "" || output == "-" {
 				_, err = fmt.Fprint(cmd.OutOrStdout(), armored)
@@ -46,7 +46,7 @@ func exportCmd() *cobra.Command {
 			if secret {
 				perm = 0o600
 			}
-			return errwrap.WrapErr(os.WriteFile(output, []byte(armored), perm), "failed to write key")
+			return errors.WrapErr(os.WriteFile(output, []byte(armored), perm), "failed to write key")
 		},
 	}
 	cmd.Flags().BoolVar(&secret, "secret", false, "Export the full private key (for offline backup) instead of the public key")

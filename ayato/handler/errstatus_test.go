@@ -1,10 +1,11 @@
 package handler
 
 import (
-	"errors"
 	"fmt"
 	"net/http"
 	"testing"
+
+	"github.com/Hayao0819/Kamisato/internal/errors"
 
 	"github.com/Hayao0819/Kamisato/ayato/domain"
 )

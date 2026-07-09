@@ -2,8 +2,9 @@ package bugreport
 
 import (
 	"context"
-	"errors"
 	"log/slog"
+
+	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
 // multiReporter fans a report out to every backend, counting it delivered when at

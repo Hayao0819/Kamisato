@@ -4,10 +4,11 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/spf13/cobra"
+
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
 	"github.com/Hayao0819/Kamisato/internal/buildclient"
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
-	"github.com/spf13/cobra"
+	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
 func adminRemoveCmd() *cobra.Command {
@@ -30,7 +31,7 @@ func adminRemoveCmd() *cobra.Command {
 				return buildclient.RemoveAdmin(ctx, srv.URL, token, id)
 			})
 			if err != nil {
-				return errwrap.WrapErr(err, "failed to remove admin")
+				return errors.WrapErr(err, "failed to remove admin")
 			}
 			fmt.Fprintf(cmd.OutOrStdout(), "removed admin %d\n", removed)
 			return nil

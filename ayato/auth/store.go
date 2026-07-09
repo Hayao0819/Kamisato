@@ -11,13 +11,13 @@ import (
 	"encoding/base64"
 	"fmt"
 
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
+	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
 func randToken(n int) (string, error) {
 	b := make([]byte, n)
 	if _, err := rand.Read(b); err != nil {
-		return "", errwrap.WrapErr(err, "auth: read random")
+		return "", errors.WrapErr(err, "auth: read random")
 	}
 	return base64.RawURLEncoding.EncodeToString(b), nil
 }
@@ -45,7 +45,7 @@ func NewUserCode() (string, error) {
 	const groups, per = 2, 4
 	b := make([]byte, groups*per)
 	if _, err := rand.Read(b); err != nil {
-		return "", errwrap.WrapErr(err, "auth: read random")
+		return "", errors.WrapErr(err, "auth: read random")
 	}
 	out := make([]byte, 0, groups*per+groups-1)
 	for i, v := range b {

@@ -3,15 +3,17 @@
 package sqlkv_test
 
 import (
-	"errors"
 	"sort"
 	"testing"
 	"time"
 
-	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
-	"github.com/Hayao0819/Kamisato/ayato/repository/kv/sqlkv"
+	"github.com/Hayao0819/Kamisato/internal/errors"
+
 	"github.com/glebarez/sqlite"
 	"gorm.io/gorm"
+
+	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
+	"github.com/Hayao0819/Kamisato/ayato/repository/kv/sqlkv"
 )
 
 func newStore(t *testing.T) *sqlkv.Store {

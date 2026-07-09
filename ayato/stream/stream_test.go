@@ -2,9 +2,10 @@ package stream
 
 import (
 	"bytes"
-	"errors"
 	"io"
 	"testing"
+
+	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
 var (

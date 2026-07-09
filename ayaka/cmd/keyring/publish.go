@@ -9,7 +9,7 @@ import (
 
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
 	"github.com/Hayao0819/Kamisato/internal/blinkyutils"
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
+	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
 func publishCmd() *cobra.Command {
@@ -31,7 +31,7 @@ func publishCmd() *cobra.Command {
 
 			tmp, err := os.MkdirTemp("", "ayaka-keyring-")
 			if err != nil {
-				return errwrap.WrapErr(err, "create temp dir")
+				return errors.WrapErr(err, "create temp dir")
 			}
 			defer func() { _ = os.RemoveAll(tmp) }()
 
@@ -40,7 +40,7 @@ func publishCmd() *cobra.Command {
 				return err
 			}
 			if err := blinkyutils.Upload(client, repo, pkgPath, sigPath); err != nil {
-				return errwrap.WrapErr(err, "failed to upload keyring package")
+				return errors.WrapErr(err, "failed to upload keyring package")
 			}
 			fmt.Fprintf(cmd.OutOrStdout(), "Published %s to %s\n", filepath.Base(pkgPath), repo)
 			return nil

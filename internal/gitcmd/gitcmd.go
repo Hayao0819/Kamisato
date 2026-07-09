@@ -19,7 +19,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
+	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
 // hardenedConfig is prepended to every git invocation.
@@ -43,18 +43,9 @@ func command(ctx context.Context, dir string, args, extraConfig []string) *exec.
 func Run(ctx context.Context, dir string, args ...string) error {
 	out, err := command(ctx, dir, args, nil).CombinedOutput()
 	if err != nil {
-		return errwrap.WrapErr(err, "git "+strings.Join(args, " ")+": "+strings.TrimSpace(string(out)))
+		return errors.WrapErr(err, "git "+strings.Join(args, " ")+": "+strings.TrimSpace(string(out)))
 	}
 	return nil
-}
-
-// Output runs a git subcommand and returns its combined output (stdout and stderr).
-func Output(ctx context.Context, dir string, args ...string) (string, error) {
-	out, err := command(ctx, dir, args, nil).CombinedOutput()
-	if err != nil {
-		return "", errwrap.WrapErr(err, "git "+strings.Join(args, " ")+": "+strings.TrimSpace(string(out)))
-	}
-	return string(out), nil
 }
 
 type CloneOptions struct {
@@ -99,7 +90,7 @@ func Clone(ctx context.Context, o CloneOptions) error {
 	args = append(args, "--", o.URL, o.Dir)
 
 	if out, err := command(ctx, "", args, extra).CombinedOutput(); err != nil {
-		return errwrap.WrapErr(err, "git clone: "+strings.TrimSpace(string(out)))
+		return errors.WrapErr(err, "git clone: "+strings.TrimSpace(string(out)))
 	}
 	if o.Ref != "" && !o.Bare {
 		return Run(ctx, o.Dir, "checkout", "--quiet", o.Ref)
@@ -116,25 +107,25 @@ func ValidateRemote(raw string) error {
 	// "<helper>::<addr>" is git's transport-helper syntax; ext:: runs an
 	// arbitrary command. Reject it before any scp-like heuristic can match it.
 	if strings.Contains(raw, "::") {
-		return errwrap.NewErr("transport-helper (::) remotes are not allowed")
+		return errors.NewErr("transport-helper (::) remotes are not allowed")
 	}
 	if host, ok := scpLikeSSH(raw); ok {
 		return rejectInternalHost(host)
 	}
 	u, err := url.Parse(raw)
 	if err != nil {
-		return errwrap.WrapErr(err, "invalid remote URL")
+		return errors.WrapErr(err, "invalid remote URL")
 	}
 
 	switch u.Scheme {
 	case "ssh", "https", "git":
 		return rejectInternalHost(u.Hostname())
 	case "http":
-		return errwrap.NewErr("plaintext http remotes are not allowed")
+		return errors.NewErr("plaintext http remotes are not allowed")
 	case "":
-		return errwrap.NewErr("local-path remotes are not allowed for untrusted sources")
+		return errors.NewErr("local-path remotes are not allowed for untrusted sources")
 	default:
-		return errwrap.NewErrf("remote scheme %q is not allowed", u.Scheme)
+		return errors.NewErrf("remote scheme %q is not allowed", u.Scheme)
 	}
 }
 
@@ -164,16 +155,16 @@ func scpLikeSSH(raw string) (host string, ok bool) {
 // internal IP after this check — only network egress restriction fully closes that.
 func rejectInternalHost(host string) error {
 	if host == "" {
-		return errwrap.NewErr("remote URL has no host")
+		return errors.NewErr("remote URL has no host")
 	}
 	ips, err := net.LookupIP(host)
 	if err != nil {
-		return errwrap.WrapErr(err, "failed to resolve remote host")
+		return errors.WrapErr(err, "failed to resolve remote host")
 	}
 	for _, ip := range ips {
 		if ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() ||
 			ip.IsLinkLocalMulticast() || ip.IsUnspecified() {
-			return errwrap.NewErrf("remote host %s resolves to a non-public address", host)
+			return errors.NewErrf("remote host %s resolves to a non-public address", host)
 		}
 	}
 	return nil

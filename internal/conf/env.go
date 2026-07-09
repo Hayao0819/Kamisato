@@ -1,8 +1,9 @@
 package conf
 
 import (
-	"errors"
 	"io/fs"
+
+	"github.com/Hayao0819/Kamisato/internal/errors"
 
 	"github.com/joho/godotenv"
 )

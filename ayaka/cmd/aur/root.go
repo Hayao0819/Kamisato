@@ -6,17 +6,18 @@ import (
 	"path/filepath"
 	"regexp"
 
-	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
-	"github.com/Hayao0819/Kamisato/internal/gitcmd"
 	"github.com/spf13/cobra"
+
+	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
+	"github.com/Hayao0819/Kamisato/internal/errors"
+	"github.com/Hayao0819/Kamisato/internal/gitcmd"
 )
 
 var aurPkgNameRe = regexp.MustCompile(`^[a-z0-9][a-z0-9@._+-]*$`)
 
 func validateAurPkgName(name string) error {
 	if !aurPkgNameRe.MatchString(name) {
-		return errwrap.NewErrf("invalid AUR package name %q", name)
+		return errors.NewErrf("invalid AUR package name %q", name)
 	}
 	return nil
 }
@@ -47,7 +48,7 @@ func updateAurPkg(cobraCmd *cobra.Command, repoDir, name string, force bool) err
 	if _, err := os.Stat(gitDir); err == nil {
 		slog.Info("updating existing AUR repo", "name", name, "dir", targetDir)
 		if err := gitcmd.Pull(cobraCmd.Context(), targetDir); err != nil {
-			return errwrap.WrapErr(err, "failed to pull AUR package "+name)
+			return errors.WrapErr(err, "failed to pull AUR package "+name)
 		}
 		return nil
 	}
@@ -55,7 +56,7 @@ func updateAurPkg(cobraCmd *cobra.Command, repoDir, name string, force bool) err
 	if force {
 		slog.Info("force remove non-git directory", "name", name, "dir", targetDir)
 		if err := os.RemoveAll(targetDir); err != nil {
-			return errwrap.WrapErr(err, "failed to remove existing directory for "+name)
+			return errors.WrapErr(err, "failed to remove existing directory for "+name)
 		}
 	}
 
@@ -64,32 +65,32 @@ func updateAurPkg(cobraCmd *cobra.Command, repoDir, name string, force bool) err
 	root, err := shared.GitRootDir(repoDir)
 	if err == nil {
 		if err := os.MkdirAll(filepath.Dir(targetDir), 0o755); err != nil { //nolint:gosec // G301: repo dir world-readable by design
-			return errwrap.WrapErr(err, "failed to create parent directory")
+			return errors.WrapErr(err, "failed to create parent directory")
 		}
 
 		absTarget, err := filepath.Abs(targetDir)
 		if err != nil {
-			return errwrap.WrapErr(err, "failed to resolve absolute target path")
+			return errors.WrapErr(err, "failed to resolve absolute target path")
 		}
 
 		relPath, err := filepath.Rel(root, absTarget)
 		if err != nil {
-			return errwrap.WrapErr(err, "failed to get relative path for submodule")
+			return errors.WrapErr(err, "failed to get relative path for submodule")
 		}
 
 		slog.Info("adding AUR repo as submodule", "name", name, "root", root, "path", relPath)
 		if err := gitcmd.Run(cobraCmd.Context(), root, "submodule", "add", url, relPath); err != nil {
-			return errwrap.WrapErr(err, "failed to add AUR submodule "+name)
+			return errors.WrapErr(err, "failed to add AUR submodule "+name)
 		}
 		return nil
 	}
 
 	slog.Info("cloning AUR repo (non-git parent)", "name", name, "dir", targetDir)
 	if err := os.MkdirAll(repoDir, 0o755); err != nil { //nolint:gosec // G301: repo dir world-readable by design
-		return errwrap.WrapErr(err, "failed to create repo directory")
+		return errors.WrapErr(err, "failed to create repo directory")
 	}
 	if err := gitcmd.Clone(cobraCmd.Context(), gitcmd.CloneOptions{URL: url, Dir: targetDir, Strict: true}); err != nil {
-		return errwrap.WrapErr(err, "failed to clone AUR package "+name)
+		return errors.WrapErr(err, "failed to clone AUR package "+name)
 	}
 	return nil
 }

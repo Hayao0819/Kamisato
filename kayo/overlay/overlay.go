@@ -16,7 +16,7 @@ import (
 	"sync"
 
 	"github.com/Hayao0819/Kamisato/internal/conf"
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
+	"github.com/Hayao0819/Kamisato/internal/errors"
 	"github.com/Hayao0819/Kamisato/internal/gitcmd"
 	"github.com/Hayao0819/Kamisato/kayo/pkgindex"
 	"github.com/Hayao0819/Kamisato/pkg/aurweb"
@@ -57,7 +57,7 @@ func (r *Registry) SourceDirs() map[string]string {
 // swaps in a fresh index. A single failing overlay is logged and skipped.
 func (r *Registry) Sync(ctx context.Context) error {
 	if err := os.MkdirAll(r.cacheDir, 0o750); err != nil {
-		return errwrap.WrapErr(err, "failed to create overlay cache dir")
+		return errors.WrapErr(err, "failed to create overlay cache dir")
 	}
 
 	index := map[string]aurweb.Pkg{}
@@ -128,6 +128,6 @@ func fetchOverlay(ctx context.Context, dir string, o conf.OverlayConfig) error {
 		// FETCH_HEAD resolves the just-fetched ref be it a branch, tag, or commit.
 		return gitcmd.Run(ctx, dir, "reset", "--hard", "--quiet", "FETCH_HEAD")
 	default:
-		return gitcmd.Run(ctx, dir, "pull", "--quiet", "--ff-only")
+		return gitcmd.Pull(ctx, dir)
 	}
 }

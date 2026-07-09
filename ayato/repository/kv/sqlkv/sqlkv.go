@@ -9,19 +9,21 @@
 package sqlkv
 
 import (
-	"errors"
 	"fmt"
 	"time"
 
-	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
-	"github.com/Hayao0819/Kamisato/internal/weblog"
+	slogGorm "github.com/orandin/slog-gorm"
+
+	"github.com/Hayao0819/Kamisato/internal/errors"
+
 	"github.com/glebarez/sqlite"
 	_ "github.com/lib/pq"
 	"gorm.io/driver/mysql"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
+
+	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
 )
 
 // Entry is the generic row backing every namespaced key-value pair. The 191-byte
@@ -54,7 +56,7 @@ func New(driver, dsn string) (*Store, error) {
 	}
 
 	db, err := gorm.Open(dialector, &gorm.Config{
-		Logger: weblog.GormLog(),
+		Logger: slogGorm.New(),
 	})
 	if err != nil {
 		return nil, err
@@ -89,7 +91,7 @@ func (s *Store) Get(ns, key string) ([]byte, error) {
 		return nil, kv.ErrNotFound
 	}
 	if err != nil {
-		return nil, errwrap.WrapErr(err, "sqlkv: get")
+		return nil, errors.WrapErr(err, "sqlkv: get")
 	}
 	return e.Value, nil
 }
@@ -138,7 +140,7 @@ func (s *Store) Add(ns, key string, value []byte, ttl time.Duration) (bool, erro
 	e := Entry{Namespace: ns, Key: key, Value: value, ExpiresAt: expiresAt}
 	res := s.db.Clauses(clause.OnConflict{DoNothing: true}).Create(&e)
 	if res.Error != nil {
-		return false, errwrap.WrapErr(res.Error, "sqlkv: add")
+		return false, errors.WrapErr(res.Error, "sqlkv: add")
 	}
 	return res.RowsAffected > 0, nil
 }
@@ -152,7 +154,7 @@ func (s *Store) List(ns string) ([]kv.Entry, error) {
 		Where("namespace = ? AND (expires_at IS NULL OR expires_at > ?)", ns, time.Now()).
 		Find(&rows).Error
 	if err != nil {
-		return nil, errwrap.WrapErr(err, "sqlkv: list")
+		return nil, errors.WrapErr(err, "sqlkv: list")
 	}
 	out := make([]kv.Entry, 0, len(rows))
 	for _, r := range rows {

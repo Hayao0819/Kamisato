@@ -7,7 +7,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
+	"github.com/Hayao0819/Kamisato/internal/errors"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/sign"
 )
 
@@ -34,7 +34,7 @@ func generateCmd() *cobra.Command {
 			}
 			k, err := sign.GenerateSigningKey(dir, name, email, expire, subkeyExpire, pass)
 			if err != nil {
-				return errwrap.WrapErr(err, "failed to generate signing key")
+				return errors.WrapErr(err, "failed to generate signing key")
 			}
 			out := cmd.OutOrStdout()
 			fmt.Fprintf(out, "Generated signing key in %s\n", dir)

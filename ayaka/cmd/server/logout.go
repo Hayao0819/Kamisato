@@ -3,10 +3,11 @@ package servercmd
 import (
 	"fmt"
 
+	"github.com/spf13/cobra"
+
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
 	"github.com/Hayao0819/Kamisato/internal/blinkyutils"
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
-	"github.com/spf13/cobra"
+	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
 // LogoutCmd clears the locally stored CLI token but keeps the server registered.
@@ -28,7 +29,7 @@ func LogoutCmd() *cobra.Command {
 
 			entry, ok := db.Servers[server]
 			if !ok {
-				return errwrap.WrapErr(shared.ErrServerNotFound, server)
+				return errors.WrapErr(shared.ErrServerNotFound, server)
 			}
 
 			entry.Username = ""

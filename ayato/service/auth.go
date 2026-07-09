@@ -2,7 +2,7 @@ package service
 
 import (
 	"github.com/Hayao0819/Kamisato/ayato/domain"
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
+	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
 // Fail-closed: a non-positive id or a read miss returns false.
@@ -39,11 +39,11 @@ func (s *Service) SeedBootstrapAdmin(id int64) error {
 	}
 	admins, err := s.authRepo.ListAdmins()
 	if err != nil {
-		return errwrap.WrapErr(err, "auth: list allowlist for seed")
+		return errors.WrapErr(err, "auth: list allowlist for seed")
 	}
 	if len(admins) == 0 {
 		if err := s.authRepo.AddAdmin(id, ""); err != nil {
-			return errwrap.WrapErr(err, "auth: seed bootstrap admin")
+			return errors.WrapErr(err, "auth: seed bootstrap admin")
 		}
 	}
 	return nil

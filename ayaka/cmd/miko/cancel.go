@@ -3,10 +3,11 @@ package mikocmd
 import (
 	"fmt"
 
+	"github.com/spf13/cobra"
+
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
 	"github.com/Hayao0819/Kamisato/internal/buildclient"
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
-	"github.com/spf13/cobra"
+	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
 func mikoCancelCmd() *cobra.Command {
@@ -21,7 +22,7 @@ func mikoCancelCmd() *cobra.Command {
 			}
 
 			if err := buildclient.CancelJob(cmd.Context(), srv.URL, srv.Password, args[0]); err != nil {
-				return errwrap.WrapErr(err, "failed to cancel job")
+				return errors.WrapErr(err, "failed to cancel job")
 			}
 
 			fmt.Fprintf(cmd.OutOrStdout(), "cancelled job %s\n", args[0])

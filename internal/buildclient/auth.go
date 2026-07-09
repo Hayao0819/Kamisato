@@ -2,11 +2,10 @@ package buildclient
 
 import (
 	"context"
-	"errors"
 	"net/http"
 	"strconv"
 
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
+	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
 // ExchangeCLICode trades a one-time CLI code plus its PKCE verifier for an access
@@ -60,11 +59,11 @@ func WithRefresh(ctx context.Context, base, access, refresh string, persist func
 	}
 	newAccess, newRefresh, _, _, rerr := RefreshAccessToken(ctx, base, refresh)
 	if rerr != nil {
-		return errwrap.WrapErr(rerr, "session expired; please run 'ayaka server login' again")
+		return errors.WrapErr(rerr, "session expired; please run 'ayaka server login' again")
 	}
 	if persist != nil {
 		if perr := persist(newAccess, newRefresh); perr != nil {
-			return errwrap.WrapErr(perr, "failed to save refreshed tokens")
+			return errors.WrapErr(perr, "failed to save refreshed tokens")
 		}
 	}
 	return op(ctx, newAccess)

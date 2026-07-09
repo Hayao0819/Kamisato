@@ -4,8 +4,9 @@
 package kv
 
 import (
-	"errors"
 	"time"
+
+	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
 //go:generate mockgen -source=kv.go -destination=../../test/mocks/kv.go -package=mocks -mock_names Store=MockKVStore

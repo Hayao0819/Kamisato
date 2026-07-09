@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"io"
 	"os"
 	"path"
@@ -14,10 +13,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Hayao0819/Kamisato/internal/errors"
+
 	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
 	"github.com/Hayao0819/Kamisato/ayato/stream"
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
 )
 
 // The pool stores package bytes content-addressed so identical content is held once
@@ -147,11 +147,11 @@ func (p *poolStore) ensureObject(hash string, size int64, name string, file stre
 	}
 
 	if _, err := file.Seek(0, io.SeekStart); err != nil {
-		return errwrap.WrapErr(err, "pool: seek package")
+		return errors.WrapErr(err, "pool: seek package")
 	}
 	named := stream.NewFileStream(hash, file.ContentType(), file)
 	if err := p.Store.StoreFile(poolRepo, poolArch, named); err != nil {
-		return errwrap.WrapErr(err, "pool: store object")
+		return errors.WrapErr(err, "pool: store object")
 	}
 	obj := poolObject{Filename: name, Size: size, CreatedAt: p.now().UnixNano()}
 	b, _ := json.Marshal(obj)
@@ -400,10 +400,10 @@ func (p *poolStore) CollectPool(ctx context.Context, policy PoolPolicy) (PoolGCR
 			continue
 		}
 		if err := p.Store.DeleteFile(poolRepo, poolArch, hash); err != nil && !errors.Is(err, blob.ErrNotFound) {
-			return res, errwrap.WrapErr(err, "pool gc: delete object")
+			return res, errors.WrapErr(err, "pool gc: delete object")
 		}
 		if err := p.kv.Delete(poolObjNS, hash); err != nil {
-			return res, errwrap.WrapErr(err, "pool gc: delete manifest")
+			return res, errors.WrapErr(err, "pool gc: delete manifest")
 		}
 		res.Deleted++
 	}
@@ -436,12 +436,12 @@ func pkgGroup(filename string) string {
 // rewinding the file afterward is the caller's job (ensureObject re-seeks).
 func hashSeek(file stream.SeekFile) (string, int64, error) {
 	if _, err := file.Seek(0, io.SeekStart); err != nil {
-		return "", 0, errwrap.WrapErr(err, "pool: seek package")
+		return "", 0, errors.WrapErr(err, "pool: seek package")
 	}
 	h := sha256.New()
 	n, err := io.Copy(h, file)
 	if err != nil {
-		return "", 0, errwrap.WrapErr(err, "pool: hash package")
+		return "", 0, errors.WrapErr(err, "pool: hash package")
 	}
 	return hex.EncodeToString(h.Sum(nil)), n, nil
 }

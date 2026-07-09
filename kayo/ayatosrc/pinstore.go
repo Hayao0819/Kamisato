@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
+	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
 // pin records the TOFU-trusted public key and the anti-rollback watermark for one
@@ -38,10 +38,10 @@ func OpenPinStore(path string) (*PinStore, error) {
 		return s, nil
 	}
 	if err != nil {
-		return nil, errwrap.WrapErr(err, "failed to read ayato pin store")
+		return nil, errors.WrapErr(err, "failed to read ayato pin store")
 	}
 	if err := json.Unmarshal(raw, &s.data); err != nil {
-		return nil, errwrap.WrapErr(err, "corrupt ayato pin store")
+		return nil, errors.WrapErr(err, "corrupt ayato pin store")
 	}
 	if s.data == nil {
 		s.data = map[string]pin{}
@@ -111,29 +111,29 @@ func (s *PinStore) Entries() []PinInfo {
 
 func (s *PinStore) saveLocked() error {
 	if err := os.MkdirAll(filepath.Dir(s.path), 0o750); err != nil {
-		return errwrap.WrapErr(err, "failed to create pin store dir")
+		return errors.WrapErr(err, "failed to create pin store dir")
 	}
 	raw, err := json.MarshalIndent(s.data, "", "  ")
 	if err != nil {
-		return errwrap.WrapErr(err, "failed to encode pin store")
+		return errors.WrapErr(err, "failed to encode pin store")
 	}
 	tmp := s.path + ".tmp"
 	// fsync before rename so the watermark is durable, not just atomic: callers
 	// treat SetLastIssued success as "reached disk" before swapping the index.
 	f, err := os.OpenFile(tmp, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600)
 	if err != nil {
-		return errwrap.WrapErr(err, "failed to write pin store")
+		return errors.WrapErr(err, "failed to write pin store")
 	}
 	if _, err := f.Write(raw); err != nil {
 		_ = f.Close()
-		return errwrap.WrapErr(err, "failed to write pin store")
+		return errors.WrapErr(err, "failed to write pin store")
 	}
 	if err := f.Sync(); err != nil {
 		_ = f.Close()
-		return errwrap.WrapErr(err, "failed to sync pin store")
+		return errors.WrapErr(err, "failed to sync pin store")
 	}
 	if err := f.Close(); err != nil {
-		return errwrap.WrapErr(err, "failed to close pin store")
+		return errors.WrapErr(err, "failed to close pin store")
 	}
 	return os.Rename(tmp, s.path)
 }

@@ -8,8 +8,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
 	"github.com/spf13/cobra"
+
+	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
 func apikeyCmd() *cobra.Command {
@@ -55,7 +56,7 @@ func apikeyGenerateCmd() *cobra.Command {
 func generateAPIKey() (string, error) {
 	b := make([]byte, 32) // 256 bits
 	if _, err := rand.Read(b); err != nil {
-		return "", errwrap.WrapErr(err, "failed to read random bytes")
+		return "", errors.WrapErr(err, "failed to read random bytes")
 	}
 	return "miko_" + base64.RawURLEncoding.EncodeToString(b), nil
 }
@@ -66,11 +67,11 @@ func appendAPIKey(path, key string) error {
 	if data, err := os.ReadFile(path); err == nil {
 		if len(data) > 0 {
 			if err := json.Unmarshal(data, &cfg); err != nil {
-				return errwrap.WrapErr(err, fmt.Sprintf("failed to parse %s (JSON config expected)", path))
+				return errors.WrapErr(err, fmt.Sprintf("failed to parse %s (JSON config expected)", path))
 			}
 		}
 	} else if !os.IsNotExist(err) {
-		return errwrap.WrapErr(err, fmt.Sprintf("failed to read %s", path))
+		return errors.WrapErr(err, fmt.Sprintf("failed to read %s", path))
 	}
 
 	var keys []string

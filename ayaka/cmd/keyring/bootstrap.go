@@ -7,7 +7,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
+	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
 func bootstrapCmd() *cobra.Command {
@@ -37,7 +37,7 @@ func bootstrapCmd() *cobra.Command {
 			case "markdown", "md":
 				fmt.Fprintf(out, "```sh\n%s```\n", body)
 			default:
-				return errwrap.NewErr("unknown --format " + format + " (want sh|markdown)")
+				return errors.NewErr("unknown --format " + format + " (want sh|markdown)")
 			}
 			return nil
 		},

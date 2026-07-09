@@ -8,14 +8,15 @@ import (
 	"net/http/httputil"
 	"net/url"
 
+	"github.com/gin-gonic/gin"
+	sloggin "github.com/samber/slog-gin"
+	"github.com/spf13/cobra"
+
 	"github.com/Hayao0819/Kamisato/internal/cliutil"
 	"github.com/Hayao0819/Kamisato/internal/conf"
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
+	"github.com/Hayao0819/Kamisato/internal/errors"
 	"github.com/Hayao0819/Kamisato/internal/version"
-	"github.com/Hayao0819/Kamisato/internal/weblog"
 	"github.com/Hayao0819/Kamisato/lumine/embed"
-	"github.com/gin-gonic/gin"
-	"github.com/spf13/cobra"
 )
 
 // lumineEnv is served at /env.json. AYATO_URL "" means same origin. AUTH_MODE is
@@ -72,12 +73,12 @@ func RootCmd() *cobra.Command {
 
 			static, err := embed.NextHandler()
 			if err != nil {
-				return errwrap.WrapErr(err, "failed to prepare embedded filesystem")
+				return errors.WrapErr(err, "failed to prepare embedded filesystem")
 			}
 
 			engine := gin.New()
 			engine.Use(gin.Recovery())
-			engine.Use(weblog.GinLog())
+			engine.Use(sloggin.NewWithConfig(slog.Default(), sloggin.Config{DefaultLevel: slog.LevelDebug, HandleGinDebug: true}))
 
 			// Validate has already rejected any auth_mode other than cookie/bearer
 			// and ensured bearer has an ayato_url.
@@ -112,7 +113,7 @@ func RootCmd() *cobra.Command {
 
 			envJSON, err := json.Marshal(env)
 			if err != nil {
-				return errwrap.WrapErr(err, "failed to encode env")
+				return errors.WrapErr(err, "failed to encode env")
 			}
 			engine.Any("/env.json", func(c *gin.Context) {
 				if c.GetHeader("Sec-Fetch-Site") != "same-origin" {

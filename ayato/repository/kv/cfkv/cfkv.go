@@ -9,14 +9,16 @@ package cfkv
 import (
 	"context"
 	"encoding/base64"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
 
+	"github.com/Hayao0819/Kamisato/internal/errors"
+
+	"github.com/cloudflare/cloudflare-go"
+
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv/cfkv/logger"
-	"github.com/cloudflare/cloudflare-go"
 )
 
 // Keys are URL-safe base64 so no byte can break the Workers KV REST URL: the NUL

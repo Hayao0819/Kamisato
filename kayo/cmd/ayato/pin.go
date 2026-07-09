@@ -3,11 +3,12 @@ package ayatocmd
 import (
 	"fmt"
 
+	"github.com/spf13/cobra"
+
 	"github.com/Hayao0819/Kamisato/internal/conf"
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
+	"github.com/Hayao0819/Kamisato/internal/errors"
 	"github.com/Hayao0819/Kamisato/kayo/ayatosrc"
 	"github.com/Hayao0819/Kamisato/kayo/cmd/shared"
-	"github.com/spf13/cobra"
 )
 
 func ayatoPinCmd() *cobra.Command {
@@ -28,7 +29,7 @@ func ayatoPinCmd() *cobra.Command {
 				}
 			}
 			if src == nil {
-				return errwrap.NewErrf("no ayato source named %q in config", args[0])
+				return errors.NewErrf("no ayato source named %q in config", args[0])
 			}
 
 			pub, keyID, err := ayatosrc.FetchPubkey(cmd.Context(), src.URL)

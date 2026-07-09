@@ -2,10 +2,11 @@ package service
 
 import (
 	"context"
-	"errors"
 	"log/slog"
 	"sync"
 	"time"
+
+	"github.com/Hayao0819/Kamisato/internal/errors"
 
 	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/miko/domain"

@@ -7,11 +7,12 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/spf13/cobra"
+
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
+	"github.com/Hayao0819/Kamisato/internal/errors"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/alpm"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/hook"
-	"github.com/spf13/cobra"
 )
 
 // hookUploadCmd is the hook's pacman entry point. pacman does not copy
@@ -40,7 +41,7 @@ func hookUploadCmd() *cobra.Command {
 			if !all {
 				foreign, err := alpm.ForeignPackages()
 				if err != nil {
-					return errwrap.WrapErr(err, "could not determine foreign packages; pass --all to upload every target")
+					return errors.WrapErr(err, "could not determine foreign packages; pass --all to upload every target")
 				}
 				names = alpm.FilterForeign(names, foreign)
 				if len(names) == 0 {
@@ -77,7 +78,7 @@ func hookUploadCmd() *cobra.Command {
 			client, err := shared.RepoClient(cmd)
 			if err != nil {
 				// The hook runs as root, so this resolves against root's server db.
-				return errwrap.WrapErr(err, "resolving the ayato server/credentials (set up root's db with 'sudo ayaka server login')")
+				return errors.WrapErr(err, "resolving the ayato server/credentials (set up root's db with 'sudo ayaka server login')")
 			}
 			// pacman blocks until a PostTransaction hook exits and blinky uses
 			// http.DefaultClient (no timeout), so a stalled server would hang the
@@ -85,7 +86,7 @@ func hookUploadCmd() *cobra.Command {
 			// this one-shot.
 			http.DefaultClient.Timeout = timeout
 			if err := client.UploadPackageFiles(repo, files...); err != nil {
-				return errwrap.WrapErr(err, "failed to upload packages (the server may be slow or unreachable)")
+				return errors.WrapErr(err, "failed to upload packages (the server may be slow or unreachable)")
 			}
 			out := cmd.OutOrStdout()
 			for _, f := range files {

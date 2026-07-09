@@ -5,7 +5,8 @@ import (
 	"strings"
 
 	blinky_util "github.com/BrenekH/blinky/cmd/blinky/util"
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
+
+	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
 // Server is one stored ayato endpoint credential pair. Aliased so callers depend
@@ -20,14 +21,14 @@ type ServerDB = blinky_util.ServerDB
 func ReadServerDB() (ServerDB, error) {
 	db, err := blinky_util.ReadServerDB()
 	if err != nil {
-		return db, errwrap.WrapErr(err, "failed to read server database")
+		return db, errors.WrapErr(err, "failed to read server database")
 	}
 	return db, nil
 }
 
 // SaveServerDB persists the shared server registry.
 func SaveServerDB(db ServerDB) error {
-	return errwrap.WrapErr(blinky_util.SaveServerDB(db), "failed to save server database")
+	return errors.WrapErr(blinky_util.SaveServerDB(db), "failed to save server database")
 }
 
 // ServerNames returns the registered server names starting with prefix, sorted. It

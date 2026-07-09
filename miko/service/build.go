@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/Hayao0819/Kamisato/internal/conf"
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
+	"github.com/Hayao0819/Kamisato/internal/errors"
 	"github.com/Hayao0819/Kamisato/miko/domain"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/builder"
 )
@@ -20,19 +20,19 @@ func (s *Service) runBuild(ctx context.Context, job *domain.BuildJob) (*builder.
 
 	srcDir, err := os.MkdirTemp("", "miko-src-*")
 	if err != nil {
-		return nil, "", errwrap.WrapErr(err, "failed to create source dir")
+		return nil, "", errors.WrapErr(err, "failed to create source dir")
 	}
 	defer func() { _ = os.RemoveAll(srcDir) }()
 
 	if err := materialize(ctx, req, srcDir); err != nil {
-		return nil, "", errwrap.WrapErr(err, "failed to materialize source")
+		return nil, "", errors.WrapErr(err, "failed to materialize source")
 	}
 
 	// The artifact dir must outlive runBuild (signing/upload), so clean it up
 	// only on failure.
 	outDir, err := os.MkdirTemp("", "miko-out-*")
 	if err != nil {
-		return nil, "", errwrap.WrapErr(err, "failed to create output dir")
+		return nil, "", errors.WrapErr(err, "failed to create output dir")
 	}
 
 	// Per-request timeout (minutes) overrides the server default.
@@ -65,7 +65,7 @@ func (s *Service) runBuild(ctx context.Context, job *domain.BuildJob) (*builder.
 	backend, err := builder.New(builder.Kind(s.cfg.Executor), opts)
 	if err != nil {
 		_ = os.RemoveAll(outDir)
-		return nil, "", errwrap.WrapErr(err, "failed to create build backend")
+		return nil, "", errors.WrapErr(err, "failed to create build backend")
 	}
 
 	// Build and publish any unbuilt AUR dependencies before the target so it can
@@ -88,7 +88,7 @@ func (s *Service) runBuild(ctx context.Context, job *domain.BuildJob) (*builder.
 	res, err := backend.Build(ctx, spec)
 	if err != nil {
 		_ = os.RemoveAll(outDir)
-		return nil, "", errwrap.WrapErr(err, "build failed")
+		return nil, "", errors.WrapErr(err, "build failed")
 	}
 	return res, outDir, nil
 }

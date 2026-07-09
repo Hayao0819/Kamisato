@@ -3,10 +3,11 @@ package buildclient
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
 // refreshServer serves a protected endpoint that rejects the "old" access token as

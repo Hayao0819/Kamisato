@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"errors"
 	"log/slog"
 	"net/http"
 	"os"
@@ -10,11 +9,16 @@ import (
 	"syscall"
 	"time"
 
+	sloggin "github.com/samber/slog-gin"
+
+	"github.com/Hayao0819/Kamisato/internal/errors"
+
+	"github.com/gin-gonic/gin"
+	"github.com/spf13/cobra"
+
 	"github.com/Hayao0819/Kamisato/internal/cliutil"
 	"github.com/Hayao0819/Kamisato/internal/conf"
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
 	"github.com/Hayao0819/Kamisato/internal/version"
-	"github.com/Hayao0819/Kamisato/internal/weblog"
 	ayatocmd "github.com/Hayao0819/Kamisato/kayo/cmd/ayato"
 	hookcmd "github.com/Hayao0819/Kamisato/kayo/cmd/hook"
 	"github.com/Hayao0819/Kamisato/kayo/cmd/shared"
@@ -23,8 +27,6 @@ import (
 	"github.com/Hayao0819/Kamisato/kayo/gitserve"
 	"github.com/Hayao0819/Kamisato/kayo/trust"
 	"github.com/Hayao0819/Kamisato/pkg/aurweb"
-	"github.com/gin-gonic/gin"
-	"github.com/spf13/cobra"
 )
 
 func RootCmd() *cobra.Command {
@@ -68,7 +70,7 @@ func run(cmd *cobra.Command, _ []string) error {
 
 	store, err := trust.Open(cfg.ResolvedTrustStore())
 	if err != nil {
-		return errwrap.WrapErr(err, "failed to open trust store")
+		return errors.WrapErr(err, "failed to open trust store")
 	}
 	mode := cfg.ResolvedEnforceMode()
 
@@ -109,9 +111,9 @@ func run(cmd *cobra.Command, _ []string) error {
 	}
 
 	engine := gin.New()
-	engine.Use(gin.Recovery(), weblog.GinLog())
+	engine.Use(gin.Recovery(), sloggin.NewWithConfig(slog.Default(), sloggin.Config{DefaultLevel: slog.LevelDebug, HandleGinDebug: true}))
 	if err := engine.SetTrustedProxies(nil); err != nil {
-		return errwrap.WrapErr(err, "failed to reset trusted proxies")
+		return errors.WrapErr(err, "failed to reset trusted proxies")
 	}
 	engine.GET("/health", func(c *gin.Context) { c.String(http.StatusOK, "ok") })
 	// Approved packages are served from their pinned local repo (variant B);

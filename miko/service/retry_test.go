@@ -2,11 +2,11 @@ package service
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"testing"
 
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
+	"github.com/Hayao0819/Kamisato/internal/errors"
+
 	"github.com/Hayao0819/Kamisato/pkg/pacman/builder"
 )
 
@@ -20,7 +20,7 @@ func TestIsRetriable(t *testing.T) {
 		{"compile failure is terminal", builder.ErrBuildFailed, false},
 		{
 			"wrapped compile failure is terminal",
-			errwrap.WrapErr(builder.ErrBuildFailed, "dependency build failed"),
+			errors.WrapErr(builder.ErrBuildFailed, "dependency build failed"),
 			false,
 		},
 		{

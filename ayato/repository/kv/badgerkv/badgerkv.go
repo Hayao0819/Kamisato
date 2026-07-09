@@ -8,16 +8,17 @@
 package badgerkv
 
 import (
-	"errors"
 	"log/slog"
 	"math/bits"
 	"sync"
 	"time"
 
+	"github.com/Hayao0819/Kamisato/internal/errors"
+
+	"github.com/dgraph-io/badger/v4"
+
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv/badgerkv/logger"
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
-	"github.com/dgraph-io/badger/v4"
 )
 
 // NUL cannot appear in the namespaces or keys callers use (package names, hex
@@ -57,7 +58,7 @@ func New(dir string) (*Store, error) {
 
 	db, err := badger.Open(opt)
 	if err != nil {
-		return nil, errwrap.WrapErr(err, "badgerkv: open badger")
+		return nil, errors.WrapErr(err, "badgerkv: open badger")
 	}
 	s := &Store{db: db, stop: make(chan struct{})}
 	s.wg.Add(1)
@@ -129,7 +130,7 @@ func (s *Store) Get(ns, key string) ([]byte, error) {
 		if errors.Is(err, kv.ErrNotFound) {
 			return nil, kv.ErrNotFound
 		}
-		return nil, errwrap.WrapErr(err, "badgerkv: get")
+		return nil, errors.WrapErr(err, "badgerkv: get")
 	}
 	return out, nil
 }
@@ -173,7 +174,7 @@ func (s *Store) Add(ns, key string, value []byte, ttl time.Duration) (bool, erro
 		return txn.SetEntry(e)
 	})
 	if err != nil {
-		return false, errwrap.WrapErr(err, "badgerkv: add")
+		return false, errors.WrapErr(err, "badgerkv: add")
 	}
 	return created, nil
 }
@@ -196,7 +197,7 @@ func (s *Store) List(ns string) ([]kv.Entry, error) {
 		return nil
 	})
 	if err != nil {
-		return nil, errwrap.WrapErr(err, "badgerkv: list")
+		return nil, errors.WrapErr(err, "badgerkv: list")
 	}
 	return out, nil
 }

@@ -1,10 +1,10 @@
 package cliutil
 
 import (
-	"errors"
-
-	"github.com/Hayao0819/Kamisato/internal/version"
 	"github.com/spf13/cobra"
+
+	"github.com/Hayao0819/Kamisato/internal/errors"
+	"github.com/Hayao0819/Kamisato/internal/version"
 )
 
 // UsageError marks a command-line usage mistake (bad flag or arguments) so

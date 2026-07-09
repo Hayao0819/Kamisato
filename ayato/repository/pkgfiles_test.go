@@ -2,14 +2,16 @@ package repository
 
 import (
 	"archive/tar"
-	"errors"
 	"os"
 	"path"
 	"reflect"
 	"testing"
 
-	"github.com/Hayao0819/Kamisato/ayato/domain"
+	"github.com/Hayao0819/Kamisato/internal/errors"
+
 	"github.com/klauspost/compress/zstd"
+
+	"github.com/Hayao0819/Kamisato/ayato/domain"
 )
 
 // makePkgWithFiles builds a .pkg.tar.zst carrying a .PKGINFO plus the given

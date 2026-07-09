@@ -1,12 +1,14 @@
 package handler
 
 import (
-	"errors"
 	"log/slog"
 	"net/http"
 
-	"github.com/Hayao0819/Kamisato/ayato/domain"
+	"github.com/Hayao0819/Kamisato/internal/errors"
+
 	"github.com/gin-gonic/gin"
+
+	"github.com/Hayao0819/Kamisato/ayato/domain"
 )
 
 func (h *Handler) AllPkgsHandler(ctx *gin.Context) {

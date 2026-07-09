@@ -3,11 +3,12 @@ package bugreport
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/Hayao0819/Kamisato/internal/errors"
 
 	"github.com/google/go-github/v88/github"
 )

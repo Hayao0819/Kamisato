@@ -5,9 +5,8 @@ import (
 	"slices"
 
 	"github.com/Hayao0819/Kamisato/ayato/domain"
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
+	"github.com/Hayao0819/Kamisato/internal/errors"
 	"github.com/Hayao0819/Kamisato/pkg/raiou"
-	"github.com/cockroachdb/errors"
 )
 
 func (s *Service) RepoFileList(repo, arch string) ([]string, error) {
@@ -76,7 +75,7 @@ func (s *Service) PkgDetail(repo, arch, pkgbase string) (*raiou.PKGINFO, error) 
 		}
 	}
 
-	return nil, errors.New("package not found in the repository")
+	return nil, errors.NewErr("package not found in the repository")
 }
 
 func (s *Service) RepoNames() ([]string, error) {
@@ -93,14 +92,14 @@ func (s *Service) ValidateRepoName(repo string) error {
 	}
 	configuredRepos, err := s.pkgBinaryRepo.RepoNames()
 	if err != nil {
-		return errwrap.WrapErr(err, "failed to get repository names")
+		return errors.WrapErr(err, "failed to get repository names")
 	}
 	if slices.Contains(configuredRepos, repo) {
 		return nil
 	}
 	if slices.Contains(s.cfg.PhysicalRepoNames(), repo) {
 		slog.Warn("repository found but failed to initialize", "repo", repo)
-		return errors.New(repo + " found but failed to initialize")
+		return errors.NewErr(repo + " found but failed to initialize")
 	}
-	return errors.New(repo + " not found in configured repositories")
+	return errors.NewErr(repo + " not found in configured repositories")
 }

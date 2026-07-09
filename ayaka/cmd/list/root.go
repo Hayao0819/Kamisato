@@ -1,11 +1,12 @@
 package listcmd
 
 import (
+	"github.com/spf13/cobra"
+
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
 	"github.com/Hayao0819/Kamisato/internal/cliutil"
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
+	"github.com/Hayao0819/Kamisato/internal/errors"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
-	"github.com/spf13/cobra"
 )
 
 // Cmd lists source packages with their versions and build status; columns are
@@ -33,7 +34,7 @@ func Cmd() *cobra.Command {
 			if len(args) > 0 {
 				argrepo := app.GetSrcRepo(args[0])
 				if argrepo == nil {
-					return errwrap.WrapErr(shared.ErrInvalidRepoName, args[0])
+					return errors.WrapErr(shared.ErrInvalidRepoName, args[0])
 				}
 				repos = []*repo.SourceRepo{argrepo}
 			}

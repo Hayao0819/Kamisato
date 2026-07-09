@@ -7,8 +7,9 @@ import (
 	"text/tabwriter"
 	"text/template"
 
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
 	"github.com/spf13/cobra"
+
+	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
 // AddFormatFlags registers the shared --format/-F and --json output flags used
@@ -47,7 +48,7 @@ func RenderList[T any](out io.Writer, format string, header T, rows []T) error {
 		enc := json.NewEncoder(out)
 		for _, row := range rows {
 			if err := enc.Encode(row); err != nil {
-				return errwrap.WrapErr(err, "failed to encode row")
+				return errors.WrapErr(err, "failed to encode row")
 			}
 		}
 		return nil
@@ -68,20 +69,20 @@ func RenderList[T any](out io.Writer, format string, header T, rows []T) error {
 		},
 	}).Parse(tmplText)
 	if err != nil {
-		return errwrap.WrapErr(err, "invalid --format template")
+		return errors.WrapErr(err, "invalid --format template")
 	}
 
 	if isTable {
 		w := tabwriter.NewWriter(out, 0, 4, 2, ' ', 0)
 		if err := tmpl.Execute(w, header); err != nil {
-			return errwrap.WrapErr(err, "failed to render header")
+			return errors.WrapErr(err, "failed to render header")
 		}
 		if _, err := w.Write([]byte("\n")); err != nil {
 			return err
 		}
 		for _, row := range rows {
 			if err := tmpl.Execute(w, row); err != nil {
-				return errwrap.WrapErr(err, "failed to render row")
+				return errors.WrapErr(err, "failed to render row")
 			}
 			if _, err := w.Write([]byte("\n")); err != nil {
 				return err
@@ -92,7 +93,7 @@ func RenderList[T any](out io.Writer, format string, header T, rows []T) error {
 
 	for _, row := range rows {
 		if err := tmpl.Execute(out, row); err != nil {
-			return errwrap.WrapErr(err, "failed to render row")
+			return errors.WrapErr(err, "failed to render row")
 		}
 		if _, err := out.Write([]byte("\n")); err != nil {
 			return err

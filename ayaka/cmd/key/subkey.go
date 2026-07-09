@@ -7,7 +7,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
+	"github.com/Hayao0819/Kamisato/internal/errors"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/sign"
 )
 
@@ -33,7 +33,7 @@ func subkeyAddCmd() *cobra.Command {
 				return err
 			}
 			if err := k.AddSubkey(expire, pass); err != nil {
-				return errwrap.WrapErr(err, "failed to add subkey")
+				return errors.WrapErr(err, "failed to add subkey")
 			}
 			fmt.Fprintln(cmd.OutOrStdout(), "Added a new signing subkey. Republish the keyring so it reaches users.")
 			return nil
@@ -62,7 +62,7 @@ func subkeyRevokeCmd() *cobra.Command {
 				return err
 			}
 			if err := k.RevokeSubkey(args[0], parsed, reasonText, pass); err != nil {
-				return errwrap.WrapErr(err, "failed to revoke subkey")
+				return errors.WrapErr(err, "failed to revoke subkey")
 			}
 			fmt.Fprintln(cmd.OutOrStdout(), "Revoked the subkey. Republish the keyring so the revocation reaches users.")
 			return nil
@@ -94,7 +94,7 @@ func subkeyRotateCmd() *cobra.Command {
 				return err
 			}
 			if err := k.RotateSubkey(parsed, reasonText, expire, pass); err != nil {
-				return errwrap.WrapErr(err, "failed to rotate subkey")
+				return errors.WrapErr(err, "failed to rotate subkey")
 			}
 			out := cmd.OutOrStdout()
 			fmt.Fprintln(out, "Rotated the signing subkey; the primary fingerprint is unchanged.")

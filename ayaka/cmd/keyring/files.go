@@ -8,7 +8,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
+	"github.com/Hayao0819/Kamisato/internal/errors"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/keyring"
 )
 
@@ -30,14 +30,14 @@ func filesCmd() *cobra.Command {
 			}
 			pub, err := k.PublicEntity()
 			if err != nil {
-				return errwrap.WrapErr(err, "export public key")
+				return errors.WrapErr(err, "export public key")
 			}
 			files, err := keyring.BuildFiles(name, []*openpgp.Entity{pub}, []string{k.PrimaryFingerprint()}, revoked)
 			if err != nil {
-				return errwrap.WrapErr(err, "build keyring files")
+				return errors.WrapErr(err, "build keyring files")
 			}
 			if err := files.Write(outputDir); err != nil {
-				return errwrap.WrapErr(err, "write keyring files")
+				return errors.WrapErr(err, "write keyring files")
 			}
 			out := cmd.OutOrStdout()
 			for _, suffix := range []string{".gpg", "-trusted", "-revoked"} {

@@ -7,10 +7,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/spf13/cobra"
+
 	"github.com/Hayao0819/Kamisato/ayaka/build"
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
-	"github.com/spf13/cobra"
+	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
 // durationToMinutes converts a duration to whole minutes, rounding up.
@@ -47,7 +48,7 @@ func mikoBuildCmd() *cobra.Command {
 		},
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			if gitURL == "" && !slices.Contains(shared.AppFrom(cmd).GetSrcRepoNames(), args[0]) {
-				return errwrap.WrapErr(shared.ErrInvalidRepoName, args[0])
+				return errors.WrapErr(shared.ErrInvalidRepoName, args[0])
 			}
 			return nil
 		},
@@ -71,7 +72,7 @@ func mikoBuildCmd() *cobra.Command {
 				if passphrase == "" && passphraseFile != "" {
 					data, err := os.ReadFile(passphraseFile)
 					if err != nil {
-						return errwrap.WrapErr(err, "failed to read passphrase file")
+						return errors.WrapErr(err, "failed to read passphrase file")
 					}
 					passphrase = strings.TrimRight(string(data), "\n")
 				}

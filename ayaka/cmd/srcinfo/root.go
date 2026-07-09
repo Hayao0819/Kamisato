@@ -1,10 +1,11 @@
 package srcinfocmd
 
 import (
-	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
 	"github.com/spf13/cobra"
+
+	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
+	"github.com/Hayao0819/Kamisato/internal/errors"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
 )
 
 // Cmd regenerates .SRCINFO files; with no argument it covers every configured repository.
@@ -27,7 +28,7 @@ func Cmd() *cobra.Command {
 			if len(args) > 0 {
 				d := app.GetSrcDir(args[0])
 				if d == "" {
-					return errwrap.WrapErr(shared.ErrInvalidRepoName, args[0])
+					return errors.WrapErr(shared.ErrInvalidRepoName, args[0])
 				}
 				dirs = append(dirs, d)
 			} else {
@@ -39,7 +40,7 @@ func Cmd() *cobra.Command {
 			for _, dir := range dirs {
 				srcdirs, err := repo.GetSrcDirs(dir)
 				if err != nil {
-					return errwrap.WrapErr(err, "failed to list source directories in "+dir)
+					return errors.WrapErr(err, "failed to list source directories in "+dir)
 				}
 				for _, d := range srcdirs {
 					if err := repo.GenerateSrcinfo(d, cmd.ErrOrStderr()); err != nil {

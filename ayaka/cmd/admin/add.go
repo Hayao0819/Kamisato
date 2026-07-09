@@ -4,10 +4,11 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/spf13/cobra"
+
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
 	"github.com/Hayao0819/Kamisato/internal/buildclient"
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
-	"github.com/spf13/cobra"
+	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
 func adminAddCmd() *cobra.Command {
@@ -28,7 +29,7 @@ func adminAddCmd() *cobra.Command {
 				return aerr
 			})
 			if err != nil {
-				return errwrap.WrapErr(err, "failed to add admin")
+				return errors.WrapErr(err, "failed to add admin")
 			}
 			fmt.Fprintf(cmd.OutOrStdout(), "added %s (%d)\n", admin.Login, admin.ID)
 			return nil

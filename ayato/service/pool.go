@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/Hayao0819/Kamisato/ayato/repository"
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
+	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
 // WithPool attaches the pool collector for CollectPool's retention GC; nil (unset)
@@ -27,7 +27,7 @@ func (s *Service) CollectPool(ctx context.Context) (repository.PoolGCResult, err
 	}
 	res, err := s.pool.CollectPool(ctx, policy)
 	if err != nil {
-		return res, errwrap.WrapErr(err, "collect pool")
+		return res, errors.WrapErr(err, "collect pool")
 	}
 	return res, nil
 }

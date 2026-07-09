@@ -1,7 +1,6 @@
 package repository
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -10,9 +9,10 @@ import (
 	"path"
 	"time"
 
+	"github.com/Hayao0819/Kamisato/internal/errors"
+
 	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
 	"github.com/Hayao0819/Kamisato/ayato/stream"
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
 )
 
@@ -75,18 +75,18 @@ func writeSeekFileToPath(dst string, f stream.SeekFile) error {
 		return nil
 	}
 	if _, err := f.Seek(0, io.SeekStart); err != nil {
-		return errwrap.WrapErr(err, "failed to seek stream")
+		return errors.WrapErr(err, "failed to seek stream")
 	}
 	out, err := os.Create(dst)
 	if err != nil {
-		return errwrap.WrapErr(err, "failed to create temp file")
+		return errors.WrapErr(err, "failed to create temp file")
 	}
 	if _, err := io.Copy(out, f); err != nil {
 		_ = out.Close()
-		return errwrap.WrapErr(err, "failed to copy stream to temp file")
+		return errors.WrapErr(err, "failed to copy stream to temp file")
 	}
 	if err := out.Close(); err != nil {
-		return errwrap.WrapErr(err, "failed to close temp file")
+		return errors.WrapErr(err, "failed to close temp file")
 	}
 	return nil
 }
@@ -110,7 +110,7 @@ func derivedArtifacts(repo string, useSignedDB bool) []string {
 func (r *binaryRepository) storeIfMatch(repo, arch, dir, name, etag string) error {
 	obj, err := stream.OpenFileWithType(path.Join(dir, name))
 	if err != nil {
-		return errwrap.WrapErr(err, "failed to open artifact "+name)
+		return errors.WrapErr(err, "failed to open artifact "+name)
 	}
 	named := stream.NewFileStream(name, obj.ContentType(), obj)
 	err = r.Store.StoreFileIfMatch(repo, arch, named, etag)
@@ -168,7 +168,7 @@ func (r *binaryRepository) RepoAddBatch(repo, arch string, items []RepoAddItem, 
 	return r.mutateDB(repo, arch, t, useSignedDB, func(dbPath string) error {
 		if err := r.repoTool().RepoAddBatch(dbPath, pkgPaths, useSignedDB, gnupgDir); err != nil {
 			slog.Error("repo db add batch", "err", err, "count", len(pkgPaths))
-			return errwrap.WrapErr(err, "repo db add failed")
+			return errors.WrapErr(err, "repo db add failed")
 		}
 		return nil
 	})
@@ -202,7 +202,7 @@ func (r *binaryRepository) RepoRemove(repo, arch, pkg string, useSignedDB bool, 
 				return nil
 			}
 			slog.Error("repo db remove", "err", err)
-			return errwrap.WrapErr(err, "repo db remove failed")
+			return errors.WrapErr(err, "repo db remove failed")
 		}
 		return nil
 	})
@@ -221,7 +221,7 @@ func (r *binaryRepository) InitArch(repo, arch string, useSignedDB bool, gnupgDi
 		_ = f.Close()
 		return nil // already initialized
 	} else if !errors.Is(err, blob.ErrNotFound) {
-		return errwrap.WrapErr(err, "repo db init: probe existing db")
+		return errors.WrapErr(err, "repo db init: probe existing db")
 	}
 
 	slog.Debug("init pkg repo", "repo", repo, "arch", arch)
@@ -233,7 +233,7 @@ func (r *binaryRepository) InitArch(repo, arch string, useSignedDB bool, gnupgDi
 
 	if err := r.repoTool().RepoAdd(path.Join(t, dbName), "", useSignedDB, gnupgDir); err != nil {
 		slog.Error("repo db init", "err", err)
-		return errwrap.WrapErr(err, "repo db init failed")
+		return errors.WrapErr(err, "repo db init failed")
 	}
 	// Create-only commit: a concurrent instance may have created it between the
 	// probe and here; treat that as success rather than clobbering its data. An
@@ -242,7 +242,7 @@ func (r *binaryRepository) InitArch(repo, arch string, useSignedDB bool, gnupgDi
 		if errors.Is(err, blob.ErrPreconditionFailed) {
 			return nil
 		}
-		return errwrap.WrapErr(err, "repo db init failed")
+		return errors.WrapErr(err, "repo db init failed")
 	}
 	return nil
 }
@@ -259,7 +259,7 @@ func (r *binaryRepository) BackfillSignatures(repo, arch string) error {
 		if errors.Is(err, blob.ErrNotFound) {
 			return nil // nothing published yet
 		}
-		return errwrap.WrapErr(err, "backfill: probe db")
+		return errors.WrapErr(err, "backfill: probe db")
 	} else {
 		_ = f.Close()
 	}
@@ -267,7 +267,7 @@ func (r *binaryRepository) BackfillSignatures(repo, arch string) error {
 		_ = f.Close()
 		return nil // already signed
 	} else if !errors.Is(err, blob.ErrNotFound) {
-		return errwrap.WrapErr(err, "backfill: probe db signature")
+		return errors.WrapErr(err, "backfill: probe db signature")
 	}
 	return r.RepoAddBatch(repo, arch, nil, true, nil)
 }
@@ -320,7 +320,7 @@ func (r *binaryRepository) mutateDB(repo, arch, dir string, useSignedDB bool, mu
 		lastErr = err
 		dbConflictBackoff(attempt)
 	}
-	return errwrap.WrapErr(lastErr, fmt.Sprintf("repo db %s/%s: too many conflicting writers after %d attempts", repo, arch, maxDBAttempts))
+	return errors.WrapErr(lastErr, fmt.Sprintf("repo db %s/%s: too many conflicting writers after %d attempts", repo, arch, maxDBAttempts))
 }
 
 // commitDB publishes the mutation. The canonical <repo>.db.tar.gz commits FIRST
@@ -362,7 +362,7 @@ func clearDBArtifacts(dir, repo string, useSignedDB bool) error {
 	}
 	for _, n := range names {
 		if err := os.Remove(path.Join(dir, n)); err != nil && !errors.Is(err, os.ErrNotExist) {
-			return errwrap.WrapErr(err, "failed to clear stale db artifact "+n)
+			return errors.WrapErr(err, "failed to clear stale db artifact "+n)
 		}
 	}
 	return nil
@@ -398,19 +398,19 @@ func (r *binaryRepository) fetchDBArtifacts(repo, arch, dir string, useSignedDB 
 			// A transient backend error must NOT be mistaken for "absent": that
 			// would seed an empty base and overwrite the live db with a truncated
 			// rebuild. Fail the attempt loudly instead.
-			return nil, errwrap.WrapErr(err, "failed to fetch db artifact "+name)
+			return nil, errors.WrapErr(err, "failed to fetch db artifact "+name)
 		}
 		etags[name] = etag
 		dst := path.Join(dir, name)
 		out, cerr := os.Create(dst)
 		if cerr != nil {
 			_ = f.Close()
-			return nil, errwrap.WrapErr(cerr, "failed to create temp db artifact")
+			return nil, errors.WrapErr(cerr, "failed to create temp db artifact")
 		}
 		if _, cerr := io.Copy(out, f); cerr != nil {
 			_ = out.Close()
 			_ = f.Close()
-			return nil, errwrap.WrapErr(cerr, "failed to copy db artifact")
+			return nil, errors.WrapErr(cerr, "failed to copy db artifact")
 		}
 		_ = out.Close()
 		_ = f.Close()

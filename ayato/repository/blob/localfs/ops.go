@@ -1,19 +1,20 @@
 package localfs
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 	"os"
 	"path"
 
-	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
-	"github.com/Hayao0819/Kamisato/ayato/stream"
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
+	"github.com/Hayao0819/Kamisato/internal/errors"
+
 	"github.com/Hayao0819/nahi/flist"
 	"github.com/Hayao0819/nahi/futils"
 	"github.com/samber/lo"
+
+	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
+	"github.com/Hayao0819/Kamisato/ayato/stream"
 )
 
 func (l *LocalStore) StoreFile(repo string, arch string, file stream.SeekFile) error {
@@ -32,17 +33,17 @@ func (l *LocalStore) StoreFile(repo string, arch string, file stream.SeekFile) e
 
 	repoPath := path.Join(repoDir, arch)
 	if err := os.MkdirAll(repoPath, 0o755); err != nil { //nolint:gosec // published pacman repo dir is world-readable by design
-		return errwrap.WrapErr(err, fmt.Sprintf("mkdir %s err", repoPath))
+		return errors.WrapErr(err, fmt.Sprintf("mkdir %s err", repoPath))
 	}
 
 	dstFilePath := path.Join(repoPath, name)
 	dstFile, err := os.OpenFile(dstFilePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o644) //nolint:gosec // published pacman repo file is world-readable by design
 	if err != nil {
-		return errwrap.WrapErr(err, "failed to create file")
+		return errors.WrapErr(err, "failed to create file")
 	}
 	defer dstFile.Close()
 	if _, err := io.Copy(dstFile, file); err != nil {
-		return errwrap.WrapErr(err, "failed to copy file")
+		return errors.WrapErr(err, "failed to copy file")
 	}
 	return nil
 }
@@ -125,7 +126,7 @@ func (l *LocalStore) DeleteFile(repo string, arch string, file string) error {
 	slog.Info("remove pkg file", "file", pkgPath)
 	if err := os.Remove(pkgPath); err != nil {
 		slog.Warn("remove pkg file err", "err", err)
-		return errwrap.WrapErr(err, "failed to remove pkg file")
+		return errors.WrapErr(err, "failed to remove pkg file")
 	}
 
 	return nil

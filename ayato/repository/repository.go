@@ -1,19 +1,20 @@
 package repository
 
 import (
-	"errors"
 	"fmt"
 	"path"
 	"strings"
 
+	"github.com/Hayao0819/Kamisato/internal/errors"
+
 	"github.com/ProtonMail/go-crypto/openpgp"
+
+	"github.com/samber/lo"
 
 	"github.com/Hayao0819/Kamisato/ayato/domain"
 	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
 	"github.com/Hayao0819/Kamisato/ayato/stream"
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
-	"github.com/samber/lo"
 )
 
 //go:generate mockgen -source=repository.go -destination=../test/mocks/repository.go -package=mocks -aux_files=github.com/Hayao0819/Kamisato/ayato/repository/blob=blob/blob.go
@@ -309,13 +310,13 @@ func (r *binaryRepository) PkgFiles(repoName, archName, pkgName string) ([]strin
 		if errors.Is(err, blob.ErrNotFound) {
 			return nil, domain.ErrNotFound
 		}
-		return nil, errwrap.WrapErr(err, "failed to fetch files db")
+		return nil, errors.WrapErr(err, "failed to fetch files db")
 	}
 	defer f.Close()
 
 	byName, err := repo.FilesFromDB(f)
 	if err != nil {
-		return nil, errwrap.WrapErr(err, "failed to parse files db")
+		return nil, errors.WrapErr(err, "failed to parse files db")
 	}
 	files, ok := byName[pkgName]
 	if !ok {
@@ -327,13 +328,13 @@ func (r *binaryRepository) PkgFiles(repoName, archName, pkgName string) ([]strin
 func (r *binaryRepository) VerifyPkgRepo(name string) error {
 	arches, err := r.Arches(name)
 	if err != nil {
-		return errwrap.WrapErr(err, "failed to get arches")
+		return errors.WrapErr(err, "failed to get arches")
 	}
 
 	for _, arch := range arches {
 		files, err := r.Files(name, arch)
 		if err != nil {
-			return errwrap.WrapErr(err, fmt.Sprintf("failed to get files for arch %s", arch))
+			return errors.WrapErr(err, fmt.Sprintf("failed to get files for arch %s", arch))
 		}
 
 		// Only the archives are stored; <repo>.db / <repo>.files are served as

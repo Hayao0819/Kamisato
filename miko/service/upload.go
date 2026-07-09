@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/Hayao0819/Kamisato/internal/blinkyutils"
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
+	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
 // Uploader publishes a built package (with its optional detached signature) to a
@@ -29,10 +29,10 @@ func NewBlinkyUploader(url, username, password string) Uploader {
 func (u *blinkyUploader) Upload(repo, pkgPath, sigPath string) error {
 	client, err := u.info.Client()
 	if err != nil {
-		return errwrap.WrapErr(err, "failed to create blinky client")
+		return errors.WrapErr(err, "failed to create blinky client")
 	}
 	if err := blinkyutils.Upload(client, repo, pkgPath, sigPath); err != nil {
-		return errwrap.WrapErr(err, "failed to upload package: "+pkgPath)
+		return errors.WrapErr(err, "failed to upload package: "+pkgPath)
 	}
 	return nil
 }
@@ -46,7 +46,7 @@ func (s *Service) signAndUpload(ctx context.Context, repo string, packages []str
 			var err error
 			sigPath, err = s.signer.Sign(ctx, pkgPath)
 			if err != nil {
-				return errwrap.WrapErr(err, "failed to sign package: "+pkgPath)
+				return errors.WrapErr(err, "failed to sign package: "+pkgPath)
 			}
 		}
 

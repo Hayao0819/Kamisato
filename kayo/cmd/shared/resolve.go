@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/Hayao0819/Kamisato/internal/conf"
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
+	"github.com/Hayao0819/Kamisato/internal/errors"
 	"github.com/Hayao0819/Kamisato/kayo/audit"
 	"github.com/Hayao0819/Kamisato/pkg/aurweb"
 	"github.com/Hayao0819/Kamisato/pkg/raiou"
@@ -60,7 +60,7 @@ func Resolve(ctx context.Context, cfg *conf.KayoConfig, target, ref string) (Res
 // it: auditing a plain directory with no commit is legitimate.
 func (r Resolved) RequirePinnedCommit() error {
 	if r.Commit == "" {
-		return errwrap.NewErr("target is not a git repository; cannot pin a reviewed commit")
+		return errors.NewErr("target is not a git repository; cannot pin a reviewed commit")
 	}
 	return nil
 }

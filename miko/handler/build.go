@@ -2,23 +2,24 @@ package handler
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"net/http"
 	"strings"
 	"time"
 
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
+	"github.com/Hayao0819/Kamisato/internal/errors"
+
+	"github.com/gin-gonic/gin"
+
 	"github.com/Hayao0819/Kamisato/miko/domain"
 	"github.com/Hayao0819/Kamisato/miko/service"
-	"github.com/gin-gonic/gin"
 )
 
 // POST /api/unstable/build -> 202 {"job_id": id}
 func (h *Handler) SubmitBuildHandler(c *gin.Context) {
 	var req domain.BuildRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": errwrap.WrapErr(err, "invalid build request").Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": errors.WrapErr(err, "invalid build request").Error()})
 		return
 	}
 

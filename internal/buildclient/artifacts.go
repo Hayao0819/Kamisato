@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
+	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
 // ListArtifacts returns the downloadable artifact names of a client-signed job
@@ -26,14 +26,14 @@ func DownloadArtifact(ctx context.Context, base, token, id, name string, w io.Wr
 	u := endpoint(base, "/api/unstable/jobs/"+id+"/artifacts/"+url.PathEscape(name))
 	resp, err := get(ctx, streamClient, u, token)
 	if err != nil {
-		return errwrap.WrapErr(err, "failed to download artifact")
+		return errors.WrapErr(err, "failed to download artifact")
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		return responseErr(resp, "download artifact")
 	}
 	if _, err := io.Copy(w, resp.Body); err != nil {
-		return errwrap.WrapErr(err, "failed to write artifact")
+		return errors.WrapErr(err, "failed to write artifact")
 	}
 	return nil
 }

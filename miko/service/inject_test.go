@@ -2,9 +2,10 @@ package service
 
 import (
 	"context"
-	"errors"
 	"sync"
 	"testing"
+
+	"github.com/Hayao0819/Kamisato/internal/errors"
 
 	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/miko/domain"

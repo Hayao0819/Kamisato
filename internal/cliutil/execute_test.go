@@ -1,9 +1,10 @@
 package cliutil
 
 import (
-	"errors"
 	"io"
 	"testing"
+
+	"github.com/Hayao0819/Kamisato/internal/errors"
 
 	"github.com/spf13/cobra"
 )

@@ -7,14 +7,15 @@ import (
 	"log/slog"
 	"strings"
 
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
+	"github.com/spf13/cobra"
+
+	"github.com/Hayao0819/Kamisato/internal/errors"
 	"github.com/Hayao0819/Kamisato/kayo/clonecache"
 	"github.com/Hayao0819/Kamisato/kayo/cmd/shared"
 	"github.com/Hayao0819/Kamisato/kayo/trust"
 	"github.com/Hayao0819/Kamisato/pkg/aurweb"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/alpm"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/hook"
-	"github.com/spf13/cobra"
 )
 
 // verifyTarget is a resolved install target plus the delegation flag the hook
@@ -138,7 +139,7 @@ func verifyCmd() *cobra.Command {
 						// Fail closed: a lookup we cannot complete must never silently
 						// pass an AUR package that might need review.
 						if enforce {
-							return errwrap.WrapErr(ierr, "could not verify AUR packages upstream (failing closed)")
+							return errors.WrapErr(ierr, "could not verify AUR packages upstream (failing closed)")
 						}
 						slog.Warn("upstream lookup failed; AUR packages unverified this run", "error", ierr)
 					}
@@ -157,7 +158,7 @@ func verifyCmd() *cobra.Command {
 				needsReview = true
 			}
 			if needsReview && enforce {
-				return errwrap.NewErr("untrusted packages in transaction; review with 'kayo update' or 'kayo trust add'")
+				return errors.NewErr("untrusted packages in transaction; review with 'kayo update' or 'kayo trust add'")
 			}
 			return nil
 		},

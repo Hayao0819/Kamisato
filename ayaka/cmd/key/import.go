@@ -9,7 +9,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
+	"github.com/Hayao0819/Kamisato/internal/errors"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/sign"
 )
 
@@ -30,7 +30,7 @@ func importCmd() *cobra.Command {
 			if len(args) == 1 && args[0] != "-" {
 				f, err := os.Open(args[0])
 				if err != nil {
-					return errwrap.WrapErr(err, "open key file")
+					return errors.WrapErr(err, "open key file")
 				}
 				defer func() { _ = f.Close() }()
 				r = f
@@ -43,7 +43,7 @@ func importCmd() *cobra.Command {
 			}
 			k, err := sign.ImportSigningKey(dir, r, pass, force)
 			if err != nil {
-				return errwrap.WrapErr(err, "failed to import signing key")
+				return errors.WrapErr(err, "failed to import signing key")
 			}
 
 			out := cmd.OutOrStdout()

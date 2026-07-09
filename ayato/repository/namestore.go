@@ -1,9 +1,8 @@
 package repository
 
 import (
-	"errors"
-
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
+	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
 //go:generate mockgen -source=namestore.go -destination=../test/mocks/namestore.go -package=mocks

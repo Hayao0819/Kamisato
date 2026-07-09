@@ -2,14 +2,13 @@ package gitcmd
 
 import (
 	"context"
-	"errors"
 	"net"
 	"net/http"
 	"net/url"
 	"sync"
 	"time"
 
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
+	"github.com/Hayao0819/Kamisato/internal/errors"
 
 	git "github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
@@ -43,13 +42,13 @@ func safeDialContext(ctx context.Context, network, addr string) (net.Conn, error
 	}
 	ips, err := net.DefaultResolver.LookupIP(ctx, "ip", host)
 	if err != nil {
-		return nil, errwrap.WrapErr(err, "failed to resolve remote host")
+		return nil, errors.WrapErr(err, "failed to resolve remote host")
 	}
 	dialer := &net.Dialer{Timeout: 30 * time.Second, KeepAlive: 30 * time.Second}
 	var lastErr error
 	for _, ip := range ips {
 		if !isPublic(ip) {
-			lastErr = errwrap.NewErrf("remote host %s resolves to a non-public address", host)
+			lastErr = errors.NewErrf("remote host %s resolves to a non-public address", host)
 			continue
 		}
 		conn, dErr := dialer.DialContext(ctx, network, net.JoinHostPort(ip.String(), port))
@@ -60,7 +59,7 @@ func safeDialContext(ctx context.Context, network, addr string) (net.Conn, error
 		return conn, nil
 	}
 	if lastErr == nil {
-		lastErr = errwrap.NewErrf("remote host %s did not resolve to any address", host)
+		lastErr = errors.NewErrf("remote host %s did not resolve to any address", host)
 	}
 	return nil, lastErr
 }
@@ -100,21 +99,21 @@ func cloneGoGit(ctx context.Context, o CloneOptions) error {
 	// an off-history ref keeps the same shallow-clone limitation.
 	repo, err := git.PlainCloneContext(ctx, o.Dir, o.Bare, &git.CloneOptions{URL: o.URL, Depth: o.Depth})
 	if err != nil {
-		return errwrap.WrapErr(err, "git clone: "+o.URL)
+		return errors.WrapErr(err, "git clone: "+o.URL)
 	}
 	if o.Ref == "" || o.Bare {
 		return nil
 	}
 	wt, err := repo.Worktree()
 	if err != nil {
-		return errwrap.WrapErr(err, "open worktree")
+		return errors.WrapErr(err, "open worktree")
 	}
 	hash, err := repo.ResolveRevision(plumbing.Revision(o.Ref))
 	if err != nil {
-		return errwrap.WrapErr(err, "resolve ref "+o.Ref)
+		return errors.WrapErr(err, "resolve ref "+o.Ref)
 	}
 	if err := wt.Checkout(&git.CheckoutOptions{Hash: *hash}); err != nil {
-		return errwrap.WrapErr(err, "checkout "+o.Ref)
+		return errors.WrapErr(err, "checkout "+o.Ref)
 	}
 	return nil
 }
@@ -126,15 +125,15 @@ func Pull(ctx context.Context, dir string) error {
 	installSafeHTTPSClient()
 	repo, err := git.PlainOpen(dir)
 	if err != nil {
-		return errwrap.WrapErr(err, "open repo "+dir)
+		return errors.WrapErr(err, "open repo "+dir)
 	}
 	wt, err := repo.Worktree()
 	if err != nil {
-		return errwrap.WrapErr(err, "open worktree")
+		return errors.WrapErr(err, "open worktree")
 	}
 	if err := wt.PullContext(ctx, &git.PullOptions{RemoteName: "origin"}); err != nil &&
 		!errors.Is(err, git.NoErrAlreadyUpToDate) {
-		return errwrap.WrapErr(err, "git pull")
+		return errors.WrapErr(err, "git pull")
 	}
 	return nil
 }

@@ -2,16 +2,17 @@ package service
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 	"os"
 	"time"
 
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
+	"github.com/Hayao0819/Kamisato/internal/errors"
+
+	"github.com/cenkalti/backoff/v5"
+
 	"github.com/Hayao0819/Kamisato/miko/domain"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/builder"
-	"github.com/cenkalti/backoff/v5"
 )
 
 func (s *Service) process(ctx context.Context, job *domain.BuildJob) {
@@ -55,7 +56,7 @@ func (s *Service) process(ctx context.Context, job *domain.BuildJob) {
 
 	if err == nil && res != nil && job.Request.SignMode != domain.SignClient {
 		if uerr := s.signAndUpload(jobCtx, job.Repo, res.Packages); uerr != nil {
-			err = errwrap.WrapErr(uerr, "sign and upload failed")
+			err = errors.WrapErr(uerr, "sign and upload failed")
 		}
 	}
 
@@ -157,10 +158,10 @@ func (s *Service) ArtifactDir(id string) (string, error) {
 	defer s.mu.Unlock()
 	job, ok := s.store[id]
 	if !ok {
-		return "", errwrap.NewErrf("job not found: %s", id)
+		return "", errors.NewErrf("job not found: %s", id)
 	}
 	if job.ArtifactDir == "" {
-		return "", errwrap.NewErrf("job %s has no downloadable artifacts", id)
+		return "", errors.NewErrf("job %s has no downloadable artifacts", id)
 	}
 	return job.ArtifactDir, nil
 }

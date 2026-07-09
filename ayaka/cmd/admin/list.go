@@ -5,10 +5,11 @@ import (
 	"fmt"
 	"text/tabwriter"
 
+	"github.com/spf13/cobra"
+
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
 	"github.com/Hayao0819/Kamisato/internal/buildclient"
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
-	"github.com/spf13/cobra"
+	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
 func adminListCmd() *cobra.Command {
@@ -28,7 +29,7 @@ func adminListCmd() *cobra.Command {
 				return lerr
 			})
 			if err != nil {
-				return errwrap.WrapErr(err, "failed to list admins")
+				return errors.WrapErr(err, "failed to list admins")
 			}
 			w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)
 			fmt.Fprintln(w, "ID\tLOGIN")

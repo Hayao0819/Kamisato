@@ -3,10 +3,11 @@ package submodulescmd
 import (
 	"log/slog"
 
-	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
-	"github.com/Hayao0819/Kamisato/internal/gitcmd"
 	"github.com/spf13/cobra"
+
+	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
+	"github.com/Hayao0819/Kamisato/internal/errors"
+	"github.com/Hayao0819/Kamisato/internal/gitcmd"
 )
 
 func Cmd() *cobra.Command {
@@ -44,7 +45,7 @@ func Cmd() *cobra.Command {
 				}
 
 				if err := gitcmd.Run(cmd.Context(), root, gitArgs...); err != nil {
-					return errwrap.WrapErr(err, "failed to update submodules in "+root)
+					return errors.WrapErr(err, "failed to update submodules in "+root)
 				}
 
 				cmd.Println("Updated submodules in:", root)

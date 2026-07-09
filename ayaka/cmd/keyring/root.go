@@ -14,7 +14,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
+	"github.com/Hayao0819/Kamisato/internal/errors"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/keyring"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/sign"
 )
@@ -75,11 +75,11 @@ func defaultVersion(p buildParams) string {
 func makePackage(k *sign.SigningKey, p buildParams, outDir string) (pkgPath, sigPath string, err error) {
 	pub, err := k.PublicEntity()
 	if err != nil {
-		return "", "", errwrap.WrapErr(err, "export public key")
+		return "", "", errors.WrapErr(err, "export public key")
 	}
 	files, err := keyring.BuildFiles(p.name, []*openpgp.Entity{pub}, []string{k.PrimaryFingerprint()}, p.revoked)
 	if err != nil {
-		return "", "", errwrap.WrapErr(err, "build keyring files")
+		return "", "", errors.WrapErr(err, "build keyring files")
 	}
 	version := defaultVersion(p)
 	data, err := keyring.BuildPackage(keyring.PackageOpts{
@@ -91,19 +91,19 @@ func makePackage(k *sign.SigningKey, p buildParams, outDir string) (pkgPath, sig
 		Depends:  p.depends,
 	})
 	if err != nil {
-		return "", "", errwrap.WrapErr(err, "build keyring package")
+		return "", "", errors.WrapErr(err, "build keyring package")
 	}
 
 	pkgPath = filepath.Join(outDir, keyring.FileName(p.name, version))
 	if err := os.WriteFile(pkgPath, data, 0o644); err != nil {
-		return "", "", errwrap.WrapErr(err, "write keyring package")
+		return "", "", errors.WrapErr(err, "write keyring package")
 	}
 	if !p.sign {
 		return pkgPath, "", nil
 	}
 	sigPath, err = k.Sign(context.Background(), pkgPath)
 	if err != nil {
-		return "", "", errwrap.WrapErr(err, "sign keyring package")
+		return "", "", errors.WrapErr(err, "sign keyring package")
 	}
 	return pkgPath, sigPath, nil
 }

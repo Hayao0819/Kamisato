@@ -1,11 +1,12 @@
 package cmd
 
 import (
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
+	"github.com/spf13/cobra"
+
+	"github.com/Hayao0819/Kamisato/internal/errors"
 	"github.com/Hayao0819/Kamisato/kayo/audit"
 	"github.com/Hayao0819/Kamisato/kayo/cmd/shared"
 	"github.com/Hayao0819/Kamisato/kayo/trust"
-	"github.com/spf13/cobra"
 )
 
 func auditCmd() *cobra.Command {
@@ -41,7 +42,7 @@ func auditCmd() *cobra.Command {
 			shared.PrintReport(out, r, report, verdict)
 			shared.PrintLLMAdvisory(cmd.Context(), out, cfg, r.Dir, llm)
 			if report.Max() >= audit.SevHigh {
-				return errwrap.NewErr("audit found high-severity issues")
+				return errors.NewErr("audit found high-severity issues")
 			}
 			return nil
 		},

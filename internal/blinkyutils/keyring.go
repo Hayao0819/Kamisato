@@ -1,8 +1,9 @@
 package blinkyutils
 
 import (
-	"errors"
 	"log/slog"
+
+	"github.com/Hayao0819/Kamisato/internal/errors"
 
 	"github.com/zalando/go-keyring"
 )

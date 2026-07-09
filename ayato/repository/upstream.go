@@ -3,12 +3,12 @@ package repository
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"io"
+
+	"github.com/Hayao0819/Kamisato/internal/errors"
 
 	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
 	"github.com/Hayao0819/Kamisato/ayato/stream"
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
 )
 
@@ -62,16 +62,16 @@ func (r *binaryRepository) ApplyUpstreamSnapshot(name, arch string, dbGz, filesG
 	}
 
 	if err := r.storeBytes(name, arch, upstreamDBName(name), dbGz); err != nil {
-		return diff, errwrap.WrapErr(err, "store upstream db snapshot")
+		return diff, errors.WrapErr(err, "store upstream db snapshot")
 	}
 	if filesGz != nil {
 		if err := r.storeBytes(name, arch, upstreamFilesName(name), filesGz); err != nil {
-			return diff, errwrap.WrapErr(err, "store upstream files snapshot")
+			return diff, errors.WrapErr(err, "store upstream files snapshot")
 		}
 	}
 	meta, _ := json.Marshal(upstreamMeta{ETag: etag, LastModified: lastModified})
 	if err := r.storeBytes(name, arch, upstreamMetaName(name), meta); err != nil {
-		return diff, errwrap.WrapErr(err, "store upstream validators")
+		return diff, errors.WrapErr(err, "store upstream validators")
 	}
 	if err := r.rebuildMergedLocked(name, arch, useSignedDB); err != nil {
 		return diff, err
@@ -94,30 +94,30 @@ func (r *binaryRepository) RebuildMerged(name, arch string, useSignedDB bool) er
 func (r *binaryRepository) rebuildMergedLocked(name, arch string, useSignedDB bool) error {
 	overlayDB, err := r.fetchBytes(name, arch, name+".db.tar.gz")
 	if err != nil {
-		return errwrap.WrapErr(err, "read overlay db")
+		return errors.WrapErr(err, "read overlay db")
 	}
 	overlayFiles, err := r.fetchBytes(name, arch, name+".files.tar.gz")
 	if err != nil {
-		return errwrap.WrapErr(err, "read overlay files db")
+		return errors.WrapErr(err, "read overlay files db")
 	}
 	upDB, err := r.fetchBytes(name, arch, upstreamDBName(name))
 	if err != nil {
-		return errwrap.WrapErr(err, "read upstream snapshot db")
+		return errors.WrapErr(err, "read upstream snapshot db")
 	}
 	upFiles, err := r.fetchBytes(name, arch, upstreamFilesName(name))
 	if err != nil {
-		return errwrap.WrapErr(err, "read upstream snapshot files")
+		return errors.WrapErr(err, "read upstream snapshot files")
 	}
 
 	var mergedDB, mergedFiles bytes.Buffer
 	if err := repo.Merge(bytesReaderOrNil(upDB), bytesReaderOrNil(upFiles), bytesReaderOrNil(overlayDB), bytesReaderOrNil(overlayFiles), &mergedDB, &mergedFiles); err != nil {
-		return errwrap.WrapErr(err, "merge upstream and overlay databases")
+		return errors.WrapErr(err, "merge upstream and overlay databases")
 	}
 	if err := r.storeBytes(name, arch, mergedDBName(name), mergedDB.Bytes()); err != nil {
-		return errwrap.WrapErr(err, "store merged db")
+		return errors.WrapErr(err, "store merged db")
 	}
 	if err := r.storeBytes(name, arch, mergedFilesName(name), mergedFiles.Bytes()); err != nil {
-		return errwrap.WrapErr(err, "store merged files db")
+		return errors.WrapErr(err, "store merged files db")
 	}
 	if useSignedDB && r.dbSigner != nil {
 		if err := r.signMerged(name, arch, mergedDBName(name), mergedDB.Bytes()); err != nil {
@@ -133,7 +133,7 @@ func (r *binaryRepository) rebuildMergedLocked(name, arch string, useSignedDB bo
 func (r *binaryRepository) signMerged(name, arch, archiveName string, data []byte) error {
 	var sig bytes.Buffer
 	if err := repo.SignDetached(r.dbSigner, bytes.NewReader(data), &sig); err != nil {
-		return errwrap.WrapErr(err, "sign merged db")
+		return errors.WrapErr(err, "sign merged db")
 	}
 	return r.storeBytes(name, arch, archiveName+".sig", sig.Bytes())
 }

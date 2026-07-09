@@ -6,11 +6,12 @@ import (
 	"text/tabwriter"
 	"time"
 
+	"github.com/spf13/cobra"
+
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
 	"github.com/Hayao0819/Kamisato/internal/buildclient"
 	"github.com/Hayao0819/Kamisato/internal/cliutil"
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
-	"github.com/spf13/cobra"
+	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
 func mikoStatsCmd() *cobra.Command {
@@ -26,7 +27,7 @@ func mikoStatsCmd() *cobra.Command {
 
 			stats, err := buildclient.FetchStats(cmd.Context(), srv.URL, srv.Password)
 			if err != nil {
-				return errwrap.WrapErr(err, "failed to get stats")
+				return errors.WrapErr(err, "failed to get stats")
 			}
 
 			format, err := cliutil.ResolveFormat(cmd, "")
@@ -40,7 +41,7 @@ func mikoStatsCmd() *cobra.Command {
 			case format == "json":
 				b, err := json.MarshalIndent(stats, "", "  ")
 				if err != nil {
-					return errwrap.WrapErr(err, "failed to encode stats")
+					return errors.WrapErr(err, "failed to encode stats")
 				}
 				fmt.Fprintln(out, string(b))
 				return nil

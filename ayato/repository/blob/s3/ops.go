@@ -1,18 +1,20 @@
 package s3
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 	"path"
 	"time"
 
-	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
-	"github.com/Hayao0819/Kamisato/ayato/stream"
+	"github.com/Hayao0819/Kamisato/internal/errors"
+
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awss3 "github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/samber/lo"
+
+	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
+	"github.com/Hayao0819/Kamisato/ayato/stream"
 )
 
 // StoreFile stores the package object only; the repo DB is updated separately by

@@ -3,7 +3,6 @@ package s3
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -12,9 +11,8 @@ import (
 	"path"
 	"strings"
 
-	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
-	"github.com/Hayao0819/Kamisato/ayato/stream"
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
+	"github.com/Hayao0819/Kamisato/internal/errors"
+
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/aws/retry"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -24,6 +22,9 @@ import (
 	"github.com/aws/smithy-go"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 	"github.com/samber/lo"
+
+	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
+	"github.com/Hayao0819/Kamisato/ayato/stream"
 )
 
 var _ blob.Store = (*S3)(nil)
@@ -184,7 +185,7 @@ func (s *S3) putFile(key, name string) error {
 	}
 	defer f.Close()
 	if err := s.putObject(key, f); err != nil {
-		return errwrap.WrapErr(err, "failed to put object")
+		return errors.WrapErr(err, "failed to put object")
 	}
 
 	return nil

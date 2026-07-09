@@ -7,10 +7,11 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
+	"github.com/spf13/cobra"
+
+	"github.com/Hayao0819/Kamisato/internal/errors"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/alpm"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/hook"
-	"github.com/spf13/cobra"
 )
 
 // InstallOptions parameterizes NewInstallCmd for one app's hook.
@@ -41,7 +42,7 @@ func NewInstallCmd(opts InstallOptions) *cobra.Command {
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			self, err := os.Executable()
 			if err != nil {
-				return errwrap.WrapErr(err, "cannot resolve the "+opts.BinName+" binary path")
+				return errors.WrapErr(err, "cannot resolve the "+opts.BinName+" binary path")
 			}
 			if err := hook.ValidateExecArg(opts.BinName+" binary path", self); err != nil {
 				return err

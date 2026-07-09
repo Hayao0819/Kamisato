@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
+	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
 // denyNS holds revoked token ids (jti); entries carry a TTL of the token's remaining
@@ -28,7 +28,7 @@ func NewDenylistRepository(store kv.Store) DenylistRepository {
 
 func (r *denylistRepository) Revoke(jti string, ttl time.Duration) error {
 	if jti == "" {
-		return errwrap.NewErr("deny: empty jti")
+		return errors.NewErr("deny: empty jti")
 	}
 	// A ttl of 0 means "no expiry" to the kv store, so skip an already-expired
 	// token rather than denylist it forever.

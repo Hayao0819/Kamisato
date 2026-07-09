@@ -4,7 +4,7 @@ import (
 	"strconv"
 
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
+	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
 // allowNS namespaces the admin allowlist, the only persisted auth state; sessions, tokens, and OAuth state are all stateless-signed.
@@ -36,14 +36,14 @@ func NewAuthRepository(store kv.Store) AuthRepository {
 
 func (r *authRepository) AddAdmin(id int64, login string) error {
 	if id <= 0 {
-		return errwrap.NewErr("auth: invalid github id")
+		return errors.NewErr("auth: invalid github id")
 	}
 	return r.kv.Set(allowNS, strconv.FormatInt(id, 10), []byte(login), 0)
 }
 
 func (r *authRepository) RemoveAdmin(id int64) error {
 	if id <= 0 {
-		return errwrap.NewErr("auth: invalid github id")
+		return errors.NewErr("auth: invalid github id")
 	}
 	return r.kv.Delete(allowNS, strconv.FormatInt(id, 10))
 }
@@ -59,7 +59,7 @@ func (r *authRepository) IsAdmin(id int64) bool {
 func (r *authRepository) ListAdmins() ([]AllowedAdmin, error) {
 	entries, err := r.kv.List(allowNS)
 	if err != nil {
-		return nil, errwrap.WrapErr(err, "auth: list allowlist")
+		return nil, errors.WrapErr(err, "auth: list allowlist")
 	}
 	var out []AllowedAdmin
 	for _, e := range entries {

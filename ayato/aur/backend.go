@@ -8,12 +8,12 @@ import (
 	"cmp"
 	"context"
 	"encoding/json"
-	"errors"
 	"slices"
 	"strings"
 
+	"github.com/Hayao0819/Kamisato/internal/errors"
+
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
 	"github.com/Hayao0819/Kamisato/internal/kayoproto"
 	"github.com/Hayao0819/Kamisato/pkg/aurweb"
 )
@@ -133,7 +133,7 @@ func (b *Backend) base(pkgbase string) (baseRecord, error) {
 	}
 	var rec baseRecord
 	if err := json.Unmarshal(raw, &rec); err != nil {
-		return baseRecord{}, errwrap.WrapErr(err, "corrupt pkgbase record")
+		return baseRecord{}, errors.WrapErr(err, "corrupt pkgbase record")
 	}
 	return rec, nil
 }
@@ -158,7 +158,7 @@ func prefix(pool []string, arg string) []string {
 	for _, n := range pool {
 		if strings.HasPrefix(n, arg) {
 			out = append(out, n)
-			if len(out) >= 20 {
+			if len(out) >= aurweb.SuggestLimit {
 				break
 			}
 		}

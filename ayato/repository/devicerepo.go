@@ -2,12 +2,12 @@ package repository
 
 import (
 	"encoding/json"
-	"errors"
 	"time"
+
+	"github.com/Hayao0819/Kamisato/internal/errors"
 
 	"github.com/Hayao0819/Kamisato/ayato/auth"
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
 )
 
 // deviceNS maps a device_code to its record; deviceUserNS indexes the user_code to
@@ -62,7 +62,7 @@ func NewDeviceRepository(store kv.Store) DeviceRepository {
 
 func (r *deviceRepository) CreateDevice(deviceCode, userCode string, ttl time.Duration) error {
 	if deviceCode == "" || userCode == "" {
-		return errwrap.NewErr("device: empty device or user code")
+		return errors.NewErr("device: empty device or user code")
 	}
 	rec := deviceRecord{
 		DeviceCode: deviceCode,
@@ -74,7 +74,7 @@ func (r *deviceRepository) CreateDevice(deviceCode, userCode string, ttl time.Du
 		return err
 	}
 	if err := r.kv.Set(deviceUserNS, userCode, []byte(deviceCode), ttl); err != nil {
-		return errwrap.WrapErr(err, "device: index user code")
+		return errors.WrapErr(err, "device: index user code")
 	}
 	return nil
 }
@@ -139,10 +139,10 @@ func (r *deviceRepository) transition(userCode string, mutate func(*deviceRecord
 func (r *deviceRepository) putByCode(deviceCode string, rec deviceRecord, ttl time.Duration) error {
 	raw, err := json.Marshal(rec)
 	if err != nil {
-		return errwrap.WrapErr(err, "device: marshal record")
+		return errors.WrapErr(err, "device: marshal record")
 	}
 	if err := r.kv.Set(deviceNS, deviceCode, raw, ttl); err != nil {
-		return errwrap.WrapErr(err, "device: store record")
+		return errors.WrapErr(err, "device: store record")
 	}
 	return nil
 }
@@ -156,11 +156,11 @@ func (r *deviceRepository) getByCode(deviceCode string) (deviceRecord, bool, err
 		if errors.Is(err, kv.ErrNotFound) {
 			return deviceRecord{}, false, nil
 		}
-		return deviceRecord{}, false, errwrap.WrapErr(err, "device: get record")
+		return deviceRecord{}, false, errors.WrapErr(err, "device: get record")
 	}
 	var rec deviceRecord
 	if err := json.Unmarshal(raw, &rec); err != nil {
-		return deviceRecord{}, false, errwrap.WrapErr(err, "device: unmarshal record")
+		return deviceRecord{}, false, errors.WrapErr(err, "device: unmarshal record")
 	}
 	// Guard against a backend with coarse TTL granularity serving a just-expired
 	// entry: the absolute ExpiresAt is authoritative.
@@ -179,7 +179,7 @@ func (r *deviceRepository) getByUserCode(userCode string) (deviceRecord, bool, e
 		if errors.Is(err, kv.ErrNotFound) {
 			return deviceRecord{}, false, nil
 		}
-		return deviceRecord{}, false, errwrap.WrapErr(err, "device: get user index")
+		return deviceRecord{}, false, errors.WrapErr(err, "device: get user index")
 	}
 	return r.getByCode(string(code))
 }

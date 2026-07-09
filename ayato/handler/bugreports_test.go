@@ -3,18 +3,20 @@ package handler
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
+	"github.com/Hayao0819/Kamisato/internal/errors"
+
+	"github.com/gin-gonic/gin"
+	"go.uber.org/mock/gomock"
+
 	"github.com/Hayao0819/Kamisato/ayato/bugreport"
 	"github.com/Hayao0819/Kamisato/ayato/test/mocks"
 	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/pkg/raiou"
-	"github.com/gin-gonic/gin"
-	"go.uber.org/mock/gomock"
 )
 
 type fakeReporter struct {

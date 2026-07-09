@@ -3,11 +3,12 @@ package buildclient
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
 func TestWaitJobCancelsOnContext(t *testing.T) {

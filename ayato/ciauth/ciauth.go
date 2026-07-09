@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	"github.com/Hayao0819/Kamisato/internal/conf"
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
+	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
 type Principal struct {
@@ -46,7 +46,7 @@ func New(ctx context.Context, cfg conf.CIAuthConfig) (*Authorizer, error) {
 	if cfg.GitHubOIDC.Enabled {
 		o, err := newOIDCAuth(ctx, cfg.GitHubOIDC)
 		if err != nil {
-			return nil, errwrap.WrapErr(err, "ci oidc init")
+			return nil, errors.WrapErr(err, "ci oidc init")
 		}
 		a.oidc = o
 	}

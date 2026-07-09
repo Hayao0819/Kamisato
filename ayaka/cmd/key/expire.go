@@ -7,7 +7,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
+	"github.com/Hayao0819/Kamisato/internal/errors"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/sign"
 )
 
@@ -35,7 +35,7 @@ func expireCmd() *cobra.Command {
 				targets.AllSubkeys = subkeys
 			}
 			if err := k.SetExpiry(expire, targets, pass); err != nil {
-				return errwrap.WrapErr(err, "failed to extend expiry")
+				return errors.WrapErr(err, "failed to extend expiry")
 			}
 			out := cmd.OutOrStdout()
 			when := "never"

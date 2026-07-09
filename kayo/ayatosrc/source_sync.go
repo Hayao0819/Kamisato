@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
+	"github.com/Hayao0819/Kamisato/internal/errors"
 	"github.com/Hayao0819/Kamisato/internal/kayoproto"
 	"github.com/Hayao0819/Kamisato/pkg/aurweb"
 )
@@ -24,7 +24,7 @@ func (s *Source) Sync(ctx context.Context) error {
 
 	var env kayoproto.CatalogEnvelope
 	if err := json.Unmarshal(body, &env); err != nil {
-		return errwrap.WrapErr(err, "ayato catalog decode: "+s.name)
+		return errors.WrapErr(err, "ayato catalog decode: "+s.name)
 	}
 	legacy := len(env.Payload) == 0
 
@@ -37,7 +37,7 @@ func (s *Source) Sync(ctx context.Context) error {
 			err = json.Unmarshal(env.Payload, &signed)
 		}
 		if err != nil {
-			return errwrap.WrapErr(err, "ayato payload decode: "+s.name)
+			return errors.WrapErr(err, "ayato payload decode: "+s.name)
 		}
 	} else {
 		v, err := s.resolveVerifier(ctx)
@@ -45,19 +45,19 @@ func (s *Source) Sync(ctx context.Context) error {
 			return err
 		}
 		if legacy || env.Alg != "ed25519" || env.Signature == "" {
-			return errwrap.NewErrf("ayato %s: catalog is unsigned but a key is pinned (refusing downgrade)", s.name)
+			return errors.NewErrf("ayato %s: catalog is unsigned but a key is pinned (refusing downgrade)", s.name)
 		}
 		if err := v.VerifyPayload(env.Payload, env.Signature); err != nil {
-			return errwrap.WrapErr(err, "ayato "+s.name+" (key_id hint "+env.KeyID+")")
+			return errors.WrapErr(err, "ayato "+s.name+" (key_id hint "+env.KeyID+")")
 		}
 		if err := json.Unmarshal(env.Payload, &signed); err != nil {
-			return errwrap.WrapErr(err, "ayato payload decode: "+s.name)
+			return errors.WrapErr(err, "ayato payload decode: "+s.name)
 		}
 		s.mu.RLock()
 		watermark := s.lastIssued
 		s.mu.RUnlock()
 		if err := v.CheckFreshness(signed.IssuedAt, signed.ExpiresAt, watermark); err != nil {
-			return errwrap.WrapErr(err, "ayato "+s.name)
+			return errors.WrapErr(err, "ayato "+s.name)
 		}
 		verified = true
 		if s.pins != nil {
@@ -65,7 +65,7 @@ func (s *Source) Sync(ctx context.Context) error {
 			// catalog advances to T2 while the persisted floor stays at T1, so a restart
 			// would re-accept a replayed T1<t<=T2 catalog. Persist failure is fatal (fail-closed).
 			if perr := s.pins.SetLastIssued(s.name, signed.IssuedAt); perr != nil {
-				return errwrap.WrapErr(perr, "ayato "+s.name+": persist rollback watermark")
+				return errors.WrapErr(perr, "ayato "+s.name+": persist rollback watermark")
 			}
 		}
 	}
@@ -117,7 +117,7 @@ func (s *Source) resolveVerifier(ctx context.Context) (*Verifier, error) {
 		return s.verifier, nil
 	}
 	if !s.trustOnFirstUse || s.pins == nil {
-		return nil, errwrap.NewErrf("ayato %s: no pinned public key (set pubkey, or enable trust_on_first_use/insecure)", s.name)
+		return nil, errors.NewErrf("ayato %s: no pinned public key (set pubkey, or enable trust_on_first_use/insecure)", s.name)
 	}
 	if p, ok := s.pins.Get(s.name); ok && p.PubKey != "" {
 		return NewVerifier(p.PubKey, s.maxAge)
@@ -146,11 +146,11 @@ func (s *Source) fetch(ctx context.Context, path string) ([]byte, error) {
 	req.Header.Set("Accept", "application/json")
 	resp, err := s.client.Do(req)
 	if err != nil {
-		return nil, errwrap.WrapErr(err, "ayato request "+path+": "+s.name)
+		return nil, errors.WrapErr(err, "ayato request "+path+": "+s.name)
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
-		return nil, errwrap.NewErrf("ayato %s: %s status %d", s.name, path, resp.StatusCode)
+		return nil, errors.NewErrf("ayato %s: %s status %d", s.name, path, resp.StatusCode)
 	}
 	return io.ReadAll(io.LimitReader(resp.Body, maxCatalogBytes))
 }
@@ -172,7 +172,7 @@ func FetchPubkey(ctx context.Context, baseURL string) (pubkey, keyID string, err
 		KeyID  string `json:"key_id"`
 	}
 	if err := json.Unmarshal(body, &r); err != nil || r.Pubkey == "" {
-		return "", "", errwrap.NewErrf("ayato %s: could not read /pubkey", baseURL)
+		return "", "", errors.NewErrf("ayato %s: could not read /pubkey", baseURL)
 	}
 	return r.Pubkey, r.KeyID, nil
 }
@@ -186,7 +186,7 @@ func (s *Source) fetchPubkey(ctx context.Context) (string, error) {
 		Pubkey string `json:"pubkey"`
 	}
 	if err := json.Unmarshal(body, &r); err != nil || r.Pubkey == "" {
-		return "", errwrap.NewErrf("ayato %s: could not read /pubkey for TOFU", s.name)
+		return "", errors.NewErrf("ayato %s: could not read /pubkey for TOFU", s.name)
 	}
 	return r.Pubkey, nil
 }

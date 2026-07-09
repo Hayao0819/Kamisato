@@ -3,12 +3,13 @@ package trustcmd
 import (
 	"fmt"
 
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
+	"github.com/spf13/cobra"
+
+	"github.com/Hayao0819/Kamisato/internal/errors"
 	"github.com/Hayao0819/Kamisato/kayo/audit"
 	"github.com/Hayao0819/Kamisato/kayo/cmd/shared"
 	"github.com/Hayao0819/Kamisato/kayo/gitserve"
 	"github.com/Hayao0819/Kamisato/kayo/trust"
-	"github.com/spf13/cobra"
 )
 
 // trustAddCmd whitelists a package and trusts its maintainer ACCOUNT — from the AUR
@@ -48,7 +49,7 @@ func trustAddCmd() *cobra.Command {
 			shared.PrintReport(out, r, report, store.Evaluate(r.Source, r.Pkgbase, r.Maintainer))
 			shared.PrintLLMAdvisory(cmd.Context(), out, cfg, r.Dir, false)
 			if report.Max() >= audit.SevHigh && !force {
-				return errwrap.NewErr("refusing to trust: high-severity findings (use --force to override)")
+				return errors.NewErr("refusing to trust: high-severity findings (use --force to override)")
 			}
 
 			// Pin the reviewed commit by serving it ourselves (variant B), so a
@@ -57,7 +58,7 @@ func trustAddCmd() *cobra.Command {
 				return err
 			}
 			if err := gitserve.Materialize(cmd.Context(), cfg.ServedRoot(), r.Pkgbase, r.Dir, r.Commit); err != nil {
-				return errwrap.WrapErr(err, "failed to pin reviewed commit")
+				return errors.WrapErr(err, "failed to pin reviewed commit")
 			}
 
 			store.Approve(trust.Approval{

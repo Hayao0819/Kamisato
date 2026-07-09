@@ -9,7 +9,7 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
+	"github.com/Hayao0819/Kamisato/internal/errors"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/sign"
 )
 
@@ -36,7 +36,7 @@ func KeyDir(cmd *cobra.Command) (string, error) {
 	}
 	cfg, err := os.UserConfigDir()
 	if err != nil {
-		return "", errwrap.WrapErr(err, "resolve config dir")
+		return "", errors.WrapErr(err, "resolve config dir")
 	}
 	return filepath.Join(cfg, "kamisato", "keys"), nil
 }
@@ -51,7 +51,7 @@ func Passphrase(cmd *cobra.Command, prompt bool) (string, error) {
 	if file, _ := cmd.Flags().GetString(flagPassphraseFile); file != "" {
 		data, err := os.ReadFile(file)
 		if err != nil {
-			return "", errwrap.WrapErr(err, "read passphrase file")
+			return "", errors.WrapErr(err, "read passphrase file")
 		}
 		return strings.TrimRight(string(data), "\n"), nil
 	}

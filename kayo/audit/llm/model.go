@@ -3,11 +3,12 @@ package llm
 import (
 	"strings"
 
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
 	"github.com/tmc/langchaingo/llms"
 	"github.com/tmc/langchaingo/llms/anthropic"
 	"github.com/tmc/langchaingo/llms/ollama"
 	"github.com/tmc/langchaingo/llms/openai"
+
+	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
 // NewModel builds a langchaingo model for the given provider. API keys come from
@@ -44,6 +45,6 @@ func NewModel(provider, model, baseURL string) (llms.Model, error) {
 		}
 		return ollama.New(opts...)
 	default:
-		return nil, errwrap.NewErrf("llmaudit: unknown provider %q (use anthropic, openai, or ollama)", provider)
+		return nil, errors.NewErrf("llmaudit: unknown provider %q (use anthropic, openai, or ollama)", provider)
 	}
 }

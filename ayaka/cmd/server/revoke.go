@@ -3,11 +3,12 @@ package servercmd
 import (
 	"fmt"
 
+	"github.com/spf13/cobra"
+
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
 	"github.com/Hayao0819/Kamisato/internal/blinkyutils"
 	"github.com/Hayao0819/Kamisato/internal/buildclient"
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
-	"github.com/spf13/cobra"
+	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
 // RevokeCmd invalidates the stored CLI token server-side (via the denylist) and
@@ -28,19 +29,19 @@ func RevokeCmd() *cobra.Command {
 
 			entry, ok := db.Servers[server]
 			if !ok {
-				return errwrap.WrapErr(shared.ErrServerNotFound, server)
+				return errors.WrapErr(shared.ErrServerNotFound, server)
 			}
 			access := blinkyutils.LoadSecret(server, entry.Password)
 			refresh := blinkyutils.LoadRefreshSecret(server)
 			if access == "" && refresh == "" {
-				return errwrap.NewErr("no stored token to revoke for " + server)
+				return errors.NewErr("no stored token to revoke for " + server)
 			}
 
 			// Revoke both halves server-side: the access token authorizes via Bearer,
 			// the refresh token via the body (and suffices once the access token has
 			// already expired).
 			if err := buildclient.RevokeCLIToken(cmd.Context(), server, access, refresh); err != nil {
-				return errwrap.WrapErr(err, "failed to revoke token")
+				return errors.WrapErr(err, "failed to revoke token")
 			}
 
 			entry.Username = ""

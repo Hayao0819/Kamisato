@@ -3,7 +3,6 @@ package repository
 import (
 	"archive/tar"
 	"bytes"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -14,10 +13,13 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/Hayao0819/Kamisato/internal/errors"
+
+	"github.com/klauspost/compress/zstd"
+
 	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
 	"github.com/Hayao0819/Kamisato/ayato/stream"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
-	"github.com/klauspost/compress/zstd"
 )
 
 // memStore is an in-memory blob.Store. It is backend-agnostic, so asserting the

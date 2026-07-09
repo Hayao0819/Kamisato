@@ -6,10 +6,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
+	"github.com/otiai10/copy"
+
+	"github.com/Hayao0819/Kamisato/internal/errors"
 	"github.com/Hayao0819/Kamisato/internal/gitcmd"
 	"github.com/Hayao0819/Kamisato/miko/domain"
-	"github.com/otiai10/copy"
 )
 
 // materialize prepares the build source in srcDir from the request. Exactly one
@@ -26,11 +27,11 @@ func materialize(ctx context.Context, req *domain.BuildRequest, srcDir string) e
 			return err
 		}
 	default:
-		return errwrap.NewErr("no build source given: set git or pkgbuild")
+		return errors.NewErr("no build source given: set git or pkgbuild")
 	}
 
 	if _, err := os.Stat(filepath.Join(srcDir, "PKGBUILD")); err != nil {
-		return errwrap.WrapErr(err, "PKGBUILD not found in source")
+		return errors.WrapErr(err, "PKGBUILD not found in source")
 	}
 	return nil
 }
@@ -45,7 +46,7 @@ func materialize(ctx context.Context, req *domain.BuildRequest, srcDir string) e
 // common no-ref case stays a depth-1 shallow clone.
 func materializeGit(ctx context.Context, git *domain.GitSource, srcDir string) error {
 	if git.URL == "" {
-		return errwrap.NewErr("git source has no URL")
+		return errors.NewErr("git source has no URL")
 	}
 
 	dest := srcDir
@@ -54,12 +55,12 @@ func materializeGit(ctx context.Context, git *domain.GitSource, srcDir string) e
 		// Reject a subdir that escapes the clone root.
 		clean := filepath.Clean(git.Subdir)
 		if clean == ".." || strings.HasPrefix(clean, ".."+string(filepath.Separator)) || filepath.IsAbs(clean) {
-			return errwrap.NewErrf("invalid subdir: %s", git.Subdir)
+			return errors.NewErrf("invalid subdir: %s", git.Subdir)
 		}
 
 		tmp, err := os.MkdirTemp("", "miko-clone-*")
 		if err != nil {
-			return errwrap.WrapErr(err, "failed to create clone dir")
+			return errors.WrapErr(err, "failed to create clone dir")
 		}
 		defer func() { _ = os.RemoveAll(tmp) }()
 		cloneDir = tmp
@@ -71,13 +72,13 @@ func materializeGit(ctx context.Context, git *domain.GitSource, srcDir string) e
 		opts.Depth = 1
 	}
 	if err := gitcmd.Clone(ctx, opts); err != nil {
-		return errwrap.WrapErr(err, "git clone failed")
+		return errors.WrapErr(err, "git clone failed")
 	}
 
 	if git.Subdir != "" {
 		src := filepath.Join(cloneDir, filepath.Clean(git.Subdir))
 		if err := copy.Copy(src, srcDir); err != nil {
-			return errwrap.WrapErr(err, "failed to copy subdir")
+			return errors.WrapErr(err, "failed to copy subdir")
 		}
 	}
 	return nil
@@ -88,7 +89,7 @@ func materializeGit(ctx context.Context, git *domain.GitSource, srcDir string) e
 // "..", "" or that contain a path separator are skipped.
 func materializePkgbuild(req *domain.BuildRequest, srcDir string) error {
 	if err := os.WriteFile(filepath.Join(srcDir, "PKGBUILD"), []byte(req.Pkgbuild), 0o644); err != nil { //nolint:gosec // build input read by makepkg, potentially as a different build user
-		return errwrap.WrapErr(err, "failed to write PKGBUILD")
+		return errors.WrapErr(err, "failed to write PKGBUILD")
 	}
 
 	for name, contents := range req.Files {
@@ -100,7 +101,7 @@ func materializePkgbuild(req *domain.BuildRequest, srcDir string) error {
 			continue
 		}
 		if err := os.WriteFile(filepath.Join(srcDir, base), []byte(contents), 0o644); err != nil { //nolint:gosec // build input read by makepkg, potentially as a different build user
-			return errwrap.WrapErr(err, "failed to write file: "+base)
+			return errors.WrapErr(err, "failed to write file: "+base)
 		}
 	}
 	return nil

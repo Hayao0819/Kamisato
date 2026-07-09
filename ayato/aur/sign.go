@@ -7,7 +7,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
+	"github.com/Hayao0819/Kamisato/internal/errors"
 	"github.com/Hayao0819/Kamisato/internal/kayoproto"
 )
 
@@ -32,10 +32,10 @@ type CatalogSigner struct {
 func NewCatalogSigner(seedB64 string, ttl time.Duration) (*CatalogSigner, error) {
 	seed, err := base64.StdEncoding.DecodeString(seedB64)
 	if err != nil {
-		return nil, errwrap.WrapErr(err, "aur: decode signing seed")
+		return nil, errors.WrapErr(err, "aur: decode signing seed")
 	}
 	if len(seed) != ed25519.SeedSize { // 32; NewKeyFromSeed panics otherwise
-		return nil, errwrap.NewErrf("aur: signing seed must be %d bytes, got %d", ed25519.SeedSize, len(seed))
+		return nil, errors.NewErrf("aur: signing seed must be %d bytes, got %d", ed25519.SeedSize, len(seed))
 	}
 	priv := ed25519.NewKeyFromSeed(seed)
 	pub := priv.Public().(ed25519.PublicKey)
@@ -66,7 +66,7 @@ func (s *CatalogSigner) Sign(cat kayoproto.Catalog) (kayoproto.CatalogEnvelope, 
 	}
 	payload, err := json.Marshal(p)
 	if err != nil {
-		return kayoproto.CatalogEnvelope{}, errwrap.WrapErr(err, "aur: marshal signed payload")
+		return kayoproto.CatalogEnvelope{}, errors.WrapErr(err, "aur: marshal signed payload")
 	}
 	sig := ed25519.Sign(s.priv, payload)
 	return kayoproto.CatalogEnvelope{
@@ -81,7 +81,7 @@ func (s *CatalogSigner) Sign(cat kayoproto.Catalog) (kayoproto.CatalogEnvelope, 
 func GenerateSeed() (string, error) {
 	_, priv, err := ed25519.GenerateKey(nil)
 	if err != nil {
-		return "", errwrap.WrapErr(err, "aur: generate key")
+		return "", errors.WrapErr(err, "aur: generate key")
 	}
 	return base64.StdEncoding.EncodeToString(priv.Seed()), nil
 }

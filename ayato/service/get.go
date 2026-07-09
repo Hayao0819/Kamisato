@@ -1,8 +1,9 @@
 package service
 
 import (
-	"errors"
 	"fmt"
+
+	"github.com/Hayao0819/Kamisato/internal/errors"
 
 	"github.com/Hayao0819/Kamisato/ayato/domain"
 	"github.com/Hayao0819/Kamisato/ayato/repository/blob"

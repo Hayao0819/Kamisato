@@ -1,11 +1,12 @@
 package mikocmd
 
 import (
+	"github.com/spf13/cobra"
+
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
 	"github.com/Hayao0819/Kamisato/internal/buildclient"
 	"github.com/Hayao0819/Kamisato/internal/cliutil"
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
-	"github.com/spf13/cobra"
+	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
 func mikoJobsCmd() *cobra.Command {
@@ -21,7 +22,7 @@ func mikoJobsCmd() *cobra.Command {
 
 			jobs, err := buildclient.ListJobs(cmd.Context(), srv.URL, srv.Password)
 			if err != nil {
-				return errwrap.WrapErr(err, "failed to list jobs")
+				return errors.WrapErr(err, "failed to list jobs")
 			}
 
 			format, err := cliutil.ResolveFormat(cmd, jobTableFormat)

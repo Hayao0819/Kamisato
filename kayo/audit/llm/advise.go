@@ -12,8 +12,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
 	"github.com/tmc/langchaingo/llms"
+
+	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
 const (
@@ -71,7 +72,7 @@ const responseInstruction = "\n\nRespond with ONLY a JSON object, no prose, no c
 // not a gate.
 func Advise(ctx context.Context, model llms.Model, pkgbuild, install string) (*Advisory, error) {
 	if strings.TrimSpace(pkgbuild) == "" {
-		return nil, errwrap.NewErr("llmaudit: empty PKGBUILD")
+		return nil, errors.NewErr("llmaudit: empty PKGBUILD")
 	}
 	ctx, cancel := context.WithTimeout(ctx, requestTimeout)
 	defer cancel()
@@ -80,10 +81,10 @@ func Advise(ctx context.Context, model llms.Model, pkgbuild, install string) (*A
 		llms.TextParts(llms.ChatMessageTypeHuman, recipeData(pkgbuild, install)),
 	}, llms.WithTemperature(0), llms.WithMaxTokens(1024))
 	if err != nil {
-		return nil, errwrap.WrapErr(err, "llmaudit: generate")
+		return nil, errors.WrapErr(err, "llmaudit: generate")
 	}
 	if len(resp.Choices) == 0 {
-		return nil, errwrap.NewErr("llmaudit: empty model response")
+		return nil, errors.NewErr("llmaudit: empty model response")
 	}
 	return parseAdvisory(resp.Choices[0].Content)
 }
@@ -114,11 +115,11 @@ func truncateInput(s string) string {
 func parseAdvisory(out string) (*Advisory, error) {
 	raw := extractJSONObject(out)
 	if raw == "" {
-		return nil, errwrap.NewErr("llmaudit: no JSON object in model output")
+		return nil, errors.NewErr("llmaudit: no JSON object in model output")
 	}
 	var a Advisory
 	if err := json.Unmarshal([]byte(raw), &a); err != nil {
-		return nil, errwrap.WrapErr(err, "llmaudit: parse advisory JSON")
+		return nil, errors.WrapErr(err, "llmaudit: parse advisory JSON")
 	}
 	a.Risk = normalizeRisk(a.Risk)
 	for i := range a.Findings {

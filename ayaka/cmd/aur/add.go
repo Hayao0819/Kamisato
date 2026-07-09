@@ -5,9 +5,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
 	"github.com/spf13/cobra"
+
+	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
+	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
 func aurAddCmd() *cobra.Command {
@@ -33,11 +34,11 @@ func aurAddCmd() *cobra.Command {
 func runAurAdd(cmd *cobra.Command, repoName string, pkgs []string, force bool) error {
 	app := shared.AppFrom(cmd)
 	if app.GetSrcRepo(repoName) == nil {
-		return errwrap.WrapErr(shared.ErrInvalidRepoName, repoName)
+		return errors.WrapErr(shared.ErrInvalidRepoName, repoName)
 	}
 	repoDir := app.GetSrcDir(repoName)
 	if repoDir == "" {
-		return errwrap.WrapErr(shared.ErrNoSourceDir, repoName)
+		return errors.WrapErr(shared.ErrNoSourceDir, repoName)
 	}
 
 	var errs []string
@@ -45,11 +46,11 @@ func runAurAdd(cmd *cobra.Command, repoName string, pkgs []string, force bool) e
 		gitDir := filepath.Join(repoDir, name, ".git")
 		if _, err := os.Stat(gitDir); err == nil {
 			if !force {
-				errs = append(errs, errwrap.NewErrf("package %q is already tracked; use --force to re-clone", name).Error())
+				errs = append(errs, errors.NewErrf("package %q is already tracked; use --force to re-clone", name).Error())
 				continue
 			}
 			if err := os.RemoveAll(filepath.Join(repoDir, name)); err != nil {
-				errs = append(errs, errwrap.WrapErr(err, "failed to remove "+name).Error())
+				errs = append(errs, errors.WrapErr(err, "failed to remove "+name).Error())
 				continue
 			}
 		}
@@ -58,7 +59,7 @@ func runAurAdd(cmd *cobra.Command, repoName string, pkgs []string, force bool) e
 		}
 	}
 	if len(errs) > 0 {
-		return errwrap.NewErr("one or more AUR adds failed:\n" + strings.Join(errs, "\n"))
+		return errors.NewErr("one or more AUR adds failed:\n" + strings.Join(errs, "\n"))
 	}
 	return nil
 }

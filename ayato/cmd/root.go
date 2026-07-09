@@ -1,11 +1,17 @@
 package cmd
 
 import (
-	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"time"
+
+	sloggin "github.com/samber/slog-gin"
+
+	"github.com/Hayao0819/Kamisato/internal/errors"
+
+	"github.com/gin-gonic/gin"
+	"github.com/spf13/cobra"
 
 	"github.com/Hayao0819/Kamisato/ayato/aur"
 	"github.com/Hayao0819/Kamisato/ayato/auth"
@@ -17,11 +23,7 @@ import (
 	"github.com/Hayao0819/Kamisato/ayato/service"
 	"github.com/Hayao0819/Kamisato/internal/cliutil"
 	"github.com/Hayao0819/Kamisato/internal/conf"
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
 	"github.com/Hayao0819/Kamisato/internal/version"
-	"github.com/Hayao0819/Kamisato/internal/weblog"
-	"github.com/gin-gonic/gin"
-	"github.com/spf13/cobra"
 )
 
 func RootCmd() *cobra.Command {
@@ -55,7 +57,7 @@ func RootCmd() *cobra.Command {
 
 			pkgNameRepo, pkgBinaryRepo, authRepo, kvStore, poolCollector, err := repository.New(cfg)
 			if err != nil {
-				return errwrap.WrapErr(err, "failed to initialize repository")
+				return errors.WrapErr(err, "failed to initialize repository")
 			}
 			defer func() { _ = kvStore.Close() }()
 
@@ -74,12 +76,12 @@ func RootCmd() *cobra.Command {
 			// The admin allowlist is the only persisted auth state; sessions, CLI
 			// tokens, one-time codes, and OAuth state are all stateless-signed.
 			if err := s.SeedBootstrapAdmin(cfg.Auth.BootstrapAdminGitHubID); err != nil {
-				return errwrap.WrapErr(err, "failed to seed bootstrap admin")
+				return errors.WrapErr(err, "failed to seed bootstrap admin")
 			}
 			if len(cfg.Auth.SessionSecret) > 0 {
 				signer, serr := auth.NewSigner(cfg.Auth.SessionSecret)
 				if serr != nil {
-					return errwrap.WrapErr(serr, "failed to build session signer")
+					return errors.WrapErr(serr, "failed to build session signer")
 				}
 				h.WithAuth(signer)
 				h.WithReplayGuard(replayGuard)
@@ -96,42 +98,42 @@ func RootCmd() *cobra.Command {
 			// a repo can publish via API key or GitHub OIDC without a session secret.
 			ci, cierr := ciauth.New(cmd.Context(), cfg.Auth.CI)
 			if cierr != nil {
-				return errwrap.WrapErr(cierr, "failed to init CI auth")
+				return errors.WrapErr(cierr, "failed to init CI auth")
 			}
 			m.WithCIAuth(ci)
 
 			engine := gin.New()
 			engine.Use(gin.Recovery())
-			engine.Use(weblog.GinLog())
+			engine.Use(sloggin.NewWithConfig(slog.Default(), sloggin.Config{DefaultLevel: slog.LevelDebug, HandleGinDebug: true}))
 			engine.Use(m.SecurityHeaders())
 
 			// Trust no proxy by default so ClientIP() is the real peer and the
 			// spoofable X-Forwarded-For is ignored (the rate-limit key is only
 			// trustworthy this way); honor XFF only behind trusted_proxies.
 			if err := engine.SetTrustedProxies(nil); err != nil {
-				return errwrap.WrapErr(err, "failed to reset trusted proxies")
+				return errors.WrapErr(err, "failed to reset trusted proxies")
 			}
 			if len(cfg.Auth.TrustedProxies) > 0 {
 				if err := engine.SetTrustedProxies(cfg.Auth.TrustedProxies); err != nil {
-					return errwrap.WrapErr(err, "failed to set trusted proxies")
+					return errors.WrapErr(err, "failed to set trusted proxies")
 				}
 			}
 
 			if err := router.SetRoute(engine, h, m); err != nil {
-				return errwrap.WrapErr(err, "failed to set routing")
+				return errors.WrapErr(err, "failed to set routing")
 			}
 			slog.Info("Routing initialized")
 
 			if cfg.AUR.Enabled {
 				mod, merr := aur.New(cfg, kvStore)
 				if merr != nil {
-					return errwrap.WrapErr(merr, "failed to initialize AUR module")
+					return errors.WrapErr(merr, "failed to initialize AUR module")
 				}
 				router.SetAUR(engine, m, mod.Server, handler.NewAURHandler(mod.Service))
 			}
 
 			if err := s.InitAll(); err != nil {
-				return errwrap.WrapErr(err, "failed to initialize services")
+				return errors.WrapErr(err, "failed to initialize services")
 			}
 			slog.Info("All services initialized")
 

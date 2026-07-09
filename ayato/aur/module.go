@@ -8,7 +8,7 @@ import (
 	"github.com/Hayao0819/Kamisato/ayato/ratelimit"
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
 	"github.com/Hayao0819/Kamisato/internal/conf"
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
+	"github.com/Hayao0819/Kamisato/internal/errors"
 	"github.com/Hayao0819/Kamisato/pkg/aurweb"
 )
 
@@ -65,7 +65,7 @@ func New(cfg *conf.AyatoConfig, store kv.Store) (*Module, error) {
 
 	signer, err := NewCatalogSignerFromEnv(ttl)
 	if err != nil {
-		return nil, errwrap.WrapErr(err, "failed to build catalog signer")
+		return nil, errors.WrapErr(err, "failed to build catalog signer")
 	}
 	if signer != nil {
 		slog.Info("AUR catalog signing enabled", "key_id", signer.KeyID())

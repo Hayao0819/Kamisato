@@ -4,10 +4,11 @@
 package blob
 
 import (
-	"errors"
 	"os"
 	"strings"
 	"time"
+
+	"github.com/Hayao0819/Kamisato/internal/errors"
 
 	"github.com/Hayao0819/Kamisato/ayato/stream"
 )

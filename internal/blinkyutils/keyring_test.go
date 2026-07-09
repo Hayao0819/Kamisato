@@ -1,8 +1,9 @@
 package blinkyutils
 
 import (
-	"errors"
 	"testing"
+
+	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
 // fakeKeyring is an in-memory Keyring whose availability can be toggled to model a

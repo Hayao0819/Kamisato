@@ -4,10 +4,11 @@ import (
 	"context"
 	"strconv"
 
+	"github.com/spf13/cobra"
+
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
 	"github.com/Hayao0819/Kamisato/internal/buildclient"
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
-	"github.com/spf13/cobra"
+	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
 func Cmd() *cobra.Command {
@@ -40,12 +41,12 @@ func resolveAdminID(ctx context.Context, srv *shared.AyatoServer, token, s strin
 	_, login := parseLoginOrID(s)
 	admins, err := buildclient.ListAdmins(ctx, srv.URL, token)
 	if err != nil {
-		return 0, errwrap.WrapErr(err, "failed to list admins for login resolution")
+		return 0, errors.WrapErr(err, "failed to list admins for login resolution")
 	}
 	for _, a := range admins {
 		if a.Login == login {
 			return a.ID, nil
 		}
 	}
-	return 0, errwrap.NewErrf("no admin with login %q", login)
+	return 0, errors.NewErrf("no admin with login %q", login)
 }

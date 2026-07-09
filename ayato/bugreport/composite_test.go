@@ -2,8 +2,9 @@ package bugreport
 
 import (
 	"context"
-	"errors"
 	"testing"
+
+	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
 type stubReporter struct {

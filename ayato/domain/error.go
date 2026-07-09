@@ -1,8 +1,9 @@
 package domain
 
 import (
-	"errors"
 	"fmt"
+
+	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
 type APIError struct {

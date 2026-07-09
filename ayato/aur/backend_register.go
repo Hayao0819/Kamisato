@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"slices"
 
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
+	"github.com/Hayao0819/Kamisato/internal/errors"
 	"github.com/Hayao0819/Kamisato/internal/gitcmd"
 	"github.com/Hayao0819/Kamisato/pkg/aurweb"
 	"github.com/Hayao0819/Kamisato/pkg/raiou"
@@ -18,7 +18,7 @@ import (
 func (b *Backend) Register(ctx context.Context, gitURL, ref, maintainer string) (pkgbase string, names []string, err error) {
 	dir, err := os.MkdirTemp("", "ayato-aur-*")
 	if err != nil {
-		return "", nil, errwrap.WrapErr(err, "failed to create temp clone dir")
+		return "", nil, errors.WrapErr(err, "failed to create temp clone dir")
 	}
 	defer func() { _ = os.RemoveAll(dir) }()
 
@@ -33,7 +33,7 @@ func (b *Backend) Register(ctx context.Context, gitURL, ref, maintainer string) 
 func (b *Backend) ingest(ctx context.Context, dir, source, maintainer string) (pkgbase string, names []string, err error) {
 	si, err := raiou.ParseSrcinfoFile(filepath.Join(dir, ".SRCINFO"))
 	if err != nil {
-		return "", nil, errwrap.WrapErr(err, "registered repo has no valid .SRCINFO at its root")
+		return "", nil, errors.WrapErr(err, "registered repo has no valid .SRCINFO at its root")
 	}
 
 	if maintainer == "" {
@@ -47,27 +47,27 @@ func (b *Backend) ingest(ctx context.Context, dir, source, maintainer string) (p
 		LastModified:   ts,
 	})
 	if len(pkgs) == 0 {
-		return "", nil, errwrap.NewErr("registered repo produced no packages")
+		return "", nil, errors.NewErr("registered repo produced no packages")
 	}
 
 	pkgbase = pkgs[0].PackageBase
 	for _, p := range pkgs {
 		raw, mErr := json.Marshal(p)
 		if mErr != nil {
-			return "", nil, errwrap.WrapErr(mErr, "failed to encode package")
+			return "", nil, errors.WrapErr(mErr, "failed to encode package")
 		}
 		if sErr := b.kv.Set(nsPkg, p.Name, raw, 0); sErr != nil {
-			return "", nil, errwrap.WrapErr(sErr, "failed to store package")
+			return "", nil, errors.WrapErr(sErr, "failed to store package")
 		}
 		names = append(names, p.Name)
 	}
 
 	rec, mErr := json.Marshal(baseRecord{URL: source, Names: names})
 	if mErr != nil {
-		return "", nil, errwrap.WrapErr(mErr, "failed to encode pkgbase record")
+		return "", nil, errors.WrapErr(mErr, "failed to encode pkgbase record")
 	}
 	if err := b.kv.Set(nsBase, pkgbase, rec, 0); err != nil {
-		return "", nil, errwrap.WrapErr(err, "failed to store pkgbase")
+		return "", nil, errors.WrapErr(err, "failed to store pkgbase")
 	}
 	return pkgbase, names, nil
 }
@@ -80,7 +80,7 @@ func (b *Backend) Remove(_ context.Context, pkgbase string) error {
 	}
 	for _, n := range rec.Names {
 		if dErr := b.kv.Delete(nsPkg, n); dErr != nil {
-			return errwrap.WrapErr(dErr, "failed to delete package "+n)
+			return errors.WrapErr(dErr, "failed to delete package "+n)
 		}
 	}
 	return b.kv.Delete(nsBase, pkgbase)

@@ -6,7 +6,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
-	"github.com/Hayao0819/Kamisato/internal/errwrap"
+	"github.com/Hayao0819/Kamisato/internal/errors"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/sign"
 )
 
@@ -27,14 +27,14 @@ func revokeCmd() *cobra.Command {
 				return err
 			}
 			if !yes {
-				return errwrap.NewErr("refusing to revoke the primary key without --yes")
+				return errors.NewErr("refusing to revoke the primary key without --yes")
 			}
 			k, pass, err := shared.LoadSigningKey(cmd)
 			if err != nil {
 				return err
 			}
 			if err := k.RevokePrimary(parsed, reasonText, pass); err != nil {
-				return errwrap.WrapErr(err, "failed to revoke primary key")
+				return errors.WrapErr(err, "failed to revoke primary key")
 			}
 			out := cmd.OutOrStdout()
 			fmt.Fprintf(out, "Revoked primary key %s (%s)\n", k.PrimaryFingerprint(), reason)

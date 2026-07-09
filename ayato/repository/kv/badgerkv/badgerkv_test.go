@@ -3,10 +3,11 @@
 package badgerkv_test
 
 import (
-	"errors"
 	"sort"
 	"testing"
 	"time"
+
+	"github.com/Hayao0819/Kamisato/internal/errors"
 
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv/badgerkv"
