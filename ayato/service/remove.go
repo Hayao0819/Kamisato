@@ -64,7 +64,7 @@ func (s *Service) RemovePkg(rname string, arch string, pkgname string) error {
 		return errors.WrapErr(err, "delete package file")
 	}
 	s.deleteSignatureIfPresent(rname, storeArch, filename)
-	if err := s.pkgNameRepo.DeletePackageFileEntry(storeArch, pkgname); err != nil {
+	if err := s.pkgNameRepo.DeletePackageFileEntry(rname, storeArch, pkgname); err != nil {
 		return errors.WrapErr(err, "delete package metadata entry")
 	}
 	return nil

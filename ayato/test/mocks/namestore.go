@@ -40,44 +40,44 @@ func (m *MockNameStore) EXPECT() *MockNameStoreMockRecorder {
 }
 
 // DeletePackageFileEntry mocks base method.
-func (m *MockNameStore) DeletePackageFileEntry(arch, packageName string) error {
+func (m *MockNameStore) DeletePackageFileEntry(repo, arch, packageName string) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DeletePackageFileEntry", arch, packageName)
+	ret := m.ctrl.Call(m, "DeletePackageFileEntry", repo, arch, packageName)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // DeletePackageFileEntry indicates an expected call of DeletePackageFileEntry.
-func (mr *MockNameStoreMockRecorder) DeletePackageFileEntry(arch, packageName any) *gomock.Call {
+func (mr *MockNameStoreMockRecorder) DeletePackageFileEntry(repo, arch, packageName any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeletePackageFileEntry", reflect.TypeOf((*MockNameStore)(nil).DeletePackageFileEntry), arch, packageName)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeletePackageFileEntry", reflect.TypeOf((*MockNameStore)(nil).DeletePackageFileEntry), repo, arch, packageName)
 }
 
 // PackageFile mocks base method.
-func (m *MockNameStore) PackageFile(arch, name string) (string, error) {
+func (m *MockNameStore) PackageFile(repo, arch, name string) (string, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "PackageFile", arch, name)
+	ret := m.ctrl.Call(m, "PackageFile", repo, arch, name)
 	ret0, _ := ret[0].(string)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // PackageFile indicates an expected call of PackageFile.
-func (mr *MockNameStoreMockRecorder) PackageFile(arch, name any) *gomock.Call {
+func (mr *MockNameStoreMockRecorder) PackageFile(repo, arch, name any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PackageFile", reflect.TypeOf((*MockNameStore)(nil).PackageFile), arch, name)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PackageFile", reflect.TypeOf((*MockNameStore)(nil).PackageFile), repo, arch, name)
 }
 
 // StorePackageFile mocks base method.
-func (m *MockNameStore) StorePackageFile(arch, packageName, filePath string) error {
+func (m *MockNameStore) StorePackageFile(repo, arch, packageName, filePath string) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "StorePackageFile", arch, packageName, filePath)
+	ret := m.ctrl.Call(m, "StorePackageFile", repo, arch, packageName, filePath)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // StorePackageFile indicates an expected call of StorePackageFile.
-func (mr *MockNameStoreMockRecorder) StorePackageFile(arch, packageName, filePath any) *gomock.Call {
+func (mr *MockNameStoreMockRecorder) StorePackageFile(repo, arch, packageName, filePath any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StorePackageFile", reflect.TypeOf((*MockNameStore)(nil).StorePackageFile), arch, packageName, filePath)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StorePackageFile", reflect.TypeOf((*MockNameStore)(nil).StorePackageFile), repo, arch, packageName, filePath)
 }

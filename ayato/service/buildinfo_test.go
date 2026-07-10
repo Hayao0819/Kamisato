@@ -70,7 +70,7 @@ func TestUploadFile_BuildinfoProvenanceAccepts(t *testing.T) {
 	bin.EXPECT().RemoteRepo("myrepo", "x86_64").Return(&repo.RemoteRepo{}, nil).AnyTimes()
 	bin.EXPECT().StoreFile("myrepo", "x86_64", gomock.Any()).Return(nil)
 	bin.EXPECT().RepoAddBatch("myrepo", "x86_64", gomock.Any(), false, gomock.Nil()).Return(nil)
-	name.EXPECT().StorePackageFile("x86_64", "foo", uploadName).Return(nil)
+	name.EXPECT().StorePackageFile("myrepo", "x86_64", "foo", uploadName).Return(nil)
 
 	svc := service.New(name, bin, nil, nil, provenanceConfig())
 	files := &domain.UploadFiles{PkgFile: pkgStream(uploadName, buildPkgWithBuildinfo(t, "/build", true))}

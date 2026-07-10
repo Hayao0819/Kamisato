@@ -194,7 +194,7 @@ func TestUploadFile_GoodSigStoresTwice(t *testing.T) {
 			return nil
 		}).Times(2)
 	bin.EXPECT().RepoAddBatch("myrepo", "x86_64", gomock.Any(), false, gomock.Nil()).Return(nil)
-	name.EXPECT().StorePackageFile("x86_64", "foo", uploadName).Return(nil)
+	name.EXPECT().StorePackageFile("myrepo", "x86_64", "foo", uploadName).Return(nil)
 
 	svc := service.New(name, bin, nil, nil, baseConfig(false, keyring))
 	files := &domain.UploadFiles{
@@ -263,7 +263,7 @@ func TestUploadFile_UpgradeAccepted(t *testing.T) {
 	bin.EXPECT().RemoteRepo("myrepo", "x86_64").Return(remoteWith("foo", "0.9-1"), nil)
 	bin.EXPECT().StoreFile("myrepo", "x86_64", gomock.Any()).Return(nil)
 	bin.EXPECT().RepoAddBatch("myrepo", "x86_64", gomock.Any(), false, gomock.Nil()).Return(nil)
-	name.EXPECT().StorePackageFile("x86_64", "foo", uploadName).Return(nil)
+	name.EXPECT().StorePackageFile("myrepo", "x86_64", "foo", uploadName).Return(nil)
 
 	svc := service.New(name, bin, nil, nil, baseConfig(false, ""))
 	files := &domain.UploadFiles{PkgFile: pkgStream(uploadName, buildPkgArchive(t))}
@@ -386,8 +386,8 @@ func TestUploadFiles_KeyringBuiltOncePerBatch(t *testing.T) {
 	bin.EXPECT().RemoteRepo("myrepo", "x86_64").Return(&repo.RemoteRepo{}, nil).AnyTimes()
 	bin.EXPECT().StoreFile("myrepo", "x86_64", gomock.Any()).Return(nil).Times(4)
 	bin.EXPECT().RepoAddBatch("myrepo", "x86_64", gomock.Any(), false, gomock.Nil()).Return(nil)
-	name.EXPECT().StorePackageFile("x86_64", "foo", "foo-1.0-1-x86_64.pkg.tar.zst").Return(nil)
-	name.EXPECT().StorePackageFile("x86_64", "bar", "bar-1.0-1-x86_64.pkg.tar.zst").Return(nil)
+	name.EXPECT().StorePackageFile("myrepo", "x86_64", "foo", "foo-1.0-1-x86_64.pkg.tar.zst").Return(nil)
+	name.EXPECT().StorePackageFile("myrepo", "x86_64", "bar", "bar-1.0-1-x86_64.pkg.tar.zst").Return(nil)
 
 	sr := &countingSignerRepo{}
 	svc := service.New(name, bin, nil, sr, baseConfig(false, keyring))
@@ -416,8 +416,8 @@ func TestUploadFiles_BatchOneRepoAddPerArch(t *testing.T) {
 	bin.EXPECT().RemoteRepo("myrepo", "x86_64").Return(&repo.RemoteRepo{}, nil).AnyTimes()
 	bin.EXPECT().StoreFile("myrepo", "x86_64", gomock.Any()).Return(nil).Times(2)
 	bin.EXPECT().RepoAddBatch("myrepo", "x86_64", gomock.Any(), false, gomock.Nil()).Return(nil)
-	name.EXPECT().StorePackageFile("x86_64", "foo", "foo-1.0-1-x86_64.pkg.tar.zst").Return(nil)
-	name.EXPECT().StorePackageFile("x86_64", "bar", "bar-1.0-1-x86_64.pkg.tar.zst").Return(nil)
+	name.EXPECT().StorePackageFile("myrepo", "x86_64", "foo", "foo-1.0-1-x86_64.pkg.tar.zst").Return(nil)
+	name.EXPECT().StorePackageFile("myrepo", "x86_64", "bar", "bar-1.0-1-x86_64.pkg.tar.zst").Return(nil)
 
 	svc := service.New(name, bin, nil, nil, baseConfig(false, ""))
 	files := []*domain.UploadFiles{

@@ -120,7 +120,7 @@ func (s *Service) promoteOneArch(src, dst, arch, storeArch, filename, pkgname st
 	if err := s.pkgBinaryRepo.RepoAddBatch(dst, arch, []repository.RepoAddItem{{Pkg: pkgSeek}}, useSignedDB, gnupgDir); err != nil {
 		return errors.WrapErr(err, "register package in target tier db")
 	}
-	if err := s.pkgNameRepo.StorePackageFile(storeArch, pkgname, filename); err != nil {
+	if err := s.pkgNameRepo.StorePackageFile(dst, storeArch, pkgname, filename); err != nil {
 		return errors.WrapErr(err, "record promoted package file name")
 	}
 	return nil

@@ -14,11 +14,11 @@ import (
 // concrete arch holding the file.
 func (s *Service) resolvePackage(repo, reqArch, pkgname string) (filename, storeArch string, err error) {
 	if reqArch != "" && reqArch != "any" {
-		if f, e := s.pkgNameRepo.PackageFile(reqArch, pkgname); e == nil && f != "" {
+		if f, e := s.pkgNameRepo.PackageFile(repo, reqArch, pkgname); e == nil && f != "" {
 			return f, reqArch, nil
 		}
 	}
-	if f, e := s.pkgNameRepo.PackageFile("any", pkgname); e == nil && f != "" {
+	if f, e := s.pkgNameRepo.PackageFile(repo, "any", pkgname); e == nil && f != "" {
 		return f, "any", nil
 	}
 
@@ -35,8 +35,8 @@ func (s *Service) resolvePackage(repo, reqArch, pkgname string) (filename, store
 			continue
 		}
 		// Backfill under the resolved store arch so later lookups hit.
-		if storeErr := s.pkgNameRepo.StorePackageFile(sa, pkgname, fn); storeErr != nil {
-			slog.Warn("failed to backfill name store", "arch", sa, "pkgname", pkgname, "error", storeErr.Error())
+		if storeErr := s.pkgNameRepo.StorePackageFile(repo, sa, pkgname, fn); storeErr != nil {
+			slog.Warn("failed to backfill name store", "repo", repo, "arch", sa, "pkgname", pkgname, "error", storeErr.Error())
 		}
 		return fn, sa, nil
 	}

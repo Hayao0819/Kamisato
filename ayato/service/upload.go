@@ -261,8 +261,8 @@ func (s *Service) UploadFiles(repo string, files []*domain.UploadFiles) error {
 			}
 		}
 		for _, n := range named {
-			if err := s.pkgNameRepo.DeletePackageFileEntry(n.arch, n.key); err != nil {
-				slog.Warn("failed to roll back package-name entry", "arch", n.arch, "pkg", n.key, "err", err)
+			if err := s.pkgNameRepo.DeletePackageFileEntry(repo, n.arch, n.key); err != nil {
+				slog.Warn("failed to roll back package-name entry", "repo", repo, "arch", n.arch, "pkg", n.key, "err", err)
 			}
 		}
 	}
@@ -319,7 +319,7 @@ func (s *Service) UploadFiles(repo string, files []*domain.UploadFiles) error {
 
 	// Record each package's file name.
 	for _, p := range preps {
-		if err := s.pkgNameRepo.StorePackageFile(p.storeArch, p.pkgName, p.storedName); err != nil {
+		if err := s.pkgNameRepo.StorePackageFile(repo, p.storeArch, p.pkgName, p.storedName); err != nil {
 			rollback()
 			return errors.WrapErr(err, "failed to store package file name")
 		}
