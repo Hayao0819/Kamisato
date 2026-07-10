@@ -164,7 +164,7 @@ func Cmd() *cobra.Command {
 					CFlagsAppend: mk.CFlagsAppend,
 					Options:      mk.Options,
 				},
-				Image:    srcrepo.Config.Build.Image,
+				Image:    strings.ReplaceAll(srcrepo.Config.Build.Image, "$arch", arch),
 				Executor: builder.Kind(executor),
 			}
 
