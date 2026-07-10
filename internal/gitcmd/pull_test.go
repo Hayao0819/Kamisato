@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	git "github.com/go-git/go-git/v5"
+	git "github.com/go-git/go-git/v6"
 )
 
 // TestPull fast-forwards a local clone from a local origin — no network — and
@@ -38,7 +38,7 @@ func TestPull(t *testing.T) {
 	runGit(origin, "commit", "-m", "one")
 
 	work := filepath.Join(t.TempDir(), "clone")
-	if _, err := git.PlainClone(work, false, &git.CloneOptions{URL: origin}); err != nil {
+	if _, err := git.PlainClone(work, &git.CloneOptions{URL: origin}); err != nil {
 		t.Fatalf("setup clone: %v", err)
 	}
 

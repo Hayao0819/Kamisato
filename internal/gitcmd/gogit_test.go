@@ -41,7 +41,7 @@ func TestSafeDialContextRejectsInternal(t *testing.T) {
 	defer cancel()
 
 	for _, addr := range []string{"127.0.0.1:80", "169.254.169.254:80", "[::1]:80"} {
-		conn, err := safeDialContext(ctx, "tcp", addr)
+		conn, err := pinPublicDial(ctx, "tcp", addr)
 		if err == nil {
 			_ = conn.Close()
 			t.Errorf("safeDialContext(%q) = nil error, want refusal", addr)

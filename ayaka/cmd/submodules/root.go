@@ -32,19 +32,7 @@ func Cmd() *cobra.Command {
 
 				slog.Info("updating submodules", "repo", root)
 
-				gitArgs := []string{"submodule", "update"}
-
-				if init {
-					gitArgs = append(gitArgs, "--init")
-				}
-				if recursive {
-					gitArgs = append(gitArgs, "--recursive")
-				}
-				if remote {
-					gitArgs = append(gitArgs, "--remote")
-				}
-
-				if err := gitcmd.Run(cmd.Context(), root, gitArgs...); err != nil {
+				if err := gitcmd.UpdateSubmodules(cmd.Context(), root, init, recursive, remote); err != nil {
 					return errors.WrapErr(err, "failed to update submodules in "+root)
 				}
 

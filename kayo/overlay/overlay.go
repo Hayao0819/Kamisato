@@ -120,13 +120,9 @@ func fetchOverlay(ctx context.Context, dir string, o conf.OverlayConfig) error {
 		// 127.0.0.1) are a supported deployment. ext:: RCE is blocked by gitcmd.
 		return gitcmd.Clone(ctx, gitcmd.CloneOptions{URL: o.URL, Dir: dir, Ref: o.Ref})
 	case o.Ref != "":
-		if err := gitcmd.Run(ctx, dir, "fetch", "--quiet", "--tags", "--prune", "origin", o.Ref); err != nil {
-			return err
-		}
-		// reset --hard FETCH_HEAD so a branch ref actually advances; a plain
-		// checkout of an already-checked-out branch would freeze it at clone time.
-		// FETCH_HEAD resolves the just-fetched ref be it a branch, tag, or commit.
-		return gitcmd.Run(ctx, dir, "reset", "--hard", "--quiet", "FETCH_HEAD")
+		// Force-advance to whatever o.Ref points at now (branch/tag/commit); a
+		// plain pull of an already-checked-out branch would freeze it at clone time.
+		return gitcmd.SyncHard(ctx, dir, o.Ref)
 	default:
 		return gitcmd.Pull(ctx, dir)
 	}

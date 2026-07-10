@@ -5,13 +5,13 @@ import (
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
 
-	"github.com/go-git/go-billy/v5/osfs"
-	git "github.com/go-git/go-git/v5"
-	"github.com/go-git/go-git/v5/plumbing"
-	"github.com/go-git/go-git/v5/plumbing/cache"
-	"github.com/go-git/go-git/v5/plumbing/object"
-	"github.com/go-git/go-git/v5/plumbing/serverinfo"
-	"github.com/go-git/go-git/v5/storage/filesystem"
+	"github.com/go-git/go-billy/v6/osfs"
+	git "github.com/go-git/go-git/v6"
+	"github.com/go-git/go-git/v6/plumbing"
+	"github.com/go-git/go-git/v6/plumbing/cache"
+	"github.com/go-git/go-git/v6/plumbing/object"
+	"github.com/go-git/go-git/v6/plumbing/transport"
+	"github.com/go-git/go-git/v6/storage/filesystem"
 )
 
 // HeadCommit returns the HEAD commit hash of the repo in dir, via go-git (no git
@@ -39,7 +39,7 @@ func RepoRoot(dir string) (string, error) {
 	if err != nil {
 		return "", errors.WrapErr(err, "open worktree")
 	}
-	return wt.Filesystem.Root(), nil
+	return wt.Filesystem().Root(), nil
 }
 
 // ChangedFiles returns the paths that differ between the from and to revisions,
@@ -116,5 +116,5 @@ func SetHead(dir, target string) error {
 func UpdateServerInfo(dir string) error {
 	fs := osfs.New(dir)
 	storer := filesystem.NewStorage(fs, cache.NewObjectLRUDefault())
-	return serverinfo.UpdateServerInfo(storer, fs)
+	return transport.UpdateServerInfo(storer, fs)
 }

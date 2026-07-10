@@ -79,7 +79,7 @@ func updateAurPkg(cobraCmd *cobra.Command, repoDir, name string, force bool) err
 		}
 
 		slog.Info("adding AUR repo as submodule", "name", name, "root", root, "path", relPath)
-		if err := gitcmd.Run(cobraCmd.Context(), root, "submodule", "add", url, relPath); err != nil {
+		if err := gitcmd.AddSubmodule(cobraCmd.Context(), root, url, relPath); err != nil {
 			return errors.WrapErr(err, "failed to add AUR submodule "+name)
 		}
 		return nil
