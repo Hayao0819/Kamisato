@@ -55,7 +55,7 @@ func RootCmd() *cobra.Command {
 
 			slog.Debug("Configuration loaded", "port", cfg.Port, "debug", cfg.Debug, "repos", cfg.Repos, "maxsize", cfg.MaxSize, "dbtype", cfg.Store.DBType, "storagetype", cfg.Store.StorageType)
 
-			pkgNameRepo, pkgBinaryRepo, authRepo, kvStore, poolCollector, err := repository.New(cfg)
+			pkgNameRepo, pkgBinaryRepo, authRepo, kvStore, err := repository.New(cfg)
 			if err != nil {
 				return errors.WrapErr(err, "failed to initialize repository")
 			}
@@ -67,9 +67,6 @@ func RootCmd() *cobra.Command {
 			logTokenRepo := repository.NewLogTokenRepository(kvStore)
 			deviceRepo := repository.NewDeviceRepository(kvStore)
 			s := service.New(pkgNameRepo, pkgBinaryRepo, authRepo, signerRepo, cfg)
-			if poolCollector != nil {
-				s.WithPool(poolCollector)
-			}
 			h := handler.New(s, cfg).WithLogTokens(logTokenRepo)
 			m := middleware.New(cfg).WithLogTokens(logTokenRepo).WithRateLimiter(kvStore)
 

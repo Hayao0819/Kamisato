@@ -43,7 +43,6 @@ type AyatoConfig struct {
 	Recaptcha      RecaptchaConfig `koanf:"recaptcha"`
 	Sign           SignConfig      `koanf:"sign"`
 	Secrets        SecretsConfig   `koanf:"secrets"`
-	Pool           PoolConfig      `koanf:"pool"`
 	// Mirror configures the pacman mirrorlist served at /repo/<repo>/mirrorlist.
 	Mirror MirrorConfig `koanf:"mirror"`
 	// RedirectDownloads, unset by default, answers a file download with a 302 to a
@@ -79,31 +78,6 @@ func (m MirrorConfig) ServerPath() string {
 		return "/repo"
 	}
 	return path.Clean("/" + p)
-}
-
-// PoolConfig governs the content-addressed package pool: uploaded package bytes
-// are stored once under pool/<sha256> and the repo path becomes a pointer, so
-// identical content is deduplicated and old versions can be retained/collected.
-type PoolConfig struct {
-	// Enabled routes new package uploads through the pool; nil defaults to on.
-	// Already-published packages stored directly keep serving regardless.
-	Enabled *bool `koanf:"enabled"`
-	// KeepUnreferenced retains this many newest versions per pkgbase even once no
-	// repo references them, so a rollback can re-point at a recent build.
-	KeepUnreferenced int `koanf:"keep_unreferenced,omitempty"`
-	// RetentionWindowHours keeps an unreferenced object at least this long after
-	// its last pointer dropped, a grace window before the GC may reclaim it.
-	RetentionWindowHours int `koanf:"retention_window_hours,omitempty"`
-}
-
-// PoolEnabled reports whether new uploads are pooled (default true).
-func (c *AyatoConfig) PoolEnabled() bool {
-	return c.Pool.Enabled == nil || *c.Pool.Enabled
-}
-
-// RetentionWindow is the GC grace window derived from the configured hours.
-func (c PoolConfig) RetentionWindow() time.Duration {
-	return time.Duration(c.RetentionWindowHours) * time.Hour
 }
 
 // SignConfig toggles optional signing features. Only the toggle lives in config;

@@ -52,12 +52,7 @@ func secureKV(store kv.Store, cfg *conf.AyatoConfig) (kv.Store, error) {
 func initBinaryStore(cfg *conf.AyatoConfig) (blob.Store, error) {
 	// A tiered repo serves three pacman repos (its tiers), so the store must accept
 	// every physical repo name, not just the logical one.
-	physical := cfg.PhysicalRepoNames()
-	repoNames := make([]string, 0, len(physical)+1)
-	repoNames = append(repoNames, physical...)
-	// The pool's reserved repo must be an accepted key so package bytes can be
-	// content-addressed under it; poolStore filters it from the servable repo set.
-	repoNames = append(repoNames, poolRepo)
+	repoNames := cfg.PhysicalRepoNames()
 
 	if cfg.Store.StorageType == "s3" {
 		slog.Warn("Using S3 is still experimental, please use with caution")
@@ -105,33 +100,32 @@ func initKVStore(cfg *conf.AyatoConfig) (kv.Store, error) {
 
 // New returns the shared kv.Store alongside the repositories so other consumers
 // (e.g. the AUR backend) can partition their own namespaces instead of opening a
-// second store against the same locked BadgerDB dir; the caller closes it. The
-// returned PoolCollector runs the pool retention GC (nil when pooling is disabled).
-func New(cfg *conf.AyatoConfig) (NameStore, BinaryRepository, AuthRepository, kv.Store, PoolCollector, error) {
+// second store against the same locked BadgerDB dir; the caller closes it.
+func New(cfg *conf.AyatoConfig) (NameStore, BinaryRepository, AuthRepository, kv.Store, error) {
 	kvStore, err := initKVStore(cfg)
 	if err != nil {
 		slog.Error("Failed to create key-value store", "error", err)
-		return nil, nil, nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 	if cfg != nil {
 		kvStore, err = secureKV(kvStore, cfg)
 		if err != nil {
 			slog.Error("Failed to enable at-rest secret encryption", "error", err)
-			return nil, nil, nil, nil, nil, err
+			return nil, nil, nil, nil, err
 		}
 	}
 
 	binStore, err := initBinaryStore(cfg)
 	if err != nil {
 		slog.Error("Failed to create binary store", "error", err)
-		return nil, nil, nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 
 	var binOpts []BinaryRepoOption
 	if cfg != nil && cfg.Sign.DB {
 		signer, serr := loadDBSigner()
 		if serr != nil {
-			return nil, nil, nil, nil, nil, serr
+			return nil, nil, nil, nil, serr
 		}
 		binOpts = append(binOpts, WithSigningTool(signer))
 	}
@@ -139,22 +133,10 @@ func New(cfg *conf.AyatoConfig) (NameStore, BinaryRepository, AuthRepository, kv
 		binOpts = append(binOpts, WithUpstreamRepos(cfg.UpstreamRepoNames()))
 	}
 
-	// The pool decorates the raw store so package writes are content-addressed and
-	// reads resolve through pointers; serializing wraps it to keep per-(repo, arch)
-	// writes serialized.
-	var pool *poolStore
-	inner := binStore
-	if cfg == nil || cfg.PoolEnabled() {
-		pool = newPoolStore(binStore, kvStore)
-		inner = pool
-	}
-	var collector PoolCollector
-	if pool != nil {
-		collector = pool
-	}
-
-	binRepo := NewBinaryRepository(newSerializingStore(inner), binOpts...)
-	return NewPackageMetadataRepo(kvStore), binRepo, NewAuthRepository(kvStore), kvStore, collector, nil
+	// Package files are stored directly under (repo, arch, filename); serializing
+	// keeps per-(repo, arch) writes serialized.
+	binRepo := NewBinaryRepository(newSerializingStore(binStore), binOpts...)
+	return NewPackageMetadataRepo(kvStore), binRepo, NewAuthRepository(kvStore), kvStore, nil
 }
 
 // loadDBSigner loads the repo-db signing key from the environment (never the config

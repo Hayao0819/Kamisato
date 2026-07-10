@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
@@ -15,10 +16,10 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/conf"
 )
 
-// newTieredService wires a real repository stack (localfs blob + BadgerDB kv +
-// the content-addressed pool) so tier promotion exercises the actual pool
-// dedup and CAS database commit, not a mock. It returns the service, the
-// config, and the on-disk repo root (for counting pool objects).
+// newTieredService wires a real repository stack (localfs blob + BadgerDB kv) so
+// tier promotion exercises the actual storage and CAS database commit, not a
+// mock. It returns the service, the config, and the on-disk repo root (for
+// counting stored package files).
 func newTieredService(t *testing.T, repos []conf.BinRepoConfig) (*service.Service, *conf.AyatoConfig, string) {
 	t.Helper()
 	repoDir := t.TempDir()
@@ -26,13 +27,13 @@ func newTieredService(t *testing.T, repos []conf.BinRepoConfig) (*service.Servic
 	cfg.Store.LocalRepoDir = repoDir
 	cfg.Store.BadgerDB = t.TempDir()
 
-	name, bin, _, kvStore, pool, err := repository.New(cfg)
+	name, bin, _, kvStore, err := repository.New(cfg)
 	if err != nil {
 		t.Fatalf("repository.New: %v", err)
 	}
 	t.Cleanup(func() { _ = kvStore.Close() })
 
-	svc := service.New(name, bin, nil, nil, cfg).WithPool(pool)
+	svc := service.New(name, bin, nil, nil, cfg)
 	if err := svc.InitAll(); err != nil {
 		t.Fatalf("InitAll: %v", err)
 	}
@@ -65,18 +66,25 @@ func pkgNames(t *testing.T, svc *service.Service, repo, arch string) []string {
 	return names
 }
 
-// poolObjectCount counts the content-addressed pool objects on disk, so a test
-// can prove promotion shares the SAME object rather than re-storing it.
-func poolObjectCount(t *testing.T, repoDir string) int {
+// pkgFileCount counts the package files stored on disk across every tier, so a
+// test can prove a moved package lives in exactly one tier at a time (promotion
+// copies to the target tier, then the move policy drops the source).
+func pkgFileCount(t *testing.T, repoDir string) int {
 	t.Helper()
-	entries, err := os.ReadDir(filepath.Join(repoDir, "_pool_", "objects"))
-	if err != nil {
-		if os.IsNotExist(err) {
-			return 0
+	n := 0
+	err := filepath.WalkDir(repoDir, func(_ string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
 		}
-		t.Fatalf("read pool dir: %v", err)
+		if !d.IsDir() && strings.Contains(d.Name(), ".pkg.tar.") {
+			n++
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("walk repo dir: %v", err)
 	}
-	return len(entries)
+	return n
 }
 
 func has(names []string, want string) bool {
@@ -90,9 +98,9 @@ func has(names []string, want string) bool {
 
 // TestTieredPromotionFlow walks a package staging -> testing -> stable and checks
 // each step: an upload lands in staging only, a promotion makes the package
-// appear in the next tier's database, the pool holds ONE shared object across all
-// tiers (promotion is a pointer + DB op, never a re-upload), and the move policy
-// clears the source tier.
+// appear in the next tier's database, exactly one package file exists across all
+// tiers (the move policy drops the source after each promotion), and the move
+// policy clears the source tier.
 func TestTieredPromotionFlow(t *testing.T) {
 	svc, _, repoDir := newTieredService(t, []conf.BinRepoConfig{
 		{Name: "myrepo", Tiered: true},
@@ -110,12 +118,12 @@ func TestTieredPromotionFlow(t *testing.T) {
 	if len(pkgNames(t, svc, "myrepo", "x86_64")) != 0 {
 		t.Fatal("upload leaked into the stable tier")
 	}
-	if n := poolObjectCount(t, repoDir); n != 1 {
-		t.Fatalf("pool objects after upload = %d, want 1", n)
+	if n := pkgFileCount(t, repoDir); n != 1 {
+		t.Fatalf("package files after upload = %d, want 1", n)
 	}
 
 	// staging -> testing: appears in testing, gone from staging (move policy), and
-	// the pool still holds exactly one object (shared, not re-stored).
+	// exactly one package file remains on disk (moved, not duplicated).
 	if err := svc.PromotePackage(ctx, "myrepo", conf.TierStaging, conf.TierTesting, "foo", "1.0-1"); err != nil {
 		t.Fatalf("promote staging->testing: %v", err)
 	}
@@ -125,8 +133,8 @@ func TestTieredPromotionFlow(t *testing.T) {
 	if len(pkgNames(t, svc, "myrepo-staging", "x86_64")) != 0 {
 		t.Fatal("move policy did not clear foo from the staging tier")
 	}
-	if n := poolObjectCount(t, repoDir); n != 1 {
-		t.Fatalf("pool objects after promotion = %d, want 1 (bytes shared, not re-stored)", n)
+	if n := pkgFileCount(t, repoDir); n != 1 {
+		t.Fatalf("package files after promotion = %d, want 1 (moved, not duplicated)", n)
 	}
 
 	// testing -> stable: appears in stable, gone from testing.
@@ -139,8 +147,8 @@ func TestTieredPromotionFlow(t *testing.T) {
 	if len(pkgNames(t, svc, "myrepo-testing", "x86_64")) != 0 {
 		t.Fatal("move policy did not clear foo from the testing tier")
 	}
-	if n := poolObjectCount(t, repoDir); n != 1 {
-		t.Fatalf("pool objects after full promotion = %d, want 1", n)
+	if n := pkgFileCount(t, repoDir); n != 1 {
+		t.Fatalf("package files after full promotion = %d, want 1", n)
 	}
 }
 

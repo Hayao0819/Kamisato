@@ -26,9 +26,9 @@ type Promoter interface {
 }
 
 // PromotePackage moves a package to the next tier of a tiered repo. Promotion is a
-// pointer + DB op, never a re-upload: it re-points the target tier at the SAME pool
-// object (content-hash dedup) and registers it via the CAS commit, so the tier's db
-// gains the package atomically. The source tier keeps or drops it per policy.
+// copy + DB op, never a re-upload: it copies the built package into the target tier
+// and registers it via the CAS commit, so the tier's db gains the package
+// atomically. The source tier keeps or drops it per policy.
 func (s *Service) PromotePackage(ctx context.Context, repo string, from, to conf.Tier, pkgname, version string) error {
 	if s.cfg == nil {
 		return fmt.Errorf("%w: promotion requires a repository configuration", domain.ErrInvalid)
@@ -88,9 +88,8 @@ func (s *Service) PromotePackage(ctx context.Context, repo string, from, to conf
 	return nil
 }
 
-// promoteOneArch re-points the destination tier at the shared pool object and
-// registers the package there; storing the fetched bytes hits the pool's
-// content-address dedup, so no object is re-stored.
+// promoteOneArch copies the source tier's package into the destination tier and
+// registers it there, so the promoted tier serves the same built bytes.
 func (s *Service) promoteOneArch(src, dst, arch, storeArch, filename, pkgname string, useSignedDB bool, gnupgDir *string) error {
 	pkgSeek, cleanup, err := s.spoolTierFile(src, storeArch, filename)
 	if err != nil {

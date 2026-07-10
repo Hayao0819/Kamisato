@@ -26,7 +26,6 @@ type Service struct {
 	authRepo      repository.AuthRepository
 	signerRepo    repository.SignerRepository
 	denylistRepo  repository.DenylistRepository // nil when per-token revocation is not wired
-	pool          repository.PoolCollector      // nil when the content-addressed pool is disabled
 	cfg           *conf.AyatoConfig
 	// upstreamClient fetches upstream repo databases for the overlay/merge sync,
 	// with the shared retry/timeout policy of pkg/httpx.
