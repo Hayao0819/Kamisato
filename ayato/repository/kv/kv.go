@@ -35,6 +35,14 @@ type Store interface {
 	Close() error
 }
 
+// BulkStore is an optional capability: batched writes/deletes a backend can send in
+// one request, so a large migration mutation stays within a remote store's
+// per-account request budget. Backends without it are driven per-key.
+type BulkStore interface {
+	BulkSet(ns string, entries []Entry, ttl time.Duration) error
+	BulkDelete(ns string, keys []string) error
+}
+
 // Adder is an optional Store capability: atomically set key only when it is
 // absent, reporting whether this call created it. It is the primitive a one-time /
 // replay guard needs — two racing callers cannot both observe "created". Backends
