@@ -1,12 +1,59 @@
 package migrate_test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/Hayao0819/Kamisato/ayato/migrate"
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv/badgerkv"
 )
+
+type fakeMig struct {
+	ver                int
+	expands, contracts *int
+}
+
+func (f fakeMig) Version() int                                        { return f.ver }
+func (f fakeMig) Name() string                                        { return "fake" }
+func (f fakeMig) Expand(_ context.Context, _ *migrate.Stores) error   { *f.expands++; return nil }
+func (f fakeMig) Contract(_ context.Context, _ *migrate.Stores) error { *f.contracts++; return nil }
+
+func TestRunPhasesIdempotent(t *testing.T) {
+	s := newStore(t)
+	stores := &migrate.Stores{KV: s}
+	var expands, contracts int
+	ms := []migrate.Migration{fakeMig{ver: 1, expands: &expands, contracts: &contracts}}
+	ctx := context.Background()
+
+	// Expand runs once; the layout version does not advance yet.
+	if _, err := migrate.Run(ctx, stores, ms, migrate.RunOptions{Phase: migrate.PhaseExpand}); err != nil {
+		t.Fatalf("expand: %v", err)
+	}
+	if _, err := migrate.Run(ctx, stores, ms, migrate.RunOptions{Phase: migrate.PhaseExpand}); err != nil {
+		t.Fatalf("expand rerun: %v", err)
+	}
+	if expands != 1 {
+		t.Fatalf("expands = %d, want 1 (idempotent)", expands)
+	}
+	if v, _ := migrate.ReadLayout(s); v != 0 {
+		t.Fatalf("layout after expand = %d, want 0", v)
+	}
+
+	// Contract runs once and advances the layout version.
+	if _, err := migrate.Run(ctx, stores, ms, migrate.RunOptions{Phase: migrate.PhaseContract}); err != nil {
+		t.Fatalf("contract: %v", err)
+	}
+	if _, err := migrate.Run(ctx, stores, ms, migrate.RunOptions{Phase: migrate.PhaseContract}); err != nil {
+		t.Fatalf("contract rerun: %v", err)
+	}
+	if contracts != 1 {
+		t.Fatalf("contracts = %d, want 1 (idempotent)", contracts)
+	}
+	if v, _ := migrate.ReadLayout(s); v != 1 {
+		t.Fatalf("layout after contract = %d, want 1", v)
+	}
+}
 
 func TestLayoutVersion(t *testing.T) {
 	s := newStore(t)
