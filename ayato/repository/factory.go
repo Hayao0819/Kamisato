@@ -159,6 +159,12 @@ func NewMigrationStores(cfg *conf.AyatoConfig) (kv.Store, blob.Store, error) {
 	return kvStore, binStore, nil
 }
 
+// NewRawKV returns the kv store without the securekv decorator, for maintenance that
+// operates on raw keys (kv.KeyAuditor) rather than values. The caller closes it.
+func NewRawKV(cfg *conf.AyatoConfig) (kv.Store, error) {
+	return initKVStore(cfg)
+}
+
 // loadDBSigner loads the repo-db signing key from the environment (never the config
 // file, since it is a private key). Fails closed: sign.db enabled with no key is a
 // startup error, so ayato never silently serves an unsigned database.

@@ -170,6 +170,7 @@ func RootCmd() *cobra.Command {
 	cmd.SilenceUsage = true
 	cmd.AddCommand(aurCmd())
 	cmd.AddCommand(migrateCmd())
+	cmd.AddCommand(kvCmd())
 	cmd.AddCommand(version.Command())
 
 	return &cmd

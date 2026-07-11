@@ -43,6 +43,14 @@ type BulkStore interface {
 	BulkDelete(ns string, keys []string) error
 }
 
+// KeyAuditor is an optional capability for finding entries a backend holds that the
+// application did not create — e.g. data injected through a provider's console. Each
+// backend judges by its own key format, so no namespace allowlist is needed.
+type KeyAuditor interface {
+	ForeignKeys() ([]string, error)
+	DeleteRawKeys(keys []string) error
+}
+
 // Adder is an optional Store capability: atomically set key only when it is
 // absent, reporting whether this call created it. It is the primitive a one-time /
 // replay guard needs — two racing callers cannot both observe "created". Backends
