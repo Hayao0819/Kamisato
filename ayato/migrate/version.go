@@ -15,6 +15,15 @@ const (
 	layoutKey = "layout_version"
 )
 
+// SupportedMin/Max are the layout versions this binary can read. 0 is a fresh or
+// pre-migration install (no pool, or pool not yet contracted); 1 is the direct
+// layout after un-pool. A stored version above Max means the data is newer than the
+// binary understands.
+const (
+	SupportedMin = 0
+	SupportedMax = 1
+)
+
 // ReadLayout returns the stored layout version; an unset version is the 0 baseline.
 func ReadLayout(s kv.Store) (int, error) {
 	v, err := s.Get(metaNS, layoutKey)

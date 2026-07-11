@@ -139,6 +139,27 @@ func New(cfg *conf.AyatoConfig) (NameStore, BinaryRepository, AuthRepository, kv
 	return NewPackageMetadataRepo(kvStore), binRepo, NewAuthRepository(kvStore), kvStore, nil
 }
 
+// NewMigrationStores returns the raw kv and blob stores a migration job mutates,
+// without the serving-path decorators (serializing, repository logic): migrations
+// use kv.BulkStore and blob.ObjectMover directly, which the raw backends expose. The
+// caller closes the kv store.
+func NewMigrationStores(cfg *conf.AyatoConfig) (kv.Store, blob.Store, error) {
+	kvStore, err := initKVStore(cfg)
+	if err != nil {
+		return nil, nil, err
+	}
+	if cfg != nil {
+		if kvStore, err = secureKV(kvStore, cfg); err != nil {
+			return nil, nil, err
+		}
+	}
+	binStore, err := initBinaryStore(cfg)
+	if err != nil {
+		return nil, nil, err
+	}
+	return kvStore, binStore, nil
+}
+
 // loadDBSigner loads the repo-db signing key from the environment (never the config
 // file, since it is a private key). Fails closed: sign.db enabled with no key is a
 // startup error, so ayato never silently serves an unsigned database.

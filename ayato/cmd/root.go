@@ -18,6 +18,7 @@ import (
 	"github.com/Hayao0819/Kamisato/ayato/ciauth"
 	"github.com/Hayao0819/Kamisato/ayato/handler"
 	"github.com/Hayao0819/Kamisato/ayato/middleware"
+	"github.com/Hayao0819/Kamisato/ayato/migrate"
 	"github.com/Hayao0819/Kamisato/ayato/repository"
 	"github.com/Hayao0819/Kamisato/ayato/router"
 	"github.com/Hayao0819/Kamisato/ayato/service"
@@ -60,6 +61,15 @@ func RootCmd() *cobra.Command {
 				return errors.WrapErr(err, "failed to initialize repository")
 			}
 			defer func() { _ = kvStore.Close() }()
+
+			// Advisory only (policy c): warn on a layout mismatch but keep serving, so
+			// a rollout or an in-progress migration never brings the fleet down. A
+			// future migration that is a hard cut would fail here instead.
+			if v, inRange, gerr := migrate.Guard(kvStore, migrate.SupportedMin, migrate.SupportedMax); gerr != nil {
+				slog.Warn("could not read layout version", "err", gerr)
+			} else if !inRange {
+				slog.Warn("stored layout version is outside this binary's supported range", "version", v, "min", migrate.SupportedMin, "max", migrate.SupportedMax)
+			}
 
 			signerRepo := repository.NewSignerRepository(kvStore)
 			denylistRepo := repository.NewDenylistRepository(kvStore)
@@ -160,6 +170,7 @@ func RootCmd() *cobra.Command {
 	cmd.SilenceErrors = true
 	cmd.SilenceUsage = true
 	cmd.AddCommand(aurCmd())
+	cmd.AddCommand(migrateCmd())
 	cmd.AddCommand(version.Command())
 
 	return &cmd
