@@ -6,8 +6,8 @@ import (
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
 )
 
-// BulkSet writes entries in one backend batch when the store supports it, else per
-// key. Batching keeps a large migration within a remote store's request budget.
+// BulkSet batches when the backend supports it (keeping a large migration within a
+// remote store's request budget), else falls back to per-key writes.
 func BulkSet(s kv.Store, ns string, entries []kv.Entry, ttl time.Duration) error {
 	if b, ok := s.(kv.BulkStore); ok {
 		return b.BulkSet(ns, entries, ttl)
@@ -20,7 +20,6 @@ func BulkSet(s kv.Store, ns string, entries []kv.Entry, ttl time.Duration) error
 	return nil
 }
 
-// BulkDelete deletes keys in one backend batch when supported, else per key.
 func BulkDelete(s kv.Store, ns string, keys []string) error {
 	if b, ok := s.(kv.BulkStore); ok {
 		return b.BulkDelete(ns, keys)

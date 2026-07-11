@@ -6,13 +6,10 @@ import (
 	"testing"
 )
 
-// TestObjectMover exercises the raw-key migration capability: a copy relocates bytes
-// verbatim, a list walks the subtree, and a delete is idempotent.
 func TestObjectMover(t *testing.T) {
 	root := t.TempDir()
 	l := New(root, nil) // raw-key ops bypass the repo allowlist
 
-	// Seed a source object under a key outside any servable repo namespace.
 	srcKey := "_pool_/objects/deadbeef"
 	want := []byte("package bytes")
 	if err := os.MkdirAll(filepath.Join(root, "_pool_", "objects"), 0o755); err != nil {

@@ -10,8 +10,8 @@ import (
 func init() { register(unpool{}) }
 
 // unpool (layout 1) moves package bytes out of the content-addressed pool into the
-// direct repo/arch/filename layout, then drops the pool objects and index. These
-// names are the historical pool constants (the pool package itself is gone).
+// direct repo/arch/filename layout. These are the historical pool constants (the
+// pool package itself is gone).
 const (
 	poolObjectPrefix = "_pool_/objects/"
 	poolPtrNS        = "poolptr"
@@ -24,8 +24,8 @@ type unpool struct{}
 func (unpool) Version() int { return 1 }
 func (unpool) Name() string { return "unpool" }
 
-// Expand copies each pooled object to the repo/arch/filename its pointer names.
-// Additive: the pool still serves until Contract, so it is safe under live traffic.
+// Expand copies each pooled object to the repo/arch/filename its pointer names. The
+// pool still serves until Contract, so this is safe under live traffic.
 func (unpool) Expand(ctx context.Context, s *Stores) error {
 	mover, err := s.ObjectMover()
 	if err != nil {
@@ -50,8 +50,8 @@ func (unpool) Expand(ctx context.Context, s *Stores) error {
 	return nil
 }
 
-// Contract deletes the pool objects and the KV indices the pool used. The pkgfile
-// cache is dropped too; it rebuilds lazily from the .db under the new key scheme.
+// Contract deletes the pool objects and its KV indices. pkgfile is dropped too; it
+// rebuilds lazily from the .db under the new key scheme.
 func (unpool) Contract(ctx context.Context, s *Stores) error {
 	mover, err := s.ObjectMover()
 	if err != nil {

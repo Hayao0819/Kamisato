@@ -14,8 +14,6 @@ import (
 
 var _ blob.ObjectMover = (*LocalStore)(nil)
 
-// root resolves the repo root the same way getRepoDir does, so raw-key operations
-// map onto the same directory tree the servable API writes into.
 func (l *LocalStore) root() (string, error) {
 	pwd, err := os.Getwd()
 	if err != nil {
@@ -24,8 +22,8 @@ func (l *LocalStore) root() (string, error) {
 	return futils.ResolvePath(pwd, l.repoDir), nil
 }
 
-// rawPath maps a full object key onto an on-disk path under the repo root, rejecting
-// any segment that could escape it.
+// rawPath maps a key onto a path under the repo root, rejecting any segment that
+// could escape it.
 func (l *LocalStore) rawPath(key string) (string, error) {
 	root, err := l.root()
 	if err != nil {
@@ -40,7 +38,6 @@ func (l *LocalStore) rawPath(key string) (string, error) {
 	return filepath.Join(append([]string{root}, segs...)...), nil
 }
 
-// CopyObject copies srcKey to dstKey on disk (localfs has no server-side copy).
 func (l *LocalStore) CopyObject(srcKey, dstKey string) error {
 	src, err := l.rawPath(srcKey)
 	if err != nil {
@@ -72,8 +69,7 @@ func (l *LocalStore) CopyObject(srcKey, dstKey string) error {
 	return nil
 }
 
-// ListObjects returns every object key under prefix, treating it as a directory
-// subtree; an absent prefix yields no keys.
+// ListObjects walks prefix as a directory subtree; an absent prefix yields no keys.
 func (l *LocalStore) ListObjects(prefix string) ([]string, error) {
 	root, err := l.root()
 	if err != nil {
@@ -104,7 +100,6 @@ func (l *LocalStore) ListObjects(prefix string) ([]string, error) {
 	return keys, nil
 }
 
-// DeleteObject removes objKey; a missing key is not an error.
 func (l *LocalStore) DeleteObject(objKey string) error {
 	p, err := l.rawPath(objKey)
 	if err != nil {

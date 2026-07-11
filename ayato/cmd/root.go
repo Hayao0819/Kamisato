@@ -62,9 +62,8 @@ func RootCmd() *cobra.Command {
 			}
 			defer func() { _ = kvStore.Close() }()
 
-			// Advisory only (policy c): warn on a layout mismatch but keep serving, so
-			// a rollout or an in-progress migration never brings the fleet down. A
-			// future migration that is a hard cut would fail here instead.
+			// Advisory: warn on a layout mismatch but keep serving, so a rollout or an
+			// in-progress migration never brings the fleet down.
 			if v, inRange, gerr := migrate.Guard(kvStore, migrate.SupportedMin, migrate.SupportedMax); gerr != nil {
 				slog.Warn("could not read layout version", "err", gerr)
 			} else if !inRange {

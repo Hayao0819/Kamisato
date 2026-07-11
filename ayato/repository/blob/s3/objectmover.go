@@ -13,7 +13,6 @@ import (
 
 var _ blob.ObjectMover = (*S3)(nil)
 
-// CopyObject copies srcKey to dstKey server-side (R2/S3 CopyObject: no download).
 func (s *S3) CopyObject(srcKey, dstKey string) error {
 	_, err := s.storage.CopyObject(s.ctx, &awss3.CopyObjectInput{
 		Bucket:     aws.String(s.bucket),
@@ -26,8 +25,7 @@ func (s *S3) CopyObject(srcKey, dstKey string) error {
 	return nil
 }
 
-// ListObjects returns every object key under prefix. Unlike the servable listing it
-// omits the "/" delimiter, so it walks the whole subtree rather than one level.
+// ListObjects omits the "/" delimiter, so it walks the whole subtree, not one level.
 func (s *S3) ListObjects(prefix string) ([]string, error) {
 	var keys []string
 	var token *string
@@ -51,7 +49,6 @@ func (s *S3) ListObjects(prefix string) ([]string, error) {
 	return keys, nil
 }
 
-// DeleteObject removes objKey; S3/R2 delete is idempotent (a missing key is not an error).
 func (s *S3) DeleteObject(objKey string) error {
 	if err := s.deleteObject(objKey); err != nil {
 		return fmt.Errorf("delete object %s: %w", objKey, err)
@@ -59,8 +56,8 @@ func (s *S3) DeleteObject(objKey string) error {
 	return nil
 }
 
-// encodeCopySource builds the URL-encoded "bucket/key" CopySource, escaping each
-// path segment while preserving the slashes that delimit them.
+// encodeCopySource URL-encodes each segment of the "bucket/key" CopySource while
+// keeping the delimiting slashes, which the S3 API requires.
 func encodeCopySource(bucket, key string) string {
 	segs := strings.Split(key, "/")
 	for i, seg := range segs {

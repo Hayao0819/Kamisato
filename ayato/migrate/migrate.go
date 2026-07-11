@@ -12,14 +12,11 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
-// Stores is the toolbox a migration mutates: the shared KV store and blob store.
 type Stores struct {
 	KV   kv.Store
 	Blob blob.Store
 }
 
-// ObjectMover exposes the blob store's raw-key operations, or an error when the
-// backend lacks them.
 func (s *Stores) ObjectMover() (blob.ObjectMover, error) {
 	m, ok := s.Blob.(blob.ObjectMover)
 	if !ok {
@@ -28,9 +25,9 @@ func (s *Stores) ObjectMover() (blob.ObjectMover, error) {
 	return m, nil
 }
 
-// Migration is one versioned, forward-only step. Expand adds the new layout while
-// the old one still serves; Contract removes the old layout after the new binary is
-// deployed. Both must be idempotent so an interrupted run resumes by re-running.
+// Migration is one versioned, forward-only step. Expand adds the new layout while the
+// old one still serves; Contract removes the old layout after the new binary ships.
+// Both must be idempotent so an interrupted run resumes by re-running.
 type Migration interface {
 	Version() int
 	Name() string
@@ -57,9 +54,8 @@ type Result struct {
 	Skipped []int
 }
 
-// Run applies the phase to each migration in version order. Completion markers make
-// it idempotent and resumable; Contract advances the stored layout version, since a
-// contracted migration is the point the old layout is gone.
+// Run applies the phase to each migration in version order. Markers make it idempotent
+// and resumable; Contract advances the layout version (the old layout is now gone).
 func Run(ctx context.Context, s *Stores, migrations []Migration, o RunOptions) (Result, error) {
 	sorted := append([]Migration(nil), migrations...)
 	sort.Slice(sorted, func(i, j int) bool { return sorted[i].Version() < sorted[j].Version() })
@@ -128,7 +124,6 @@ func appendIf(s []int, v int, cond bool) []int {
 	return s
 }
 
-// MigrationStatus reports where one migration stands.
 type MigrationStatus struct {
 	Version    int
 	Name       string
@@ -136,7 +131,6 @@ type MigrationStatus struct {
 	Contracted bool
 }
 
-// Status is the layout version plus each migration's phase markers, for `--status`.
 type Status struct {
 	Layout     int
 	Migrations []MigrationStatus

@@ -139,9 +139,8 @@ func New(cfg *conf.AyatoConfig) (NameStore, BinaryRepository, AuthRepository, kv
 	return NewPackageMetadataRepo(kvStore), binRepo, NewAuthRepository(kvStore), kvStore, nil
 }
 
-// NewMigrationStores returns the raw kv and blob stores a migration job mutates,
-// without the serving-path decorators (serializing, repository logic): migrations
-// use kv.BulkStore and blob.ObjectMover directly, which the raw backends expose. The
+// NewMigrationStores returns the raw kv and blob stores without the serving-path
+// decorators, so migrations reach kv.BulkStore and blob.ObjectMover directly. The
 // caller closes the kv store.
 func NewMigrationStores(cfg *conf.AyatoConfig) (kv.Store, blob.Store, error) {
 	kvStore, err := initKVStore(cfg)

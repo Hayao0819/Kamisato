@@ -13,9 +13,8 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
-// migrateCmd is the entrypoint for a one-shot migration job. It must run as a
-// separate job (e.g. a Cloud Run Job), never inside the serving service, so it gets
-// full CPU and no request timeout and does not contend with live traffic.
+// migrateCmd runs a migration as a one-shot job. Run it separately (e.g. a Cloud Run
+// Job), never inside the serving service, which throttles CPU and caps request time.
 func migrateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "migrate",
