@@ -51,6 +51,23 @@ type MetaFetcher interface {
 	FetchFileWithMeta(repo, arch, file string) (stream.File, FileMeta, error)
 }
 
+// ObjectMover is an optional Store capability for migrations: raw full-key object
+// operations that sit below the pacman-aware (repo, arch, name) API and the repo
+// allowlist, so a migration can relocate objects between key layouts (e.g.
+// "_pool_/objects/<hash>" -> "repo/arch/<file>"). It is never used on the serving path.
+type ObjectMover interface {
+	// CopyObject copies srcKey to dstKey within the store, server-side where the
+	// backend supports it (R2/S3 CopyObject: no download). Overwriting an existing
+	// dstKey is intentional and idempotent for the immutable content a migration
+	// moves. A missing srcKey returns an error (ErrNotFound where the backend can
+	// tell absence apart).
+	CopyObject(srcKey, dstKey string) error
+	// ListObjects returns every object key under prefix.
+	ListObjects(prefix string) ([]string, error)
+	// DeleteObject removes objKey; a missing key is not an error (idempotent).
+	DeleteObject(objKey string) error
+}
+
 // Store is pure byte/file IO and knows nothing about pacman repositories: the
 // repo-DB read-modify-write lives in the domain layer (ayato/repository) that
 // composes it.
