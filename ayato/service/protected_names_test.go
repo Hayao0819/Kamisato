@@ -11,6 +11,7 @@ import (
 	"go.uber.org/mock/gomock"
 
 	"github.com/Hayao0819/Kamisato/ayato/domain"
+	"github.com/Hayao0819/Kamisato/ayato/repository"
 	"github.com/Hayao0819/Kamisato/ayato/service"
 	"github.com/Hayao0819/Kamisato/ayato/test/mocks"
 	"github.com/Hayao0819/Kamisato/internal/conf"
@@ -95,7 +96,7 @@ func TestUploadFile_ProtectedNamesAllowNonCollision(t *testing.T) {
 	bin.EXPECT().RemoteRepo("myrepo", "x86_64").Return(&repo.RemoteRepo{}, nil).AnyTimes()
 	bin.EXPECT().StoreFile("myrepo", "x86_64", gomock.Any()).Return(nil)
 	bin.EXPECT().RepoAddBatch("myrepo", "x86_64", gomock.Any(), false, gomock.Nil()).Return(nil)
-	name.EXPECT().StorePackageFile("myrepo", "x86_64", "foo", uploadName).Return(nil)
+	name.EXPECT().StorePackageFiles("myrepo", []repository.PackageFileEntry{{Arch: "x86_64", Name: "foo", FileName: uploadName}}).Return(nil)
 
 	svc := service.New(name, bin, nil, nil, protectedConfig("pacman", "glibc"))
 	// foo provides a lookalike-but-distinct name; nothing collides with the list.

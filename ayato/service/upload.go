@@ -317,13 +317,18 @@ func (s *Service) UploadFiles(repo string, files []*domain.UploadFiles) error {
 		}
 	}
 
-	// Record each package's file name.
+	// Record every package's file name in one batched write. Track the intended
+	// keys up front: a bulk write is not per-key atomic, so on failure rollback
+	// deletes the whole set (deleting a missing key is a no-op, and a stray entry
+	// is anyway reconstructable from the .db).
+	items := make([]repository.PackageFileEntry, 0, len(preps))
 	for _, p := range preps {
-		if err := s.pkgNameRepo.StorePackageFile(repo, p.storeArch, p.pkgName, p.storedName); err != nil {
-			rollback()
-			return errors.WrapErr(err, "failed to store package file name")
-		}
+		items = append(items, repository.PackageFileEntry{Arch: p.storeArch, Name: p.pkgName, FileName: p.storedName})
 		named = append(named, archKey{p.storeArch, p.pkgName})
+	}
+	if err := s.pkgNameRepo.StorePackageFiles(repo, items); err != nil {
+		rollback()
+		return errors.WrapErr(err, "failed to store package file names")
 	}
 	// For an upstream-layered repo, refresh the served merged database so the newly
 	// published packages appear in the merged view.

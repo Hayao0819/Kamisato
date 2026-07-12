@@ -12,6 +12,7 @@ package mocks
 import (
 	reflect "reflect"
 
+	repository "github.com/Hayao0819/Kamisato/ayato/repository"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -80,4 +81,18 @@ func (m *MockNameStore) StorePackageFile(repo, arch, packageName, filePath strin
 func (mr *MockNameStoreMockRecorder) StorePackageFile(repo, arch, packageName, filePath any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StorePackageFile", reflect.TypeOf((*MockNameStore)(nil).StorePackageFile), repo, arch, packageName, filePath)
+}
+
+// StorePackageFiles mocks base method.
+func (m *MockNameStore) StorePackageFiles(repo string, entries []repository.PackageFileEntry) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "StorePackageFiles", repo, entries)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// StorePackageFiles indicates an expected call of StorePackageFiles.
+func (mr *MockNameStoreMockRecorder) StorePackageFiles(repo, entries any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StorePackageFiles", reflect.TypeOf((*MockNameStore)(nil).StorePackageFiles), repo, entries)
 }

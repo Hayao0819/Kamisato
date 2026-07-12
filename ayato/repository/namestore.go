@@ -15,7 +15,16 @@ import (
 type NameStore interface {
 	PackageFile(repo, arch, name string) (string, error)
 	StorePackageFile(repo, arch, packageName, filePath string) error
+	// StorePackageFiles records many entries under one repo in a single backend
+	// write when the store supports it, so a batch publish spends one request
+	// instead of one per package. Entries never expire, like StorePackageFile.
+	StorePackageFiles(repo string, entries []PackageFileEntry) error
 	DeletePackageFileEntry(repo, arch, packageName string) error
+}
+
+// PackageFileEntry is one (arch, name) -> file-name mapping for a batched write.
+type PackageFileEntry struct {
+	Arch, Name, FileName string
 }
 
 // pkgMetadataNamespace isolates package-name -> file-name entries from other consumers (e.g. auth) on the shared kv.Store.
@@ -49,6 +58,28 @@ func (r *packageMetadataRepo) PackageFile(repo, arch, name string) (string, erro
 // The entry never expires (ttl 0): it is durable metadata, not a cache line.
 func (r *packageMetadataRepo) StorePackageFile(repo, arch, packageName, filePath string) error {
 	return r.kv.Set(pkgMetadataNamespace, nameKey(repo, arch, packageName), []byte(filePath), 0)
+}
+
+// StorePackageFiles uses the backend's BulkStore path when available (cfkv sends
+// them in one bulk request), else writes per key. A store that cannot batch is
+// still correct, just without the request saving.
+func (r *packageMetadataRepo) StorePackageFiles(repo string, items []PackageFileEntry) error {
+	if len(items) == 0 {
+		return nil
+	}
+	entries := make([]kv.Entry, len(items))
+	for i, it := range items {
+		entries[i] = kv.Entry{Key: nameKey(repo, it.Arch, it.Name), Value: []byte(it.FileName)}
+	}
+	if b, ok := r.kv.(kv.BulkStore); ok {
+		return b.BulkSet(pkgMetadataNamespace, entries, 0)
+	}
+	for _, e := range entries {
+		if err := r.kv.Set(pkgMetadataNamespace, e.Key, e.Value, 0); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (r *packageMetadataRepo) DeletePackageFileEntry(repo, arch, packageName string) error {
