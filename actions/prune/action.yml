@@ -1,0 +1,95 @@
+name: Prune from ayato
+description: Delete packages from an ayato repo that no longer exist in the checked-out source repo (a removed PKGBUILD). Requires ayaka on PATH and the source repo checked out.
+
+inputs:
+  server:
+    description: ayato base URL, e.g. https://repo.example.com
+    required: true
+  repo:
+    description: Source/ayato repository name (they share one name), e.g. alterlinux
+    required: true
+  arch:
+    description: Architecture whose remote db defines the current package set.
+    default: x86_64
+  auth:
+    description: 'CI credential type: "apikey" or "oidc".'
+    default: apikey
+  api_key:
+    description: API key for auth=apikey. Pass a secret.
+    default: ""
+  audience:
+    description: OIDC audience for auth=oidc; must equal ayato's auth.ci.github_oidc.audience.
+    default: ""
+  dry_run:
+    description: When "true", list what would be removed without deleting.
+    default: "false"
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        IN_SERVER: ${{ inputs.server }}
+        IN_REPO: ${{ inputs.repo }}
+        IN_ARCH: ${{ inputs.arch }}
+        IN_AUTH: ${{ inputs.auth }}
+        IN_API_KEY: ${{ inputs.api_key }}
+        IN_AUDIENCE: ${{ inputs.audience }}
+        IN_DRY_RUN: ${{ inputs.dry_run }}
+      run: |
+        set -euo pipefail
+
+        # Never send a publish credential over cleartext. Require https; allow
+        # http only for an anchored localhost (testing).
+        case "$IN_SERVER" in
+          https://*) ;;
+          http://localhost | http://localhost:* | http://127.0.0.1 | http://127.0.0.1:*) ;;
+          *) echo "::error::server must use https (http is allowed only for localhost)"; exit 1 ;;
+        esac
+
+        # Compute the prune list locally: ayaka reads the checked-out source and the
+        # public repo db (no credential needed). --dry-run prints pkgnames to stdout.
+        diff_url="${IN_SERVER%/}/repo/${IN_REPO}/${IN_ARCH}"
+        mapfile -t pkgs < <(ayaka repo remove --diff "$IN_REPO" --arch "$IN_ARCH" --diff-url "$diff_url" --dry-run)
+        if [ ${#pkgs[@]} -eq 0 ]; then
+          echo "nothing to prune for ${IN_REPO}/${IN_ARCH}"
+          exit 0
+        fi
+
+        printf 'prunable in %s/%s:\n' "$IN_REPO" "$IN_ARCH"
+        printf '  %s\n' "${pkgs[@]}"
+        if [ "$IN_DRY_RUN" = "true" ]; then
+          echo "dry-run: not deleting"
+          exit 0
+        fi
+
+        # Keep the credential out of argv: curl reads the auth header from -K.
+        curlcfg="$(mktemp)"
+        trap 'rm -f "$curlcfg"' EXIT
+        case "$IN_AUTH" in
+          apikey)
+            [ -n "$IN_API_KEY" ] || { echo "::error::api_key is required for auth=apikey"; exit 1; }
+            printf 'header = "X-API-Key: %s"\n' "$IN_API_KEY" >"$curlcfg"
+            ;;
+          oidc)
+            [ -n "$IN_AUDIENCE" ] || { echo "::error::audience is required for auth=oidc"; exit 1; }
+            [ -n "${ACTIONS_ID_TOKEN_REQUEST_URL:-}" ] || { echo "::error::no OIDC endpoint; the calling job needs 'permissions: id-token: write'"; exit 1; }
+            jwt="$(curl -sSL \
+              -H "Authorization: Bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" \
+              "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=${IN_AUDIENCE}" | jq -r '.value')"
+            [ -n "$jwt" ] && [ "$jwt" != "null" ] || { echo "::error::failed to obtain an OIDC token"; exit 1; }
+            printf 'header = "Authorization: Bearer %s"\n' "$jwt" >"$curlcfg"
+            ;;
+          *)
+            echo "::error::auth must be 'apikey' or 'oidc'"; exit 1 ;;
+        esac
+
+        for pkg in "${pkgs[@]}"; do
+          url="${IN_SERVER%/}/api/unstable/repos/${IN_REPO}/${IN_ARCH}/packages/${pkg}"
+          echo "removing ${pkg}"
+          code="$(curl -sS -o /dev/null -w '%{http_code}' -X DELETE -K "$curlcfg" "$url")"
+          case "$code" in
+            200 | 204) ;;
+            *) echo "::error::remove failed for ${pkg} (HTTP $code)"; exit 1 ;;
+          esac
+        done

@@ -4,6 +4,7 @@ Use from another repo as `Hayao0819/Kamisato/actions/<name>@<ref>`.
 
 - `install` — install selected Kamisato CLIs (ayaka/ayato/miko/lumine) and add them to `PATH`.
 - `upload` — publish package files to ayato (`ayaka repo add`); needs `install` first.
+- `prune` — delete packages from ayato that no longer exist in the checked-out source repo (`ayaka repo remove --diff`); needs `install` first.
 - `build-lumine` — build the lumine web UI to a static directory with `env.json`/CSP injected, ready for any static host (the host-specific upload is the caller's step).
 
 ```yaml
