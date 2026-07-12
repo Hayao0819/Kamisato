@@ -30,6 +30,11 @@ func migrateCmd() *cobra.Command {
 			}
 			cliutil.Setup(slog.LevelInfo, cliutil.ColorEnabled(cmd))
 
+			// K_SERVICE/K_REVISION mark a Cloud Run service; a Job has neither.
+			if conf.UnderCloudRun() {
+				slog.Warn("ayato migrate is running inside a Cloud Run service, not a Job; run it as a Cloud Run Job — a service throttles CPU outside requests and caps requests at 60 minutes")
+			}
+
 			kvStore, blobStore, err := repository.NewMigrationStores(cfg)
 			if err != nil {
 				return errors.WrapErr(err, "failed to open stores")
