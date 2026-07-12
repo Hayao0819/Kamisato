@@ -51,6 +51,37 @@ func TestOpenSourcePackage(t *testing.T) {
 	}
 }
 
+func TestSourcePackageArches(t *testing.T) {
+	p, err := pkg.OpenSourcePackage(writeSrcDir(t))
+	if err != nil {
+		t.Fatalf("OpenSourcePackage failed: %v", err)
+	}
+	if got := p.Arches(); len(got) != 1 || got[0] != "x86_64" {
+		t.Errorf("Arches() = %v, want [x86_64]", got)
+	}
+	if !p.SupportsArch("x86_64") {
+		t.Error("SupportsArch(x86_64) = false, want true")
+	}
+	if p.SupportsArch("i686") {
+		t.Error("SupportsArch(i686) = true, want false")
+	}
+}
+
+func TestSourcePackageSupportsArchAny(t *testing.T) {
+	dir := t.TempDir()
+	data := "pkgbase = bar\n\tpkgver = 1\n\tpkgrel = 1\n\tarch = any\n\npkgname = bar\n"
+	if err := os.WriteFile(filepath.Join(dir, ".SRCINFO"), []byte(data), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	p, err := pkg.OpenSourcePackage(dir)
+	if err != nil {
+		t.Fatalf("OpenSourcePackage failed: %v", err)
+	}
+	if !p.SupportsArch("i486") {
+		t.Error("SupportsArch(i486) = false for arch=any, want true")
+	}
+}
+
 func TestOpenSourcePackage_NoSrcinfo(t *testing.T) {
 	dir := t.TempDir()
 	if _, err := pkg.OpenSourcePackage(dir); err != pkg.ErrSRCINFONotFound {

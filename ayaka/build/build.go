@@ -89,6 +89,20 @@ func selectPackages(pkgs []*pkg.SourcePackage, names []string) []*pkg.SourcePack
 	return selected
 }
 
+// filterByArch drops packages whose arch=() excludes arch ("any" matches all), so
+// a mixed-arch source repo builds only what each PKGBUILD supports.
+func filterByArch(pkgs []*pkg.SourcePackage, arch string) []*pkg.SourcePackage {
+	var kept []*pkg.SourcePackage
+	for _, p := range pkgs {
+		if p.SupportsArch(arch) {
+			kept = append(kept, p)
+			continue
+		}
+		slog.Info("skipping package: arch not supported", "pkgbase", p.Base(), "arch", arch, "supports", p.Arches())
+	}
+	return kept
+}
+
 // diffPackages returns the source packages that are newer than (or missing
 // from) the remote repo rr.
 func diffPackages(src []*pkg.SourcePackage, rr *repo.RemoteRepo) ([]*pkg.SourcePackage, error) {
@@ -125,6 +139,11 @@ func Repo(r *repo.SourceRepo, t *builder.Target, dest string, pkgs ...string) er
 	if len(targetPkgs) == 0 {
 		return fmt.Errorf("no packages found")
 	}
+	targetPkgs = filterByArch(targetPkgs, t.Arch)
+	if len(targetPkgs) == 0 {
+		slog.Info("No packages to build for arch", "arch", t.Arch)
+		return nil
+	}
 
 	for _, p := range targetPkgs {
 		slog.Info("building package", "pkg", p.Names())
@@ -143,6 +162,7 @@ func Diff(s *repo.SourceRepo, t *builder.Target, rr *repo.RemoteRepo, dest strin
 		return err
 	}
 	toBuild = selectPackages(toBuild, pkgs)
+	toBuild = filterByArch(toBuild, t.Arch)
 
 	if len(toBuild) == 0 {
 		slog.Info("No packages to build")
