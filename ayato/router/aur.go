@@ -25,7 +25,7 @@ func SetAUR(e *gin.Engine, m *middleware.Middleware, srv http.Handler, h *handle
 	pub.GET("/pubkey", h.PubkeyHandler)
 
 	sources := e.Group("/api/unstable/aur/sources")
-	sources.Use(m.RateLimit(rate.Every(time.Second/10), 30), m.RequireAdmin(false))
+	sources.Use(m.RateLimit(rate.Every(time.Second/10), 30), m.RequireAdmin())
 	sources.GET("", h.ListHandler)
 	sources.POST("", h.RegisterHandler)
 	sources.DELETE("/:pkgbase", h.RemoveHandler)

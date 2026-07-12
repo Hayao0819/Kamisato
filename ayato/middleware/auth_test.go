@@ -67,7 +67,7 @@ func cliToken(t *testing.T, s *auth.Signer, id int64, login string) string {
 
 func run(m *Middleware, allowBasic bool, mutate func(*http.Request)) *httptest.ResponseRecorder {
 	r := gin.New()
-	r.GET("/p", m.RequireAdmin(allowBasic), func(c *gin.Context) { c.Status(http.StatusOK) })
+	r.GET("/p", m.requireAdmin(allowBasic), func(c *gin.Context) { c.Status(http.StatusOK) })
 	w := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/p", nil)
 	mutate(req)

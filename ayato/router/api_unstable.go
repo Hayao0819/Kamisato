@@ -88,19 +88,25 @@ func SetRoute(e *gin.Engine, h *handler.Handler, m *middleware.Middleware) error
 			}))
 		}
 
-		// Native publish. Accepts an admin user (Basic password = CLI token) or a CI
-		// publisher (API key / GitHub OIDC). The blinky-compatible single upload
-		// lives under /blinky (see below).
+		// Native publish. Accepts a CI publisher (API key / GitHub OIDC) scoped to the
+		// repo, or an admin. The blinky-compatible single upload lives under /blinky.
 		upload := api.Group("")
 		{
-			upload.Use(m.RateLimit(rate.Every(time.Second/10), 30), m.RequireUpload())
+			upload.Use(m.RateLimit(rate.Every(time.Second/10), 30), m.RequireCI())
 			upload.POST("/repos/:repo/packages", h.BatchUploadHandler) // atomic multi-package publish
+		}
+		// Package removal is publish-scoped like upload: a CI publisher may prune its
+		// own repos (deleting a package whose PKGBUILD is gone is part of managing the
+		// repo), or an admin may remove.
+		remove := api.Group("")
+		{
+			remove.Use(m.RateLimit(rate.Every(time.Second/10), 30), m.RequireCI())
+			remove.DELETE("/repos/:repo/arches/:arch/packages/:name", h.BlinkyRemoveHandler)
 		}
 		// Native repo management (admin-only).
 		mgmt := api.Group("")
 		{
-			mgmt.Use(m.RateLimit(rate.Every(time.Second/10), 30), m.RequireAdmin(true))
-			mgmt.DELETE("/repos/:repo/arches/:arch/packages/:name", h.BlinkyRemoveHandler)
+			mgmt.Use(m.RateLimit(rate.Every(time.Second/10), 30), m.RequireAdmin())
 			// Tier promotion advances a package through a tiered repo's
 			// staging -> testing -> stable flow; a release action, so admin-gated.
 			mgmt.POST("/repos/:repo/promote", h.PromoteHandler)
@@ -113,7 +119,7 @@ func SetRoute(e *gin.Engine, h *handler.Handler, m *middleware.Middleware) error
 		// build mutation; /jobs/:id/logs takes a one-time token or admin (see above).
 		if mikoProxy != nil {
 			authed := api.Group("")
-			authed.Use(m.RateLimit(rate.Every(time.Second/10), 30), m.RequireAdmin(false))
+			authed.Use(m.RateLimit(rate.Every(time.Second/10), 30), m.RequireAdmin())
 			// Mints a one-time token bound to the job so a browser EventSource can
 			// open /jobs/:id/logs without a long-lived bearer.
 			authed.POST("/jobs/:id/logs/token", h.MintLogTokenHandler)
@@ -139,18 +145,18 @@ func SetRoute(e *gin.Engine, h *handler.Handler, m *middleware.Middleware) error
 		// Admin allowlist management (authenticated admin only, no Basic).
 		admins := api.Group("/auth/admins")
 		{
-			admins.Use(m.RateLimit(rate.Every(time.Second/10), 30), m.RequireAdmin(false))
+			admins.Use(m.RateLimit(rate.Every(time.Second/10), 30), m.RequireAdmin())
 			admins.GET("", h.AdminsListHandler)
 			admins.POST("", h.AdminsAddHandler)
 			admins.DELETE("/:id", h.AdminsRemoveHandler)
 		}
 
-		// Worker signing-key registration. RequireAdmin(true) allows a Basic CLI
-		// token so miko can self-register at boot; the master-certification chain
-		// is the real gate (only master-certified worker keys are stored).
+		// Worker signing-key registration. RequireBlinkyAdmin allows a Basic CLI token
+		// so miko can self-register at boot; the master-certification chain is the real
+		// gate (only master-certified worker keys are stored).
 		signers := api.Group("/auth/signers")
 		{
-			signers.Use(m.RateLimit(rate.Every(time.Second/10), 30), m.RequireAdmin(true))
+			signers.Use(m.RateLimit(rate.Every(time.Second/10), 30), m.RequireBlinkyAdmin())
 			signers.GET("", h.ListSignersHandler)
 			signers.POST("", h.RegisterSignerHandler)
 			signers.DELETE("/:fingerprint", h.UnregisterSignerHandler)
@@ -162,7 +168,7 @@ func SetRoute(e *gin.Engine, h *handler.Handler, m *middleware.Middleware) error
 		// `blinky login https://host/blinky` reaches these routes verbatim. Basic
 		// auth only, matching blinky (native publish is /api/unstable/repos/...).
 		blinky := e.Group("/blinky/api/unstable")
-		blinky.Use(m.RateLimit(rate.Every(time.Second/10), 30), m.RequireAdmin(true))
+		blinky.Use(m.RateLimit(rate.Every(time.Second/10), 30), m.RequireBlinkyAdmin())
 		blinky.PUT("/:repo/package", h.BlinkyUploadHandler)
 		blinky.DELETE("/:repo/package/:name", h.BlinkyRemoveHandler)
 	}

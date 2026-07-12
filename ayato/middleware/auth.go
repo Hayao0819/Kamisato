@@ -90,10 +90,17 @@ const (
 	ctxVia      = "auth_via" // "session" | "bearer" | "basic"
 )
 
-// RequireAdmin authenticates the requester and re-checks the admin allowlist,
-// fail-closed. allowBasic also accepts a CLI token in HTTP Basic's password
-// field, for blinky-compatible routes.
-func (m *Middleware) RequireAdmin(allowBasic bool) gin.HandlerFunc {
+// RequireAdmin gates a route to an allowlisted admin via session or bearer.
+func (m *Middleware) RequireAdmin() gin.HandlerFunc { return m.requireAdmin(false) }
+
+// RequireBlinkyAdmin gates a route to an allowlisted admin but also accepts a CLI
+// token in HTTP Basic's password field, for machine clients that authenticate with
+// Basic: the blinky-compatible surface and miko's signer self-registration.
+func (m *Middleware) RequireBlinkyAdmin() gin.HandlerFunc { return m.requireAdmin(true) }
+
+// requireAdmin authenticates the requester and re-checks the admin allowlist,
+// fail-closed. allowBasic also accepts a CLI token in HTTP Basic's password field.
+func (m *Middleware) requireAdmin(allowBasic bool) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if m.checker == nil || m.signer == nil {
 			// Auth not configured (no signer): fail closed rather than open.
