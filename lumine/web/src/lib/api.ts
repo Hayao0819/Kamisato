@@ -389,7 +389,7 @@ class APIEndpoints {
     }
     get packageDetail() {
         return (repo: string, arch: string, pkgbase: string) =>
-            `${this.apiUnstableUrl}/repos/${repo}/arches/${arch}/packages/${pkgbase}`;
+            `${this.apiUnstableUrl}/repos/${repo}/${arch}/packages/${pkgbase}`;
     }
     get hello() {
         return () => `${this.apiUnstableUrl}/hello`;
@@ -405,7 +405,7 @@ class APIEndpoints {
     }
     get allPkgs() {
         return (repo: string, arch: string) =>
-            `${this.apiUnstableUrl}/repos/${repo}/arches/${arch}/packages`;
+            `${this.apiUnstableUrl}/repos/${repo}/${arch}/packages`;
     }
     get repoFile() {
         return (repo: string, arch: string, file: string) =>
@@ -415,7 +415,7 @@ class APIEndpoints {
         return () => `${this.apiUnstableUrl}/repos`;
     }
     get arches() {
-        return (repo: string) => `${this.apiUnstableUrl}/repos/${repo}/arches`;
+        return (repo: string) => `${this.apiUnstableUrl}/repos/${repo}`;
     }
     get uploadPackage() {
         return (repo: string) =>

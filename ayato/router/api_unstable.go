@@ -41,11 +41,11 @@ func SetRoute(e *gin.Engine, h *handler.Handler, m *middleware.Middleware) error
 			api.GET("/hello", h.HelloHandler)
 			api.GET("/teapot", h.TeapotHandler)
 			api.GET("/repos", h.ReposHandler)
-			api.GET("/repos/:repo/arches", h.ArchesHandler)
-			api.GET("/repos/:repo/arches/:arch/packages", h.AllPkgsHandler)
-			api.GET("/repos/:repo/arches/:arch/packages/:name", h.PkgDetailHandler)
-			api.GET("/repos/:repo/arches/:arch/packages/:name/files", h.PkgFilesHandler)
-			api.GET("/repos/:repo/arches/:arch/signed-url", h.SignedURLHandler)
+			api.GET("/repos/:repo", h.RepoDetailHandler)
+			api.GET("/repos/:repo/:arch/packages", h.AllPkgsHandler)
+			api.GET("/repos/:repo/:arch/packages/:name", h.PkgDetailHandler)
+			api.GET("/repos/:repo/:arch/packages/:name/files", h.PkgFilesHandler)
+			api.GET("/repos/:repo/:arch/signed-url", h.SignedURLHandler)
 
 			// Advertises which optional features are configured so the UI hides what
 			// is unavailable (bug reporting, miko build views, GitHub login).
@@ -101,7 +101,7 @@ func SetRoute(e *gin.Engine, h *handler.Handler, m *middleware.Middleware) error
 		remove := api.Group("")
 		{
 			remove.Use(m.RateLimit(rate.Every(time.Second/10), 30), m.RequireCI())
-			remove.DELETE("/repos/:repo/arches/:arch/packages/:name", h.BlinkyRemoveHandler)
+			remove.DELETE("/repos/:repo/:arch/packages/:name", h.BlinkyRemoveHandler)
 		}
 		// Native repo management (admin-only).
 		mgmt := api.Group("")

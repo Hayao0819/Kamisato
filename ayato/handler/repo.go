@@ -23,7 +23,7 @@ func (h *Handler) ReposHandler(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, repoNames)
 }
 
-func (h *Handler) ArchesHandler(ctx *gin.Context) {
+func (h *Handler) RepoDetailHandler(ctx *gin.Context) {
 	repoName := ctx.Param("repo")
 	if repoName == "" {
 		ctx.JSON(http.StatusBadRequest, domain.APIError{Message: "Repository name is required"})
@@ -35,7 +35,7 @@ func (h *Handler) ArchesHandler(ctx *gin.Context) {
 		ctx.JSON(http.StatusInternalServerError, domain.APIError{Message: err.Error()})
 		return
 	}
-	ctx.JSON(http.StatusOK, archNames)
+	ctx.JSON(http.StatusOK, gin.H{"name": repoName, "arches": archNames})
 }
 
 func (h *Handler) RepoFileHandler(ctx *gin.Context) {
