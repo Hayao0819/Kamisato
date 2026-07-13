@@ -18,8 +18,8 @@ inputs:
     description: '"source" (go install, current code) or "release" (download a published GitHub Release).'
     default: source
   version:
-    description: 'For method=source: a git ref (branch/tag/commit), e.g. "main" or "v1.0.0". For method=release: a release tag or "latest". Note: releases v0.0.1/v0.0.2 predate the current CLI spec — do not use them.'
-    default: main
+    description: 'For method=source: a git ref (branch/tag/commit), e.g. "master" or "v1.0.0". For method=release: a release tag or "latest". Note: releases v0.0.1/v0.0.2 predate the current CLI spec — do not use them.'
+    default: master
   repository:
     description: owner/repo to install from.
     default: Hayao0819/Kamisato
