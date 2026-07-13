@@ -29,20 +29,24 @@ type AyatoConfig struct {
 	// any of its provides/replaces/groups — collides with one of these names is
 	// rejected, so an AUR-style package cannot masquerade as (shadow) an official
 	// package such as "pacman" or "glibc". Empty disables the guard.
-	ProtectedNames []string        `koanf:"protected_names,omitempty"`
-	Port           int             `koanf:"port"`
-	MaxSize        int             `koanf:"max_size"`
-	Repos          []BinRepoConfig `koanf:"repos"`
-	Auth           AuthConfig      `koanf:"auth"`
-	Store          StoreConfig     `koanf:"store"`
-	Build          BuildConfig     `koanf:"build"`
-	Miko           MikoUpstream    `koanf:"miko"`
-	Verify         VerifyConfig    `koanf:"verify"`
-	AUR            AURConfig       `koanf:"aur"`
-	BugReport      BugReportConfig `koanf:"bug_report"`
-	Recaptcha      RecaptchaConfig `koanf:"recaptcha"`
-	Sign           SignConfig      `koanf:"sign"`
-	Secrets        SecretsConfig   `koanf:"secrets"`
+	ProtectedNames []string `koanf:"protected_names,omitempty"`
+	Port           int      `koanf:"port"`
+	MaxSize        int      `koanf:"max_size"`
+	// DefaultArches is the arch set a repo with no explicit Arches serves, so the
+	// per-repo declaration can be omitted when every repo shares one arch list.
+	// Empty leaves per-repo Arches as the only declared source.
+	DefaultArches []string        `koanf:"default_arches,omitempty"`
+	Repos         []BinRepoConfig `koanf:"repos"`
+	Auth          AuthConfig      `koanf:"auth"`
+	Store         StoreConfig     `koanf:"store"`
+	Build         BuildConfig     `koanf:"build"`
+	Miko          MikoUpstream    `koanf:"miko"`
+	Verify        VerifyConfig    `koanf:"verify"`
+	AUR           AURConfig       `koanf:"aur"`
+	BugReport     BugReportConfig `koanf:"bug_report"`
+	Recaptcha     RecaptchaConfig `koanf:"recaptcha"`
+	Sign          SignConfig      `koanf:"sign"`
+	Secrets       SecretsConfig   `koanf:"secrets"`
 	// Mirror configures the pacman mirrorlist served at /repo/<repo>/mirrorlist.
 	Mirror MirrorConfig `koanf:"mirror"`
 	// RedirectDownloads, unset by default, answers a file download with a 302 to a
@@ -290,6 +294,14 @@ func (a AuthConfig) RefreshTokenTTL() time.Duration {
 
 type BinRepoConfig struct {
 	Name string `koanf:"name"`
+	// Arches is the architectures this repo serves. An upload whose package arch is
+	// outside this set is rejected unless AllowNewArch, so a mislabeled package can
+	// never silently add an arch. Empty inherits DefaultArches.
+	Arches []string `koanf:"arches,omitempty"`
+	// AllowNewArch accepts an upload for an arch not in Arches, letting the repo grow
+	// a new arch on demand. Off by default so the served arch set stays what is
+	// declared.
+	AllowNewArch bool `koanf:"allow_new_arch,omitempty"`
 	// TrustedKeys optionally layers per-repo fingerprint pinning on top of the
 	// global Verify.TrustedKeys allowlist. The global keyring is the baseline.
 	TrustedKeys []string `koanf:"trusted_keys,omitempty"`
@@ -548,4 +560,29 @@ func (c *AyatoConfig) ResolveRepo(physical string) *BinRepoConfig {
 		}
 	}
 	return nil
+}
+
+// DeclaredArches returns the architectures a physical repo is configured to serve:
+// its own Arches, or DefaultArches when it declares none. "" and "any" are dropped
+// (pacman has no os/any db). This is the intent; the arches actually stored may
+// differ and are unioned in by the service layer.
+func (c *AyatoConfig) DeclaredArches(physical string) []string {
+	raw := c.DefaultArches
+	if rc := c.ResolveRepo(physical); rc != nil && len(rc.Arches) > 0 {
+		raw = rc.Arches
+	}
+	out := make([]string, 0, len(raw))
+	for _, a := range raw {
+		if a != "" && a != "any" {
+			out = append(out, a)
+		}
+	}
+	return out
+}
+
+// AllowsNewArch reports whether a physical repo accepts an upload for an arch
+// outside its declared set (growing the served arch set).
+func (c *AyatoConfig) AllowsNewArch(physical string) bool {
+	rc := c.ResolveRepo(physical)
+	return rc != nil && rc.AllowNewArch
 }

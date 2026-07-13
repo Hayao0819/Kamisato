@@ -56,7 +56,7 @@ func buildPkgWithBuildinfo(t *testing.T, buildDir string, includeBuildinfo bool)
 func provenanceConfig() *conf.AyatoConfig {
 	cfg := &conf.AyatoConfig{
 		RequireBuildinfoProvenance: true,
-		Repos:                      []conf.BinRepoConfig{{Name: "myrepo"}},
+		Repos:                      []conf.BinRepoConfig{{Name: "myrepo", Arches: []string{"x86_64"}}},
 	}
 	return cfg
 }

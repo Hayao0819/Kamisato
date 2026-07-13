@@ -88,6 +88,12 @@ func (s *Service) prepareUpload(repo string, files *domain.UploadFiles, kr *sign
 	if pi.Arch == "" || strings.ContainsRune(pi.Arch, '/') || strings.Contains(pi.Arch, "..") {
 		return preparedUpload{}, fmt.Errorf("%w: invalid package arch %q", domain.ErrInvalidUpload, pi.Arch)
 	}
+	// Refuse an upload that would add an architecture the repo does not serve, so a
+	// mislabeled .PKGINFO arch cannot silently create a new arch dir. An arch=any
+	// package never creates an arch (it fans out to the existing ones), so it is exempt.
+	if pi.Arch != "any" && !s.archAccepted(repo, pi.Arch) {
+		return preparedUpload{}, fmt.Errorf("%w: arch %q is not served by repo %q; add it to the repo's arches or set allow_new_arch", domain.ErrInvalidUpload, pi.Arch, repo)
+	}
 	dbArches, err := s.targetArches(repo, pi.Arch)
 	if err != nil {
 		return preparedUpload{}, err
@@ -246,6 +252,39 @@ func (s *Service) UploadFiles(repo string, files []*domain.UploadFiles) error {
 		preps = append(preps, prep)
 	}
 
+	// When the repo opts into new arches, a concrete upload may introduce one. Seed it
+	// (backfilling the repo's existing arch=any packages) before storing, then
+	// recompute each arch=any package's target set so it also lands in the just-added
+	// arch. A repo that does not opt in never grows an arch here (prepareUpload gated
+	// it), so this whole step — and its extra storage listing — is skipped.
+	if s.cfg != nil && s.cfg.AllowsNewArch(repo) {
+		preStored := make(map[string]struct{})
+		for _, a := range s.storedArches(repo) {
+			preStored[a] = struct{}{}
+		}
+		seededNew := false
+		for _, p := range preps {
+			if p.storeArch == "any" {
+				continue
+			}
+			if _, ok := preStored[p.storeArch]; ok {
+				continue
+			}
+			if err := s.ensureArchSeeded(repo, p.storeArch, useSignedDB, gnupgDir); err != nil {
+				return errors.WrapErr(err, "failed to seed new arch")
+			}
+			preStored[p.storeArch] = struct{}{}
+			seededNew = true
+		}
+		if seededNew {
+			for i := range preps {
+				if preps[i].storeArch == "any" {
+					preps[i].dbArches = s.repoArches(repo)
+				}
+			}
+		}
+	}
+
 	// Rollback state. archKey is (arch, name-or-pkgname) depending on the slice.
 	type archKey struct{ arch, key string }
 	var stored, added, named []archKey
@@ -336,15 +375,145 @@ func (s *Service) UploadFiles(repo string, files []*domain.UploadFiles) error {
 	return nil
 }
 
-// repoArches returns the arches the repo currently has packages for, derived from
-// storage. The repository layer already excludes "any" (pacman has no os/any db;
-// an arch=any package is registered in each concrete arch instead).
-func (s *Service) repoArches(repo string) []string {
+// storedArches returns the arches the repo actually has package dirs for, derived
+// from storage. The repository layer already excludes "any" (pacman has no os/any
+// db; an arch=any package is registered in each concrete arch instead).
+func (s *Service) storedArches(repo string) []string {
 	arches, err := s.pkgBinaryRepo.Arches(repo)
 	if err != nil {
 		return nil
 	}
 	return arches
+}
+
+// declaredArches returns the arches the repo is configured to serve (its own, or the
+// server default). Empty when nothing is configured.
+func (s *Service) declaredArches(repo string) []string {
+	if s.cfg == nil {
+		return nil
+	}
+	return s.cfg.DeclaredArches(repo)
+}
+
+// repoArches is the set an arch=any package fans out to and that arch-wide
+// operations iterate: the union of the configured (declared) arches and the arches
+// already stored. Declared arches let a fresh repo accept an arch=any upload before
+// any concrete package exists; stored arches keep serving an arch on disk but not
+// (or no longer) declared.
+func (s *Service) repoArches(repo string) []string {
+	seen := make(map[string]struct{})
+	var out []string
+	for _, a := range append(s.declaredArches(repo), s.storedArches(repo)...) {
+		if a == "" || a == "any" {
+			continue
+		}
+		if _, ok := seen[a]; ok {
+			continue
+		}
+		seen[a] = struct{}{}
+		out = append(out, a)
+	}
+	return out
+}
+
+// archAccepted reports whether a concrete-arch upload is allowed: the arch is one the
+// repo already serves (declared or stored), or the repo opts into growing new arches.
+// It stops a mislabeled package from silently adding an arch to an established repo.
+func (s *Service) archAccepted(repo, arch string) bool {
+	if s.cfg != nil && s.cfg.AllowsNewArch(repo) {
+		return true
+	}
+	declared := s.declaredArches(repo)
+	for _, a := range declared {
+		if a == arch {
+			return true // declared: accept without touching storage
+		}
+	}
+	stored := s.storedArches(repo)
+	// A repo with no arch set yet (declares none, stores none) has no baseline to
+	// protect: its first upload establishes the set. Once the repo serves any arch, a
+	// different one is a rejected increase unless allow_new_arch — so pushing x86_64
+	// to an i686-only repo is refused.
+	if len(declared) == 0 && len(stored) == 0 {
+		return true
+	}
+	for _, a := range stored {
+		if a == arch {
+			return true
+		}
+	}
+	return false
+}
+
+// ensureArchSeeded makes sure (repo, arch) has a database. When it creates one that
+// did not exist, it backfills every arch=any package the repo already stores, so an
+// arch added after those packages were published still serves them.
+func (s *Service) ensureArchSeeded(repo, arch string, useSignedDB bool, gnupgDir *string) error {
+	existed := false
+	for _, a := range s.storedArches(repo) {
+		if a == arch {
+			existed = true
+			break
+		}
+	}
+	if err := s.pkgBinaryRepo.InitArch(repo, arch, useSignedDB, gnupgDir); err != nil {
+		return err
+	}
+	// Backfill signatures for a db published before signing was enabled, so a repo
+	// does not serve an unsigned db (which a required SigLevel rejects) until its next
+	// mutate. Idempotent: a no-op once the db is signed.
+	if useSignedDB {
+		if err := s.pkgBinaryRepo.BackfillSignatures(repo, arch); err != nil {
+			return err
+		}
+	}
+	if existed {
+		return nil
+	}
+	return s.backfillAnyInto(repo, arch, useSignedDB, gnupgDir)
+}
+
+// backfillAnyInto registers every arch=any package the repo already stores into a
+// newly created arch's database (pacman has no os/any db; an any package must be in
+// each arch's db to be installable). A no-op when the repo stores no any packages.
+func (s *Service) backfillAnyInto(repo, arch string, useSignedDB bool, gnupgDir *string) error {
+	files, err := s.pkgBinaryRepo.Files(repo, "any")
+	if err != nil {
+		if errors.Is(err, blob.ErrNotFound) {
+			return nil
+		}
+		return errors.WrapErr(err, "list any packages for backfill")
+	}
+	var items []repository.RepoAddItem
+	var cleanups []func()
+	defer func() {
+		for _, c := range cleanups {
+			c()
+		}
+	}()
+	for _, f := range files {
+		if !strings.Contains(f, ".pkg.tar.") || strings.HasSuffix(f, ".sig") {
+			continue
+		}
+		pkgFile, cleanup, err := s.spoolTierFile(repo, "any", f)
+		if err != nil {
+			return errors.WrapErr(err, "spool any package for backfill")
+		}
+		cleanups = append(cleanups, cleanup)
+		item := repository.RepoAddItem{Pkg: pkgFile}
+		if sig, sigCleanup, serr := s.spoolTierFile(repo, "any", f+".sig"); serr == nil {
+			cleanups = append(cleanups, sigCleanup)
+			item.Sig = sig
+		} else if !errors.Is(serr, blob.ErrNotFound) {
+			return errors.WrapErr(serr, "spool any signature for backfill")
+		}
+		items = append(items, item)
+	}
+	if len(items) == 0 {
+		return nil
+	}
+	slog.Info("backfilling arch=any packages into new arch", "repo", repo, "arch", arch, "count", len(items))
+	return s.pkgBinaryRepo.RepoAddBatch(repo, arch, items, useSignedDB, gnupgDir)
 }
 
 // signedDB reports whether uploads should produce a signed pacman database. The
@@ -394,7 +563,7 @@ func (s *Service) targetArches(repo, pkgArch string) ([]string, error) {
 	}
 	arches := s.repoArches(repo)
 	if len(arches) == 0 {
-		return nil, fmt.Errorf("repository %q has no architectures configured for an arch=any package", repo)
+		return nil, fmt.Errorf("repo %q has no architectures (declare the repo's arches or server default_arches) for an arch=any package", repo)
 	}
 	return arches, nil
 }

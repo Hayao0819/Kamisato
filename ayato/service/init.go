@@ -29,20 +29,14 @@ func (s *Service) InitAll() error {
 	return nil
 }
 
-// initRepo seeds an empty db for each arch the repo already has packages for. A
-// fresh repo has none, so this is a no-op until the first upload creates one.
+// initRepo seeds an empty db for each arch the repo serves — its declared arches plus
+// any already on disk — so a fresh repo can accept an arch=any upload before any
+// concrete package exists. A newly created arch is backfilled with the repo's
+// existing arch=any packages.
 func (s *Service) initRepo(repo string, useSignedDB bool, gnupgDir *string) error {
 	for _, a := range s.repoArches(repo) {
-		if err := s.pkgBinaryRepo.InitArch(repo, a, useSignedDB, gnupgDir); err != nil {
+		if err := s.ensureArchSeeded(repo, a, useSignedDB, gnupgDir); err != nil {
 			return err
-		}
-		// Backfill signatures for a db published before signing was enabled, so a
-		// repo does not serve an unsigned db (which a required SigLevel rejects) until
-		// its next mutate. Idempotent: a no-op once the db is signed.
-		if useSignedDB {
-			if err := s.pkgBinaryRepo.BackfillSignatures(repo, a); err != nil {
-				return err
-			}
 		}
 	}
 	return nil

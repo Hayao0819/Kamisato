@@ -51,7 +51,7 @@ func pkgWithFields(t *testing.T, pkgname, extra string) []byte {
 func protectedConfig(names ...string) *conf.AyatoConfig {
 	return &conf.AyatoConfig{
 		ProtectedNames: names,
-		Repos:          []conf.BinRepoConfig{{Name: "myrepo"}},
+		Repos:          []conf.BinRepoConfig{{Name: "myrepo", Arches: []string{"x86_64"}}},
 	}
 }
 

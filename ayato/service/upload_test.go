@@ -109,7 +109,7 @@ const uploadName = "foo-1.0-1-x86_64.pkg.tar.zst"
 func baseConfig(requireSign bool, keyring string) *conf.AyatoConfig {
 	cfg := &conf.AyatoConfig{
 		RequireSign: requireSign,
-		Repos:       []conf.BinRepoConfig{{Name: "myrepo"}},
+		Repos:       []conf.BinRepoConfig{{Name: "myrepo", Arches: []string{"x86_64"}}},
 	}
 	cfg.Verify.Keyring = keyring
 	return cfg
