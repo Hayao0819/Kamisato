@@ -170,14 +170,16 @@ func Diff(s *repo.SourceRepo, t *builder.Target, rr *repo.RemoteRepo, dest strin
 	}
 
 	outDir := path.Join(dest, t.Arch)
+	var errs []error
 	for _, p := range toBuild {
 		pkgbase := p.Base()
 		slog.Debug("Starting package build", "pkgbase", pkgbase)
 		if err := Package(p, t, outDir); err != nil {
 			slog.Error("Package build failed", "pkgbase", pkgbase, "error", err)
-			return errors.WrapErr(err, "failed to build package")
+			errs = append(errs, errors.WrapErr(err, "failed to build package: "+pkgbase))
+			continue
 		}
 		slog.Debug("Package build completed", "pkgbase", pkgbase)
 	}
-	return nil
+	return errors.Join(errs...)
 }
