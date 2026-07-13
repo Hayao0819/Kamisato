@@ -175,6 +175,11 @@ func (l *LocalStore) Files(repo string, arch string) ([]string, error) {
 
 	entries, err := os.ReadDir(repoPath)
 	if err != nil {
+		// A missing (repo, arch) dir has no files: match the s3 backend, which lists
+		// an absent prefix as empty rather than erroring.
+		if errors.Is(err, os.ErrNotExist) {
+			return []string{}, nil
+		}
 		return nil, err
 	}
 	files := []string{}
