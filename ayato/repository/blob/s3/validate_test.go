@@ -1,6 +1,11 @@
 package s3
 
-import "testing"
+import (
+	"errors"
+	"testing"
+
+	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
+)
 
 func TestKeyConstruction(t *testing.T) {
 	if got := key("core", "x86_64", "p.pkg.tar.zst"); got != "core/x86_64/p.pkg.tar.zst" {
@@ -30,8 +35,9 @@ func TestValidatedKey(t *testing.T) {
 		t.Fatalf("validatedKey = %q, want %q", k, want)
 	}
 
-	if _, err := s.validatedKey("evil", "x86_64", "p.pkg.tar.zst"); err == nil {
-		t.Fatal("validatedKey allowed a repo outside the allowlist")
+	// An unlisted repo is ErrNotFound so the transport serves 404, not 500.
+	if _, err := s.validatedKey("evil", "x86_64", "p.pkg.tar.zst"); !errors.Is(err, blob.ErrNotFound) {
+		t.Fatalf("validatedKey(unlisted repo) = %v, want ErrNotFound", err)
 	}
 
 	bad := []struct{ repo, arch, name string }{
@@ -43,8 +49,9 @@ func TestValidatedKey(t *testing.T) {
 		{"core", "x86_64", ""},
 	}
 	for _, tc := range bad {
-		if _, err := s.validatedKey(tc.repo, tc.arch, tc.name); err == nil {
-			t.Fatalf("validatedKey(%q,%q,%q) = nil, want error", tc.repo, tc.arch, tc.name)
+		// Traversal is a validation error (400), distinct from a missing repo (404).
+		if _, err := s.validatedKey(tc.repo, tc.arch, tc.name); err == nil || errors.Is(err, blob.ErrNotFound) {
+			t.Fatalf("validatedKey(%q,%q,%q) = %v, want a non-ErrNotFound error", tc.repo, tc.arch, tc.name, err)
 		}
 	}
 

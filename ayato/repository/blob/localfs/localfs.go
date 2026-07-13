@@ -35,5 +35,5 @@ func (l *LocalStore) getRepoDir(name string) (string, error) {
 	if lo.Contains(l.repoNames, name) {
 		return path.Join(futils.ResolvePath(pwd, l.repoDir), name), nil
 	}
-	return "", fmt.Errorf("repo %s not found", name)
+	return "", fmt.Errorf("%w: repo %s", blob.ErrNotFound, name)
 }

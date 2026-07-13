@@ -113,7 +113,7 @@ func (s *S3) validatedKey(repo, arch, name string) (string, error) {
 		return "", err
 	}
 	if len(s.repoNames) > 0 && !lo.Contains(s.repoNames, repo) {
-		return "", fmt.Errorf("repo %s not found", repo)
+		return "", fmt.Errorf("%w: repo %s", blob.ErrNotFound, repo)
 	}
 	if err := blob.ValidatePathComponent(arch); err != nil {
 		return "", err
