@@ -5,7 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/Hayao0819/Kamisato/ayato/ciauth"
+	"github.com/Hayao0819/Kamisato/ayato/auth/ciauth"
 )
 
 const ctxCIPublisher = "auth_ci"

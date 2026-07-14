@@ -15,7 +15,7 @@ import (
 
 	"github.com/Hayao0819/Kamisato/ayato/aur"
 	"github.com/Hayao0819/Kamisato/ayato/auth"
-	"github.com/Hayao0819/Kamisato/ayato/ciauth"
+	"github.com/Hayao0819/Kamisato/ayato/auth/ciauth"
 	"github.com/Hayao0819/Kamisato/ayato/handler"
 	"github.com/Hayao0819/Kamisato/ayato/middleware"
 	"github.com/Hayao0819/Kamisato/ayato/migrate"
