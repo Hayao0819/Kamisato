@@ -1,8 +1,7 @@
 # Deploying Kamisato
 
-Two deployments: a single-VPS Docker Compose stack (`compose.yml`) and a GCP
-Cloud Run skeleton (`terraform/`). For per-service configuration, see the ayato
-and miko READMEs.
+Two deployments: a single-VPS Docker Compose stack (`compose.yml`) and Google
+Cloud Run. For per-service configuration, see the ayato and miko READMEs.
 
 ## Single VPS (Docker Compose)
 
@@ -23,11 +22,10 @@ CIDR. The per-IP rate-limit key is only trustworthy when that proxy is the sole
 `X-Forwarded-For` setter; an empty `trusted_proxies` trusts none and falls back
 to the direct peer.
 
-## GCP (Cloud Run skeleton)
+## GCP (Cloud Run)
 
-`terraform/` is a skeleton, not a turnkey module. It provisions a service account
-per service, the shared secret in Secret Manager, miko's ingress as `internal`,
-and an IAM binding so only ayato's service account may invoke miko; set a VPC
-connector in `vpc_access`. Cloud Run can't nest containers, so miko's `container`
-executor needs Cloud Build or a GCE VM instead. Check the attribute values
-against the provider docs before applying.
+The production Terraform for Cloud Run (the services, Secret Manager and R2
+wiring, the `ayato-migrate` job, and the lumine Cloudflare Pages deploy) lives in
+[alterlinux-terraform](https://github.com/FascodeNet/alterlinux-terraform); use
+it as a reference. One caveat it can't paper over: Cloud Run can't nest
+containers, so miko's `container` executor needs Cloud Build or a GCE VM.
