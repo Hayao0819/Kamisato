@@ -136,9 +136,10 @@ func (m *memStore) FetchFile(repo, arch, name string) (stream.File, error) {
 	return stream.NewFileStream(name, "application/octet-stream", nopSeekCloser{bytes.NewReader(b)}), nil
 }
 
-func (m *memStore) RepoNames() ([]string, error)           { return nil, nil }
-func (m *memStore) Files(string, string) ([]string, error) { return nil, nil }
-func (m *memStore) Arches(string) ([]string, error)        { return nil, nil }
+func (m *memStore) RepoNames() ([]string, error)                          { return nil, nil }
+func (m *memStore) Files(string, string) ([]string, error)                { return nil, nil }
+func (m *memStore) FilesWithMeta(string, string) ([]blob.FileInfo, error) { return nil, nil }
+func (m *memStore) Arches(string) ([]string, error)                       { return nil, nil }
 
 func (m *memStore) names(repo, arch string) []string {
 	m.mu.Lock()

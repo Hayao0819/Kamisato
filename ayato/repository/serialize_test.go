@@ -51,6 +51,7 @@ func (p *concurrencyProbe) DeleteFile(string, string, string) error             
 func (p *concurrencyProbe) FetchFile(string, string, string) (stream.File, error) { return nil, nil }
 func (p *concurrencyProbe) RepoNames() ([]string, error)                          { return nil, nil }
 func (p *concurrencyProbe) Files(string, string) ([]string, error)                { return nil, nil }
+func (p *concurrencyProbe) FilesWithMeta(string, string) ([]blob.FileInfo, error) { return nil, nil }
 func (p *concurrencyProbe) Arches(string) ([]string, error)                       { return nil, nil }
 
 func (p *concurrencyProbe) FetchFileWithETag(string, string, string) (stream.File, string, error) {

@@ -3,6 +3,7 @@ package repository
 import (
 	"testing"
 
+	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
 	"github.com/Hayao0819/Kamisato/ayato/stream"
 )
 
@@ -23,6 +24,7 @@ func (p *presignRecorder) DeleteFile(string, string, string) error              
 func (p *presignRecorder) FetchFile(string, string, string) (stream.File, error) { return nil, nil }
 func (p *presignRecorder) RepoNames() ([]string, error)                          { return nil, nil }
 func (p *presignRecorder) Files(string, string) ([]string, error)                { return nil, nil }
+func (p *presignRecorder) FilesWithMeta(string, string) ([]blob.FileInfo, error) { return nil, nil }
 func (p *presignRecorder) Arches(string) ([]string, error)                       { return nil, nil }
 
 func (p *presignRecorder) FetchFileWithETag(string, string, string) (stream.File, string, error) {

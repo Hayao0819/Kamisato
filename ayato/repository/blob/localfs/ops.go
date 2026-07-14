@@ -196,3 +196,34 @@ func (l *LocalStore) Files(repo string, arch string) ([]string, error) {
 	}
 	return files, nil
 }
+
+// FilesWithMeta lists (repo, arch) files with each file's modification time, for
+// the orphan reconcile. An entry whose stat fails is returned with a zero time
+// rather than dropped, so it is never GC'd on a transient stat error.
+func (l *LocalStore) FilesWithMeta(repo string, arch string) ([]blob.FileInfo, error) {
+	repoDir, err := l.getRepoDir(repo)
+	if err != nil {
+		return nil, err
+	}
+	repoPath := path.Join(repoDir, arch)
+
+	entries, err := os.ReadDir(repoPath)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return []blob.FileInfo{}, nil
+		}
+		return nil, err
+	}
+	infos := []blob.FileInfo{}
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		info := blob.FileInfo{Name: entry.Name()}
+		if fi, serr := os.Stat(path.Join(repoPath, entry.Name())); serr == nil {
+			info.LastModified = fi.ModTime()
+		}
+		infos = append(infos, info)
+	}
+	return infos, nil
+}

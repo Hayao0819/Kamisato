@@ -192,3 +192,27 @@ func (s *S3) Files(repo string, arch string) ([]string, error) {
 	slog.Debug("get files", "repo", repo, "arch", arch, "files", files)
 	return files, nil
 }
+
+// FilesWithMeta lists objects with their last-modified time, applying the same
+// repo/arch validation as Files. ListObjectsV2 already returns LastModified, so
+// this is Files plus the time the orphan reconcile ages objects by.
+func (s *S3) FilesWithMeta(repo string, arch string) ([]blob.FileInfo, error) {
+	if err := s.validateListRepo(repo); err != nil {
+		return nil, err
+	}
+	if err := blob.ValidatePathComponent(arch); err != nil {
+		return nil, err
+	}
+	l, err := s.list(fmt.Sprintf("%s/%s/", repo, arch))
+	if err != nil {
+		return nil, err
+	}
+	infos := make([]blob.FileInfo, 0, len(l.Contents))
+	for _, obj := range l.Contents {
+		infos = append(infos, blob.FileInfo{
+			Name:         path.Base(aws.ToString(obj.Key)),
+			LastModified: aws.ToTime(obj.LastModified),
+		})
+	}
+	return infos, nil
+}

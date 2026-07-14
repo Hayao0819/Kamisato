@@ -235,6 +235,21 @@ func (mr *MockUploaderMockRecorder) PresignUploads(repo, filenames any) *gomock.
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PresignUploads", reflect.TypeOf((*MockUploader)(nil).PresignUploads), repo, filenames)
 }
 
+// ReconcileOrphans mocks base method.
+func (m *MockUploader) ReconcileOrphans(repo string, olderThan time.Duration, dryRun bool) ([]service.OrphanObject, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ReconcileOrphans", repo, olderThan, dryRun)
+	ret0, _ := ret[0].([]service.OrphanObject)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ReconcileOrphans indicates an expected call of ReconcileOrphans.
+func (mr *MockUploaderMockRecorder) ReconcileOrphans(repo, olderThan, dryRun any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReconcileOrphans", reflect.TypeOf((*MockUploader)(nil).ReconcileOrphans), repo, olderThan, dryRun)
+}
+
 // RemovePkg mocks base method.
 func (m *MockUploader) RemovePkg(rname, arch, pkgname string) error {
 	m.ctrl.T.Helper()
@@ -773,6 +788,21 @@ func (m *MockServicer) PromotePackage(ctx context.Context, repo string, from, to
 func (mr *MockServicerMockRecorder) PromotePackage(ctx, repo, from, to, pkgname, version any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PromotePackage", reflect.TypeOf((*MockServicer)(nil).PromotePackage), ctx, repo, from, to, pkgname, version)
+}
+
+// ReconcileOrphans mocks base method.
+func (m *MockServicer) ReconcileOrphans(repo string, olderThan time.Duration, dryRun bool) ([]service.OrphanObject, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ReconcileOrphans", repo, olderThan, dryRun)
+	ret0, _ := ret[0].([]service.OrphanObject)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ReconcileOrphans indicates an expected call of ReconcileOrphans.
+func (mr *MockServicerMockRecorder) ReconcileOrphans(repo, olderThan, dryRun any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReconcileOrphans", reflect.TypeOf((*MockServicer)(nil).ReconcileOrphans), repo, olderThan, dryRun)
 }
 
 // RegisterSigner mocks base method.

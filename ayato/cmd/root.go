@@ -169,6 +169,7 @@ func RootCmd() *cobra.Command {
 	cmd.AddCommand(aurCmd())
 	cmd.AddCommand(migrateCmd())
 	cmd.AddCommand(kvCmd())
+	cmd.AddCommand(repoCmd())
 	cmd.AddCommand(version.Command())
 
 	return &cmd

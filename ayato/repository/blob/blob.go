@@ -41,6 +41,13 @@ func ValidatePathComponent(c string) error {
 	return nil
 }
 
+// FileInfo is one listed object with its last-modified time, used by the orphan
+// reconcile to age out an object that was PUT but never finalized.
+type FileInfo struct {
+	Name         string
+	LastModified time.Time
+}
+
 // FileMeta carries the validators the HTTP layer uses for a conditional GET: an
 // opaque strong ETag (empty when the backend has no object versioning) and the
 // object's last-modified time (zero when unknown).
@@ -93,5 +100,8 @@ type Store interface {
 	StoreFileIfMatch(repo, arch string, file stream.SeekFile, etag string) error
 	RepoNames() ([]string, error)
 	Files(repo, arch string) ([]string, error)
+	// FilesWithMeta lists (repo, arch) objects with each object's last-modified
+	// time, so the orphan reconcile can skip a fresh PUT that may be mid-finalize.
+	FilesWithMeta(repo, arch string) ([]FileInfo, error)
 	Arches(repo string) ([]string, error)
 }

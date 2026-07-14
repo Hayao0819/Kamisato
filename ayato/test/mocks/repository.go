@@ -178,6 +178,21 @@ func (mr *MockBinaryRepositoryMockRecorder) Files(arg0, arch any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Files", reflect.TypeOf((*MockBinaryRepository)(nil).Files), arg0, arch)
 }
 
+// FilesWithMeta mocks base method.
+func (m *MockBinaryRepository) FilesWithMeta(arg0, arch string) ([]blob.FileInfo, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FilesWithMeta", arg0, arch)
+	ret0, _ := ret[0].([]blob.FileInfo)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FilesWithMeta indicates an expected call of FilesWithMeta.
+func (mr *MockBinaryRepositoryMockRecorder) FilesWithMeta(arg0, arch any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FilesWithMeta", reflect.TypeOf((*MockBinaryRepository)(nil).FilesWithMeta), arg0, arch)
+}
+
 // InitArch mocks base method.
 func (m *MockBinaryRepository) InitArch(name, arch string, useSignedDB bool, gnupgDir *string) error {
 	m.ctrl.T.Helper()

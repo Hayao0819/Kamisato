@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"io"
 	"testing"
+	"time"
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
 
@@ -74,5 +75,38 @@ func TestLocalStoreRejectsTraversalAndUnknownRepo(t *testing.T) {
 		if _, err := store.FetchFile("myrepo", tc.arch, tc.file); err == nil {
 			t.Errorf("FetchFile(myrepo, %q, %q) = nil, want error", tc.arch, tc.file)
 		}
+	}
+}
+
+func TestLocalStoreFilesWithMeta(t *testing.T) {
+	store := localfs.New(t.TempDir(), []string{"myrepo"})
+	const name = "pkg-1.0-1-x86_64.pkg.tar.zst"
+	if err := store.StoreFile("myrepo", "x86_64", seekFile(name, []byte("payload"))); err != nil {
+		t.Fatalf("StoreFile: %v", err)
+	}
+
+	infos, err := store.FilesWithMeta("myrepo", "x86_64")
+	if err != nil {
+		t.Fatalf("FilesWithMeta: %v", err)
+	}
+	if len(infos) != 1 || infos[0].Name != name {
+		t.Fatalf("FilesWithMeta = %v, want one entry named %q", infos, name)
+	}
+	if infos[0].LastModified.IsZero() {
+		t.Errorf("FilesWithMeta ModTime is zero, want the file's on-disk mtime")
+	}
+	if time.Since(infos[0].LastModified) > time.Hour {
+		t.Errorf("FilesWithMeta ModTime %v is implausibly old", infos[0].LastModified)
+	}
+}
+
+func TestLocalStoreFilesWithMetaMissingArch(t *testing.T) {
+	store := localfs.New(t.TempDir(), []string{"myrepo"})
+	infos, err := store.FilesWithMeta("myrepo", "x86_64")
+	if err != nil {
+		t.Fatalf("FilesWithMeta(missing arch): %v", err)
+	}
+	if len(infos) != 0 {
+		t.Errorf("FilesWithMeta(missing arch) = %v, want empty", infos)
 	}
 }

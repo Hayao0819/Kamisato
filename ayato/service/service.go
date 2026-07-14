@@ -65,6 +65,10 @@ type Uploader interface {
 	// validates and registers the objects the client PUT via those URLs.
 	PresignUploads(repo string, filenames []string) (map[string]string, error)
 	FinalizeUploads(repo string, pkgFilenames []string) error
+	// ReconcileOrphans deletes package objects the repo db does not reference —
+	// the residue of a presigned upload PUT but never finalized — older than
+	// olderThan; dryRun reports without deleting.
+	ReconcileOrphans(repo string, olderThan time.Duration, dryRun bool) ([]OrphanObject, error)
 	RemovePkg(rname string, arch string, pkgname string) error
 }
 

@@ -223,6 +223,21 @@ func (mr *MockBlobStoreMockRecorder) Files(repo, arch any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Files", reflect.TypeOf((*MockBlobStore)(nil).Files), repo, arch)
 }
 
+// FilesWithMeta mocks base method.
+func (m *MockBlobStore) FilesWithMeta(repo, arch string) ([]blob.FileInfo, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FilesWithMeta", repo, arch)
+	ret0, _ := ret[0].([]blob.FileInfo)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FilesWithMeta indicates an expected call of FilesWithMeta.
+func (mr *MockBlobStoreMockRecorder) FilesWithMeta(repo, arch any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FilesWithMeta", reflect.TypeOf((*MockBlobStore)(nil).FilesWithMeta), repo, arch)
+}
+
 // RepoNames mocks base method.
 func (m *MockBlobStore) RepoNames() ([]string, error) {
 	m.ctrl.T.Helper()
