@@ -196,6 +196,12 @@ func ParseDesc(r io.Reader) (*DESC, error) {
 }
 
 func (d *DESC) ToPKGINFO() (*PKGINFO, error) {
+	// Installed size is %SIZE% in a local db but %ISIZE% in a sync/repo db; take
+	// whichever the parsed desc carried.
+	size := d.Size
+	if size == 0 {
+		size = d.ISize
+	}
 	p := &PKGINFO{
 		PkgName:     d.Name,
 		PkgBase:     d.Base,
@@ -203,7 +209,7 @@ func (d *DESC) ToPKGINFO() (*PKGINFO, error) {
 		PkgDesc:     d.Description,
 		URL:         d.URL,
 		Arch:        d.Arch,
-		Size:        d.Size,
+		Size:        size,
 		Packager:    d.Packager,
 		License:     append([]string{}, d.License...),
 		Replaces:    append([]string{}, d.Replaces...),

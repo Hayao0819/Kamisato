@@ -186,3 +186,29 @@ glibc
 		t.Errorf("Depend = %v, want [glibc]", p.Depend)
 	}
 }
+
+func TestDescToPKGINFO_Size(t *testing.T) {
+	// A sync/repo db stores installed size as %ISIZE% (no %SIZE%); ToPKGINFO must
+	// still surface it as PKGINFO.Size.
+	sync := "%NAME%\nhello\n\n%VERSION%\n1.0.0-1\n\n%CSIZE%\n4096\n\n%ISIZE%\n12345\n"
+	d, err := raiou.ParseDescString(sync)
+	if err != nil {
+		t.Fatalf("ParseDescString(sync): %v", err)
+	}
+	if p, err := d.ToPKGINFO(); err != nil {
+		t.Fatalf("ToPKGINFO(sync): %v", err)
+	} else if p.Size != 12345 {
+		t.Errorf("sync db Size = %d, want 12345 (from %%ISIZE%%)", p.Size)
+	}
+
+	// A local db uses %SIZE% for the same installed size.
+	local := "%NAME%\nhello\n\n%VERSION%\n1.0.0-1\n\n%SIZE%\n999\n"
+	if d, err = raiou.ParseDescString(local); err != nil {
+		t.Fatalf("ParseDescString(local): %v", err)
+	}
+	if p, err := d.ToPKGINFO(); err != nil {
+		t.Fatalf("ToPKGINFO(local): %v", err)
+	} else if p.Size != 999 {
+		t.Errorf("local db Size = %d, want 999 (from %%SIZE%%)", p.Size)
+	}
+}
