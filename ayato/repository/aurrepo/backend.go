@@ -1,8 +1,8 @@
-// Package aur is ayato's stateless aurweb Backend: an admin registers an external
+// Package aurrepo is ayato's stateless aurweb backend: an admin registers an external
 // git URL, ayato parses its .SRCINFO from an ephemeral clone it discards, and keeps
 // only the derived metadata in kv. A registered pkgbase's git clone is redirected to
 // the registered URL; anything unregistered falls through to the real AUR.
-package aur
+package aurrepo
 
 import (
 	"cmp"

@@ -1,4 +1,4 @@
-package aur
+package cmd
 
 import (
 	"log/slog"
@@ -6,7 +6,9 @@ import (
 	"time"
 
 	"github.com/Hayao0819/Kamisato/ayato/ratelimit"
+	"github.com/Hayao0819/Kamisato/ayato/repository/aurrepo"
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
+	"github.com/Hayao0819/Kamisato/ayato/service/aur"
 	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/internal/errors"
 	"github.com/Hayao0819/Kamisato/pkg/aurweb"
@@ -25,17 +27,13 @@ func (a aurRPCLimiter) Allow(client string) bool {
 	return ok
 }
 
-// Module is the assembled AUR wiring: Server is the read-only aurweb surface
-// (/rpc, git redirects) mounted as the NoRoute fallback, and Service is the
-// gin-free backend for the admin/catalog surface.
-type Module struct {
-	Server  http.Handler
-	Service *Service
-}
-
-// New builds the AUR module from config and the shared KV store.
-func New(cfg *conf.AyatoConfig, store kv.Store) (*Module, error) {
-	backend := NewBackend(store, cfg.AUR.Maintainer)
+// buildAUR assembles the AUR wiring from config and the shared KV store: the
+// read-only aurweb surface (/rpc, git redirects) mounted as the NoRoute fallback,
+// and the gin-free source-management/catalog service. Composition lives here rather
+// than in a feature package so the backend and service stay in the standard
+// repository/service layers.
+func buildAUR(cfg *conf.AyatoConfig, store kv.Store) (http.Handler, *aur.Service, error) {
+	backend := aurrepo.NewBackend(store, cfg.AUR.Maintainer)
 
 	opts := []aurweb.Option{aurweb.WithLogger(slog.Default())}
 	if cfg.AUR.Upstream.Enabled {
@@ -63,9 +61,9 @@ func New(cfg *conf.AyatoConfig, store kv.Store) (*Module, error) {
 		ttl = 60 * time.Minute
 	}
 
-	signer, err := NewCatalogSignerFromEnv(ttl)
+	signer, err := aur.NewCatalogSignerFromEnv(ttl)
 	if err != nil {
-		return nil, errors.WrapErr(err, "failed to build catalog signer")
+		return nil, nil, errors.WrapErr(err, "failed to build catalog signer")
 	}
 	if signer != nil {
 		slog.Info("AUR catalog signing enabled", "key_id", signer.KeyID())
@@ -74,9 +72,9 @@ func New(cfg *conf.AyatoConfig, store kv.Store) (*Module, error) {
 	}
 
 	srv := aurweb.New(backend, opts...)
-	svc := NewService(backend, ttl).WithSigner(signer)
+	svc := aur.NewService(backend, ttl).WithSigner(signer)
 
 	slog.Info("aurweb-compatible API enabled",
 		"upstream", cfg.AUR.Upstream.Enabled, "signed", signer != nil, "rate_limit_per_day", rateLimit)
-	return &Module{Server: srv, Service: svc}, nil
+	return srv, svc, nil
 }

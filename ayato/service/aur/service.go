@@ -1,3 +1,7 @@
+// Package aur is ayato's AUR source-management service and kayo-facing catalog: it
+// drives a SourceManager (the repository/aurrepo backend) to register/remove
+// PKGBUILD sources and builds the signed catalog envelope kayo consumes. It is
+// gin-free; the HTTP glue lives in ayato/handler.
 package aur
 
 import (

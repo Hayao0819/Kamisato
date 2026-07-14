@@ -1,4 +1,4 @@
-package aur
+package aurrepo
 
 import (
 	"context"

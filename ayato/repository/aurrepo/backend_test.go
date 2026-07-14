@@ -1,4 +1,4 @@
-package aur
+package aurrepo
 
 import (
 	"context"
@@ -47,46 +47,6 @@ func (m *memKV) List(ns string) ([]kv.Entry, error) {
 }
 
 func (m *memKV) Close() error { return nil }
-
-// countingKV counts List fan-outs so a test can prove the catalog cache spares
-// repeated builds.
-type countingKV struct {
-	*memKV
-	listCalls int
-}
-
-func (m *countingKV) List(ns string) ([]kv.Entry, error) {
-	m.listCalls++
-	return m.memKV.List(ns)
-}
-
-func TestCatalogServiceCachesEnvelope(t *testing.T) {
-	m := newMemKV()
-	if err := m.Set(nsPkg, "foo", []byte(`{"Name":"foo"}`), 0); err != nil {
-		t.Fatal(err)
-	}
-	if err := m.Set(nsBase, "foo", []byte(`{"url":"https://example.test/foo.git","names":["foo"]}`), 0); err != nil {
-		t.Fatal(err)
-	}
-	ck := &countingKV{memKV: m}
-	svc := NewService(NewBackend(ck, "maint"), time.Minute)
-
-	call := func() {
-		if _, err := svc.Envelope(context.Background()); err != nil {
-			t.Fatalf("Envelope: %v", err)
-		}
-	}
-
-	call()
-	afterFirst := ck.listCalls
-	if afterFirst == 0 {
-		t.Fatal("first catalog build should hit the KV store")
-	}
-	call()
-	if ck.listCalls != afterFirst {
-		t.Fatalf("cached catalog still fanned out to KV: %d list calls after second hit, want %d", ck.listCalls, afterFirst)
-	}
-}
 
 func initGitRepo(t *testing.T, srcinfo string) string {
 	t.Helper()

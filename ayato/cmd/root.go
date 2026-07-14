@@ -13,7 +13,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/cobra"
 
-	"github.com/Hayao0819/Kamisato/ayato/aur"
 	"github.com/Hayao0819/Kamisato/ayato/auth"
 	"github.com/Hayao0819/Kamisato/ayato/handler"
 	"github.com/Hayao0819/Kamisato/ayato/middleware"
@@ -130,11 +129,11 @@ func RootCmd() *cobra.Command {
 			slog.Info("Routing initialized")
 
 			if cfg.AUR.Enabled {
-				mod, merr := aur.New(cfg, kvStore)
+				aurServer, aurSvc, merr := buildAUR(cfg, kvStore)
 				if merr != nil {
 					return errors.WrapErr(merr, "failed to initialize AUR module")
 				}
-				router.SetAUR(engine, m, mod.Server, handler.NewAURHandler(mod.Service))
+				router.SetAUR(engine, m, aurServer, handler.NewAURHandler(aurSvc))
 			}
 
 			if err := s.InitAll(); err != nil {

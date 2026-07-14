@@ -5,7 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/Hayao0819/Kamisato/ayato/aur"
+	"github.com/Hayao0819/Kamisato/ayato/service/aur"
 )
 
 func aurCmd() *cobra.Command {
