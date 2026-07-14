@@ -5,12 +5,12 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/Hayao0819/Kamisato/ayato/auth/ciauth"
+	"github.com/Hayao0819/Kamisato/ayato/auth"
 )
 
 const ctxCIPublisher = "auth_ci"
 
-func (m *Middleware) WithCIAuth(ci *ciauth.Authorizer) *Middleware {
+func (m *Middleware) WithCIAuth(ci *auth.CIAuthorizer) *Middleware {
 	m.ci = ci
 	return m
 }
@@ -23,12 +23,12 @@ func (m *Middleware) RequireCI() gin.HandlerFunc {
 		if m.ci != nil && m.ci.Enabled() {
 			outcome, p := m.ci.Authorize(c.Request.Context(), c.Request.Header, c.Param("repo"))
 			switch outcome {
-			case ciauth.OutcomeAllow:
+			case auth.CIOutcomeAllow:
 				c.Set(ctxVia, "ci")
 				c.Set(ctxCIPublisher, p.ID)
 				c.Next()
 				return
-			case ciauth.OutcomeDeny:
+			case auth.CIOutcomeDeny:
 				c.AbortWithStatus(http.StatusForbidden)
 				return
 			}

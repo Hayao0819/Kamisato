@@ -1,4 +1,4 @@
-package ciauth
+package auth
 
 import (
 	"context"
@@ -58,8 +58,8 @@ func newOIDCAuth(ctx context.Context, cfg conf.CIGitHubOIDC) (*oidcAuth, error) 
 	return a, nil
 }
 
-// claims are GitHub's OIDC claims. repository_id is a JSON string, not a number.
-type claims struct {
+// oidcClaims are GitHub's OIDC oidcClaims. repository_id is a JSON string, not a number.
+type oidcClaims struct {
 	Repository   string `json:"repository"`
 	RepositoryID string `json:"repository_id"`
 	Sub          string `json:"sub"`
@@ -67,21 +67,21 @@ type claims struct {
 	EventName    string `json:"event_name"`
 }
 
-func (a *oidcAuth) authorize(ctx context.Context, raw, repo string) (*Principal, bool) {
+func (a *oidcAuth) authorize(ctx context.Context, raw, repo string) (*CIPrincipal, bool) {
 	tok, err := a.verifier.Verify(ctx, raw)
 	if err != nil {
 		return nil, false
 	}
-	var c claims
+	var c oidcClaims
 	if err := tok.Claims(&c); err != nil {
 		return nil, false
 	}
 	return a.authorizeClaims(c, repo)
 }
 
-// authorizeClaims is the authorization decision over already-verified claims.
+// authorizeClaims is the authorization decision over already-verified oidcClaims.
 // It is the security boundary after signature/iss/aud/exp verification.
-func (a *oidcAuth) authorizeClaims(c claims, repo string) (*Principal, bool) {
+func (a *oidcAuth) authorizeClaims(c oidcClaims, repo string) (*CIPrincipal, bool) {
 	// Pull-request runs carry attacker-influenceable refs and must never publish.
 	if c.EventName == "pull_request" || c.EventName == "pull_request_target" ||
 		strings.HasSuffix(c.Sub, ":pull_request") {
@@ -99,14 +99,14 @@ func (a *oidcAuth) authorizeClaims(c claims, repo string) (*Principal, bool) {
 		if !p.repos[repo] && !p.repos["*"] {
 			continue
 		}
-		return &Principal{Via: "oidc", ID: c.Repository}, true
+		return &CIPrincipal{Via: "oidc", ID: c.Repository}, true
 	}
 	return nil, false
 }
 
 // matches requires an exact match on repository_id when set (immutable, survives
 // a repo rename), else on the repository slug. No prefix or wildcard matching.
-func (p *oidcPublisher) matches(c claims) bool {
+func (p *oidcPublisher) matches(c oidcClaims) bool {
 	if p.repositoryID != "" {
 		return c.RepositoryID == p.repositoryID
 	}

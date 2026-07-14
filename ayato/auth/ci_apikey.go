@@ -1,4 +1,4 @@
-package ciauth
+package auth
 
 import (
 	"crypto/subtle"
@@ -30,7 +30,7 @@ func newAPIKeyAuth(cfg []conf.CIAPIKey) *apiKeyAuth {
 
 // authorize constant-time-compares the presented key against every key with no
 // early return, so timing doesn't reveal which matched, then checks its repo scope.
-func (a *apiKeyAuth) authorize(presented, repo string) (*Principal, bool) {
+func (a *apiKeyAuth) authorize(presented, repo string) (*CIPrincipal, bool) {
 	p := []byte(presented)
 	matched := -1
 	for i := range a.keys {
@@ -45,5 +45,5 @@ func (a *apiKeyAuth) authorize(presented, repo string) (*Principal, bool) {
 	if !e.repos[repo] && !e.repos["*"] {
 		return nil, false
 	}
-	return &Principal{Via: "apikey", ID: e.name}, true
+	return &CIPrincipal{Via: "apikey", ID: e.name}, true
 }

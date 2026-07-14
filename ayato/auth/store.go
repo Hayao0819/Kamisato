@@ -1,8 +1,11 @@
-// Package auth implements ayato's GitHub-OAuth auth. Every auth artifact (web
-// sessions, CLI tokens, one-time codes, pending OAuth states) is a stateless
-// HMAC-signed envelope carried by the client, so this package mints/verifies but
-// never touches storage. Fail-closed throughout; the admin allowlist is the only
-// server-side state and lives in the repository layer, not here.
+// Package auth implements ayato's identity and authorization. Interactive users
+// authenticate via GitHub OAuth: every user artifact (web sessions, CLI tokens,
+// one-time codes, pending OAuth states) is a stateless HMAC-signed envelope carried
+// by the client, so the Signer mints/verifies but never touches storage.
+// Non-interactive CI uploads are authorized separately by CIAuthorizer, which
+// verifies a repository identity (API key or GitHub OIDC) rather than a user.
+// Fail-closed throughout; the admin allowlist is the only server-side state and
+// lives in the repository layer, not here.
 package auth
 
 import (

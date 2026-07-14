@@ -10,7 +10,6 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/Hayao0819/Kamisato/ayato/auth"
-	"github.com/Hayao0819/Kamisato/ayato/auth/ciauth"
 	"github.com/Hayao0819/Kamisato/ayato/ratelimit"
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
 	"github.com/Hayao0819/Kamisato/internal/conf"
@@ -35,7 +34,7 @@ type Middleware struct {
 	cfg       *conf.AyatoConfig
 	checker   adminChecker // nil = auth unconfigured; RequireAdmin fails closed (503)
 	signer    *auth.Signer
-	ci        *ciauth.Authorizer // nil = no CI auth
+	ci        *auth.CIAuthorizer // nil = no CI auth
 	denylist  denylistChecker    // nil = per-token revocation not wired
 	logTokens logTokenConsumer   // nil = one-time SSE log tokens not wired
 	// limiter is the shared kv-backed rate limiter; nil leaves RateLimit a

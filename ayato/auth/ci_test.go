@@ -1,4 +1,4 @@
-package ciauth
+package auth
 
 import (
 	"context"
@@ -8,8 +8,8 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/conf"
 )
 
-func apiKeyAuthorizer(keys ...conf.CIAPIKey) *Authorizer {
-	return &Authorizer{apikey: newAPIKeyAuth(keys)}
+func apiKeyAuthorizer(keys ...conf.CIAPIKey) *CIAuthorizer {
+	return &CIAuthorizer{apikey: newAPIKeyAuth(keys)}
 }
 
 func TestAPIKeyAuthorize(t *testing.T) {
@@ -42,31 +42,31 @@ func TestAuthorizeRouting(t *testing.T) {
 
 	t.Run("X-API-Key routes to api key", func(t *testing.T) {
 		h := http.Header{"X-Api-Key": {"secret"}}
-		if out, _ := a.Authorize(context.Background(), h, "alterlinux"); out != OutcomeAllow {
+		if out, _ := a.Authorize(context.Background(), h, "alterlinux"); out != CIOutcomeAllow {
 			t.Fatalf("outcome=%v, want allow", out)
 		}
 	})
 	t.Run("bad X-API-Key denies, no fallthrough", func(t *testing.T) {
 		h := http.Header{"X-Api-Key": {"wrong"}}
-		if out, _ := a.Authorize(context.Background(), h, "alterlinux"); out != OutcomeDeny {
+		if out, _ := a.Authorize(context.Background(), h, "alterlinux"); out != CIOutcomeDeny {
 			t.Fatalf("outcome=%v, want deny", out)
 		}
 	})
 	t.Run("Bearer JWT with no OIDC configured denies", func(t *testing.T) {
 		h := http.Header{"Authorization": {"Bearer aaa.bbb.ccc"}}
-		if out, _ := a.Authorize(context.Background(), h, "alterlinux"); out != OutcomeDeny {
+		if out, _ := a.Authorize(context.Background(), h, "alterlinux"); out != CIOutcomeDeny {
 			t.Fatalf("outcome=%v, want deny", out)
 		}
 	})
 	t.Run("two-part Bearer is not routed to OIDC", func(t *testing.T) {
 		// ayato's own HMAC token is two segments; it must not reach the OIDC path.
 		h := http.Header{"Authorization": {"Bearer payload.sig"}}
-		if out, _ := a.Authorize(context.Background(), h, "alterlinux"); out != OutcomeNone {
+		if out, _ := a.Authorize(context.Background(), h, "alterlinux"); out != CIOutcomeNone {
 			t.Fatalf("outcome=%v, want none", out)
 		}
 	})
 	t.Run("no credential yields none", func(t *testing.T) {
-		if out, _ := a.Authorize(context.Background(), http.Header{}, "alterlinux"); out != OutcomeNone {
+		if out, _ := a.Authorize(context.Background(), http.Header{}, "alterlinux"); out != CIOutcomeNone {
 			t.Fatalf("outcome=%v, want none", out)
 		}
 	})
@@ -95,7 +95,7 @@ func TestOIDCAuthorizeClaims(t *testing.T) {
 	}
 	a := oidcWith(pub)
 
-	base := claims{
+	base := oidcClaims{
 		Repository: "FascodeNet/alterlinux-repo",
 		Sub:        "repo:FascodeNet/alterlinux-repo:ref:refs/heads/main",
 		Ref:        "refs/heads/main",
@@ -149,7 +149,7 @@ func TestOIDCWildcardPublishReposAllowsAny(t *testing.T) {
 		AllowRefs:    []string{"refs/heads/main"},
 		PublishRepos: []string{"*"},
 	})
-	c := claims{
+	c := oidcClaims{
 		Repository: "FascodeNet/alterlinux-repo",
 		Sub:        "repo:FascodeNet/alterlinux-repo:ref:refs/heads/main",
 		Ref:        "refs/heads/main",
@@ -174,7 +174,7 @@ func TestOIDCRepositoryIDExactMatch(t *testing.T) {
 		AllowRefs:    []string{"refs/heads/main"},
 		PublishRepos: []string{"alterlinux"},
 	})
-	c := claims{
+	c := oidcClaims{
 		Repository:   "FascodeNet/alterlinux-repo-renamed",
 		RepositoryID: "12345",
 		Sub:          "repo:FascodeNet/alterlinux-repo-renamed:ref:refs/heads/main",

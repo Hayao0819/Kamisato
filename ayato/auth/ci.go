@@ -1,8 +1,4 @@
-// Package ciauth authorizes non-interactive CI uploads by a repository identity
-// (not a GitHub user) scoped to specific repos. Credentials route by header shape
-// to exactly one verifier, and a presented-but-invalid credential is terminal
-// (no weaker fallback), which keeps the routing safe.
-package ciauth
+package auth
 
 import (
 	"context"
@@ -13,33 +9,38 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
-type Principal struct {
+// CIPrincipal identifies an authorized CI caller. CI authorization admits a
+// non-interactive upload by a repository identity (not a GitHub user) scoped to
+// specific repos: credentials route by header shape to exactly one verifier, and a
+// presented-but-invalid credential is terminal (no weaker fallback), which keeps the
+// routing safe.
+type CIPrincipal struct {
 	Via string // "apikey" | "oidc"
 	ID  string // key name, or the GitHub repository
 }
 
-type Outcome int
+type CIOutcome int
 
 const (
-	// OutcomeNone means no CI credential was presented; the caller may try admin auth.
-	OutcomeNone Outcome = iota
-	// OutcomeDeny means a CI credential was presented but is invalid or unauthorized.
-	OutcomeDeny
-	// OutcomeAllow means the request is authorized.
-	OutcomeAllow
+	// CIOutcomeNone means no CI credential was presented; the caller may try admin auth.
+	CIOutcomeNone CIOutcome = iota
+	// CIOutcomeDeny means a CI credential was presented but is invalid or unauthorized.
+	CIOutcomeDeny
+	// CIOutcomeAllow means the request is authorized.
+	CIOutcomeAllow
 )
 
-// Authorizer holds the configured CI verifiers. Construct once and reuse: the
+// CIAuthorizer holds the configured CI verifiers. Construct once and reuse: the
 // OIDC backend keeps a long-lived JWKS-caching verifier.
-type Authorizer struct {
+type CIAuthorizer struct {
 	apikey *apiKeyAuth
 	oidc   *oidcAuth
 }
 
-// New performs OIDC issuer discovery when OIDC is enabled, so it makes a network
-// call and may fail at startup.
-func New(ctx context.Context, cfg conf.CIAuthConfig) (*Authorizer, error) {
-	a := &Authorizer{}
+// NewCIAuthorizer performs OIDC issuer discovery when OIDC is enabled, so it makes a
+// network call and may fail at startup.
+func NewCIAuthorizer(ctx context.Context, cfg conf.CIAuthConfig) (*CIAuthorizer, error) {
+	a := &CIAuthorizer{}
 	if len(cfg.APIKeys) > 0 {
 		a.apikey = newAPIKeyAuth(cfg.APIKeys)
 	}
@@ -53,7 +54,7 @@ func New(ctx context.Context, cfg conf.CIAuthConfig) (*Authorizer, error) {
 	return a, nil
 }
 
-func (a *Authorizer) Enabled() bool {
+func (a *CIAuthorizer) Enabled() bool {
 	return a != nil && (a.apikey != nil || a.oidc != nil)
 }
 
@@ -62,31 +63,31 @@ func (a *Authorizer) Enabled() bool {
 //
 //   - X-API-Key present            -> API key verifier only
 //   - Authorization: Bearer <jwt>  -> OIDC verifier only (3 segments / 2 dots)
-//   - neither                      -> OutcomeNone (let the caller try admin auth)
+//   - neither                      -> CIOutcomeNone (let the caller try admin auth)
 //
-// A failed or unconfigured verifier yields OutcomeDeny; there is no fallthrough.
-func (a *Authorizer) Authorize(ctx context.Context, h http.Header, ayatoRepo string) (Outcome, *Principal) {
+// A failed or unconfigured verifier yields CIOutcomeDeny; there is no fallthrough.
+func (a *CIAuthorizer) Authorize(ctx context.Context, h http.Header, ayatoRepo string) (CIOutcome, *CIPrincipal) {
 	if k := h.Get("X-API-Key"); k != "" {
 		if a.apikey == nil {
-			return OutcomeDeny, nil
+			return CIOutcomeDeny, nil
 		}
 		if p, ok := a.apikey.authorize(k, ayatoRepo); ok {
-			return OutcomeAllow, p
+			return CIOutcomeAllow, p
 		}
-		return OutcomeDeny, nil
+		return CIOutcomeDeny, nil
 	}
 
 	if tok, ok := bearerJWT(h); ok {
 		if a.oidc == nil {
-			return OutcomeDeny, nil
+			return CIOutcomeDeny, nil
 		}
 		if p, ok := a.oidc.authorize(ctx, tok, ayatoRepo); ok {
-			return OutcomeAllow, p
+			return CIOutcomeAllow, p
 		}
-		return OutcomeDeny, nil
+		return CIOutcomeDeny, nil
 	}
 
-	return OutcomeNone, nil
+	return CIOutcomeNone, nil
 }
 
 // bearerJWT returns the bearer value only if it's shaped like a JWT (3 dot-separated
