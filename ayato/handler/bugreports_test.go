@@ -13,7 +13,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"go.uber.org/mock/gomock"
 
-	"github.com/Hayao0819/Kamisato/ayato/bugreport"
+	"github.com/Hayao0819/Kamisato/ayato/handler/bugreport"
 	"github.com/Hayao0819/Kamisato/ayato/test/mocks"
 	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/pkg/raiou"
