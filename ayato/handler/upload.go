@@ -10,7 +10,10 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/samber/lo"
 
+	"github.com/Hayao0819/Kamisato/internal/errors"
+
 	"github.com/Hayao0819/Kamisato/ayato/domain"
+	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
 	"github.com/Hayao0819/Kamisato/ayato/stream"
 )
 
@@ -184,4 +187,64 @@ func (h *Handler) BatchUploadHandler(ctx *gin.Context) {
 		return
 	}
 	ctx.String(http.StatusOK, fmt.Sprintf("%d package(s) uploaded!", len(files)))
+}
+
+// PresignUploadHandler returns a presigned R2 PUT URL per requested file so a large
+// package can be uploaded directly, bypassing the request-body limit in front of
+// the server. A backend that cannot presign answers 501 so the client falls back
+// to the multipart upload.
+func (h *Handler) PresignUploadHandler(ctx *gin.Context) {
+	repoName := ctx.Param("repo")
+	if repoName == "" {
+		ctx.JSON(http.StatusBadRequest, domain.APIError{Message: "repository name is required"})
+		return
+	}
+	var req struct {
+		Files []string `json:"files"`
+	}
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		ctx.JSON(http.StatusBadRequest, domain.APIError{Message: fmt.Sprintf("decode request err: %s", err.Error())})
+		return
+	}
+	if len(req.Files) == 0 {
+		ctx.JSON(http.StatusBadRequest, domain.APIError{Message: "no files requested"})
+		return
+	}
+	urls, err := h.s.PresignUploads(repoName, req.Files)
+	if err != nil {
+		if errors.Is(err, blob.ErrPresignUnsupported) {
+			ctx.JSON(http.StatusNotImplemented, domain.APIError{Message: "presigned upload is not available for this storage backend"})
+			return
+		}
+		ctx.JSON(errToStatus(err), domain.APIError{Message: fmt.Sprintf("presign err: %s", err.Error())})
+		return
+	}
+	ctx.JSON(http.StatusOK, gin.H{"urls": urls})
+}
+
+// FinalizeUploadHandler registers packages the client already PUT to R2 via a
+// presigned URL, reusing the same validation and registration as a multipart
+// upload without re-storing the bytes.
+func (h *Handler) FinalizeUploadHandler(ctx *gin.Context) {
+	repoName := ctx.Param("repo")
+	if repoName == "" {
+		ctx.JSON(http.StatusBadRequest, domain.APIError{Message: "repository name is required"})
+		return
+	}
+	var req struct {
+		Packages []string `json:"packages"`
+	}
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		ctx.JSON(http.StatusBadRequest, domain.APIError{Message: fmt.Sprintf("decode request err: %s", err.Error())})
+		return
+	}
+	if len(req.Packages) == 0 {
+		ctx.JSON(http.StatusBadRequest, domain.APIError{Message: "no packages to finalize"})
+		return
+	}
+	if err := h.s.FinalizeUploads(repoName, req.Packages); err != nil {
+		ctx.JSON(errToStatus(err), domain.APIError{Message: fmt.Sprintf("finalize err: %s", err.Error())})
+		return
+	}
+	ctx.String(http.StatusOK, fmt.Sprintf("%d package(s) finalized!", len(req.Packages)))
 }

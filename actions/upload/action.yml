@@ -73,12 +73,68 @@ runs:
         for pat in $IN_FILES; do files+=($pat); done
         [ ${#files[@]} -gt 0 ] || { echo "::error::no package files matched: $IN_FILES"; exit 1; }
 
-        url="${IN_SERVER%/}/api/unstable/repos/${IN_REPO}/packages"
+        base="${IN_SERVER%/}/api/unstable/repos/${IN_REPO}/packages"
+
+        # The packages to publish (drop the .sig sidecars; each rides its package).
+        pkgs=()
         for f in "${files[@]}"; do
           case "$f" in *.sig) continue ;; esac
-          form=(-F "package=@${f}")
-          [ -f "${f}.sig" ] && form+=(-F "signature=@${f}.sig")
-          echo "uploading $(basename "$f")"
-          code="$(curl -sS -o /dev/null -w '%{http_code}' -X POST -K "$curlcfg" "${form[@]}" "$url")"
-          [ "$code" = "200" ] || { echo "::error::upload failed for $(basename "$f") (HTTP $code)"; exit 1; }
+          pkgs+=("$f")
         done
+        [ ${#pkgs[@]} -gt 0 ] || { echo "::error::no package files matched: $IN_FILES"; exit 1; }
+
+        # multipart_upload publishes via the classic multipart POST; used directly by
+        # a backend that cannot presign, and as the fallback when presign returns 501.
+        multipart_upload() {
+          for f in "${pkgs[@]}"; do
+            form=(-F "package=@${f}")
+            [ -f "${f}.sig" ] && form+=(-F "signature=@${f}.sig")
+            echo "uploading $(basename "$f")"
+            code="$(curl -sS -o /dev/null -w '%{http_code}' -X POST -K "$curlcfg" "${form[@]}" "$base")"
+            [ "$code" = "200" ] || { echo "::error::upload failed for $(basename "$f") (HTTP $code)"; exit 1; }
+          done
+        }
+
+        # Request a presigned direct-to-store PUT URL for every package and its .sig,
+        # so a package larger than the server's request-body limit can be uploaded
+        # without going through the server.
+        req="$(
+          for f in "${pkgs[@]}"; do
+            basename "$f"
+            [ -f "${f}.sig" ] && basename "${f}.sig"
+          done | jq -R . | jq -s '{files: .}'
+        )"
+
+        presign_resp="$(mktemp)"
+        trap 'rm -f "$curlcfg" "$presign_resp"' EXIT
+        code="$(curl -sS -o "$presign_resp" -w '%{http_code}' -X POST -K "$curlcfg" \
+          -H 'Content-Type: application/json' -d "$req" "${base}/presign")"
+
+        if [ "$code" = "501" ]; then
+          echo "presigned upload unavailable; falling back to multipart POST"
+          multipart_upload
+        elif [ "$code" = "200" ]; then
+          # PUT each file straight to its presigned URL. The URL is pre-authorized, so
+          # no auth config is attached to the PUT.
+          for f in "${files[@]}"; do
+            name="$(basename "$f")"
+            put_url="$(jq -r --arg n "$name" '.urls[$n] // empty' "$presign_resp")"
+            [ -n "$put_url" ] || { echo "::error::no presigned URL returned for $name"; exit 1; }
+            echo "uploading $name (direct)"
+            put_code="$(curl -sS -o /dev/null -w '%{http_code}' -T "$f" "$put_url")"
+            case "$put_code" in
+              2??) ;;
+              *) echo "::error::direct upload failed for $name (HTTP $put_code)"; exit 1 ;;
+            esac
+          done
+
+          # Finalize: the server validates and registers the objects just PUT.
+          fin="$(printf '%s\n' "${pkgs[@]}" | xargs -n1 basename | jq -R . | jq -s '{packages: .}')"
+          fin_code="$(curl -sS -o /dev/null -w '%{http_code}' -X POST -K "$curlcfg" \
+            -H 'Content-Type: application/json' -d "$fin" "${base}/finalize")"
+          [ "$fin_code" = "200" ] || { echo "::error::finalize failed (HTTP $fin_code)"; exit 1; }
+        else
+          echo "::error::presign request failed (HTTP $code)"
+          cat "$presign_resp" || true
+          exit 1
+        fi

@@ -12,12 +12,11 @@ package mocks
 import (
 	reflect "reflect"
 
-	gomock "go.uber.org/mock/gomock"
-
 	repository "github.com/Hayao0819/Kamisato/ayato/repository"
 	blob "github.com/Hayao0819/Kamisato/ayato/repository/blob"
 	stream "github.com/Hayao0819/Kamisato/ayato/stream"
 	repo "github.com/Hayao0819/Kamisato/pkg/pacman/repo"
+	gomock "go.uber.org/mock/gomock"
 )
 
 // MockBinaryRepository is a mock of BinaryRepository interface.
@@ -335,6 +334,21 @@ func (m *MockBinaryRepository) StoreFileIfMatch(arg0, arch string, file stream.S
 func (mr *MockBinaryRepositoryMockRecorder) StoreFileIfMatch(arg0, arch, file, etag any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StoreFileIfMatch", reflect.TypeOf((*MockBinaryRepository)(nil).StoreFileIfMatch), arg0, arch, file, etag)
+}
+
+// StoreFileWithSignedPutURL mocks base method.
+func (m *MockBinaryRepository) StoreFileWithSignedPutURL(arg0, arch, name string) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "StoreFileWithSignedPutURL", arg0, arch, name)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// StoreFileWithSignedPutURL indicates an expected call of StoreFileWithSignedPutURL.
+func (mr *MockBinaryRepositoryMockRecorder) StoreFileWithSignedPutURL(arg0, arch, name any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StoreFileWithSignedPutURL", reflect.TypeOf((*MockBinaryRepository)(nil).StoreFileWithSignedPutURL), arg0, arch, name)
 }
 
 // StoreFileWithSignedURL mocks base method.

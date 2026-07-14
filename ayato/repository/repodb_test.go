@@ -117,7 +117,8 @@ func (m *memStore) StoreFileIfMatch(repo, arch string, file stream.SeekFile, eta
 	return nil
 }
 
-func (m *memStore) StoreFileWithSignedURL(string, string, string) (string, error) { return "", nil }
+func (m *memStore) StoreFileWithSignedURL(string, string, string) (string, error)    { return "", nil }
+func (m *memStore) StoreFileWithSignedPutURL(string, string, string) (string, error) { return "", nil }
 func (m *memStore) DeleteFile(repo, arch, name string) error {
 	m.mu.Lock()
 	delete(m.files, m.keyOf(repo, arch, name))

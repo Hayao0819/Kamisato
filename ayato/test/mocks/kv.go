@@ -13,9 +13,8 @@ import (
 	reflect "reflect"
 	time "time"
 
-	gomock "go.uber.org/mock/gomock"
-
 	kv "github.com/Hayao0819/Kamisato/ayato/repository/kv"
+	gomock "go.uber.org/mock/gomock"
 )
 
 // MockKVStore is a mock of Store interface.
@@ -112,4 +111,148 @@ func (m *MockKVStore) Set(ns, key string, value []byte, ttl time.Duration) error
 func (mr *MockKVStoreMockRecorder) Set(ns, key, value, ttl any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Set", reflect.TypeOf((*MockKVStore)(nil).Set), ns, key, value, ttl)
+}
+
+// MockBulkStore is a mock of BulkStore interface.
+type MockBulkStore struct {
+	ctrl     *gomock.Controller
+	recorder *MockBulkStoreMockRecorder
+	isgomock struct{}
+}
+
+// MockBulkStoreMockRecorder is the mock recorder for MockBulkStore.
+type MockBulkStoreMockRecorder struct {
+	mock *MockBulkStore
+}
+
+// NewMockBulkStore creates a new mock instance.
+func NewMockBulkStore(ctrl *gomock.Controller) *MockBulkStore {
+	mock := &MockBulkStore{ctrl: ctrl}
+	mock.recorder = &MockBulkStoreMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockBulkStore) EXPECT() *MockBulkStoreMockRecorder {
+	return m.recorder
+}
+
+// BulkDelete mocks base method.
+func (m *MockBulkStore) BulkDelete(ns string, keys []string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "BulkDelete", ns, keys)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// BulkDelete indicates an expected call of BulkDelete.
+func (mr *MockBulkStoreMockRecorder) BulkDelete(ns, keys any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BulkDelete", reflect.TypeOf((*MockBulkStore)(nil).BulkDelete), ns, keys)
+}
+
+// BulkSet mocks base method.
+func (m *MockBulkStore) BulkSet(ns string, entries []kv.Entry, ttl time.Duration) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "BulkSet", ns, entries, ttl)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// BulkSet indicates an expected call of BulkSet.
+func (mr *MockBulkStoreMockRecorder) BulkSet(ns, entries, ttl any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BulkSet", reflect.TypeOf((*MockBulkStore)(nil).BulkSet), ns, entries, ttl)
+}
+
+// MockKeyAuditor is a mock of KeyAuditor interface.
+type MockKeyAuditor struct {
+	ctrl     *gomock.Controller
+	recorder *MockKeyAuditorMockRecorder
+	isgomock struct{}
+}
+
+// MockKeyAuditorMockRecorder is the mock recorder for MockKeyAuditor.
+type MockKeyAuditorMockRecorder struct {
+	mock *MockKeyAuditor
+}
+
+// NewMockKeyAuditor creates a new mock instance.
+func NewMockKeyAuditor(ctrl *gomock.Controller) *MockKeyAuditor {
+	mock := &MockKeyAuditor{ctrl: ctrl}
+	mock.recorder = &MockKeyAuditorMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockKeyAuditor) EXPECT() *MockKeyAuditorMockRecorder {
+	return m.recorder
+}
+
+// DeleteRawKeys mocks base method.
+func (m *MockKeyAuditor) DeleteRawKeys(keys []string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteRawKeys", keys)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteRawKeys indicates an expected call of DeleteRawKeys.
+func (mr *MockKeyAuditorMockRecorder) DeleteRawKeys(keys any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteRawKeys", reflect.TypeOf((*MockKeyAuditor)(nil).DeleteRawKeys), keys)
+}
+
+// ForeignKeys mocks base method.
+func (m *MockKeyAuditor) ForeignKeys() ([]string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ForeignKeys")
+	ret0, _ := ret[0].([]string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ForeignKeys indicates an expected call of ForeignKeys.
+func (mr *MockKeyAuditorMockRecorder) ForeignKeys() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ForeignKeys", reflect.TypeOf((*MockKeyAuditor)(nil).ForeignKeys))
+}
+
+// MockAdder is a mock of Adder interface.
+type MockAdder struct {
+	ctrl     *gomock.Controller
+	recorder *MockAdderMockRecorder
+	isgomock struct{}
+}
+
+// MockAdderMockRecorder is the mock recorder for MockAdder.
+type MockAdderMockRecorder struct {
+	mock *MockAdder
+}
+
+// NewMockAdder creates a new mock instance.
+func NewMockAdder(ctrl *gomock.Controller) *MockAdder {
+	mock := &MockAdder{ctrl: ctrl}
+	mock.recorder = &MockAdderMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockAdder) EXPECT() *MockAdderMockRecorder {
+	return m.recorder
+}
+
+// Add mocks base method.
+func (m *MockAdder) Add(ns, key string, value []byte, ttl time.Duration) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Add", ns, key, value, ttl)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Add indicates an expected call of Add.
+func (mr *MockAdderMockRecorder) Add(ns, key, value, ttl any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Add", reflect.TypeOf((*MockAdder)(nil).Add), ns, key, value, ttl)
 }

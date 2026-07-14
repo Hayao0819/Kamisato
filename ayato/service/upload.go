@@ -207,6 +207,16 @@ func (s *Service) UploadFile(repo string, files *domain.UploadFiles) error {
 // database update rather than N partial ones. On any error it rolls back every
 // stored file and database entry.
 func (s *Service) UploadFiles(repo string, files []*domain.UploadFiles) error {
+	return s.uploadFiles(repo, files, true)
+}
+
+// uploadFiles is UploadFiles' body shared with FinalizeUploads. With store=false
+// the package bytes are already in the store (the client PUT them via a presigned
+// URL), so the physical StoreFile step is skipped and everything else — validation,
+// arch seeding, RepoAddBatch, name records, rollback of the db/name entries — is
+// identical. The `stored` slice then stays empty, so rollback never deletes the
+// R2 objects; cleaning those up is FinalizeUploads' responsibility.
+func (s *Service) uploadFiles(repo string, files []*domain.UploadFiles, store bool) error {
 	if len(files) == 0 {
 		return nil
 	}
@@ -306,30 +316,33 @@ func (s *Service) UploadFiles(repo string, files []*domain.UploadFiles) error {
 		}
 	}
 
-	// Store every package file (and its signature) under its arch.
-	for _, p := range preps {
-		if _, err := p.pkgStream.Seek(0, io.SeekStart); err != nil {
-			rollback()
-			return errors.WrapErr(err, "failed to seek package file")
-		}
-		if err := s.pkgBinaryRepo.StoreFile(repo, p.storeArch, p.pkgStream); err != nil {
-			rollback()
-			return errors.WrapErr(err, "failed to store file")
-		}
-		stored = append(stored, archKey{p.storeArch, p.storedName})
-		if p.sigStream != nil {
-			if _, err := p.sigStream.Seek(0, io.SeekStart); err != nil {
+	// Store every package file (and its signature) under its arch. Skipped when the
+	// bytes are already in the store (finalize of a presigned direct upload).
+	if store {
+		for _, p := range preps {
+			if _, err := p.pkgStream.Seek(0, io.SeekStart); err != nil {
 				rollback()
-				return errors.WrapErr(err, "failed to seek signature file")
+				return errors.WrapErr(err, "failed to seek package file")
 			}
-			// StoreFile keys the on-disk name off FileName(), so re-wrap the sig
-			// under "<storedName>.sig". Verification already rejected bad sigs.
-			sigToStore := stream.NewFileStream(p.sigName, p.sigStream.ContentType(), p.sigStream)
-			if err := s.pkgBinaryRepo.StoreFile(repo, p.storeArch, sigToStore); err != nil {
+			if err := s.pkgBinaryRepo.StoreFile(repo, p.storeArch, p.pkgStream); err != nil {
 				rollback()
-				return errors.WrapErr(err, "failed to store signature file")
+				return errors.WrapErr(err, "failed to store file")
 			}
-			stored = append(stored, archKey{p.storeArch, p.sigName})
+			stored = append(stored, archKey{p.storeArch, p.storedName})
+			if p.sigStream != nil {
+				if _, err := p.sigStream.Seek(0, io.SeekStart); err != nil {
+					rollback()
+					return errors.WrapErr(err, "failed to seek signature file")
+				}
+				// StoreFile keys the on-disk name off FileName(), so re-wrap the sig
+				// under "<storedName>.sig". Verification already rejected bad sigs.
+				sigToStore := stream.NewFileStream(p.sigName, p.sigStream.ContentType(), p.sigStream)
+				if err := s.pkgBinaryRepo.StoreFile(repo, p.storeArch, sigToStore); err != nil {
+					rollback()
+					return errors.WrapErr(err, "failed to store signature file")
+				}
+				stored = append(stored, archKey{p.storeArch, p.sigName})
+			}
 		}
 	}
 

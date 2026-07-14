@@ -12,10 +12,9 @@ package mocks
 import (
 	reflect "reflect"
 
-	gomock "go.uber.org/mock/gomock"
-
 	blob "github.com/Hayao0819/Kamisato/ayato/repository/blob"
 	stream "github.com/Hayao0819/Kamisato/ayato/stream"
+	gomock "go.uber.org/mock/gomock"
 )
 
 // MockMetaFetcher is a mock of MetaFetcher interface.
@@ -56,6 +55,73 @@ func (m *MockMetaFetcher) FetchFileWithMeta(repo, arch, file string) (stream.Fil
 func (mr *MockMetaFetcherMockRecorder) FetchFileWithMeta(repo, arch, file any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FetchFileWithMeta", reflect.TypeOf((*MockMetaFetcher)(nil).FetchFileWithMeta), repo, arch, file)
+}
+
+// MockObjectMover is a mock of ObjectMover interface.
+type MockObjectMover struct {
+	ctrl     *gomock.Controller
+	recorder *MockObjectMoverMockRecorder
+	isgomock struct{}
+}
+
+// MockObjectMoverMockRecorder is the mock recorder for MockObjectMover.
+type MockObjectMoverMockRecorder struct {
+	mock *MockObjectMover
+}
+
+// NewMockObjectMover creates a new mock instance.
+func NewMockObjectMover(ctrl *gomock.Controller) *MockObjectMover {
+	mock := &MockObjectMover{ctrl: ctrl}
+	mock.recorder = &MockObjectMoverMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockObjectMover) EXPECT() *MockObjectMoverMockRecorder {
+	return m.recorder
+}
+
+// CopyObject mocks base method.
+func (m *MockObjectMover) CopyObject(srcKey, dstKey string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CopyObject", srcKey, dstKey)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// CopyObject indicates an expected call of CopyObject.
+func (mr *MockObjectMoverMockRecorder) CopyObject(srcKey, dstKey any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CopyObject", reflect.TypeOf((*MockObjectMover)(nil).CopyObject), srcKey, dstKey)
+}
+
+// DeleteObject mocks base method.
+func (m *MockObjectMover) DeleteObject(objKey string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteObject", objKey)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteObject indicates an expected call of DeleteObject.
+func (mr *MockObjectMoverMockRecorder) DeleteObject(objKey any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteObject", reflect.TypeOf((*MockObjectMover)(nil).DeleteObject), objKey)
+}
+
+// ListObjects mocks base method.
+func (m *MockObjectMover) ListObjects(prefix string) ([]string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListObjects", prefix)
+	ret0, _ := ret[0].([]string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListObjects indicates an expected call of ListObjects.
+func (mr *MockObjectMoverMockRecorder) ListObjects(prefix any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListObjects", reflect.TypeOf((*MockObjectMover)(nil).ListObjects), prefix)
 }
 
 // MockBlobStore is a mock of Store interface.
@@ -198,6 +264,21 @@ func (m *MockBlobStore) StoreFileIfMatch(repo, arch string, file stream.SeekFile
 func (mr *MockBlobStoreMockRecorder) StoreFileIfMatch(repo, arch, file, etag any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StoreFileIfMatch", reflect.TypeOf((*MockBlobStore)(nil).StoreFileIfMatch), repo, arch, file, etag)
+}
+
+// StoreFileWithSignedPutURL mocks base method.
+func (m *MockBlobStore) StoreFileWithSignedPutURL(repo, arch, name string) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "StoreFileWithSignedPutURL", repo, arch, name)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// StoreFileWithSignedPutURL indicates an expected call of StoreFileWithSignedPutURL.
+func (mr *MockBlobStoreMockRecorder) StoreFileWithSignedPutURL(repo, arch, name any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StoreFileWithSignedPutURL", reflect.TypeOf((*MockBlobStore)(nil).StoreFileWithSignedPutURL), repo, arch, name)
 }
 
 // StoreFileWithSignedURL mocks base method.

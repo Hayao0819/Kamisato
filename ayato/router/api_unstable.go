@@ -94,6 +94,11 @@ func SetRoute(e *gin.Engine, h *handler.Handler, m *middleware.Middleware) error
 		{
 			upload.Use(m.RateLimit(rate.Every(time.Second/10), 30), m.RequireCI())
 			upload.POST("/repos/:repo/packages", h.BatchUploadHandler) // atomic multi-package publish
+			// Direct-to-R2 upload for packages too large for the request-body limit:
+			// presign a PUT, the client uploads straight to the store, then finalize
+			// validates and registers the already-stored object.
+			upload.POST("/repos/:repo/packages/presign", h.PresignUploadHandler)
+			upload.POST("/repos/:repo/packages/finalize", h.FinalizeUploadHandler)
 		}
 		// Package removal is publish-scoped like upload: a CI publisher may prune its
 		// own repos (deleting a package whose PKGBUILD is gone is part of managing the

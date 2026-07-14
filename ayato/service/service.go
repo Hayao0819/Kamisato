@@ -61,6 +61,10 @@ type RepoReader interface {
 type Uploader interface {
 	UploadFile(repo string, files *domain.UploadFiles) error
 	UploadFiles(repo string, files []*domain.UploadFiles) error
+	// PresignUploads issues a direct-to-store PUT URL per file; FinalizeUploads
+	// validates and registers the objects the client PUT via those URLs.
+	PresignUploads(repo string, filenames []string) (map[string]string, error)
+	FinalizeUploads(repo string, pkgFilenames []string) error
 	RemovePkg(rname string, arch string, pkgname string) error
 }
 

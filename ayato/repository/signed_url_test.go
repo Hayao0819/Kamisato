@@ -15,6 +15,9 @@ func (p *presignRecorder) StoreFileWithSignedURL(_, arch, name string) (string, 
 	return "https://example.com/" + name, nil
 }
 
+func (p *presignRecorder) StoreFileWithSignedPutURL(_, arch, name string) (string, error) {
+	return "https://example.com/put/" + name, nil
+}
 func (p *presignRecorder) StoreFile(string, string, stream.SeekFile) error       { return nil }
 func (p *presignRecorder) DeleteFile(string, string, string) error               { return nil }
 func (p *presignRecorder) FetchFile(string, string, string) (stream.File, error) { return nil, nil }
