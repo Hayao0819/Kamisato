@@ -6,7 +6,7 @@ import (
 
 	"github.com/Hayao0819/Kamisato/ayato/auth"
 	"github.com/Hayao0819/Kamisato/ayato/bugreport"
-	"github.com/Hayao0819/Kamisato/ayato/recaptcha"
+	"github.com/Hayao0819/Kamisato/ayato/handler/recaptcha"
 	"github.com/Hayao0819/Kamisato/ayato/service"
 	"github.com/Hayao0819/Kamisato/internal/conf"
 )
