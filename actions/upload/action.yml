@@ -101,7 +101,10 @@ runs:
         req="$(
           for f in "${pkgs[@]}"; do
             basename "$f"
-            [ -f "${f}.sig" ] && basename "${f}.sig"
+            # `if`, not `&&`: a trailing `&&` that is false makes the loop exit
+            # non-zero, and pipefail would fail this substitution for an unsigned
+            # package (no .sig), aborting the whole step under set -e.
+            if [ -f "${f}.sig" ]; then basename "${f}.sig"; fi
           done | jq -R . | jq -s '{files: .}'
         )"
 
