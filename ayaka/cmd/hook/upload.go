@@ -1,15 +1,16 @@
 package hookcmd
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
-	"net/http"
 	"path/filepath"
 	"time"
 
 	"github.com/spf13/cobra"
 
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
+	"github.com/Hayao0819/Kamisato/internal/buildclient"
 	"github.com/Hayao0819/Kamisato/internal/errors"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/alpm"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/hook"
@@ -75,17 +76,19 @@ func hookUploadCmd() *cobra.Command {
 				return nil
 			}
 
-			client, err := shared.RepoClient(cmd)
+			srv, err := shared.ServerFromFlag(cmd)
 			if err != nil {
 				// The hook runs as root, so this resolves against root's server db.
 				return errors.WrapErr(err, "resolving the ayato server/credentials (set up root's db with 'sudo ayaka server login')")
 			}
-			// pacman blocks until a PostTransaction hook exits and blinky uses
-			// http.DefaultClient (no timeout), so a stalled server would hang the
-			// whole transaction. Bound it; mutating the global client is safe in
-			// this one-shot.
-			http.DefaultClient.Timeout = timeout
-			if err := client.UploadPackageFiles(repo, files...); err != nil {
+			// pacman blocks until a PostTransaction hook exits, so a stalled server
+			// would hang the whole transaction. Bound the upload via context.
+			ctx, cancel := context.WithTimeout(cmd.Context(), timeout)
+			defer cancel()
+			err = shared.WithServerAuth(ctx, srv, func(ctx context.Context, token string) error {
+				return buildclient.UploadPackageFiles(ctx, srv.URL, token, repo, files...)
+			})
+			if err != nil {
 				return errors.WrapErr(err, "failed to upload packages (the server may be slow or unreachable)")
 			}
 			out := cmd.OutOrStdout()
