@@ -56,6 +56,14 @@ resource "google_cloud_run_v2_service" "ayato" {
   template {
     service_account = google_service_account.ayato.email
 
+    # Keep one instance warm: pacman aborts a download after 10s without a byte,
+    # and a scale-from-zero cold start can exceed that before ayato binds its
+    # listener. Billing stays request-based (cpu_idle left at its true default),
+    # so the idle minimum instance is charged memory only, not CPU.
+    scaling {
+      min_instance_count = 1
+    }
+
     # Direct VPC egress so ayato can reach miko's internal ingress. Without a
     # route into the VPC, "internal" ingress on miko has nothing to admit.
     # Provide your own subnet; a Serverless VPC Access connector is the
