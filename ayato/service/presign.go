@@ -115,10 +115,21 @@ func (s *Service) FinalizeUploads(repo string, pkgFilenames []string) error {
 	return nil
 }
 
+// diskBackedSeekFile is a SeekFile whose bytes already live in a temp file, so the
+// register path can hardlink it (via stream.OnDiskFile) instead of copying — the
+// object is spooled from R2 once, not once here and again in RepoAddBatch.
+type diskBackedSeekFile struct {
+	stream.SeekFile
+	path string
+}
+
+func (d diskBackedSeekFile) OnDiskPath() string { return d.path }
+
 // spoolFetched fetches an object from the store and copies it into a re-seekable
 // temp file: R2's FetchFile stream is not seekable, but prepareUpload/RepoAddBatch
 // rewind it. The returned SeekFile keeps the object's name so the register path
-// keys it correctly.
+// keys it correctly, and exposes the temp path so RepoAddBatch hardlinks rather
+// than re-copies the (potentially large) package.
 func (s *Service) spoolFetched(repo, arch, name string) (stream.SeekFile, func(), error) {
 	f, err := s.pkgBinaryRepo.FetchFile(repo, arch, name)
 	if err != nil {
@@ -139,7 +150,8 @@ func (s *Service) spoolFetched(repo, arch, name string) (stream.SeekFile, func()
 		remove()
 		return nil, nil, err
 	}
-	return stream.NewFileStream(path.Base(name), f.ContentType(), noRemoveClose{tmp}), remove, nil
+	fs := stream.NewFileStream(path.Base(name), f.ContentType(), noRemoveClose{tmp})
+	return diskBackedSeekFile{SeekFile: fs, path: tmp.Name()}, remove, nil
 }
 
 // cleanupFinalized deletes the R2 objects (package and its .sig) for every package

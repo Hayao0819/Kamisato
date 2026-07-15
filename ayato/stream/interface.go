@@ -13,3 +13,10 @@ type SeekFile interface {
 	FileName() string
 	ContentType() string
 }
+
+// OnDiskFile is an optional SeekFile capability: the bytes already live in a real
+// file at OnDiskPath, so a consumer that needs them on disk (e.g. to feed a
+// file-based tool) can hardlink instead of copying.
+type OnDiskFile interface {
+	OnDiskPath() string
+}

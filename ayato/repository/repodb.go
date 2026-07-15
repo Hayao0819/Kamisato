@@ -74,6 +74,14 @@ func writeSeekFileToPath(dst string, f stream.SeekFile) error {
 	if f == nil {
 		return nil
 	}
+	// When the bytes already live in a file on the same filesystem (finalize spools
+	// the fetched object), hardlink instead of re-copying it. A cross-device or any
+	// other link failure falls through to the copy below.
+	if d, ok := f.(stream.OnDiskFile); ok {
+		if err := os.Link(d.OnDiskPath(), dst); err == nil {
+			return nil
+		}
+	}
 	if _, err := f.Seek(0, io.SeekStart); err != nil {
 		return errors.WrapErr(err, "failed to seek stream")
 	}
