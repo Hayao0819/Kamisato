@@ -45,7 +45,7 @@ func RootCmd() *cobra.Command {
 	f.BoolP("version", "V", false, "makepkg --version")
 	f.BoolP("help", "h", false, "makepkg --help")
 	f.String("config", "", "makepkg --config")
-	f.ParseErrorsWhitelist.UnknownFlags = true
+	f.ParseErrorsAllowlist.UnknownFlags = true
 	f.SetOutput(io.Discard)
 	return cmd
 }
