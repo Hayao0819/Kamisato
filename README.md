@@ -27,8 +27,10 @@ updates the repository database automatically, and proxies build requests to mik
 ## Miko
 
 Miko is the build server. It builds a PKGBUILD or git/AUR source in a throwaway
-Arch container, signs the result, and uploads it to ayato. Clients reach it only
-through ayato, never directly.
+Arch container and uploads the result to ayato. Package signing is disabled by
+default; deployments that need unattended publishing can explicitly enable a
+local worker key or a separate signer service. Clients normally reach miko only
+through ayato.
 
 ## Lumine
 

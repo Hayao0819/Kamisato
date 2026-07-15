@@ -2,8 +2,8 @@
 # network (internal: true, no outside route) and the shared API key ayato sends
 # on every proxied call. ayato publishes on 127.0.0.1 only — Docker's DNAT runs
 # ahead of the host firewall, so "9000:9000" would face the internet even under
-# ufw deny; front it with a TLS reverse proxy. The api_key/api_keys secrets ride
-# a mounted config file because the koanf env loader can't map keys with "_".
+# ufw deny; front it with a TLS reverse proxy. A generated config gives both
+# services the same build API key and package-size policy.
 
 services:
   ayato:
@@ -19,6 +19,7 @@ services:
       AYATO_PORT: "9000"
       AYATO_MIKO_URL: "http://miko:8081"
       AYATO_MIKO_API_KEY: "${KAMISATO_BUILD_API_KEY:?set KAMISATO_BUILD_API_KEY}"
+      KAMISATO_MAX_PACKAGE_SIZE: "${KAMISATO_MAX_PACKAGE_SIZE:-536870912}"
       AYATO_AUTH_USERNAME: "${AYATO_AUTH_USERNAME:-ayato}"
       AYATO_AUTH_PASSWORD: "${AYATO_AUTH_PASSWORD:?set AYATO_AUTH_PASSWORD}"
     entrypoint:
@@ -26,7 +27,7 @@ services:
       - -c
       - |
         cat > /tmp/ayato_config.json <<EOF
-        { "miko": { "url": "$${AYATO_MIKO_URL}", "api_key": "$${AYATO_MIKO_API_KEY}" } }
+        { "max_size": $${KAMISATO_MAX_PACKAGE_SIZE}, "miko": { "url": "$${AYATO_MIKO_URL}", "api_key": "$${AYATO_MIKO_API_KEY}" } }
         EOF
         exec kamisato ayato -c /tmp/ayato_config.json
 
@@ -45,12 +46,13 @@ services:
       MIKO_PORT: "8081"
       MIKO_EXECUTOR: "container"
       KAMISATO_BUILD_API_KEY: "${KAMISATO_BUILD_API_KEY:?set KAMISATO_BUILD_API_KEY}"
+      KAMISATO_MAX_PACKAGE_SIZE: "${KAMISATO_MAX_PACKAGE_SIZE:-536870912}"
     entrypoint:
       - /bin/sh
       - -c
       - |
         cat > /tmp/miko_config.json <<EOF
-        { "api_keys": ["$${KAMISATO_BUILD_API_KEY}"] }
+        { "max_size": $${KAMISATO_MAX_PACKAGE_SIZE}, "api_keys": ["$${KAMISATO_BUILD_API_KEY}"], "signing": { "mode": "disabled" } }
         EOF
         exec kamisato miko -c /tmp/miko_config.json
 

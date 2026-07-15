@@ -7,6 +7,7 @@ Cloud Run. For per-service configuration, see the ayato and miko READMEs.
 
 ```sh
 export KAMISATO_BUILD_API_KEY="$(openssl rand -hex 32)"
+export KAMISATO_MAX_PACKAGE_SIZE=536870912 # bytes; shared by ayato and miko
 export AYATO_AUTH_USERNAME=ayato
 export AYATO_AUTH_PASSWORD="$(openssl rand -hex 16)"
 docker compose -f deploy/compose.yml up -d
@@ -14,6 +15,11 @@ docker compose -f deploy/compose.yml up -d
 
 The image must carry the combined `kamisato` binary; build one from the repo
 `Dockerfile`.
+
+`KAMISATO_MAX_PACKAGE_SIZE` is optional and defaults to 512 MiB. The compose
+file writes the same value to both services' `max_size`, so miko rejects an
+oversized build artifact before signing/upload and ayato applies the same limit
+to every upload path.
 
 When GitHub login is enabled, ayato needs `auth.session_secret` (one or more
 keys, each >= 32 bytes; the first signs, all verify, so a key can be rotated by
