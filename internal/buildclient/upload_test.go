@@ -27,8 +27,7 @@ func TestUploadPackageFilesPresign(t *testing.T) {
 	writeFile(t, sig, "SIGBYTES")
 
 	stored := map[string]string{}
-	var storage *httptest.Server
-	storage = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	storage := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPut {
 			t.Errorf("storage method = %q", r.Method)
 		}
