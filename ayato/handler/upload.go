@@ -11,24 +11,12 @@ import (
 	"github.com/samber/lo"
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
+	"github.com/Hayao0819/Kamisato/internal/limits"
 
 	"github.com/Hayao0819/Kamisato/ayato/domain"
 	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
 	"github.com/Hayao0819/Kamisato/ayato/stream"
 )
-
-// defaultMaxUploadBytes caps an upload body when cfg.MaxSize is unset, so one request
-// cannot spool an unbounded body into memory or the tmpfs-backed /tmp on Cloud Run.
-const defaultMaxUploadBytes = 512 << 20
-
-// maxUploadBytes is the ceiling enforced before spooling; the margin over cfg.MaxSize
-// covers multipart framing and the detached-signature part.
-func maxUploadBytes(maxSize int) int64 {
-	if maxSize > 0 {
-		return int64(maxSize) + (1 << 20)
-	}
-	return defaultMaxUploadBytes
-}
 
 func formFileWithValidate(ctx *gin.Context, name string, maxsize int) (*multipart.FileHeader, error) {
 	pkgHeader, err := ctx.FormFile(name)
@@ -38,7 +26,7 @@ func formFileWithValidate(ctx *gin.Context, name string, maxsize int) (*multipar
 	if pkgHeader.Size == 0 {
 		return nil, fmt.Errorf("file is empty")
 	}
-	if maxsize > 0 && pkgHeader.Size > int64(maxsize) {
+	if limits.Exceeds(pkgHeader.Size, maxsize) {
 		return nil, fmt.Errorf("file is too large")
 	}
 	return pkgHeader, nil
@@ -52,7 +40,7 @@ func (h *Handler) BlinkyUploadHandler(ctx *gin.Context) {
 	}
 	// Bound the body before spooling so an oversized upload is rejected as bytes
 	// arrive, not after the whole body is already on disk/in memory.
-	ctx.Request.Body = http.MaxBytesReader(ctx.Writer, ctx.Request.Body, maxUploadBytes(h.cfg.MaxSize))
+	ctx.Request.Body = http.MaxBytesReader(ctx.Writer, ctx.Request.Body, limits.MultipartBytes(h.cfg.MaxSize))
 	if err := ctx.Request.ParseMultipartForm(10 << 20); err != nil {
 		ctx.JSON(http.StatusBadRequest, domain.APIError{Message: fmt.Sprintf("parse form err: %s", err.Error())})
 		return
@@ -129,7 +117,7 @@ func (h *Handler) BatchUploadHandler(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, domain.APIError{Message: "repository name is required"})
 		return
 	}
-	ctx.Request.Body = http.MaxBytesReader(ctx.Writer, ctx.Request.Body, maxUploadBytes(h.cfg.MaxSize))
+	ctx.Request.Body = http.MaxBytesReader(ctx.Writer, ctx.Request.Body, limits.MultipartBytes(h.cfg.MaxSize))
 	if err := ctx.Request.ParseMultipartForm(10 << 20); err != nil {
 		ctx.JSON(http.StatusBadRequest, domain.APIError{Message: fmt.Sprintf("parse form err: %s", err.Error())})
 		return
@@ -159,7 +147,7 @@ func (h *Handler) BatchUploadHandler(ctx *gin.Context) {
 			ctx.JSON(http.StatusBadRequest, domain.APIError{Message: fmt.Sprintf("package %q is empty", ph.Filename)})
 			return
 		}
-		if h.cfg.MaxSize > 0 && ph.Size > int64(h.cfg.MaxSize) {
+		if limits.Exceeds(ph.Size, h.cfg.MaxSize) {
 			ctx.JSON(http.StatusBadRequest, domain.APIError{Message: fmt.Sprintf("package %q is too large", ph.Filename)})
 			return
 		}

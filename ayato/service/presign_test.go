@@ -145,3 +145,22 @@ func TestFinalizeUploads_CleanupOnPrepareFailure(t *testing.T) {
 		t.Errorf("finalize cleanup deleted = %v, want both %s and its .sig", deleted, pkg)
 	}
 }
+
+func TestFinalizeUploads_EnforcesMaxSize(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	bin := mocks.NewMockBinaryRepository(ctrl)
+	name := mocks.NewMockNameStore(ctrl)
+	pkg := "foo-1.0-1-x86_64.pkg.tar.zst"
+	bin.EXPECT().VerifyPkgRepo("myrepo").Return(nil).AnyTimes()
+	bin.EXPECT().FetchFile("myrepo", "x86_64", pkg).Return(
+		stream.NewFileStream(pkg, "application/octet-stream", bufferToReadSeekCloser(bytes.NewBufferString("too large"))), nil)
+	bin.EXPECT().FetchFile("myrepo", "x86_64", pkg+".sig").Return(nil, blob.ErrNotFound)
+	bin.EXPECT().DeleteFile("myrepo", "x86_64", gomock.Any()).Return(nil).Times(2)
+	cfg := baseConfig(false, "")
+	cfg.MaxSize = 4
+	svc := service.New(name, bin, nil, nil, cfg)
+	if err := svc.FinalizeUploads("myrepo", []string{pkg}); err == nil {
+		t.Fatal("finalize accepted an object larger than max_size")
+	}
+}

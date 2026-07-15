@@ -31,7 +31,9 @@ type AyatoConfig struct {
 	// package such as "pacman" or "glibc". Empty disables the guard.
 	ProtectedNames []string `koanf:"protected_names,omitempty"`
 	Port           int      `koanf:"port"`
-	MaxSize        int      `koanf:"max_size"`
+	// MaxSize is the maximum package size in bytes. Zero selects the shared
+	// default also used by miko.
+	MaxSize int `koanf:"max_size"`
 	// DefaultArches is the arch set a repo with no explicit Arches serves, so the
 	// per-repo declaration can be omitted when every repo shares one arch list.
 	// Empty leaves per-repo Arches as the only declared source.

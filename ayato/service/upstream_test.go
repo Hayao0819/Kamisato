@@ -221,6 +221,25 @@ func TestSyncUpstreamRejectsNonUpstream(t *testing.T) {
 	}
 }
 
+func TestSyncUpstreamRejectsOversizedResponse(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Length", "536870913")
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+	svc, _, _ := newTieredService(t, []conf.BinRepoConfig{{
+		Name: "myrepo", Upstream: conf.UpstreamRepoConfig{DBURL: srv.URL + "/extra.db"},
+	}})
+	uploadVersioned(t, svc, "myrepo", "local", "1.0-1")
+	res, err := svc.SyncUpstream(context.Background(), "myrepo")
+	if err != nil {
+		t.Fatalf("SyncUpstream: %v", err)
+	}
+	if len(res.Arches) != 1 || !strings.Contains(res.Arches[0].Error, "exceeds") {
+		t.Fatalf("result = %+v, want oversized-response error", res)
+	}
+}
+
 func uploadVersioned(t *testing.T, svc *service.Service, repo, name, ver string) {
 	t.Helper()
 	fname := name + "-" + ver + "-x86_64.pkg.tar.zst"

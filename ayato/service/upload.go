@@ -14,6 +14,7 @@ import (
 	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
 	"github.com/Hayao0819/Kamisato/ayato/stream"
 	"github.com/Hayao0819/Kamisato/internal/conf"
+	"github.com/Hayao0819/Kamisato/internal/limits"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/alpm"
 	pkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/sign"
@@ -42,6 +43,24 @@ type preparedUpload struct {
 // verification keyring built once per batch; nil means no trust root.
 func (s *Service) prepareUpload(repo string, files *domain.UploadFiles, kr *sign.Keyring) (preparedUpload, error) {
 	pkgFileStream := files.PkgFile
+	pos, err := pkgFileStream.Seek(0, io.SeekCurrent)
+	if err != nil {
+		return preparedUpload{}, errors.WrapErr(err, "failed to inspect package size")
+	}
+	size, err := pkgFileStream.Seek(0, io.SeekEnd)
+	if err != nil {
+		return preparedUpload{}, errors.WrapErr(err, "failed to inspect package size")
+	}
+	if _, err := pkgFileStream.Seek(pos, io.SeekStart); err != nil {
+		return preparedUpload{}, errors.WrapErr(err, "failed to restore package stream")
+	}
+	maxSize := 0
+	if s.cfg != nil {
+		maxSize = s.cfg.MaxSize
+	}
+	if limits.Exceeds(size, maxSize) {
+		return preparedUpload{}, fmt.Errorf("%w: package exceeds max_size (%d > %d bytes)", domain.ErrInvalidUpload, size, limits.PackageBytes(maxSize))
+	}
 	p, err := pkg.ReadBinaryPackage(pkgFileStream.FileName(), pkgFileStream)
 	if err != nil {
 		return preparedUpload{}, fmt.Errorf("%w: failed to read package from binary: %w", domain.ErrInvalidUpload, err)

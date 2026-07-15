@@ -11,6 +11,10 @@ import (
 	pacmanrepo "github.com/Hayao0819/Kamisato/pkg/pacman/repo"
 )
 
+// Repository databases are normally far smaller than this. Bounding the body
+// prevents a broken or hostile configured mirror from exhausting ayato's heap.
+const maxUpstreamDBBytes = 512 << 20
+
 // Syncer refreshes an upstream-layered repo from its upstream database.
 type Syncer interface {
 	SyncUpstream(ctx context.Context, repo string) (UpstreamSyncResult, error)
@@ -118,9 +122,15 @@ func (s *Service) conditionalGet(ctx context.Context, url, etag, lastMod string)
 	if resp.StatusCode != http.StatusOK {
 		return nil, "", "", false, fmt.Errorf("upstream returned %s for %s", resp.Status, url)
 	}
-	b, err := io.ReadAll(resp.Body)
+	if resp.ContentLength > maxUpstreamDBBytes {
+		return nil, "", "", false, fmt.Errorf("upstream response exceeds %d bytes for %s", maxUpstreamDBBytes, url)
+	}
+	b, err := io.ReadAll(io.LimitReader(resp.Body, maxUpstreamDBBytes+1))
 	if err != nil {
 		return nil, "", "", false, err
+	}
+	if len(b) > maxUpstreamDBBytes {
+		return nil, "", "", false, fmt.Errorf("upstream response exceeds %d bytes for %s", maxUpstreamDBBytes, url)
 	}
 	return b, resp.Header.Get("ETag"), resp.Header.Get("Last-Modified"), true, nil
 }
