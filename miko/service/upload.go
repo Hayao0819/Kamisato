@@ -2,9 +2,12 @@ package service
 
 import (
 	"context"
+	"fmt"
+	"os"
 
 	"github.com/Hayao0819/Kamisato/internal/blinkyutils"
 	"github.com/Hayao0819/Kamisato/internal/errors"
+	"github.com/Hayao0819/Kamisato/internal/limits"
 )
 
 // Uploader publishes a built package (with its optional detached signature) to a
@@ -41,6 +44,13 @@ func (u *blinkyUploader) Upload(repo, pkgPath, sigPath string) error {
 // is configured) and hands it to the injected Uploader with its signature.
 func (s *Service) signAndUpload(ctx context.Context, repo string, packages []string) error {
 	for _, pkgPath := range packages {
+		info, err := os.Stat(pkgPath)
+		if err != nil {
+			return errors.WrapErr(err, "failed to inspect package: "+pkgPath)
+		}
+		if limits.Exceeds(info.Size(), s.cfg.MaxSize) {
+			return fmt.Errorf("package %s exceeds max_size (%d > %d bytes)", pkgPath, info.Size(), limits.PackageBytes(s.cfg.MaxSize))
+		}
 		sigPath := ""
 		if s.signer != nil {
 			var err error

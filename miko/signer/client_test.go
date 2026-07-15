@@ -101,3 +101,18 @@ func TestRemoteSignerRejectsEmptySignature(t *testing.T) {
 		t.Fatal("no signature file must be written for an empty response")
 	}
 }
+
+func TestRemoteSignerRejectsOversizedSignature(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Length", "16777217")
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+	pkgPath := filepath.Join(t.TempDir(), "pkg.tar.zst")
+	if err := os.WriteFile(pkgPath, []byte("x"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := signer.NewRemoteSigner(srv.URL, "k").Sign(context.Background(), pkgPath); err == nil {
+		t.Fatal("oversized signature response must be rejected")
+	}
+}

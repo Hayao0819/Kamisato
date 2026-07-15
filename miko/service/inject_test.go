@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"sync"
 	"testing"
 
@@ -74,10 +76,14 @@ func TestSignAndUploadUsesInjectedUploader(t *testing.T) {
 	fu := &fakeUploader{}
 	s := New(&conf.MikoConfig{}, nil, nil, fu).(*Service)
 
-	if err := s.signAndUpload(context.Background(), "extra", []string{"/tmp/foo.pkg.tar.zst"}); err != nil {
+	pkgPath := filepath.Join(t.TempDir(), "foo.pkg.tar.zst")
+	if err := os.WriteFile(pkgPath, []byte("pkg"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.signAndUpload(context.Background(), "extra", []string{pkgPath}); err != nil {
 		t.Fatalf("signAndUpload: %v", err)
 	}
-	if len(fu.uploaded) != 1 || fu.uploaded[0] != [3]string{"extra", "/tmp/foo.pkg.tar.zst", ""} {
+	if len(fu.uploaded) != 1 || fu.uploaded[0] != [3]string{"extra", pkgPath, ""} {
 		t.Errorf("uploader received %v, want one unsigned upload to extra", fu.uploaded)
 	}
 }
@@ -87,10 +93,29 @@ func TestSignAndUploadFailsClosedOnSignerError(t *testing.T) {
 	fu := &fakeUploader{}
 	s := New(&conf.MikoConfig{}, failingSigner{}, nil, fu).(*Service)
 
-	if err := s.signAndUpload(context.Background(), "extra", []string{"/tmp/foo.pkg.tar.zst"}); err == nil {
+	pkgPath := filepath.Join(t.TempDir(), "foo.pkg.tar.zst")
+	if err := os.WriteFile(pkgPath, []byte("pkg"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.signAndUpload(context.Background(), "extra", []string{pkgPath}); err == nil {
 		t.Fatal("signAndUpload must fail when the signer errors")
 	}
 	if len(fu.uploaded) != 0 {
 		t.Fatalf("nothing must be uploaded on a signer error, got %v", fu.uploaded)
+	}
+}
+
+func TestSignAndUploadRejectsPackageOverMaxSize(t *testing.T) {
+	fu := &fakeUploader{}
+	s := New(&conf.MikoConfig{MaxSize: 2}, nil, nil, fu).(*Service)
+	pkgPath := filepath.Join(t.TempDir(), "large.pkg.tar.zst")
+	if err := os.WriteFile(pkgPath, []byte("three"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.signAndUpload(context.Background(), "extra", []string{pkgPath}); err == nil {
+		t.Fatal("package larger than max_size must be rejected")
+	}
+	if len(fu.uploaded) != 0 {
+		t.Fatalf("oversized package was uploaded: %v", fu.uploaded)
 	}
 }

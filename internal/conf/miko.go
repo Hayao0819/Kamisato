@@ -25,14 +25,20 @@ type MikoConfig struct {
 	// MaxLogReaders caps concurrent SSE log readers per job (default 8) so a
 	// single job cannot tie up unbounded streaming goroutines.
 	MaxLogReaders int `koanf:"max_log_readers"`
-	Cache         struct {
+	// MaxSize is the maximum package size in bytes. It uses the same name and
+	// semantics as ayato.max_size; zero selects the shared secure default.
+	MaxSize int `koanf:"max_size"`
+	Cache   struct {
 		Enabled        bool   `koanf:"enabled"`
 		PacmanCacheDir string `koanf:"pacman_cache_dir"`
 		CcacheDir      string `koanf:"ccache_dir"`
 	} `koanf:"cache"`
 	// APIKeys are accepted shared secrets for inbound requests (from ayato).
-	// Empty means no key required (trust the closed network only).
+	// Empty requires AllowUnauthenticated to be explicitly enabled.
 	APIKeys []string `koanf:"api_keys"`
+	// AllowUnauthenticated explicitly permits an API with no shared key. This is
+	// intended only for isolated development networks; the secure default is false.
+	AllowUnauthenticated bool `koanf:"allow_unauthenticated"`
 	// DataDir persists build jobs so they survive a restart. Empty disables
 	// persistence (in-memory only).
 	DataDir string `koanf:"data_dir"`
@@ -45,12 +51,13 @@ type MikoConfig struct {
 		Username string `koanf:"username"`
 		Password string `koanf:"password"`
 	} `koanf:"ayato"`
-	// Signing configures package signing. KeyDir defaults to <data_dir>/keys;
-	// empty (with no data_dir) disables host signing.
+	// Signing configures optional package signing. It is disabled unless Mode is
+	// explicitly "local" or "remote"; KeyDir defaults to <data_dir>/keys only
+	// for local signing.
 	Signing struct {
-		// Mode selects where signing runs: "local" (default) signs inline on the
-		// worker with its host key; "remote" offloads to a dedicated signer service
-		// so the worker holds no private key.
+		// Mode selects where signing runs: empty/"disabled" (default) does not sign;
+		// "local" signs inline on the worker with its host key; "remote" offloads
+		// to a dedicated signer service so the worker holds no private key.
 		Mode   string `koanf:"mode"`
 		KeyDir string `koanf:"key_dir"`
 		Name   string `koanf:"name"`
@@ -207,8 +214,8 @@ func (c *MikoConfig) Validate() error {
 	if !slices.Contains([]string{"", "container", "chroot", "bwrap"}, c.Executor) {
 		return fmt.Errorf("executor: unknown value %q (want container, chroot or bwrap)", c.Executor)
 	}
-	if !slices.Contains([]string{"", "local", "remote"}, c.Signing.Mode) {
-		return fmt.Errorf("signing.mode: unknown value %q (want local or remote)", c.Signing.Mode)
+	if !slices.Contains([]string{"", "disabled", "local", "remote"}, c.Signing.Mode) {
+		return fmt.Errorf("signing.mode: unknown value %q (want disabled, local or remote)", c.Signing.Mode)
 	}
 	if c.Signing.Mode == "remote" && c.Signing.Remote.URL == "" {
 		return fmt.Errorf("signing.mode is remote but signing.remote.url is unset")

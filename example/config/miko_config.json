@@ -3,6 +3,10 @@
   "port": 8081,
   "executor": "container",
   "concurrency": 2,
+  "max_size": 1000000000,
+  "signing": {
+    "mode": "disabled"
+  },
   "build": {
     "image": "archlinux:latest",
     "timeout": 30

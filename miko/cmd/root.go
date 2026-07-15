@@ -34,7 +34,9 @@ import (
 // tier so the worker holds no private key.
 func buildSigner(ctx context.Context, cfg *conf.MikoConfig) (sign.Signer, error) {
 	switch cfg.Signing.Mode {
-	case "", "local":
+	case "", "disabled":
+		return nil, nil
+	case "local":
 		return buildHostSigner(ctx, cfg)
 	case "remote":
 		if cfg.Signing.Remote.URL == "" {
@@ -47,7 +49,7 @@ func buildSigner(ctx context.Context, cfg *conf.MikoConfig) (sign.Signer, error)
 		slog.Info("remote signing enabled", "url", cfg.Signing.Remote.URL)
 		return signer.NewRemoteSigner(cfg.Signing.Remote.URL, apiKey), nil
 	default:
-		return nil, errors.NewErrf("signing.mode: unknown value %q (want local or remote)", cfg.Signing.Mode)
+		return nil, errors.NewErrf("signing.mode: unknown value %q (want disabled, local or remote)", cfg.Signing.Mode)
 	}
 }
 
@@ -141,6 +143,9 @@ func RootCmd() *cobra.Command {
 			s := service.New(cfg, pkgSigner, persister, uploader)
 			h := handler.New(s, cfg)
 			verifier := apikey.NewVerifier(cfg.APIKeys)
+			if !verifier.Enabled() && !cfg.AllowUnauthenticated {
+				return errors.NewErr("no api_keys configured; set one or explicitly set allow_unauthenticated=true")
+			}
 
 			ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
 			defer stop()

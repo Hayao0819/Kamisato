@@ -2,6 +2,7 @@ package handler
 
 import (
 	"bytes"
+	stderrors "errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -15,10 +16,18 @@ import (
 	"github.com/Hayao0819/Kamisato/miko/service"
 )
 
+const maxBuildRequestBytes = 32 << 20
+
 // POST /api/unstable/build -> 202 {"job_id": id}
 func (h *Handler) SubmitBuildHandler(c *gin.Context) {
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxBuildRequestBytes)
 	var req domain.BuildRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
+		var maxErr *http.MaxBytesError
+		if stderrors.As(err, &maxErr) {
+			c.JSON(http.StatusRequestEntityTooLarge, gin.H{"error": "build request too large"})
+			return
+		}
 		c.JSON(http.StatusBadRequest, gin.H{"error": errors.WrapErr(err, "invalid build request").Error()})
 		return
 	}

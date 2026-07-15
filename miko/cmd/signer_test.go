@@ -11,13 +11,24 @@ import (
 func TestBuildSignerModes(t *testing.T) {
 	ctx := context.Background()
 
-	// Default (local) with no key dir: signing stays disabled, no error.
+	// Default is disabled even when a data directory exists.
 	s, err := buildSigner(ctx, &conf.MikoConfig{})
 	if err != nil {
-		t.Fatalf("local default: %v", err)
+		t.Fatalf("disabled default: %v", err)
 	}
 	if s != nil {
-		t.Fatalf("local mode with no key dir must leave signing disabled, got %T", s)
+		t.Fatalf("default mode must leave signing disabled, got %T", s)
+	}
+	disabledWithData := &conf.MikoConfig{DataDir: t.TempDir()}
+	if s, err = buildSigner(ctx, disabledWithData); err != nil || s != nil {
+		t.Fatalf("data_dir must not implicitly enable signing: signer=%T err=%v", s, err)
+	}
+
+	// Host signing is available, but only by explicit opt-in.
+	local := &conf.MikoConfig{DataDir: t.TempDir()}
+	local.Signing.Mode = "local"
+	if s, err = buildSigner(ctx, local); err != nil || s == nil {
+		t.Fatalf("explicit local mode: signer=%T err=%v", s, err)
 	}
 
 	// Remote mode builds the remote signer client.

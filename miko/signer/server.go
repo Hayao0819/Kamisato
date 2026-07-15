@@ -1,6 +1,7 @@
 package signer
 
 import (
+	"errors"
 	"io"
 	"net/http"
 	"os"
@@ -9,30 +10,31 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/Hayao0819/Kamisato/internal/auth/apikey"
+	"github.com/Hayao0819/Kamisato/internal/limits"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/sign"
 )
-
-// maxSignBytes bounds a signing request body so a buggy or hostile caller cannot
-// exhaust disk staging the artifact. Generous enough for any real package.
-const maxSignBytes = 2 << 30 // 2 GiB
 
 // Handler builds the signer service: a single detach-sign endpoint guarded by the
 // API-key verifier. The private key lives here (via signer), so the build workers
 // that call it stay keyless.
-func Handler(signer sign.Signer, verifier *apikey.Verifier) *gin.Engine {
+func Handler(signer sign.Signer, verifier *apikey.Verifier, maxSize int) *gin.Engine {
 	e := gin.New()
 	e.Use(gin.Recovery())
 	e.GET("/healthz", func(c *gin.Context) { c.String(http.StatusOK, "ok") })
 	api := e.Group("/api/unstable")
 	api.Use(verifier.Middleware())
-	api.POST("sign", signHandler(signer))
+	api.POST("sign", signHandler(signer, limits.PackageBytes(maxSize)))
 	return e
 }
 
 // signHandler stages the POSTed body in a temp file (Signer works on a path) and
 // returns the detached signature.
-func signHandler(signer sign.Signer) gin.HandlerFunc {
+func signHandler(signer sign.Signer, maxBytes int64) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		if c.Request.ContentLength > maxBytes {
+			c.Status(http.StatusRequestEntityTooLarge)
+			return
+		}
 		dir, err := os.MkdirTemp("", "miko-sign-*")
 		if err != nil {
 			_ = c.AbortWithError(http.StatusInternalServerError, err)
@@ -46,8 +48,14 @@ func signHandler(signer sign.Signer) gin.HandlerFunc {
 			_ = c.AbortWithError(http.StatusInternalServerError, err)
 			return
 		}
-		if _, err := io.Copy(f, io.LimitReader(c.Request.Body, maxSignBytes)); err != nil {
+		body := http.MaxBytesReader(c.Writer, c.Request.Body, maxBytes)
+		if _, err := io.Copy(f, body); err != nil {
 			_ = f.Close()
+			var maxErr *http.MaxBytesError
+			if errors.As(err, &maxErr) {
+				c.Status(http.StatusRequestEntityTooLarge)
+				return
+			}
 			_ = c.AbortWithError(http.StatusBadRequest, err)
 			return
 		}

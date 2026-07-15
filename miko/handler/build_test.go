@@ -1,6 +1,7 @@
 package handler_test
 
 import (
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -16,6 +17,15 @@ import (
 	"github.com/Hayao0819/Kamisato/miko/service"
 	"github.com/Hayao0819/Kamisato/miko/test/mocks"
 )
+
+type spaceReader struct{}
+
+func (spaceReader) Read(p []byte) (int, error) {
+	for i := range p {
+		p[i] = ' '
+	}
+	return len(p), nil
+}
 
 // setup wires the mock service through the production router so tests exercise
 // the same /api/unstable paths (and middleware) the server serves.
@@ -61,6 +71,17 @@ func TestSubmitBuildHandlerInvalidJSON(t *testing.T) {
 
 	if w.Code != http.StatusBadRequest {
 		t.Fatalf("status = %d, want 400: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestSubmitBuildHandlerRejectsOversizedJSON(t *testing.T) {
+	ctrl, _, r := setup(t)
+	defer ctrl.Finish()
+	body := io.LimitReader(spaceReader{}, (32<<20)+1)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodPost, "/api/unstable/build", body))
+	if w.Code != http.StatusRequestEntityTooLarge {
+		t.Fatalf("status = %d, want 413: %s", w.Code, w.Body.String())
 	}
 }
 

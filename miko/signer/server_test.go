@@ -47,7 +47,7 @@ func TestSignerServiceSignsAndVerifies(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	ks := newKeystore(t)
 	verifier := apikey.NewVerifier([]string{"secret-key"})
-	ts := httptest.NewServer(signer.Handler(sign.NewHostKeySigner(ks), verifier))
+	ts := httptest.NewServer(signer.Handler(sign.NewHostKeySigner(ks), verifier, 0))
 	defer ts.Close()
 
 	payload := []byte("real package bytes")
@@ -81,7 +81,7 @@ func TestSignerServiceRejectsUnauthorized(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	ks := newKeystore(t)
 	verifier := apikey.NewVerifier([]string{"secret-key"})
-	ts := httptest.NewServer(signer.Handler(sign.NewHostKeySigner(ks), verifier))
+	ts := httptest.NewServer(signer.Handler(sign.NewHostKeySigner(ks), verifier, 0))
 	defer ts.Close()
 
 	for _, tc := range []struct{ name, key string }{
@@ -102,5 +102,19 @@ func TestSignerServiceRejectsUnauthorized(t *testing.T) {
 				t.Fatalf("status = %d, want 401", resp.StatusCode)
 			}
 		})
+	}
+}
+
+func TestSignerServiceRejectsOversizedBody(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	ks := newKeystore(t)
+	engine := signer.Handler(sign.NewHostKeySigner(ks), apikey.NewVerifier([]string{"secret-key"}), 1)
+	req := httptest.NewRequest(http.MethodPost, signer.SignPath, bytes.NewReader([]byte("x")))
+	req.ContentLength = 2
+	req.Header.Set(apikey.Header, "secret-key")
+	w := httptest.NewRecorder()
+	engine.ServeHTTP(w, req)
+	if w.Code != http.StatusRequestEntityTooLarge {
+		t.Fatalf("status = %d, want 413", w.Code)
 	}
 }

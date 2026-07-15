@@ -53,13 +53,16 @@ func signerCmd() *cobra.Command {
 			}
 
 			verifier := apikey.NewVerifier(cfg.APIKeys)
+			if !verifier.Enabled() && !cfg.AllowUnauthenticated {
+				return errors.NewErr("signer service requires api_keys; set one or explicitly set allow_unauthenticated=true")
+			}
 			if !verifier.Enabled() {
-				slog.Warn("signer service has no api_keys configured; it trusts the closed network only")
+				slog.Warn("signer service authentication explicitly disabled")
 			}
 
 			srv := &http.Server{
 				Addr:              fmt.Sprintf(":%d", cfg.Port),
-				Handler:           signer.Handler(hostSigner, verifier),
+				Handler:           signer.Handler(hostSigner, verifier, cfg.MaxSize),
 				ReadHeaderTimeout: 10 * time.Second,
 			}
 			ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
