@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	ayatoaur "github.com/Hayao0819/Kamisato/ayato/aur"
+	ayatoaur "github.com/Hayao0819/Kamisato/ayato/service/aur"
 	"github.com/Hayao0819/Kamisato/internal/kayoproto"
 	"github.com/Hayao0819/Kamisato/pkg/aurweb"
 )

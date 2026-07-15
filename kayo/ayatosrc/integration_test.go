@@ -8,9 +8,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	ayatoaur "github.com/Hayao0819/Kamisato/ayato/aur"
 	"github.com/Hayao0819/Kamisato/ayato/handler"
+	"github.com/Hayao0819/Kamisato/ayato/repository/aurrepo"
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv/badgerkv"
+	ayatoaur "github.com/Hayao0819/Kamisato/ayato/service/aur"
 )
 
 // TestAgainstRealAyatoHandler drives kayo's Source against ayato's actual gin
@@ -34,7 +35,7 @@ func TestAgainstRealAyatoHandler(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	svc := ayatoaur.NewService(ayatoaur.NewBackend(store, "maint"), time.Hour).WithSigner(signer)
+	svc := ayatoaur.NewService(aurrepo.NewBackend(store, "maint"), time.Hour).WithSigner(signer)
 	h := handler.NewAURHandler(svc)
 	r := gin.New()
 	r.GET(catalogPath, h.CatalogHandler)
