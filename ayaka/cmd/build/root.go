@@ -7,6 +7,7 @@ import (
 	"path"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
 
@@ -31,6 +32,7 @@ func Cmd() *cobra.Command {
 	var arch string
 	var updateSrcinfo bool
 	var diffURL string
+	var buildTimeout time.Duration
 	cmd := cobra.Command{
 		Use:   "build <srcrepo> [pkgname...]",
 		Short: "Build packages locally (--diff to build only changed packages)",
@@ -152,6 +154,16 @@ func Cmd() *cobra.Command {
 				return errors.NewErr("arch " + arch + " is not in " + srcrepo.Config.Name + " build.arches (" + strings.Join(a, ",") + ")")
 			}
 
+			// --timeout wins, else repo.json build.timeout, else the backend default.
+			resolvedTimeout := buildTimeout
+			if resolvedTimeout == 0 && srcrepo.Config.Build.Timeout != "" {
+				d, err := time.ParseDuration(srcrepo.Config.Build.Timeout)
+				if err != nil {
+					return errors.NewErr("build.timeout " + srcrepo.Config.Build.Timeout + " is not a valid duration: " + err.Error())
+				}
+				resolvedTimeout = d
+			}
+
 			buildTarget := builder.Target{
 				Arch:        arch,
 				ArchBuild:   srcrepo.Config.Build.ArchBuild,
@@ -166,6 +178,7 @@ func Cmd() *cobra.Command {
 				},
 				Image:    strings.ReplaceAll(srcrepo.Config.Build.Image, "$arch", arch),
 				Executor: builder.Kind(executor),
+				Timeout:  resolvedTimeout,
 			}
 
 			outDir := path.Join(destDir, srcrepo.Config.Name)
@@ -206,6 +219,7 @@ func Cmd() *cobra.Command {
 	cmd.Flags().StringVar(&executor, "executor", "chroot", "Local build backend: chroot or container")
 	cmd.Flags().StringVar(&arch, "arch", "x86_64", "Target architecture for the build")
 	cmd.Flags().BoolVar(&updateSrcinfo, "update-srcinfo", true, "Regenerate .SRCINFO from PKGBUILD before building (requires makepkg; skipped when absent)")
+	cmd.Flags().DurationVar(&buildTimeout, "timeout", 0, "Build timeout per package (e.g. 3h); 0 uses repo.json build.timeout or the backend default")
 	return &cmd
 }
 

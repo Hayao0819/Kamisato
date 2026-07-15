@@ -37,6 +37,7 @@ type BuildConfig struct {
 	Arches    []string
 	Image     string
 	ArchBuild string
+	Timeout   string
 }
 
 type SourceRepo struct {

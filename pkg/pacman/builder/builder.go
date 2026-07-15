@@ -1,6 +1,9 @@
 package builder
 
-import "io"
+import (
+	"io"
+	"time"
+)
 
 // Target is the build config for a local build, mapping to a Spec the chosen backend consumes.
 type Target struct {
@@ -17,6 +20,9 @@ type Target struct {
 	Image string
 	// Executor selects the build backend. Empty means chroot.
 	Executor Kind
+	// Timeout bounds a single package build (repo.json build.timeout or the
+	// --timeout flag). Zero means the backend default.
+	Timeout time.Duration
 	// Output, when non-nil, captures the build's stdout/stderr instead of os.Stdout.
 	Output io.Writer
 }

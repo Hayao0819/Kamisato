@@ -72,6 +72,7 @@ func SrcConfigFromConf(c *conf.SrcRepoConfig) *repo.SrcConfig {
 			Repos:     buildReposFromConf(c.Build.Repos),
 			Arches:    c.Build.Arches,
 			Image:     c.Build.Image,
+			Timeout:   c.Build.Timeout,
 			Makepkg: repo.MakepkgSettings{
 				Packager:     c.Build.Makepkg.Packager,
 				Microarch:    c.Build.Makepkg.Microarch,

@@ -41,7 +41,7 @@ func Package(p *pkg.SourcePackage, target *builder.Target, dest string) error {
 	if kind == "" {
 		kind = builder.KindChroot
 	}
-	backend, err := builder.New(kind, builder.Options{Image: target.Image})
+	backend, err := builder.New(kind, builder.Options{Image: target.Image, Timeout: target.Timeout})
 	if err != nil {
 		return errors.WrapErr(err, "failed to create build backend")
 	}

@@ -90,6 +90,7 @@ type SrcBuildConfig struct {
 	Arches    []string      `koanf:"arches" json:"arches,omitempty"`
 	Image     string        `koanf:"image" json:"image,omitempty"`
 	ArchBuild string        `koanf:"archbuild" json:"archbuild,omitempty"`
+	Timeout   string        `koanf:"timeout" json:"timeout,omitempty"`
 }
 
 type InstallPkgsConfig struct {
