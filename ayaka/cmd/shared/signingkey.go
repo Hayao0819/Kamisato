@@ -18,7 +18,7 @@ const (
 	flagPassphraseFile = "passphrase-file"
 	// PassphraseEnv is the env var holding the signing key passphrase, shared with
 	// the miko local-sign path.
-	PassphraseEnv = "AYAKA_SIGN_PASSPHRASE"
+	PassphraseEnv = "AYAKA_SIGN_PASSPHRASE" // #nosec G101 -- environment variable name, not a credential
 )
 
 // AddKeyFlags registers the persistent flags every key/keyring command shares:

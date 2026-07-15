@@ -46,6 +46,7 @@ type Files struct {
 // Write emits the three keyring files into dir, leaving repo packaging untouched
 // so ayaka can regenerate key material in place.
 func (f *Files) Write(dir string) error {
+	// #nosec G301 -- pacman keyrings contain only public keys and trust metadata.
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}
@@ -58,6 +59,7 @@ func (f *Files) Write(dir string) error {
 		{f.Name + "-revoked", f.Revoked},
 	}
 	for _, it := range items {
+		// #nosec G306 -- these public keyring files must be readable by pacman users.
 		if err := os.WriteFile(filepath.Join(dir, it.name), it.data, 0o644); err != nil {
 			return err
 		}

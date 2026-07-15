@@ -95,6 +95,7 @@ func makePackage(k *sign.SigningKey, p buildParams, outDir string) (pkgPath, sig
 	}
 
 	pkgPath = filepath.Join(outDir, keyring.FileName(p.name, version))
+	// #nosec G306 -- this is a public package artifact intended for distribution.
 	if err := os.WriteFile(pkgPath, data, 0o644); err != nil {
 		return "", "", errors.WrapErr(err, "write keyring package")
 	}
