@@ -50,6 +50,22 @@ func (h *AuthHandler) oauthConfigured() bool {
 	return h.signer != nil && h.cfg != nil && h.cfg.Auth.GitHub.ClientID != "" && h.cfg.Auth.GitHub.ClientSecret != ""
 }
 
+func (h *AuthHandler) requireOAuth(c *gin.Context) bool {
+	if h.oauthConfigured() {
+		return true
+	}
+	c.JSON(http.StatusServiceUnavailable, gin.H{"error": "github login not configured"})
+	return false
+}
+
+func (h *AuthHandler) requireDeviceAuthorization(c *gin.Context) bool {
+	if h.oauthConfigured() && h.device != nil {
+		return true
+	}
+	c.JSON(http.StatusServiceUnavailable, gin.H{"error": "device login not configured"})
+	return false
+}
+
 // ayato's own origin for the OAuth redirect_uri and the cookie Secure flag.
 // Prefers SelfOrigin, then PublicOrigin. X-Forwarded-* is ignored because gin
 // does not gate c.GetHeader, so it is spoofable; the request host is used only

@@ -17,8 +17,7 @@ import (
 
 // Completes both the web and CLI OAuth flows.
 func (h *AuthHandler) GitHubCallbackHandler(c *gin.Context) {
-	if !h.oauthConfigured() {
-		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "github login not configured"})
+	if !h.requireOAuth(c) {
 		return
 	}
 	st, err := h.signer.VerifyTyp(c.Query("state"), auth.TypState)

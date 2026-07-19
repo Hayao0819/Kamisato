@@ -62,8 +62,7 @@ func normalizeUserCode(value string) string {
 
 // DeviceCodeHandler issues a device_code + user_code pair (RFC 8628 §3.2).
 func (h *AuthHandler) DeviceCodeHandler(c *gin.Context) {
-	if !h.oauthConfigured() || h.device == nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "device login not configured"})
+	if !h.requireDeviceAuthorization(c) {
 		return
 	}
 	deviceCode, err := auth.NewDeviceCode()
@@ -93,16 +92,14 @@ func (h *AuthHandler) DeviceCodeHandler(c *gin.Context) {
 }
 
 func (h *AuthHandler) DeviceVerifyHandler(c *gin.Context) {
-	if !h.oauthConfigured() || h.device == nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "device login not configured"})
+	if !h.requireDeviceAuthorization(c) {
 		return
 	}
 	h.renderDeviceForm(c, http.StatusOK, normalizeUserCode(c.Query("user_code")), "")
 }
 
 func (h *AuthHandler) DeviceApproveHandler(c *gin.Context) {
-	if !h.oauthConfigured() || h.device == nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "device login not configured"})
+	if !h.requireDeviceAuthorization(c) {
 		return
 	}
 	userCode := normalizeUserCode(c.Query("user_code"))
