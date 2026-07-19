@@ -133,16 +133,24 @@ func (h *AuthHandler) finishWebLogin(c *gin.Context, user githubUser) {
 	c.Redirect(http.StatusFound, "/")
 }
 
+func (h *AuthHandler) issueAuthorizationCode(
+	tokenType string,
+	state *auth.Claims,
+	user githubUser,
+) (string, error) {
+	return h.signer.Sign(auth.Claims{
+		Typ:       tokenType,
+		GitHubID:  user.ID,
+		Login:     user.Login,
+		Challenge: state.Challenge,
+		Exp:       time.Now().Add(codeTTL),
+	})
+}
+
 // Returns a one-time CODE (never a token) to the server-reconstructed loopback,
 // echoing ayaka's original state so its state-equality check passes.
 func (h *AuthHandler) finishCLILogin(c *gin.Context, st *auth.Claims, user githubUser) {
-	oneTime, err := h.signer.Sign(auth.Claims{
-		Typ:       auth.TypCodeCLI,
-		GitHubID:  user.ID,
-		Login:     user.Login,
-		Challenge: st.Challenge,
-		Exp:       time.Now().Add(codeTTL),
-	})
+	oneTime, err := h.issueAuthorizationCode(auth.TypCodeCLI, st, user)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "code"})
 		return
@@ -160,13 +168,7 @@ func (h *AuthHandler) finishCLILogin(c *gin.Context, st *auth.Claims, user githu
 // Returns a one-time CODE (never a token) to the SPA via the postMessage bridge;
 // redeemed at /auth/web/exchange with PKCE.
 func (h *AuthHandler) finishWebBearerLogin(c *gin.Context, st *auth.Claims, user githubUser) {
-	oneTime, err := h.signer.Sign(auth.Claims{
-		Typ:       auth.TypCodeWeb,
-		GitHubID:  user.ID,
-		Login:     user.Login,
-		Challenge: st.Challenge,
-		Exp:       time.Now().Add(codeTTL),
-	})
+	oneTime, err := h.issueAuthorizationCode(auth.TypCodeWeb, st, user)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "code"})
 		return
