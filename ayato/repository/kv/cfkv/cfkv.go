@@ -61,9 +61,13 @@ func composite(ns, key string) string { return encPart(ns) + sep + encPart(key) 
 
 // A Cloudflare not-found is mapped to kv.ErrNotFound so misses surface uniformly.
 func (s *Store) Get(ns, key string) ([]byte, error) {
-	v, err := s.client.GetWorkersKV(s.ctx, s.accountIdentifier(), cloudflare.GetWorkersKVParams{
+	return s.getRaw(composite(ns, key))
+}
+
+func (s *Store) getRaw(rawKey string) ([]byte, error) {
+	value, err := s.client.GetWorkersKV(s.ctx, s.accountIdentifier(), cloudflare.GetWorkersKVParams{
 		NamespaceID: s.namespaceId,
-		Key:         composite(ns, key),
+		Key:         rawKey,
 	})
 	if err != nil {
 		var notFound *cloudflare.NotFoundError
@@ -72,7 +76,7 @@ func (s *Store) Get(ns, key string) ([]byte, error) {
 		}
 		return nil, fmt.Errorf("cfkv: get: %w", err)
 	}
-	return v, nil
+	return value, nil
 }
 
 // A positive ttl uses Workers KV's native expiration_ttl, which only the
@@ -126,13 +130,9 @@ func (s *Store) List(ns string) ([]kv.Entry, error) {
 		return nil, err
 	}
 	for _, rawKey := range keys {
-		v, getErr := s.client.GetWorkersKV(s.ctx, s.accountIdentifier(), cloudflare.GetWorkersKVParams{
-			NamespaceID: s.namespaceId,
-			Key:         rawKey,
-		})
+		value, getErr := s.getRaw(rawKey)
 		if getErr != nil {
-			var notFound *cloudflare.NotFoundError
-			if errors.As(getErr, &notFound) {
+			if errors.Is(getErr, kv.ErrNotFound) {
 				continue
 			}
 			return nil, fmt.Errorf("cfkv: list get value: %w", getErr)
@@ -141,7 +141,7 @@ func (s *Store) List(ns string) ([]kv.Entry, error) {
 		if decodeErr != nil {
 			continue
 		}
-		out = append(out, kv.Entry{Key: string(key), Value: v})
+		out = append(out, kv.Entry{Key: string(key), Value: value})
 	}
 	return out, nil
 }
