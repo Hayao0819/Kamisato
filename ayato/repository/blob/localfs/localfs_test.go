@@ -112,6 +112,12 @@ func TestLocalStoreRejectsTraversalAndUnknownRepo(t *testing.T) {
 			t.Errorf("FetchFile(myrepo, %q, %q) = nil, want error", tc.arch, tc.file)
 		}
 	}
+	if _, err := store.Files("myrepo", ".."); err == nil {
+		t.Error("Files allowed an unsafe architecture")
+	}
+	if _, err := store.FilesWithMeta("myrepo", "../other"); err == nil {
+		t.Error("FilesWithMeta allowed an unsafe architecture")
+	}
 
 	// Even an invalid name accidentally present in a configured allowlist cannot
 	// turn path.Join(root, repo) into a traversal.
