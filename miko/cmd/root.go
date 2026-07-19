@@ -180,9 +180,11 @@ func RootCmd() *cobra.Command {
 
 			ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
 			defer stop()
-			for i := 0; i < cfg.Concurrency; i++ {
-				go s.Run(ctx)
-			}
+			serviceDone := make(chan struct{})
+			go func() {
+				defer close(serviceDone)
+				s.Run(ctx)
+			}()
 			slog.Info("Build workers launched", "concurrency", cfg.Concurrency)
 
 			engine := gin.New()
@@ -213,10 +215,17 @@ func RootCmd() *cobra.Command {
 			slog.Info("Shutting down")
 			shutdownCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			defer cancel()
-			if err := srv.Shutdown(shutdownCtx); err != nil {
-				return errors.WrapErr(err, "graceful shutdown failed")
+			shutdownErr := srv.Shutdown(shutdownCtx)
+			var workerErr error
+			select {
+			case <-serviceDone:
+			case <-shutdownCtx.Done():
+				workerErr = errors.WrapErr(shutdownCtx.Err(), "build workers did not stop before shutdown deadline")
 			}
-			return nil
+			return errors.Join(
+				errors.WrapErr(shutdownErr, "graceful HTTP shutdown failed"),
+				workerErr,
+			)
 		},
 	}
 	cmd.PersistentFlags().BoolP("debug", "d", false, "Enable debug mode")

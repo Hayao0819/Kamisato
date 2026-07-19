@@ -82,3 +82,20 @@ func TestSweepLoopStopsOnContextCancel(t *testing.T) {
 		t.Fatal("sweepLoop did not stop after context cancel")
 	}
 }
+
+func TestRunOwnsWorkersAndStopsOnContextCancel(t *testing.T) {
+	s := New(&conf.MikoConfig{Concurrency: 3})
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		s.Run(ctx)
+	}()
+
+	cancel()
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("Run did not wait for and stop its worker set")
+	}
+}

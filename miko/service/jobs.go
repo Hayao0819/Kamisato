@@ -205,33 +205,35 @@ func (s *Service) Stats() domain.BuildStats {
 }
 
 func (s *Service) Run(ctx context.Context) {
-	slog.Info("Build worker started", "executor", s.cfg.Executor)
-
-	// Only the first worker starts the sweep loop; the rest would be redundant
-	// tickers over the same shared store.
 	var wg sync.WaitGroup
-	s.sweepOnce.Do(func() {
+	start := func(run func()) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			s.sweepLoop(ctx, sweepInterval, artifactRetention)
+			run()
 		}()
-	})
-	if interval := s.nvcheckInterval(); interval > 0 {
-		s.nvcheckOnce.Do(func() {
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				s.nvcheckLoop(ctx, interval)
-			}()
-		})
 	}
-	defer wg.Wait()
 
+	// Run owns every long-lived goroutine associated with the service. This gives
+	// the composition root one completion signal to await during shutdown.
+	start(func() { s.sweepLoop(ctx, sweepInterval, artifactRetention) })
+	if interval := s.nvcheckInterval(); interval > 0 {
+		start(func() { s.nvcheckLoop(ctx, interval) })
+	}
+
+	workers := max(s.cfg.Concurrency, 1)
+	slog.Info("Build service started", "executor", s.cfg.Executor, "workers", workers)
+	for range workers {
+		start(func() { s.runWorker(ctx) })
+	}
+	wg.Wait()
+	slog.Info("Build service stopped")
+}
+
+func (s *Service) runWorker(ctx context.Context) {
 	for {
 		job, ok := s.queue.pop(ctx)
 		if !ok {
-			slog.Info("Build worker stopping")
 			return
 		}
 		s.process(ctx, job)

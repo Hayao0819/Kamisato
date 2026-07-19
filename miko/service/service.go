@@ -39,7 +39,8 @@ type Servicer interface {
 	// LogBuffer returns the live log buffer of an in-flight job, or nil when the
 	// job has no live buffer (finalized, restored from disk, or unknown).
 	LogBuffer(id string) *joblog.Buffer
-	// Run is the worker loop. It blocks until ctx is cancelled.
+	// Run owns all configured workers and maintenance loops. It blocks until ctx
+	// is cancelled and every owned goroutine has stopped.
 	Run(ctx context.Context)
 }
 
@@ -56,13 +57,6 @@ type Service struct {
 	repositories RepositoryDBReader
 
 	startedAt time.Time
-
-	// sweepOnce ensures a single artifact-sweep loop runs even when several
-	// worker goroutines share this Service (cfg.Concurrency > 1).
-	sweepOnce sync.Once
-	// nvcheckOnce ensures a single upstream-version monitor loop runs regardless
-	// of the worker count.
-	nvcheckOnce sync.Once
 
 	mu    sync.Mutex
 	store map[string]*domain.BuildJob
