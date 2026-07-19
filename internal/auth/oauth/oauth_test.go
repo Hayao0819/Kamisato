@@ -117,7 +117,7 @@ func TestLoopbackLogin(t *testing.T) {
 		return "the-token", "the-refresh", "octocat", nil
 	}
 
-	token, refresh, login, err := LoopbackLogin(context.Background(), "http://ayato.example",
+	token, refresh, login, err := LoopbackLogin(context.Background(), "https://ayato.example",
 		WithBrowserOpener(opener),
 		WithExchanger(exchange),
 		WithOutput(io.Discard),

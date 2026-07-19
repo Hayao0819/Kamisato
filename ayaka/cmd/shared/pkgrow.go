@@ -4,8 +4,7 @@ import (
 	"context"
 	"strings"
 
-	"github.com/Hayao0819/Kamisato/internal/blinkyutils"
-	"github.com/Hayao0819/Kamisato/internal/buildclient"
+	"github.com/Hayao0819/Kamisato/internal/client"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/alpm"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
 )
@@ -35,10 +34,10 @@ func BuildPkgRows(repos []*repo.SourceRepo, format, server string) []PkgRow {
 	if wantInstalled {
 		installed, _ = alpm.InstalledVersions()
 	}
-	var jobs []buildclient.Job
+	var jobs []client.Job
 	if wantBuild {
-		if base, token := ayatoBaseBestEffort(server); base != "" {
-			jobs, _ = buildclient.ListJobs(context.Background(), base, token)
+		if api := ayatoClientBestEffort(server); api != nil {
+			jobs, _ = api.ListJobs(context.Background())
 		}
 	}
 
@@ -97,7 +96,7 @@ func firstInstalled(installed map[string]string, names []string) string {
 // LatestJobStatus returns the status of the latest miko job for the package. A
 // job matches on repo and either a named package or a whole-repo build (no
 // packages listed).
-func LatestJobStatus(jobs []buildclient.Job, repoName string, names []string) string {
+func LatestJobStatus(jobs []client.Job, repoName string, names []string) string {
 	want := make(map[string]bool, len(names))
 	for _, n := range names {
 		want[n] = true
@@ -121,7 +120,7 @@ func LatestJobStatus(jobs []buildclient.Job, repoName string, names []string) st
 		// CreatedAt is RFC3339, which sorts lexically by time.
 		if j.CreatedAt >= latest {
 			latest = j.CreatedAt
-			status = j.Status
+			status = string(j.Status)
 		}
 	}
 	return status
@@ -131,12 +130,16 @@ func LatestJobStatus(jobs []buildclient.Job, repoName string, names []string) st
 // column: the registered --server (or serverdb default). Returns empty strings
 // when no registered server is available, so the caller skips the job lookup —
 // which the auth-gated jobs endpoint would reject without the token anyway.
-func ayatoBaseBestEffort(server string) (base, token string) {
-	srv, err := blinkyutils.ResolveServer(server)
+func ayatoClientBestEffort(server string) *client.Ayato {
+	srv, err := ResolveAyatoServer(server)
 	if err != nil {
-		return "", ""
+		return nil
 	}
-	return srv.URL, srv.Password
+	api, err := AyatoClient(srv)
+	if err != nil {
+		return nil
+	}
+	return api
 }
 
 func orDash(s string) string {

@@ -8,7 +8,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
-	"github.com/Hayao0819/Kamisato/internal/blinkyutils"
 	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
@@ -39,7 +38,7 @@ func publishCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if err := blinkyutils.Upload(client, repo, pkgPath, sigPath); err != nil {
+			if err := client.UploadPackageFiles(cmd.Context(), repo, pkgPath, sigPath); err != nil {
 				return errors.WrapErr(err, "failed to upload keyring package")
 			}
 			fmt.Fprintf(cmd.OutOrStdout(), "Published %s to %s\n", filepath.Base(pkgPath), repo)

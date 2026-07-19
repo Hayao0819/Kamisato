@@ -10,7 +10,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
-	"github.com/Hayao0819/Kamisato/internal/buildclient"
 	"github.com/Hayao0819/Kamisato/internal/errors"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/alpm"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/hook"
@@ -76,7 +75,7 @@ func hookUploadCmd() *cobra.Command {
 				return nil
 			}
 
-			srv, err := shared.ServerFromFlag(cmd)
+			api, err := shared.RepoClient(cmd)
 			if err != nil {
 				// The hook runs as root, so this resolves against root's server db.
 				return errors.WrapErr(err, "resolving the ayato server/credentials (set up root's db with 'sudo ayaka server login')")
@@ -85,9 +84,7 @@ func hookUploadCmd() *cobra.Command {
 			// would hang the whole transaction. Bound the upload via context.
 			ctx, cancel := context.WithTimeout(cmd.Context(), timeout)
 			defer cancel()
-			err = shared.WithServerAuth(ctx, srv, func(ctx context.Context, token string) error {
-				return buildclient.UploadPackageFiles(ctx, srv.URL, token, repo, files...)
-			})
+			err = api.UploadPackageFiles(ctx, repo, files...)
 			if err != nil {
 				return errors.WrapErr(err, "failed to upload packages (the server may be slow or unreachable)")
 			}

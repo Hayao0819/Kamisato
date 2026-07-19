@@ -11,8 +11,7 @@ import (
 	"time"
 
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
-	"github.com/Hayao0819/Kamisato/internal/blinkyutils"
-	"github.com/Hayao0819/Kamisato/internal/buildclient"
+	"github.com/Hayao0819/Kamisato/internal/client"
 	"github.com/Hayao0819/Kamisato/internal/errors"
 	pkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
@@ -44,7 +43,11 @@ func RunRemoteBuild(ctx context.Context, o RemoteBuildOpts) error {
 	}
 
 	slog.Info("submitting remote build", "server", srv.URL, "repo", o.Repo)
-	jobID, err := buildclient.SubmitBuild(ctx, srv.URL, srv.Password, req)
+	api, err := shared.AyatoClient(srv)
+	if err != nil {
+		return err
+	}
+	jobID, err := api.SubmitBuild(ctx, req)
 	if err != nil {
 		return errors.WrapErr(err, "failed to submit build")
 	}
@@ -55,19 +58,19 @@ func RunRemoteBuild(ctx context.Context, o RemoteBuildOpts) error {
 
 // buildRequest assembles the build request from opts: a git source, else the
 // local PKGBUILD of the named source package.
-func buildRequest(ctx context.Context, o RemoteBuildOpts) (*buildclient.BuildRequest, error) {
+func buildRequest(ctx context.Context, o RemoteBuildOpts) (*client.BuildRequest, error) {
 	arch := o.Arch
 	if arch == "" {
 		arch = "x86_64"
 	}
-	req := &buildclient.BuildRequest{
+	req := &client.BuildRequest{
 		Repo:        o.Repo,
 		Arch:        arch,
 		InstallPkgs: o.Pkgs,
 		Timeout:     o.Timeout,
 	}
 	if o.GitURL != "" {
-		req.Git = &buildclient.GitSource{URL: o.GitURL, Ref: o.GitRef, Subdir: o.GitSubdir}
+		req.Git = &client.GitSource{URL: o.GitURL, Ref: o.GitRef, Subdir: o.GitSubdir}
 		return req, nil
 	}
 	pkgbuild, files, err := readLocalSource(ctx, o.Repo, o.Pkgs)
@@ -99,7 +102,11 @@ func RunRemoteBuildLocalSign(ctx context.Context, o RemoteBuildOpts, keyPath, pa
 	}
 	req.SignMode = "client"
 
-	jobID, err := buildclient.SubmitBuild(ctx, srv.URL, srv.Password, req)
+	api, err := shared.AyatoClient(srv)
+	if err != nil {
+		return err
+	}
+	jobID, err := api.SubmitBuild(ctx, req)
 	if err != nil {
 		return errors.WrapErr(err, "failed to submit build")
 	}
@@ -108,7 +115,7 @@ func RunRemoteBuildLocalSign(ctx context.Context, o RemoteBuildOpts, keyPath, pa
 	// Bound the wait so a stuck queued/running job cannot hang the CLI forever.
 	waitCtx, cancel := context.WithTimeout(ctx, clientBuildTimeout)
 	defer cancel()
-	job, err := buildclient.WaitJob(waitCtx, srv.URL, srv.Password, jobID, nil)
+	job, err := api.WaitJob(waitCtx, jobID, nil)
 	if err != nil {
 		return err
 	}
@@ -119,7 +126,7 @@ func RunRemoteBuildLocalSign(ctx context.Context, o RemoteBuildOpts, keyPath, pa
 		return errors.NewErr("build cancelled")
 	}
 
-	names, err := buildclient.ListArtifacts(ctx, srv.URL, srv.Password, jobID)
+	names, err := api.ListArtifacts(ctx, jobID)
 	if err != nil {
 		return err
 	}
@@ -133,11 +140,6 @@ func RunRemoteBuildLocalSign(ctx context.Context, o RemoteBuildOpts, keyPath, pa
 	}
 	defer func() { _ = os.RemoveAll(tmp) }()
 
-	client, err := srv.Client()
-	if err != nil {
-		return errors.WrapErr(err, "failed to create upload client")
-	}
-
 	for _, name := range names {
 		// Sign locally, so skip any signature the server may have produced.
 		if strings.HasSuffix(name, ".sig") {
@@ -148,7 +150,7 @@ func RunRemoteBuildLocalSign(ctx context.Context, o RemoteBuildOpts, keyPath, pa
 		if err != nil {
 			return err
 		}
-		if derr := buildclient.DownloadArtifact(ctx, srv.URL, srv.Password, jobID, name, f); derr != nil {
+		if derr := api.DownloadArtifact(ctx, jobID, name, f); derr != nil {
 			_ = f.Close()
 			return derr
 		}
@@ -159,7 +161,7 @@ func RunRemoteBuildLocalSign(ctx context.Context, o RemoteBuildOpts, keyPath, pa
 		if serr != nil {
 			return errors.WrapErr(serr, "failed to sign "+name)
 		}
-		if uerr := blinkyutils.Upload(client, o.Repo, pkgPath, sigPath); uerr != nil {
+		if uerr := api.UploadPackageFiles(ctx, o.Repo, pkgPath, sigPath); uerr != nil {
 			return errors.WrapErr(uerr, "failed to upload "+name)
 		}
 		slog.Info("signed and uploaded", "pkg", name)

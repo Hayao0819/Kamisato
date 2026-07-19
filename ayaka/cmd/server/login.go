@@ -1,6 +1,7 @@
 package servercmd
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"os/signal"
@@ -9,7 +10,7 @@ import (
 
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
 	"github.com/Hayao0819/Kamisato/internal/auth/oauth"
-	"github.com/Hayao0819/Kamisato/internal/blinkyutils"
+	"github.com/Hayao0819/Kamisato/internal/serverstore"
 )
 
 // LoginCmd logs into ayato via a GitHub OAuth loopback (RFC 8252) + PKCE flow
@@ -32,6 +33,25 @@ func LoginCmd() *cobra.Command {
 			tokenFlag, err := cmd.Flags().GetString("token")
 			if err != nil {
 				return err
+			}
+			tokenStdin, err := cmd.Flags().GetBool("token-stdin")
+			if err != nil {
+				return err
+			}
+			if tokenFlag != "" && tokenStdin {
+				return fmt.Errorf("--token and --token-stdin cannot be used together")
+			}
+			if tokenStdin {
+				scanner := bufio.NewScanner(cmd.InOrStdin())
+				if scanner.Scan() {
+					tokenFlag = scanner.Text()
+				}
+				if err := scanner.Err(); err != nil {
+					return err
+				}
+				if tokenFlag == "" {
+					return fmt.Errorf("no Bearer token was read from stdin")
+				}
 			}
 			noBrowser, err := cmd.Flags().GetBool("no-browser")
 			if err != nil {
@@ -77,33 +97,26 @@ func LoginCmd() *cobra.Command {
 
 	cmd.Flags().Bool("default", false, "Set server as default for repo and miko commands")
 	cmd.Flags().String("token", "", "Store the given CLI token directly (headless; skips the browser)")
+	cmd.Flags().Bool("token-stdin", false, "Read a static Bearer token from stdin (headless; skips the browser)")
 	cmd.Flags().Bool("no-browser", false, "Print the login URL instead of opening a browser")
 	cmd.Flags().Bool("device", false, "Use the device authorization flow (no local browser; for SSH/CI)")
 
 	return cmd
 }
 
-// saveLogin persists the access token (which serves both blinky Basic and Bearer
-// paths) and, when present, the refresh token. An empty refresh clears any stale
-// one, so re-logging in with --token drops a previous session's refresh token.
+// saveLogin stores an OAuth pair or a static Bearer token.
 func saveLogin(server, login, token, refresh string, setDefault bool) error {
-	db, err := blinkyutils.ReadServerDB()
-	if err != nil {
-		return err
-	}
-	entry := db.Servers[server]
-	entry.Username = login
-	// Prefer the OS keyring; only when it is unavailable does the token stay in the
-	// file DB. Storing to the keyring also migrates a previously file-stored token.
-	if blinkyutils.StoreSecret(server, token) {
-		entry.Password = ""
+	var saveErr error
+	if refresh == "" {
+		saveErr = serverstore.SaveStaticToken(server, login, token)
 	} else {
-		entry.Password = token
+		saveErr = serverstore.SaveTokens(server, login, token, refresh)
 	}
-	blinkyutils.StoreRefreshSecret(server, refresh)
-	db.Servers[server] = entry
-	if setDefault {
-		db.DefaultServer = server
+	if saveErr != nil {
+		return saveErr
 	}
-	return blinkyutils.SaveServerDB(db)
+	if !setDefault {
+		return nil
+	}
+	return serverstore.SetDefault(server)
 }

@@ -7,15 +7,15 @@ import (
 	"os"
 	"time"
 
-	"github.com/Hayao0819/Kamisato/internal/buildclient"
+	"github.com/Hayao0819/Kamisato/internal/client"
 	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
 // DeviceRequester starts a device authorization; DevicePoller polls once for the
 // token. Both are injectable so the flow is testable without a live server.
 type (
-	DeviceRequester func(ctx context.Context, serverURL string) (buildclient.DeviceCodeResponse, error)
-	DevicePoller    func(ctx context.Context, serverURL, deviceCode string) (buildclient.DeviceTokenResult, error)
+	DeviceRequester func(ctx context.Context, serverURL string) (client.DeviceCodeResponse, error)
+	DevicePoller    func(ctx context.Context, serverURL, deviceCode string) (client.DeviceTokenResult, error)
 )
 
 // deviceOptions is the device-flow analogue of options; kept separate because the
@@ -67,6 +67,22 @@ func ctxSleep(ctx context.Context, d time.Duration) error {
 	}
 }
 
+func requestDeviceCode(ctx context.Context, serverURL string) (client.DeviceCodeResponse, error) {
+	api, err := client.NewAyato(serverURL, client.StaticBearer(""))
+	if err != nil {
+		return client.DeviceCodeResponse{}, err
+	}
+	return api.RequestDeviceCode(ctx)
+}
+
+func pollDeviceToken(ctx context.Context, serverURL, deviceCode string) (client.DeviceTokenResult, error) {
+	api, err := client.NewAyato(serverURL, client.StaticBearer(""))
+	if err != nil {
+		return client.DeviceTokenResult{}, err
+	}
+	return api.PollDeviceToken(ctx, deviceCode)
+}
+
 // DeviceLogin runs the RFC 8628 device authorization against serverURL: it
 // requests a code, shows the user the URL and code to enter in any browser, then
 // polls until approved (returning the access token, refresh token, and login),
@@ -74,8 +90,8 @@ func ctxSleep(ctx context.Context, d time.Duration) error {
 func DeviceLogin(ctx context.Context, serverURL string, opts ...DeviceOption) (token, refresh, login string, err error) {
 	o := deviceOptions{
 		out:      os.Stdout,
-		request:  buildclient.RequestDeviceCode,
-		poll:     buildclient.PollDeviceToken,
+		request:  requestDeviceCode,
+		poll:     pollDeviceToken,
 		sleep:    ctxSleep,
 		minSleep: time.Second,
 	}

@@ -33,7 +33,12 @@ func repoRemoveCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return client.RemovePackages(args[0], args[1:]...)
+			for _, name := range args[1:] {
+				if err := client.RemovePackageAllArchitectures(cmd.Context(), args[0], name); err != nil {
+					return err
+				}
+			}
+			return nil
 		},
 	}
 	shared.AddRepoServerFlags(cmd)
@@ -101,5 +106,10 @@ func runPrune(cmd *cobra.Command, srcName, arch, diffURL string, dryRun bool) er
 		return err
 	}
 	slog.Info("pruning packages removed from source", "repo", src.Config.Name, "arch", arch, "packages", prune)
-	return client.RemovePackages(src.Config.Name, prune...)
+	for _, name := range prune {
+		if err := client.RemovePackageAllArchitectures(cmd.Context(), src.Config.Name, name); err != nil {
+			return err
+		}
+	}
+	return nil
 }

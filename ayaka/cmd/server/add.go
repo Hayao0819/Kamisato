@@ -3,13 +3,10 @@ package servercmd
 import (
 	"bufio"
 	"fmt"
-	"os"
 
 	"github.com/spf13/cobra"
-	"golang.org/x/term"
 
-	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
-	"github.com/Hayao0819/Kamisato/internal/blinkyutils"
+	"github.com/Hayao0819/Kamisato/internal/serverstore"
 )
 
 func AddCmd() *cobra.Command {
@@ -21,9 +18,17 @@ func AddCmd() *cobra.Command {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			name := args[0]
+			server := args[0]
 
 			username, err := cmd.Flags().GetString("username")
+			if err != nil {
+				return err
+			}
+			token, err := cmd.Flags().GetString("token")
+			if err != nil {
+				return err
+			}
+			tokenStdin, err := cmd.Flags().GetBool("token-stdin")
 			if err != nil {
 				return err
 			}
@@ -31,54 +36,47 @@ func AddCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-
-			if username == "" {
-				if !term.IsTerminal(int(os.Stdin.Fd())) { //nolint:gosec // G115: fd fits in int
-					return fmt.Errorf("stdin is not a terminal; use --username to provide the username")
-				}
-				fmt.Fprint(cmd.ErrOrStderr(), "Username: ")
-				sc := bufio.NewScanner(cmd.InOrStdin())
-				if sc.Scan() {
-					username = sc.Text()
-				}
-				if err := sc.Err(); err != nil {
-					return err
-				}
-			}
-
-			var pass string
-			if passwordStdin {
-				sc := bufio.NewScanner(cmd.InOrStdin())
-				if sc.Scan() {
-					pass = sc.Text()
-				}
-				if err := sc.Err(); err != nil {
-					return err
-				}
-			} else if term.IsTerminal(int(os.Stdin.Fd())) { //nolint:gosec // G115: fd fits in int
-				pass, err = shared.PromptPassword("Password:")
-				if err != nil {
-					return err
-				}
-			} else {
-				return fmt.Errorf("stdin is not a terminal; use --password-stdin to provide the password")
-			}
-
-			db, err := blinkyutils.ReadServerDB()
+			clearCredentials, err := cmd.Flags().GetBool("clear-credentials")
 			if err != nil {
 				return err
 			}
-			entry := blinkyutils.Server{Username: username}
-			if !blinkyutils.StoreSecret(name, pass) {
-				entry.Password = pass
+			if token != "" && (tokenStdin || passwordStdin) {
+				return fmt.Errorf("--token and --token-stdin cannot be used together")
 			}
-			db.Servers[name] = entry
-			return blinkyutils.SaveServerDB(db)
+			if clearCredentials && (cmd.Flags().Changed("token") || tokenStdin || passwordStdin) {
+				return fmt.Errorf("--clear-credentials cannot be combined with token input")
+			}
+
+			if tokenStdin || passwordStdin {
+				sc := bufio.NewScanner(cmd.InOrStdin())
+				if sc.Scan() {
+					token = sc.Text()
+				}
+				if err := sc.Err(); err != nil {
+					return err
+				}
+			}
+			credentialInput := cmd.Flags().Changed("token") || tokenStdin || passwordStdin
+			if credentialInput && token == "" {
+				return fmt.Errorf("Bearer token input is empty; omit the token option to preserve credentials or use --clear-credentials to remove them")
+			}
+
+			if clearCredentials {
+				return serverstore.SaveStaticToken(server, username, "")
+			}
+			if !credentialInput {
+				return serverstore.SaveEndpoint(server, username)
+			}
+			return serverstore.SaveStaticToken(server, username, token)
 		},
 	}
 
-	cmd.Flags().String("username", "", "Server username (prompted when omitted on a TTY)")
-	cmd.Flags().Bool("password-stdin", false, "Read the password from stdin (one line, docker-style)")
+	cmd.Flags().String("token", "", "Static Ayato Bearer token (prefer 'server login' for OAuth)")
+	cmd.Flags().Bool("token-stdin", false, "Read the Bearer token from stdin (one line)")
+	cmd.Flags().String("username", "", "Optional display name associated with the token")
+	cmd.Flags().Bool("password-stdin", false, "Deprecated alias for --token-stdin")
+	cmd.Flags().Bool("clear-credentials", false, "Remove stored access and refresh tokens while keeping the endpoint")
+	_ = cmd.Flags().MarkDeprecated("password-stdin", "use --token-stdin; native Ayato authentication uses Bearer tokens")
 
 	return cmd
 }

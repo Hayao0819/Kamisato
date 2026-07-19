@@ -5,10 +5,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
-	"github.com/Hayao0819/Kamisato/internal/blinkyutils"
-	"github.com/Hayao0819/Kamisato/internal/buildclient"
+	"github.com/Hayao0819/Kamisato/internal/client"
 	"github.com/Hayao0819/Kamisato/internal/errors"
+	"github.com/Hayao0819/Kamisato/internal/serverstore"
 )
 
 // RevokeCmd invalidates the stored CLI token server-side (via the denylist) and
@@ -22,17 +21,12 @@ func RevokeCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			server := args[0]
 
-			db, err := blinkyutils.ReadServerDB()
+			snapshot, err := serverstore.SnapshotCredentials(server)
 			if err != nil {
 				return err
 			}
-
-			entry, ok := db.Servers[server]
-			if !ok {
-				return errors.WrapErr(shared.ErrServerNotFound, server)
-			}
-			access := blinkyutils.LoadSecret(server, entry.Password)
-			refresh := blinkyutils.LoadRefreshSecret(server)
+			access := snapshot.Access
+			refresh := snapshot.Refresh
 			if access == "" && refresh == "" {
 				return errors.NewErr("no stored token to revoke for " + server)
 			}
@@ -40,17 +34,21 @@ func RevokeCmd() *cobra.Command {
 			// Revoke both halves server-side: the access token authorizes via Bearer,
 			// the refresh token via the body (and suffices once the access token has
 			// already expired).
-			if err := buildclient.RevokeCLIToken(cmd.Context(), server, access, refresh); err != nil {
+			api, err := client.NewAyato(server, client.StaticBearer(access))
+			if err != nil {
+				return err
+			}
+			if err := api.RevokeCLIToken(cmd.Context(), refresh); err != nil {
 				return errors.WrapErr(err, "failed to revoke token")
 			}
 
-			entry.Username = ""
-			entry.Password = ""
-			db.Servers[server] = entry
-			blinkyutils.ForgetSecret(server)
-			blinkyutils.ForgetRefreshSecret(server)
-			if err := blinkyutils.SaveServerDB(db); err != nil {
-				return err
+			cleared, err := serverstore.ClearCredentialsIfCurrent(snapshot, true)
+			if err != nil {
+				return errors.WrapErr(err, "token was revoked server-side but local credential deletion failed; retry logout")
+			}
+			if !cleared {
+				fmt.Fprintln(cmd.OutOrStdout(), "Token revoked; a newer local login was retained")
+				return nil
 			}
 
 			fmt.Fprintln(cmd.OutOrStdout(), "Token revoked")

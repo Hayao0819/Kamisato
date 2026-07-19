@@ -1,14 +1,12 @@
 package admincmd
 
 import (
-	"context"
 	"fmt"
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"
 
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
-	"github.com/Hayao0819/Kamisato/internal/buildclient"
 	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
@@ -22,12 +20,11 @@ func adminListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			var admins []buildclient.Admin
-			err = shared.WithServerAuth(cmd.Context(), srv, func(ctx context.Context, token string) error {
-				var lerr error
-				admins, lerr = buildclient.ListAdmins(ctx, srv.URL, token)
-				return lerr
-			})
+			api, err := shared.AyatoClient(srv)
+			if err != nil {
+				return err
+			}
+			admins, err := api.ListAdmins(cmd.Context())
 			if err != nil {
 				return errors.WrapErr(err, "failed to list admins")
 			}

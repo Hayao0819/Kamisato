@@ -4,7 +4,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
-	"github.com/Hayao0819/Kamisato/internal/buildclient"
 	"github.com/Hayao0819/Kamisato/internal/cliutil"
 	"github.com/Hayao0819/Kamisato/internal/errors"
 )
@@ -20,7 +19,11 @@ func mikoJobsCmd() *cobra.Command {
 				return err
 			}
 
-			jobs, err := buildclient.ListJobs(cmd.Context(), srv.URL, srv.Password)
+			api, err := shared.AyatoClient(srv)
+			if err != nil {
+				return err
+			}
+			jobs, err := api.ListJobs(cmd.Context())
 			if err != nil {
 				return errors.WrapErr(err, "failed to list jobs")
 			}

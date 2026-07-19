@@ -11,9 +11,7 @@ import (
 	servercmd "github.com/Hayao0819/Kamisato/ayaka/cmd/server"
 )
 
-// TestMain sets XDG_DATA_HOME to a temp dir before any test runs so that the
-// blinky serverdb (whose path is cached on first use) lands there, not in the
-// developer's real data directory.
+// TestMain keeps server database writes out of the developer's data directory.
 func TestMain(m *testing.M) {
 	dir, err := os.MkdirTemp("", "ayaka-server-test-*")
 	if err != nil {
@@ -77,6 +75,92 @@ func TestAddPasswordStdin(t *testing.T) {
 	}
 	if row["username"] != "testuser" {
 		t.Errorf("username = %v, want %q", row["username"], "testuser")
+	}
+}
+
+func TestAddWithoutTokenPreservesExistingCredential(t *testing.T) {
+	const server = "test-add-preserve"
+	first := servercmd.Cmd()
+	first.SetOut(io.Discard)
+	first.SetErr(io.Discard)
+	first.SilenceUsage = true
+	first.SilenceErrors = true
+	first.SetArgs([]string{"add", server, "--token", "existing-token", "--username", "old-name"})
+	if err := first.Execute(); err != nil {
+		t.Fatal(err)
+	}
+
+	update := servercmd.Cmd()
+	update.SetOut(io.Discard)
+	update.SetErr(io.Discard)
+	update.SilenceUsage = true
+	update.SilenceErrors = true
+	update.SetArgs([]string{"add", server, "--username", "new-name"})
+	if err := update.Execute(); err != nil {
+		t.Fatal(err)
+	}
+
+	var out bytes.Buffer
+	list := servercmd.Cmd()
+	list.SetOut(&out)
+	list.SetErr(io.Discard)
+	list.SilenceUsage = true
+	list.SilenceErrors = true
+	list.SetArgs([]string{"list", "--json", "--show-secret", server})
+	if err := list.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	var row map[string]any
+	if err := json.Unmarshal([]byte(strings.TrimSpace(out.String())), &row); err != nil {
+		t.Fatal(err)
+	}
+	if row["secret"] != "existing-token" || row["username"] != "new-name" {
+		t.Fatalf("endpoint update changed credential: %#v", row)
+	}
+}
+
+func TestAddRejectsEmptyExplicitTokenInput(t *testing.T) {
+	cmd := servercmd.Cmd()
+	cmd.SetIn(strings.NewReader(""))
+	cmd.SetOut(io.Discard)
+	cmd.SetErr(io.Discard)
+	cmd.SilenceUsage = true
+	cmd.SilenceErrors = true
+	cmd.SetArgs([]string{"add", "test-empty-token", "--token-stdin"})
+	if err := cmd.Execute(); err == nil {
+		t.Fatal("empty --token-stdin unexpectedly succeeded")
+	}
+}
+
+func TestLoginTokenStdin(t *testing.T) {
+	const server = "https://token-stdin.example"
+	login := servercmd.Cmd()
+	login.SetIn(strings.NewReader("bearer-token\n"))
+	login.SetOut(io.Discard)
+	login.SetErr(io.Discard)
+	login.SilenceUsage = true
+	login.SilenceErrors = true
+	login.SetArgs([]string{"login", server, "--token-stdin"})
+	if err := login.Execute(); err != nil {
+		t.Fatalf("login --token-stdin: %v", err)
+	}
+
+	var out bytes.Buffer
+	list := servercmd.Cmd()
+	list.SetOut(&out)
+	list.SetErr(io.Discard)
+	list.SilenceUsage = true
+	list.SilenceErrors = true
+	list.SetArgs([]string{"list", "--json", "--show-secret", server})
+	if err := list.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	var row map[string]any
+	if err := json.Unmarshal([]byte(strings.TrimSpace(out.String())), &row); err != nil {
+		t.Fatal(err)
+	}
+	if row["secret"] != "bearer-token" {
+		t.Fatalf("stored token = %v", row["secret"])
 	}
 }
 

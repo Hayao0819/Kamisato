@@ -2,13 +2,12 @@ package servercmd
 
 import (
 	"fmt"
-	"sort"
 	"strings"
 
 	"github.com/spf13/cobra"
 
-	"github.com/Hayao0819/Kamisato/internal/blinkyutils"
 	"github.com/Hayao0819/Kamisato/internal/cliutil"
+	"github.com/Hayao0819/Kamisato/internal/serverstore"
 )
 
 type serverRow struct {
@@ -31,39 +30,44 @@ func ListCmd() *cobra.Command {
 		Short: "List registered ayato servers",
 		Args:  cobra.ArbitraryArgs,
 		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-			return blinkyutils.ServerNames(toComplete), cobra.ShellCompDirectiveNoFileComp
+			return serverstore.Names(toComplete), cobra.ShellCompDirectiveNoFileComp
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			db, err := blinkyutils.ReadServerDB()
+			endpoints, err := serverstore.ListEndpoints()
 			if err != nil {
 				return err
 			}
 
-			serverNames := make([]string, 0, len(db.Servers))
-			for name := range db.Servers {
-				if search == "" || strings.Contains(name, search) {
-					serverNames = append(serverNames, name)
+			byName := make(map[string]serverstore.EndpointSummary, len(endpoints))
+			serverNames := make([]string, 0, len(endpoints))
+			for _, endpoint := range endpoints {
+				byName[endpoint.URL] = endpoint
+				if search == "" || strings.Contains(endpoint.URL, search) {
+					serverNames = append(serverNames, endpoint.URL)
 				}
 			}
-			sort.Strings(serverNames)
 			if len(args) > 0 {
 				serverNames = args
 			}
 
 			rows := make([]serverRow, 0, len(serverNames))
 			for _, name := range serverNames {
-				server, ok := db.Servers[name]
+				endpoint, ok := byName[name]
 				if !ok {
 					fmt.Fprintf(cmd.ErrOrStderr(), "server not found: %s\n", name)
 					continue
 				}
 				row := serverRow{
 					Name:     name,
-					Username: server.Username,
-					Default:  db.DefaultServer == name,
+					Username: endpoint.Username,
+					Default:  endpoint.Default,
 				}
 				if showSecret {
-					row.Secret = blinkyutils.LoadSecret(name, server.Password)
+					resolved, err := serverstore.Resolve(name)
+					if err != nil {
+						return err
+					}
+					row.Secret = resolved.AccessToken
 				}
 				rows = append(rows, row)
 			}
@@ -76,7 +80,7 @@ func ListCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().BoolVar(&showSecret, "show-secret", false, "Show stored password in output")
+	cmd.Flags().BoolVar(&showSecret, "show-secret", false, "Show the stored Bearer access token")
 	cmd.Flags().StringVar(&search, "search", "", "Filter servers by name substring")
 	cliutil.AddFormatFlags(cmd)
 

@@ -6,7 +6,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
-	"github.com/Hayao0819/Kamisato/internal/buildclient"
 	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
@@ -21,7 +20,11 @@ func mikoCancelCmd() *cobra.Command {
 				return err
 			}
 
-			if err := buildclient.CancelJob(cmd.Context(), srv.URL, srv.Password, args[0]); err != nil {
+			api, err := shared.AyatoClient(srv)
+			if err != nil {
+				return err
+			}
+			if err := api.CancelJob(cmd.Context(), args[0]); err != nil {
 				return errors.WrapErr(err, "failed to cancel job")
 			}
 

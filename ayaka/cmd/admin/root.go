@@ -7,7 +7,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
-	"github.com/Hayao0819/Kamisato/internal/buildclient"
+	"github.com/Hayao0819/Kamisato/internal/client"
 	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
@@ -34,12 +34,12 @@ func parseLoginOrID(s string) (id int64, login string) {
 
 // resolveAdminID returns the numeric GitHub user ID for s. If s is a positive
 // integer it is returned as-is; otherwise admins are listed to find the login.
-func resolveAdminID(ctx context.Context, srv *shared.AyatoServer, token, s string) (int64, error) {
+func resolveAdminID(ctx context.Context, api *client.Ayato, s string) (int64, error) {
 	if id, _ := parseLoginOrID(s); id > 0 {
 		return id, nil
 	}
 	_, login := parseLoginOrID(s)
-	admins, err := buildclient.ListAdmins(ctx, srv.URL, token)
+	admins, err := api.ListAdmins(ctx)
 	if err != nil {
 		return 0, errors.WrapErr(err, "failed to list admins for login resolution")
 	}

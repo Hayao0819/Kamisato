@@ -21,7 +21,8 @@ func TestPlacePackages(t *testing.T) {
 		destName string   // the local package filename yay expects
 		built    []string // what the builder reports it produced
 		wantPath string   // request path the server should receive
-		wantErr  string   // substring of the expected error, or "" for success
+		wantKey  string
+		wantErr  string // substring of the expected error, or "" for success
 	}{
 		{
 			name:     "ayato exact match hits the repo route",
@@ -45,6 +46,7 @@ func TestPlacePackages(t *testing.T) {
 			destName: "foo-1.0-1-x86_64.pkg.tar.zst",
 			built:    []string{"foo-1.0-1-x86_64.pkg.tar.zst"},
 			wantPath: "/api/unstable/jobs/job-123/artifacts/foo-1.0-1-x86_64.pkg.tar.zst",
+			wantKey:  "k",
 		},
 		{
 			name:     "no built package matches the wanted dest",
@@ -57,9 +59,11 @@ func TestPlacePackages(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			var gotPath string
+			var gotPath, gotAPIKey, gotBearer string
 			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				gotPath = r.URL.Path
+				gotAPIKey = r.Header.Get("X-API-Key")
+				gotBearer = r.Header.Get("Authorization")
 				_, _ = w.Write([]byte("PKGDATA:" + filepath.Base(r.URL.Path)))
 			}))
 			defer srv.Close()
@@ -70,7 +74,11 @@ func TestPlacePackages(t *testing.T) {
 			}
 			dest := filepath.Join(t.TempDir(), tc.destName)
 
-			err := placePackages(context.Background(), cfg, srv.URL, "", "job-123", []string{dest}, tc.built)
+			buildAPI, err := newBuildClient(cfg, srv.URL, cfg.ApiKey)
+			if err != nil {
+				t.Fatal(err)
+			}
+			err = placePackages(context.Background(), cfg, buildAPI, "job-123", []string{dest}, tc.built)
 			if tc.wantErr != "" {
 				if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
 					t.Fatalf("err = %v, want substring %q", err, tc.wantErr)
@@ -85,6 +93,9 @@ func TestPlacePackages(t *testing.T) {
 			}
 			if gotPath != tc.wantPath {
 				t.Errorf("server path = %q, want %q", gotPath, tc.wantPath)
+			}
+			if gotAPIKey != tc.wantKey || gotBearer != "" {
+				t.Errorf("credentials = X-API-Key %q, Authorization %q", gotAPIKey, gotBearer)
 			}
 			// The bytes land at the exact dest yay expects, even when the matched
 			// build filename differs from that dest (pkgver drift).

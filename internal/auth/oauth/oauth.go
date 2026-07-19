@@ -12,13 +12,12 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"net/url"
 	"os"
 	"time"
 
 	"golang.org/x/oauth2"
 
-	"github.com/Hayao0819/Kamisato/internal/buildclient"
+	"github.com/Hayao0819/Kamisato/internal/client"
 	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
@@ -61,8 +60,15 @@ func WithOutput(w io.Writer) Option { return func(o *options) { o.out = w } }
 func WithTimeout(d time.Duration) Option { return func(o *options) { o.timeout = d } }
 
 func defaultExchange(ctx context.Context, serverURL, code, verifier string) (token, refresh, login string, err error) {
-	token, refresh, login, _, err = buildclient.ExchangeCLICode(ctx, serverURL, code, verifier)
-	return token, refresh, login, err
+	api, err := client.NewAyato(serverURL, client.StaticBearer(""))
+	if err != nil {
+		return "", "", "", err
+	}
+	pair, err := api.ExchangeCLICode(ctx, code, verifier)
+	if err != nil {
+		return "", "", "", err
+	}
+	return pair.AccessToken, pair.RefreshToken, pair.Login, nil
 }
 
 type pkce struct {
@@ -131,8 +137,12 @@ func LoopbackLogin(ctx context.Context, serverURL string, opts ...Option) (token
 	}
 	port := ln.Addr().(*net.TCPAddr).Port
 
-	startURL := fmt.Sprintf("%s/api/unstable/auth/cli/start?port=%d&challenge=%s&state=%s",
-		serverURL, port, url.QueryEscape(p.challenge), url.QueryEscape(p.state))
+	api, err := client.NewAyato(serverURL, nil)
+	if err != nil {
+		_ = ln.Close()
+		return "", "", "", err
+	}
+	startURL := api.CLIStartURL(port, p.challenge, p.state)
 
 	codeCh := make(chan string, 1)
 	errCh := make(chan error, 1)

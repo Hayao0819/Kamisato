@@ -5,78 +5,26 @@ import (
 	"strings"
 
 	blinky_clientlib "github.com/BrenekH/blinky/clientlib"
-	blinky_util "github.com/BrenekH/blinky/cmd/blinky/util"
-
-	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
-// Sentinel errors for server resolution. Package-level so callers can errors.Is
-// them through errors.WrapErr.
-var (
-	ErrNoServerSpecified = errors.NewErr("no server specified and no default server is set")
-	ErrServerNotFound    = errors.NewErr("server not found")
-)
+type Client struct {
+	upstream *blinky_clientlib.BlinkyClient
+}
 
-// Client is the blinky upload client. Aliased so callers depend on blinkyutils
-// instead of importing blinky's clientlib directly.
-type Client = blinky_clientlib.BlinkyClient
-
-// ServerInfo is a resolved ayato endpoint: the base URL plus the credentials
-// stored in the blinky server database.
 type ServerInfo struct {
 	URL      string
 	Username string
 	Password string
 }
 
-// ResolveServerName returns the server to use: name, else the serverdb default.
-// It does not require the server to be registered, so a bare URL works for the
-// public job endpoints that need no credentials.
-func ResolveServerName(name string) (string, error) {
-	db, err := blinky_util.ReadServerDB()
-	if err != nil {
-		return "", errors.WrapErr(err, "failed to read server database")
-	}
-	if name == "" {
-		name = db.DefaultServer
-	}
-	if name == "" {
-		return "", ErrNoServerSpecified
-	}
-	return name, nil
-}
-
-// ResolveServer looks up the base URL and credentials in the serverdb, using the
-// default server when name is empty. This is the same store blinky uploads use,
-// so a server from `ayaka server login` works here too.
-func ResolveServer(name string) (*ServerInfo, error) {
-	db, err := blinky_util.ReadServerDB()
-	if err != nil {
-		return nil, errors.WrapErr(err, "failed to read server database")
-	}
-	if name == "" {
-		name = db.DefaultServer
-	}
-	if name == "" {
-		return nil, ErrNoServerSpecified
-	}
-	entry, ok := db.Servers[name]
-	if !ok {
-		return nil, errors.WrapErr(ErrServerNotFound,
-			"server "+name+" is not registered; log in first with 'ayaka server login "+name+"'")
-	}
-	return &ServerInfo{URL: name, Username: entry.Username, Password: LoadSecret(name, entry.Password)}, nil
-}
-
-// Client builds a blinky client for the resolved endpoint, targeting ayato's blinky
-// compatibility surface at /blinky (the clientlib appends /api/unstable/<repo>/package).
-// Native publish (/api/unstable/repos/...) is a separate path.
 func (s *ServerInfo) Client() (*Client, error) {
-	return blinky_clientlib.New(strings.TrimRight(s.URL, "/")+"/blinky", s.Username, s.Password)
+	upstream, err := blinky_clientlib.New(strings.TrimRight(s.URL, "/")+"/blinky", s.Username, s.Password)
+	if err != nil {
+		return nil, err
+	}
+	return &Client{upstream: upstream}, nil
 }
 
-// Upload sends a package file with its optional detached signature to repo. An
-// empty sigPath uploads the package without a signature.
 func Upload(client *Client, repo, pkgPath, sigPath string) error {
 	pkgFile, err := os.Open(pkgPath)
 	if err != nil {
@@ -93,9 +41,8 @@ func Upload(client *Client, repo, pkgPath, sigPath string) error {
 		defer func() { _ = sigFile.Close() }()
 	}
 
-	// A nil signature reader tells the blinky client there is no signature.
 	if sigFile == nil {
-		return client.UploadPackage(repo, pkgPath, pkgFile, nil)
+		return client.upstream.UploadPackage(repo, pkgPath, pkgFile, nil)
 	}
-	return client.UploadPackage(repo, pkgPath, pkgFile, sigFile)
+	return client.upstream.UploadPackage(repo, pkgPath, pkgFile, sigFile)
 }

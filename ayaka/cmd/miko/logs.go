@@ -4,7 +4,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
-	"github.com/Hayao0819/Kamisato/internal/buildclient"
 	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
@@ -19,7 +18,11 @@ func mikoLogsCmd() *cobra.Command {
 				return err
 			}
 
-			if err := buildclient.StreamLogs(cmd.Context(), srv.URL, srv.Password, args[0], cmd.OutOrStdout()); err != nil {
+			api, err := shared.AyatoClient(srv)
+			if err != nil {
+				return err
+			}
+			if err := api.StreamLogs(cmd.Context(), args[0], cmd.OutOrStdout()); err != nil {
 				return errors.WrapErr(err, "failed to stream logs")
 			}
 			return nil

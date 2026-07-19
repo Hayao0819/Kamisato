@@ -5,9 +5,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
-	"github.com/Hayao0819/Kamisato/internal/blinkyutils"
 	"github.com/Hayao0819/Kamisato/internal/errors"
+	"github.com/Hayao0819/Kamisato/internal/serverstore"
 )
 
 // LogoutCmd clears the locally stored CLI token but keeps the server registered.
@@ -22,24 +21,8 @@ func LogoutCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			server := args[0]
 
-			db, err := blinkyutils.ReadServerDB()
-			if err != nil {
-				return err
-			}
-
-			entry, ok := db.Servers[server]
-			if !ok {
-				return errors.WrapErr(shared.ErrServerNotFound, server)
-			}
-
-			entry.Username = ""
-			entry.Password = ""
-			db.Servers[server] = entry
-			blinkyutils.ForgetSecret(server)
-			blinkyutils.ForgetRefreshSecret(server)
-
-			if err := blinkyutils.SaveServerDB(db); err != nil {
-				return err
+			if err := serverstore.ClearCredentials(server, true); err != nil {
+				return errors.WrapErr(err, "local credential deletion failed; retry logout")
 			}
 
 			fmt.Fprintln(cmd.OutOrStdout(), "Logged out")

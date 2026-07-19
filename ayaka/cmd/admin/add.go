@@ -1,13 +1,11 @@
 package admincmd
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/spf13/cobra"
 
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
-	"github.com/Hayao0819/Kamisato/internal/buildclient"
 	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
@@ -22,12 +20,11 @@ func adminAddCmd() *cobra.Command {
 				return err
 			}
 			id, login := parseLoginOrID(args[0])
-			var admin buildclient.Admin
-			err = shared.WithServerAuth(cmd.Context(), srv, func(ctx context.Context, token string) error {
-				var aerr error
-				admin, aerr = buildclient.AddAdmin(ctx, srv.URL, token, id, login)
-				return aerr
-			})
+			api, err := shared.AyatoClient(srv)
+			if err != nil {
+				return err
+			}
+			admin, err := api.AddAdmin(cmd.Context(), id, login)
 			if err != nil {
 				return errors.WrapErr(err, "failed to add admin")
 			}

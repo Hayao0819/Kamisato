@@ -3,11 +3,11 @@ package shared
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/Hayao0819/Kamisato/internal/blinkyutils"
+	"github.com/Hayao0819/Kamisato/internal/serverstore"
 )
 
-// AyatoServer is a resolved ayato endpoint: base URL plus credentials from the blinky server database.
-type AyatoServer = blinkyutils.ServerInfo
+// AyatoServer is a resolved Ayato endpoint and credential source.
+type AyatoServer = serverstore.Endpoint
 
 const serverFlagHelp = "ayato server (default: serverdb default)"
 
@@ -34,9 +34,7 @@ func ServerFromFlag(cmd *cobra.Command) (*AyatoServer, error) {
 	return ResolveAyatoServer(server)
 }
 
-// ResolveAyatoServer looks up the base URL and credentials in the serverdb,
-// using the default server when server is empty. This is the same store blinky
-// uploads use, so a server from `ayaka server add` works here too.
+// ResolveAyatoServer resolves a named or default server.
 func ResolveAyatoServer(server string) (*AyatoServer, error) {
-	return blinkyutils.ResolveServer(server)
+	return serverstore.Resolve(server)
 }

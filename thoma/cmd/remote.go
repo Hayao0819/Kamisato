@@ -10,40 +10,47 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/Hayao0819/Kamisato/internal/errors"
-
-	"github.com/Hayao0819/Kamisato/internal/blinkyutils"
-	"github.com/Hayao0819/Kamisato/internal/buildclient"
+	"github.com/Hayao0819/Kamisato/internal/client"
 	"github.com/Hayao0819/Kamisato/internal/conf"
+	"github.com/Hayao0819/Kamisato/internal/errors"
+	"github.com/Hayao0819/Kamisato/internal/serverstore"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/makepkgconf"
 	"github.com/Hayao0819/Kamisato/pkg/raiou"
 )
 
-// resolveServer reads the ayato URL and CLI token from the same server database
-// `ayaka server login` writes, selecting the default server when name is empty.
-func resolveServer(name string) (url, token string, err error) {
-	info, err := blinkyutils.ResolveServer(name)
+// resolveServer resolves a named or default Ayato server.
+func resolveServer(name string) (*serverstore.Endpoint, error) {
+	info, err := serverstore.Resolve(name)
 	if err != nil {
-		if errors.Is(err, blinkyutils.ErrNoServerSpecified) {
-			return "", "", errors.NewErr("no ayato server configured; set THOMA_SERVER or run 'ayaka server login'")
+		if errors.Is(err, serverstore.ErrNoServerSpecified) {
+			return nil, errors.NewErr("no ayato server configured; set THOMA_SERVER or run 'ayaka server login'")
 		}
-		return "", "", err
+		return nil, err
 	}
-	return info.URL, info.Password, nil
+	return info, nil
 }
 
-// resolveEndpoint picks the build server and bearer credential for the active
-// mode. Ayato mode goes through an ayato server (URL and CLI token from the
-// login database); direct mode talks to a miko builder itself, authenticating
-// with the configured api key.
-func resolveEndpoint(cfg *conf.ThomaConfig) (base, token string, err error) {
+// configuredBuildClient creates the configured Ayato or Miko client.
+func configuredBuildClient(cfg *conf.ThomaConfig) (string, *client.BuildClient, error) {
 	if cfg.Direct() {
 		if cfg.Server == "" {
-			return "", "", errors.NewErr("direct mode needs THOMA_SERVER set to the miko URL")
+			return "", nil, errors.NewErr("direct mode needs THOMA_SERVER set to the miko URL")
 		}
-		return cfg.Server, cfg.ApiKey, nil
+		miko, err := client.NewMiko(cfg.Server, cfg.ApiKey)
+		if err != nil {
+			return "", nil, err
+		}
+		return cfg.Server, miko.BuildClient, nil
 	}
-	return resolveServer(cfg.Server)
+	endpoint, err := resolveServer(cfg.Server)
+	if err != nil {
+		return "", nil, err
+	}
+	ayato, err := client.NewAyato(endpoint.URL, serverstore.NewTokenSource(endpoint))
+	if err != nil {
+		return "", nil, err
+	}
+	return endpoint.URL, ayato.BuildClient, nil
 }
 
 // detectArch resolves the build arch. makepkg.conf's CARCH is authoritative and
@@ -79,7 +86,7 @@ func remoteBuild(config string) error {
 		cfg.Arch = detectArch(config)
 	}
 
-	base, token, err := resolveEndpoint(cfg)
+	base, buildAPI, err := configuredBuildClient(cfg)
 	if err != nil {
 		return err
 	}
@@ -95,7 +102,7 @@ func remoteBuild(config string) error {
 		return err
 	}
 
-	req := &buildclient.BuildRequest{
+	req := &client.BuildRequest{
 		Repo:     cfg.Repo,
 		Arch:     cfg.Arch,
 		Pkgbuild: pkgbuild,
@@ -119,13 +126,13 @@ func remoteBuild(config string) error {
 		mode = conf.ThomaModeAyato
 	}
 	fmt.Fprintf(os.Stderr, "thoma: delegating build to %s (mode %s, repo %s, arch %s)\n", base, mode, cfg.Repo, cfg.Arch)
-	jobID, err := buildclient.SubmitBuild(ctx, base, token, req)
+	jobID, err := buildAPI.SubmitBuild(ctx, req)
 	if err != nil {
 		return errors.WrapErr(err, "failed to submit build")
 	}
 	fmt.Fprintf(os.Stderr, "thoma: build job %s\n", jobID)
 
-	job, err := buildclient.WaitJob(ctx, base, token, jobID, os.Stdout)
+	job, err := buildAPI.WaitJob(ctx, jobID, os.Stdout)
 	if err != nil {
 		return errors.WrapErr(err, "failed while waiting for build")
 	}
@@ -140,7 +147,22 @@ func remoteBuild(config string) error {
 	if err != nil {
 		return err
 	}
-	return placePackages(ctx, cfg, base, token, jobID, dests, job.Packages)
+	return placePackages(ctx, cfg, buildAPI, jobID, dests, job.Packages)
+}
+
+func newBuildClient(cfg *conf.ThomaConfig, base, credential string) (*client.BuildClient, error) {
+	if cfg.Direct() {
+		miko, err := client.NewMiko(base, credential)
+		if err != nil {
+			return nil, err
+		}
+		return miko.BuildClient, nil
+	}
+	ayato, err := client.NewAyato(base, client.StaticBearer(credential))
+	if err != nil {
+		return nil, err
+	}
+	return ayato.BuildClient, nil
 }
 
 // packageDests asks the real makepkg where the output packages belong, so the
@@ -170,7 +192,7 @@ func packageDests(mkpkg, config string) ([]string, error) {
 // expected path. Packages are matched by pkgname (stable across pkgver drift on
 // VCS packages), and the file is written under the name yay expects so its
 // post-build os.Stat and pacman -U succeed.
-func placePackages(ctx context.Context, cfg *conf.ThomaConfig, base, token, jobID string, dests, built []string) error {
+func placePackages(ctx context.Context, cfg *conf.ThomaConfig, buildAPI *client.BuildClient, jobID string, dests, built []string) error {
 	for _, dest := range dests {
 		want := pkgName(filepath.Base(dest))
 		match := ""
@@ -183,7 +205,7 @@ func placePackages(ctx context.Context, cfg *conf.ThomaConfig, base, token, jobI
 		if match == "" {
 			return errors.NewErrf("no built package matches %q (built: %s)", filepath.Base(dest), strings.Join(built, ", "))
 		}
-		if err := downloadBuilt(ctx, cfg, base, token, jobID, match, dest); err != nil {
+		if err := downloadBuilt(ctx, cfg, buildAPI, jobID, match, dest); err != nil {
 			return err
 		}
 		fmt.Fprintf(os.Stderr, "thoma: placed %s -> %s\n", match, dest)
@@ -194,15 +216,15 @@ func placePackages(ctx context.Context, cfg *conf.ThomaConfig, base, token, jobI
 // downloadBuilt fetches one built package to dest. Ayato mode pulls the
 // published, host-signed package from ayato's repo route; direct mode pulls the
 // unsigned artifact retained on the miko job.
-func downloadBuilt(ctx context.Context, cfg *conf.ThomaConfig, base, token, jobID, name, dest string) error {
+func downloadBuilt(ctx context.Context, cfg *conf.ThomaConfig, buildAPI *client.BuildClient, jobID, name, dest string) error {
 	if !cfg.Direct() {
-		return buildclient.DownloadPackage(ctx, base, cfg.Repo, cfg.Arch, name, dest)
+		return buildAPI.DownloadPackageFile(ctx, cfg.Repo, cfg.Arch, name, dest)
 	}
 	f, err := os.Create(dest)
 	if err != nil {
 		return errors.WrapErr(err, "failed to create "+dest)
 	}
-	if err := buildclient.DownloadArtifact(ctx, base, token, jobID, name, f); err != nil {
+	if err := buildAPI.DownloadArtifact(ctx, jobID, name, f); err != nil {
 		_ = f.Close()
 		return err
 	}
