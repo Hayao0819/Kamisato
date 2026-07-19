@@ -3,6 +3,7 @@ package client
 import (
 	"bytes"
 	"context"
+	"errors"
 	"io"
 	"mime"
 	"mime/multipart"
@@ -18,6 +19,10 @@ import (
 type roundTripFunc func(*http.Request) (*http.Response, error)
 
 func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) { return f(req) }
+
+type errorReader struct{ err error }
+
+func (r errorReader) Read([]byte) (int, error) { return 0, r.err }
 
 func testHTTPClient(roundTrip roundTripFunc) *http.Client {
 	return &http.Client{Transport: roundTrip}
@@ -254,6 +259,40 @@ func TestPublicDownloadFollowsRedirectWithoutCredential(t *testing.T) {
 	}
 	if destination.String() != "package bytes" || len(seen) != 2 {
 		t.Fatalf("destination = %q, requests = %#v", destination.String(), seen)
+	}
+}
+
+func TestDownloadPackageFilePreservesDestinationOnStreamFailure(t *testing.T) {
+	t.Parallel()
+	streamErr := errors.New("response stream failed")
+	httpClient := testHTTPClient(func(*http.Request) (*http.Response, error) {
+		resp := testResponse(http.StatusOK, "")
+		resp.Body = io.NopCloser(io.MultiReader(strings.NewReader("partial"), errorReader{err: streamErr}))
+		return resp, nil
+	})
+	client, err := NewAyato("https://ayato.example", nil, WithHTTPClient(httpClient))
+	if err != nil {
+		t.Fatal(err)
+	}
+	destination := filepath.Join(t.TempDir(), "package.pkg.tar.zst")
+	if err := os.WriteFile(destination, []byte("existing package"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := client.DownloadPackageFile(
+		context.Background(),
+		"core",
+		"x86_64",
+		"package.pkg.tar.zst",
+		destination,
+	); !errors.Is(err, streamErr) {
+		t.Fatalf("DownloadPackageFile error = %v, want stream failure", err)
+	}
+	got, err := os.ReadFile(destination)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != "existing package" {
+		t.Fatalf("failed download replaced destination with %q", got)
 	}
 }
 

@@ -46,7 +46,7 @@ func ImportSigningKey(dir string, r io.Reader, passphrase string, force bool) (*
 	}
 
 	k := &SigningKey{dir: dir, entity: entity}
-	if err := k.save(passphrase); err != nil {
+	if err := k.saveWithOverwrite(passphrase, force); err != nil {
 		return nil, err
 	}
 	return k, nil

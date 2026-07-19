@@ -11,6 +11,7 @@ import (
 
 	"github.com/Hayao0819/Kamisato/internal/blinkyutils"
 	"github.com/Hayao0819/Kamisato/internal/errors"
+	"github.com/Hayao0819/Kamisato/pkg/atomicfile"
 )
 
 var (
@@ -68,31 +69,7 @@ func saveDB(db blinkyutils.Registry) error {
 	if err != nil {
 		return err
 	}
-	tmp, err := os.CreateTemp(dir, ".servers-*")
-	if err != nil {
-		return errors.WrapErr(err, "create server database temp file")
-	}
-	tmpPath := tmp.Name()
-	defer func() { _ = os.Remove(tmpPath) }()
-	if err := tmp.Chmod(0o600); err != nil {
-		_ = tmp.Close()
-		return errors.WrapErr(err, "secure server database temp file")
-	}
-	if _, err := tmp.Write(raw); err != nil {
-		_ = tmp.Close()
-		return errors.WrapErr(err, "write server database")
-	}
-	if err := tmp.Sync(); err != nil {
-		_ = tmp.Close()
-		return errors.WrapErr(err, "sync server database")
-	}
-	if err := tmp.Close(); err != nil {
-		return errors.WrapErr(err, "close server database")
-	}
-	if err := os.Rename(tmpPath, path); err != nil {
-		return errors.WrapErr(err, "replace server database")
-	}
-	return syncDirectory(dir)
+	return errors.WrapErr(atomicfile.WriteFile(path, raw, 0o600), "save server database")
 }
 
 func ResolveName(name string) (string, error) {

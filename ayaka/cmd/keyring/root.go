@@ -6,7 +6,6 @@ package keyringcmd
 
 import (
 	"context"
-	"os"
 	"path/filepath"
 	"time"
 
@@ -15,6 +14,7 @@ import (
 
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
 	"github.com/Hayao0819/Kamisato/internal/errors"
+	"github.com/Hayao0819/Kamisato/pkg/atomicfile"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/keyring"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/sign"
 )
@@ -96,7 +96,7 @@ func makePackage(k *sign.SigningKey, p buildParams, outDir string) (pkgPath, sig
 
 	pkgPath = filepath.Join(outDir, keyring.FileName(p.name, version))
 	// #nosec G306 -- this is a public package artifact intended for distribution.
-	if err := os.WriteFile(pkgPath, data, 0o644); err != nil {
+	if err := atomicfile.WriteFile(pkgPath, data, 0o644); err != nil {
 		return "", "", errors.WrapErr(err, "write keyring package")
 	}
 	if !p.sign {

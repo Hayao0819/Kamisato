@@ -14,6 +14,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/Hayao0819/Kamisato/pkg/atomicfile"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/sign"
 	"github.com/ProtonMail/go-crypto/openpgp"
 )
@@ -60,7 +61,7 @@ func (f *Files) Write(dir string) error {
 	}
 	for _, it := range items {
 		// #nosec G306 -- these public keyring files must be readable by pacman users.
-		if err := os.WriteFile(filepath.Join(dir, it.name), it.data, 0o644); err != nil {
+		if err := atomicfile.WriteFile(filepath.Join(dir, it.name), it.data, 0o644); err != nil {
 			return err
 		}
 	}

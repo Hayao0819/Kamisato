@@ -55,3 +55,33 @@ func TestObjectMover(t *testing.T) {
 		t.Fatal("DeleteObject(../escape) = nil, want rejection")
 	}
 }
+
+func TestCopyObjectFailurePreservesDestination(t *testing.T) {
+	root := t.TempDir()
+	l := New(root, nil)
+	srcKey := "_pool_/objects/source"
+	dstKey := "myrepo/x86_64/package.pkg.tar.zst"
+	if err := os.MkdirAll(filepath.Join(root, filepath.FromSlash(srcKey)), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	dst := filepath.Join(root, filepath.FromSlash(dstKey))
+	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(dst, []byte("published"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Opening a directory succeeds on Unix, but copying its bytes fails. A
+	// direct O_TRUNC destination would destroy the published object first.
+	if err := l.CopyObject(srcKey, dstKey); err == nil {
+		t.Fatal("CopyObject(directory source) = nil, want copy error")
+	}
+	got, err := os.ReadFile(dst)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != "published" {
+		t.Fatalf("failed copy changed destination to %q", got)
+	}
+}

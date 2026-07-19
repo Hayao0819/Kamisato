@@ -2,6 +2,7 @@ package sign
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -73,6 +74,60 @@ func TestGenerateSignsAndVerifies(t *testing.T) {
 		t.Fatalf("want one signing subkey, got %+v", subs)
 	}
 	signAndVerify(t, k)
+}
+
+func TestGenerateSigningKeyAllowsOnlyOneConcurrentCreator(t *testing.T) {
+	dir := t.TempDir()
+	start := make(chan struct{})
+	results := make(chan error, 2)
+	for range 2 {
+		go func() {
+			<-start
+			_, err := GenerateSigningKey(dir, "MyRepo", "repo@example.com", 0, time.Hour, "")
+			results <- err
+		}()
+	}
+	close(start)
+
+	successes := 0
+	for range 2 {
+		if err := <-results; err == nil {
+			successes++
+		}
+	}
+	if successes != 1 {
+		t.Fatalf("successful concurrent creators = %d, want 1", successes)
+	}
+	if _, err := LoadSigningKey(dir, ""); err != nil {
+		t.Fatalf("winning signing key is not readable: %v", err)
+	}
+}
+
+func TestSigningKeyRejectsStaleSnapshotUpdate(t *testing.T) {
+	dir := t.TempDir()
+	genKey(t, dir, "")
+	first, err := LoadSigningKey(dir, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	stale, err := LoadSigningKey(dir, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := first.AddSubkey(time.Hour, ""); err != nil {
+		t.Fatalf("first AddSubkey: %v", err)
+	}
+	if err := stale.AddSubkey(time.Hour, ""); !errors.Is(err, errSigningKeyChanged) {
+		t.Fatalf("stale AddSubkey error = %v, want signing-key conflict", err)
+	}
+	reloaded, err := LoadSigningKey(dir, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := len(reloaded.Subkeys()); got != 2 {
+		t.Fatalf("persisted subkeys = %d, want original + first update", got)
+	}
 }
 
 func TestReloadWithPassphrase(t *testing.T) {

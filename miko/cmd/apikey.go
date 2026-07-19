@@ -13,6 +13,8 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/auth/apikey"
 	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/internal/errors"
+	"github.com/Hayao0819/Kamisato/pkg/atomicfile"
+	"github.com/Hayao0819/Kamisato/pkg/filelock"
 )
 
 func apikeyCmd() *cobra.Command {
@@ -71,6 +73,16 @@ func generateAPIKey() (string, error) {
 
 // appendAPIKey stores a named API key.
 func appendAPIKey(path string, entry conf.MikoAPIKey) error {
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0o750); err != nil {
+		return errors.WrapErr(err, "failed to create API key config directory")
+	}
+	lock, err := filelock.Acquire(filepath.Join(dir, "."+filepath.Base(path)+".lock"), 0o600)
+	if err != nil {
+		return errors.WrapErr(err, "failed to lock API key config")
+	}
+	defer func() { _ = lock.Release() }()
+
 	cfg := map[string]any{}
 	if data, err := os.ReadFile(path); err == nil {
 		if len(data) > 0 {
@@ -98,14 +110,5 @@ func appendAPIKey(path string, entry conf.MikoAPIKey) error {
 	if err != nil {
 		return err
 	}
-	if dir := filepath.Dir(path); dir != "" && dir != "." {
-		if err := os.MkdirAll(dir, 0o750); err != nil {
-			return err
-		}
-	}
-	if err := os.WriteFile(path, append(out, '\n'), 0o600); err != nil {
-		return err
-	}
-	// WriteFile honors the mode only when creating; force 0600 on an existing file too.
-	return os.Chmod(path, 0o600)
+	return atomicfile.WriteFile(path, append(out, '\n'), 0o600)
 }

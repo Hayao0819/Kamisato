@@ -6,10 +6,11 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
-	"syscall"
 
 	"github.com/Hayao0819/Kamisato/internal/blinkyutils"
 	"github.com/Hayao0819/Kamisato/internal/errors"
+	"github.com/Hayao0819/Kamisato/pkg/atomicfile"
+	"github.com/Hayao0819/Kamisato/pkg/filelock"
 )
 
 // credentialMode selects the active credential sources.
@@ -54,16 +55,11 @@ func withCredentialMutation(operation func() error) error {
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return errors.WrapErr(err, "create server data directory")
 	}
-	lock, err := os.OpenFile(filepath.Join(dir, "credentials.lock"), os.O_CREATE|os.O_RDWR, 0o600)
+	lock, err := filelock.Acquire(filepath.Join(dir, "credentials.lock"), 0o600)
 	if err != nil {
-		return errors.WrapErr(err, "open credential mutation lock")
-	}
-	defer func() { _ = lock.Close() }()
-	lockFD := int(lock.Fd()) //nolint:gosec // Unix file descriptors fit in int on every supported target.
-	if err := syscall.Flock(lockFD, syscall.LOCK_EX); err != nil {
 		return errors.WrapErr(err, "lock credential mutation")
 	}
-	defer func() { _ = syscall.Flock(lockFD, syscall.LOCK_UN) }()
+	defer func() { _ = lock.Release() }()
 	return operation()
 }
 
@@ -132,38 +128,5 @@ func saveCredentialMode(server string, mode credentialMode) error {
 	if err != nil {
 		return errors.WrapErr(err, "encode credential state")
 	}
-	tmp, err := os.CreateTemp(filepath.Dir(path), ".credential-state-*")
-	if err != nil {
-		return errors.WrapErr(err, "create credential state temp file")
-	}
-	tmpPath := tmp.Name()
-	defer func() { _ = os.Remove(tmpPath) }()
-	if err := tmp.Chmod(0o600); err != nil {
-		_ = tmp.Close()
-		return errors.WrapErr(err, "secure credential state temp file")
-	}
-	if _, err := tmp.Write(raw); err != nil {
-		_ = tmp.Close()
-		return errors.WrapErr(err, "write credential state")
-	}
-	if err := tmp.Sync(); err != nil {
-		_ = tmp.Close()
-		return errors.WrapErr(err, "sync credential state")
-	}
-	if err := tmp.Close(); err != nil {
-		return errors.WrapErr(err, "close credential state")
-	}
-	if err := os.Rename(tmpPath, path); err != nil {
-		return errors.WrapErr(err, "replace credential state")
-	}
-	return syncDirectory(filepath.Dir(path))
-}
-
-func syncDirectory(path string) error {
-	dir, err := os.Open(path)
-	if err != nil {
-		return errors.WrapErr(err, "open data directory for sync")
-	}
-	defer dir.Close()
-	return errors.WrapErr(dir.Sync(), "sync data directory")
+	return errors.WrapErr(atomicfile.WriteFile(path, raw, 0o600), "save credential state")
 }

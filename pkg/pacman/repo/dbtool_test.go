@@ -240,6 +240,30 @@ func TestNativeRepoAddAndRemove(t *testing.T) {
 	}
 }
 
+func TestWriteToolArchiveFailurePreservesExistingDatabase(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "repo.db.tar.gz")
+	if err := os.WriteFile(path, []byte("published"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	writeErr := errors.New("archive generation failed")
+	err := writeToolArchive(path, func(w io.Writer) error {
+		if _, err := io.WriteString(w, "partial"); err != nil {
+			return err
+		}
+		return writeErr
+	})
+	if !errors.Is(err, writeErr) {
+		t.Fatalf("writeToolArchive error = %v, want generation failure", err)
+	}
+	got, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != "published" {
+		t.Fatalf("failed archive generation replaced database with %q", got)
+	}
+}
+
 // TestRepoAddBatch adds several packages in a single RepoAddBatch call and
 // asserts every one lands in the database, for both backends.
 func TestRepoAddBatch(t *testing.T) {

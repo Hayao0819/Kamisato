@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -14,6 +15,7 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/internal/errors"
 	"github.com/Hayao0819/Kamisato/internal/serverstore"
+	"github.com/Hayao0819/Kamisato/pkg/atomicfile"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/makepkgconf"
 	pacmanpkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/pkgfile"
@@ -221,15 +223,9 @@ func downloadBuilt(ctx context.Context, cfg *conf.ThomaConfig, buildAPI *client.
 	if !cfg.Direct() {
 		return buildAPI.DownloadPackageFile(ctx, cfg.Repo, cfg.Arch, name, dest)
 	}
-	f, err := os.Create(dest)
-	if err != nil {
-		return errors.WrapErr(err, "failed to create "+dest)
-	}
-	if err := buildAPI.DownloadArtifact(ctx, jobID, name, f); err != nil {
-		_ = f.Close()
-		return err
-	}
-	return f.Close()
+	return atomicfile.Replace(dest, 0o644, func(dst io.Writer) error { //nolint:gosec // downloaded package artifacts are public
+		return buildAPI.DownloadArtifact(ctx, jobID, name, dst)
+	})
 }
 
 // pkgName extracts pkgname from a conventional package artifact. Invalid

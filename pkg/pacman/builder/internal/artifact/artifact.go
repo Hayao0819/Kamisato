@@ -2,12 +2,14 @@
 package artifact
 
 import (
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 
+	"github.com/Hayao0819/Kamisato/pkg/atomicfile"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/pkgfile"
-	"github.com/otiai10/copy"
 )
 
 type fileState struct {
@@ -100,12 +102,33 @@ func MoveToDir(built []string, srcDir, outDir string) ([]string, error) {
 
 func moveFile(src, dst string) error {
 	if err := os.Rename(src, dst); err == nil {
-		return nil
+		dstDir := filepath.Dir(dst)
+		srcDir := filepath.Dir(src)
+		dstSyncErr := atomicfile.SyncDirectory(dstDir)
+		if srcDir == dstDir {
+			return dstSyncErr
+		}
+		return errors.Join(dstSyncErr, atomicfile.SyncDirectory(srcDir))
 	}
-	if err := copy.Copy(src, dst); err != nil {
+	in, err := os.Open(src)
+	if err != nil {
 		return err
 	}
-	return os.Remove(src)
+	defer func() { _ = in.Close() }()
+	info, err := in.Stat()
+	if err != nil {
+		return err
+	}
+	if err := atomicfile.Replace(dst, info.Mode().Perm(), func(out io.Writer) error {
+		_, err := io.Copy(out, in)
+		return err
+	}); err != nil {
+		return err
+	}
+	if err := in.Close(); err != nil {
+		return err
+	}
+	return atomicfile.Remove(src)
 }
 
 func IsPackageFile(name string) bool {

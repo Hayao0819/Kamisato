@@ -7,11 +7,11 @@ import (
 	"log/slog"
 	"os"
 	"path"
-	"sync"
-	"syscall"
 	"time"
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
+	"github.com/Hayao0819/Kamisato/pkg/atomicfile"
+	"github.com/Hayao0819/Kamisato/pkg/filelock"
 
 	"github.com/Hayao0819/nahi/flist"
 	"github.com/Hayao0819/nahi/futils"
@@ -27,7 +27,7 @@ func (l *LocalStore) StoreFile(repo string, arch string, file stream.SeekFile) e
 		return err
 	}
 	return withObjectLock(repoPath, path.Base(file.FileName()), func() error {
-		return writeAtomicFile(repoPath, dstFilePath, file)
+		return writeAtomicFile(dstFilePath, file)
 	})
 }
 
@@ -56,16 +56,11 @@ func withObjectLock(repoPath, name string, operation func() error) error {
 		return errors.WrapErr(err, "create object lock directory")
 	}
 	lockName := fmt.Sprintf("%x.lock", sha256.Sum256([]byte(name)))
-	lock, err := os.OpenFile(path.Join(lockDir, lockName), os.O_CREATE|os.O_RDWR, 0o600)
+	lock, err := filelock.Acquire(path.Join(lockDir, lockName), 0o600)
 	if err != nil {
-		return errors.WrapErr(err, "open object lock")
-	}
-	defer func() { _ = lock.Close() }()
-	fd := int(lock.Fd()) //nolint:gosec // Unix file descriptors fit in int on every supported target.
-	if err := syscall.Flock(fd, syscall.LOCK_EX); err != nil {
 		return errors.WrapErr(err, "lock object")
 	}
-	defer func() { _ = syscall.Flock(fd, syscall.LOCK_UN) }()
+	defer func() { _ = lock.Release() }()
 	return operation()
 }
 
@@ -78,58 +73,24 @@ func (l *LocalStore) LockPublication(repo string) (func(), error) {
 	if err := os.MkdirAll(repoPath, 0o755); err != nil { //nolint:gosec // published repository directory
 		return nil, errors.WrapErr(err, "create repository directory")
 	}
-	lock, err := os.OpenFile(path.Join(repoPath, ".publication.lock"), os.O_CREATE|os.O_RDWR, 0o600)
+	lock, err := filelock.Acquire(path.Join(repoPath, ".publication.lock"), 0o600)
 	if err != nil {
-		return nil, errors.WrapErr(err, "open publication lock")
-	}
-	fd := int(lock.Fd()) //nolint:gosec // Unix file descriptors fit in int on supported targets.
-	if err := syscall.Flock(fd, syscall.LOCK_EX); err != nil {
-		_ = lock.Close()
 		return nil, errors.WrapErr(err, "lock publication")
 	}
-	var once sync.Once
 	return func() {
-		once.Do(func() {
-			_ = syscall.Flock(fd, syscall.LOCK_UN)
-			_ = lock.Close()
-		})
+		_ = lock.Release()
 	}, nil
 }
 
-func writeAtomicFile(repoPath, dstFilePath string, file stream.SeekFile) error {
+func writeAtomicFile(dstFilePath string, file stream.SeekFile) error {
 	if _, err := file.Seek(0, io.SeekStart); err != nil {
 		return errors.WrapErr(err, "seek source file")
 	}
-	tmp, err := os.CreateTemp(repoPath, ".object-*")
-	if err != nil {
-		return errors.WrapErr(err, "create object temp file")
-	}
-	tmpPath := tmp.Name()
-	defer func() { _ = os.Remove(tmpPath) }()
-	if err := tmp.Chmod(0o644); err != nil { //nolint:gosec // published pacman repo file is world-readable by design
-		_ = tmp.Close()
-		return errors.WrapErr(err, "set object mode")
-	}
-	if _, err := io.Copy(tmp, file); err != nil {
-		_ = tmp.Close()
+	err := atomicfile.Replace(dstFilePath, 0o644, func(dst io.Writer) error { //nolint:gosec // published pacman repo file is world-readable by design
+		_, err := io.Copy(dst, file)
 		return errors.WrapErr(err, "copy object")
-	}
-	if err := tmp.Sync(); err != nil {
-		_ = tmp.Close()
-		return errors.WrapErr(err, "sync object")
-	}
-	if err := tmp.Close(); err != nil {
-		return errors.WrapErr(err, "close object")
-	}
-	if err := os.Rename(tmpPath, dstFilePath); err != nil {
-		return errors.WrapErr(err, "replace object")
-	}
-	dir, err := os.Open(repoPath)
-	if err != nil {
-		return errors.WrapErr(err, "open object directory")
-	}
-	defer func() { _ = dir.Close() }()
-	return errors.WrapErr(dir.Sync(), "sync object directory")
+	})
+	return errors.WrapErr(err, "store object")
 }
 
 func (l *LocalStore) StoreFileWithSignedURL(repo string, arch string, name string) (string, error) {
@@ -201,7 +162,7 @@ func (l *LocalStore) StoreFileIfMatch(repo, arch string, file stream.SeekFile, e
 		case etag == "" || current != etag:
 			return blob.ErrPreconditionFailed
 		}
-		return writeAtomicFile(repoPath, dstFilePath, file)
+		return writeAtomicFile(dstFilePath, file)
 	})
 }
 
@@ -257,14 +218,19 @@ func (l *LocalStore) DeleteFile(repo string, arch string, file string) error {
 		return err
 	}
 
-	pkgPath := path.Join(repoDir, arch, file)
-	slog.Info("remove pkg file", "file", pkgPath)
-	if err := os.Remove(pkgPath); err != nil {
-		slog.Warn("remove pkg file err", "err", err)
-		return errors.WrapErr(err, "failed to remove pkg file")
+	repoPath := path.Join(repoDir, arch)
+	if _, err := os.Stat(repoPath); err != nil {
+		return errors.WrapErr(err, "failed to open package architecture directory")
 	}
-
-	return nil
+	pkgPath := path.Join(repoPath, file)
+	slog.Info("remove pkg file", "file", pkgPath)
+	return withObjectLock(repoPath, file, func() error {
+		if err := atomicfile.Remove(pkgPath); err != nil {
+			slog.Warn("remove pkg file err", "err", err)
+			return errors.WrapErr(err, "failed to remove pkg file")
+		}
+		return nil
+	})
 }
 
 // DeleteFileIfUnchanged removes an old object if its version is unchanged.
@@ -297,23 +263,11 @@ func (l *LocalStore) DeleteFileIfUnchanged(repo, arch string, expected blob.File
 				return nil
 			}
 		}
-		if err := os.Remove(objectPath); err != nil {
+		if err := atomicfile.Remove(objectPath); err != nil {
 			if errors.Is(err, os.ErrNotExist) {
 				return nil
 			}
 			return err
-		}
-		dir, err := os.Open(repoPath)
-		if err != nil {
-			return err
-		}
-		syncErr := dir.Sync()
-		closeErr := dir.Close()
-		if syncErr != nil {
-			return syncErr
-		}
-		if closeErr != nil {
-			return closeErr
 		}
 		deleted = true
 		return nil

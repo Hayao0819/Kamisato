@@ -7,11 +7,11 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/Hayao0819/Kamisato/internal/client"
 	"github.com/Hayao0819/Kamisato/internal/errors"
+	"github.com/Hayao0819/Kamisato/pkg/filelock"
 )
 
 // TokenSource supplies and refreshes stored Ayato credentials.
@@ -102,33 +102,10 @@ func withRefreshLock(ctx context.Context, server string, operation func() error)
 	}
 	digest := sha256.Sum256([]byte(server))
 	lockPath := filepath.Join(lockDirectory, hex.EncodeToString(digest[:])+".lock")
-	file, err := os.OpenFile(lockPath, os.O_CREATE|os.O_RDWR, 0o600)
+	lock, err := filelock.AcquireContext(ctx, lockPath, 0o600, 50*time.Millisecond)
 	if err != nil {
-		return errors.WrapErr(err, "open refresh lock")
+		return errors.WrapErr(err, "acquire refresh lock")
 	}
-	defer file.Close()
-	rawFD := file.Fd()
-	if rawFD > uintptr(^uint(0)>>1) {
-		return errors.NewErr("refresh lock file descriptor is out of range")
-	}
-	fd := int(rawFD) //nolint:gosec // range checked immediately above
-
-	for {
-		err = syscall.Flock(fd, syscall.LOCK_EX|syscall.LOCK_NB)
-		if err == nil {
-			break
-		}
-		if !errors.Is(err, syscall.EWOULDBLOCK) && !errors.Is(err, syscall.EAGAIN) {
-			return errors.WrapErr(err, "acquire refresh lock")
-		}
-		timer := time.NewTimer(50 * time.Millisecond)
-		select {
-		case <-ctx.Done():
-			timer.Stop()
-			return ctx.Err()
-		case <-timer.C:
-		}
-	}
-	defer func() { _ = syscall.Flock(fd, syscall.LOCK_UN) }()
+	defer func() { _ = lock.Release() }()
 	return operation()
 }

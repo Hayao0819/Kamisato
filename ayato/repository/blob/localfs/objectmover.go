@@ -10,6 +10,7 @@ import (
 
 	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
 	"github.com/Hayao0819/Kamisato/internal/errors"
+	"github.com/Hayao0819/Kamisato/pkg/atomicfile"
 )
 
 var _ blob.ObjectMover = (*LocalStore)(nil)
@@ -58,15 +59,11 @@ func (l *LocalStore) CopyObject(srcKey, dstKey string) error {
 	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil { //nolint:gosec // published pacman repo dir is world-readable by design
 		return errors.WrapErr(err, "mkdir destination")
 	}
-	out, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o644) //nolint:gosec // published pacman repo file is world-readable by design
-	if err != nil {
-		return errors.WrapErr(err, "create destination object")
-	}
-	defer out.Close()
-	if _, err := io.Copy(out, in); err != nil {
+	err = atomicfile.Replace(dst, 0o644, func(out io.Writer) error { //nolint:gosec // published pacman repo file is world-readable by design
+		_, err := io.Copy(out, in)
 		return errors.WrapErr(err, "copy object")
-	}
-	return nil
+	})
+	return errors.WrapErr(err, "publish destination object")
 }
 
 // ListObjects walks prefix as a directory subtree; an absent prefix yields no keys.
@@ -105,7 +102,7 @@ func (l *LocalStore) DeleteObject(objKey string) error {
 	if err != nil {
 		return err
 	}
-	if err := os.Remove(p); err != nil && !os.IsNotExist(err) {
+	if err := atomicfile.Remove(p); err != nil && !errors.Is(err, os.ErrNotExist) {
 		return errors.WrapErr(err, "remove object")
 	}
 	return nil

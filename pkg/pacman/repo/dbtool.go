@@ -11,6 +11,7 @@ import (
 
 	"github.com/ProtonMail/go-crypto/openpgp"
 
+	"github.com/Hayao0819/Kamisato/pkg/atomicfile"
 	pkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
 )
 
@@ -268,15 +269,9 @@ func writeDerivedBuilder(b *dbBuilder, paths toolPaths) error {
 }
 
 func writeToolArchive(path string, write func(io.Writer) error) error {
-	f, err := os.Create(path)
-	if err != nil {
-		return fmt.Errorf("failed to create %s: %w", path, err)
-	}
-	if err := write(f); err != nil {
-		_ = f.Close()
-		return err
-	}
-	return f.Close()
+	return atomicfile.Replace(path, 0o644, func(out io.Writer) error { //nolint:gosec // pacman repository databases are public
+		return write(out)
+	})
 }
 
 func copyToolFile(src, dst string) error {
@@ -285,13 +280,10 @@ func copyToolFile(src, dst string) error {
 		return fmt.Errorf("failed to open %s: %w", src, err)
 	}
 	defer in.Close()
-	out, err := os.Create(dst)
-	if err != nil {
-		return fmt.Errorf("failed to create %s: %w", dst, err)
-	}
-	if _, err := io.Copy(out, in); err != nil {
-		_ = out.Close()
-		return fmt.Errorf("failed to copy to %s: %w", dst, err)
-	}
-	return out.Close()
+	return atomicfile.Replace(dst, 0o644, func(out io.Writer) error { //nolint:gosec // pacman repository databases are public
+		if _, err := io.Copy(out, in); err != nil {
+			return fmt.Errorf("failed to copy to %s: %w", dst, err)
+		}
+		return nil
+	})
 }

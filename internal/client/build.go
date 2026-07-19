@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
+	"github.com/Hayao0819/Kamisato/pkg/atomicfile"
 )
 
 func (c *BuildClient) SubmitBuild(ctx context.Context, request *BuildRequest) (string, error) {
@@ -249,13 +249,7 @@ func (c *BuildClient) DownloadPackage(ctx context.Context, repo, arch, name stri
 }
 
 func (c *BuildClient) DownloadPackageFile(ctx context.Context, repo, arch, name, destination string) error {
-	file, err := os.Create(destination)
-	if err != nil {
-		return errors.WrapErr(err, "create "+destination)
-	}
-	if err := c.DownloadPackage(ctx, repo, arch, name, file); err != nil {
-		_ = file.Close()
-		return err
-	}
-	return file.Close()
+	return atomicfile.Replace(destination, 0o644, func(file io.Writer) error { //nolint:gosec // downloaded package artifacts are public
+		return c.DownloadPackage(ctx, repo, arch, name, file)
+	})
 }

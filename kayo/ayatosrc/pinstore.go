@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
+	"github.com/Hayao0819/Kamisato/pkg/atomicfile"
 )
 
 // pin records the TOFU-trusted public key and the anti-rollback watermark for one
@@ -61,25 +62,43 @@ func (s *PinStore) Put(name string, p pin) error {
 	defer s.mu.Unlock()
 	// Never let a re-pin regress the anti-rollback watermark: carry forward the
 	// higher of the existing and incoming LastIssued.
-	if old := s.data[name]; old.LastIssued.After(p.LastIssued) {
+	old, existed := s.data[name]
+	if old.LastIssued.After(p.LastIssued) {
 		p.LastIssued = old.LastIssued
 	}
 	s.data[name] = p
-	return s.saveLocked()
+	if err := s.saveLocked(); err != nil {
+		if existed {
+			s.data[name] = old
+		} else {
+			delete(s.data, name)
+		}
+		return err
+	}
+	return nil
 }
 
 // SetLastIssued advances the anti-rollback watermark (monotonic).
 func (s *PinStore) SetLastIssued(name string, t time.Time) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	p := s.data[name]
+	old, existed := s.data[name]
+	p := old
 	if !t.After(p.LastIssued) {
 		return nil
 	}
 	p.LastIssued = t
 	p.LastSeen = time.Now()
 	s.data[name] = p
-	return s.saveLocked()
+	if err := s.saveLocked(); err != nil {
+		if existed {
+			s.data[name] = old
+		} else {
+			delete(s.data, name)
+		}
+		return err
+	}
+	return nil
 }
 
 type PinInfo struct {
@@ -117,23 +136,7 @@ func (s *PinStore) saveLocked() error {
 	if err != nil {
 		return errors.WrapErr(err, "failed to encode pin store")
 	}
-	tmp := s.path + ".tmp"
-	// fsync before rename so the watermark is durable, not just atomic: callers
-	// treat SetLastIssued success as "reached disk" before swapping the index.
-	f, err := os.OpenFile(tmp, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600)
-	if err != nil {
-		return errors.WrapErr(err, "failed to write pin store")
-	}
-	if _, err := f.Write(raw); err != nil {
-		_ = f.Close()
-		return errors.WrapErr(err, "failed to write pin store")
-	}
-	if err := f.Sync(); err != nil {
-		_ = f.Close()
-		return errors.WrapErr(err, "failed to sync pin store")
-	}
-	if err := f.Close(); err != nil {
-		return errors.WrapErr(err, "failed to close pin store")
-	}
-	return os.Rename(tmp, s.path)
+	// Callers treat SetLastIssued success as "reached disk" before swapping the
+	// index, so both the bytes and the rename must be durable.
+	return errors.WrapErr(atomicfile.WriteFile(s.path, raw, 0o600), "failed to save ayato pin store")
 }

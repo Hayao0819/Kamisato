@@ -3,25 +3,35 @@ package sign
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"time"
 
+	"github.com/Hayao0819/Kamisato/pkg/filelock"
 	"github.com/ProtonMail/go-crypto/openpgp"
 	"github.com/ProtonMail/go-crypto/openpgp/armor"
 	"github.com/ProtonMail/go-crypto/openpgp/packet"
 )
 
 // signingKeyFile is the armored private key held in a SigningKey directory.
-const signingKeyFile = "signing.key"
+const (
+	signingKeyFile = "signing.key"
+	signingKeyLock = ".signing-key.lock"
+)
+
+var errSigningKeyChanged = errors.New("signing key changed on disk")
 
 // SigningKey is the repository's OpenPGP identity (primary + signing subkey). The primary fingerprint is the trust
 // anchor a keyring package pins, so subkey rotation never changes what downstream users trust.
 type SigningKey struct {
-	dir    string
-	entity *openpgp.Entity
+	dir       string
+	entity    *openpgp.Entity
+	revision  [sha256.Size]byte
+	persisted bool
 }
 
 // GenerateSigningKey creates a fresh primary + signing subkey in dir. primaryTTL
@@ -59,7 +69,7 @@ func GenerateSigningKey(dir, name, email string, primaryTTL, subkeyTTL time.Dura
 // LoadSigningKey reads the key from dir, unlocking the private material with
 // passphrase when it is encrypted.
 func LoadSigningKey(dir, passphrase string) (*SigningKey, error) {
-	entity, err := readEntity(filepath.Join(dir, signingKeyFile))
+	entity, raw, err := readEntityData(filepath.Join(dir, signingKeyFile))
 	if err != nil {
 		return nil, fmt.Errorf("load signing key: %w", err)
 	}
@@ -69,29 +79,71 @@ func LoadSigningKey(dir, passphrase string) (*SigningKey, error) {
 	if err := decryptPrivate(entity, passphrase); err != nil {
 		return nil, fmt.Errorf("decrypt signing key (wrong or missing passphrase?): %w", err)
 	}
-	return &SigningKey{dir: dir, entity: entity}, nil
+	return &SigningKey{
+		dir:       dir,
+		entity:    entity,
+		revision:  sha256.Sum256(raw),
+		persisted: true,
+	}, nil
 }
 
 func (k *SigningKey) save(passphrase string) error {
+	return k.saveWithOverwrite(passphrase, false)
+}
+
+func (k *SigningKey) saveWithOverwrite(passphrase string, overwrite bool) (retErr error) {
 	if err := os.MkdirAll(k.dir, 0o700); err != nil {
 		return err
 	}
+	lock, err := filelock.Acquire(filepath.Join(k.dir, signingKeyLock), 0o600)
+	if err != nil {
+		return fmt.Errorf("lock signing key: %w", err)
+	}
+	defer func() {
+		retErr = errors.Join(retErr, lock.Release())
+	}()
+
+	keyPath := filepath.Join(k.dir, signingKeyFile)
+	current, readErr := os.ReadFile(keyPath)
+	switch {
+	case k.persisted && readErr != nil:
+		return fmt.Errorf("%w: reload before updating: %v", errSigningKeyChanged, readErr)
+	case k.persisted && sha256.Sum256(current) != k.revision:
+		return fmt.Errorf("%w: reload before updating", errSigningKeyChanged)
+	case !k.persisted && readErr == nil && !overwrite:
+		return fmt.Errorf("a signing key already exists in %s", k.dir)
+	case readErr != nil && !errors.Is(readErr, os.ErrNotExist):
+		return readErr
+	}
+
+	encrypted := false
 	if passphrase != "" {
 		if err := k.entity.EncryptPrivateKeys([]byte(passphrase), &packet.Config{}); err != nil {
 			return fmt.Errorf("encrypt signing key: %w", err)
 		}
+		encrypted = true
+		defer func() {
+			if encrypted {
+				retErr = errors.Join(retErr, decryptPrivate(k.entity, passphrase))
+			}
+		}()
 	}
-	keyPath := filepath.Join(k.dir, signingKeyFile)
 	if err := writeArmored(keyPath, openpgp.PrivateKeyType, 0o600, func(w io.Writer) error {
 		return k.entity.SerializePrivateWithoutSigning(w, nil)
 	}); err != nil {
 		return fmt.Errorf("write signing key: %w", err)
 	}
-	if err := os.Chmod(keyPath, 0o600); err != nil {
-		return err
+	raw, err := os.ReadFile(keyPath)
+	if err != nil {
+		return fmt.Errorf("read saved signing key: %w", err)
 	}
+	k.revision = sha256.Sum256(raw)
+	k.persisted = true
 	if passphrase != "" {
-		return decryptPrivate(k.entity, passphrase)
+		if err := decryptPrivate(k.entity, passphrase); err != nil {
+			return err
+		}
+		encrypted = false
 	}
 	return nil
 }

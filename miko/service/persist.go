@@ -5,7 +5,9 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/Hayao0819/Kamisato/internal/errors"
 	"github.com/Hayao0819/Kamisato/miko/domain"
+	"github.com/Hayao0819/Kamisato/pkg/atomicfile"
 )
 
 // Persister durably stores and reloads job records. The service depends on this
@@ -54,15 +56,11 @@ func (p *jobPersist) save(job *domain.BuildJob) error {
 	if err != nil {
 		return err
 	}
-	tmp := p.path(job.ID) + ".tmp"
-	if err := os.WriteFile(tmp, data, 0o600); err != nil {
-		return err
-	}
-	return os.Rename(tmp, p.path(job.ID))
+	return atomicfile.WriteFile(p.path(job.ID), data, 0o600)
 }
 
 func (p *jobPersist) remove(id string) error {
-	if err := os.Remove(p.path(id)); err != nil && !os.IsNotExist(err) {
+	if err := atomicfile.Remove(p.path(id)); err != nil && !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
 	return nil

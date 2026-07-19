@@ -7,10 +7,10 @@ package signer
 
 import (
 	"context"
-	"os"
 
 	"github.com/Hayao0819/Kamisato/internal/client"
 	"github.com/Hayao0819/Kamisato/internal/errors"
+	"github.com/Hayao0819/Kamisato/pkg/atomicfile"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/sign"
 )
 
@@ -44,7 +44,7 @@ func (s *RemoteSigner) Sign(ctx context.Context, pkgPath string) (string, error)
 	sigPath := pkgPath + ".sig"
 	// The signature is transient worker state consumed by the uploader; 0600 is
 	// sufficient and keeps the at-rest footprint minimal.
-	if err := os.WriteFile(sigPath, sig, 0o600); err != nil {
+	if err := atomicfile.WriteFile(sigPath, sig, 0o600); err != nil {
 		return "", errors.WrapErr(err, "remote signer: write signature")
 	}
 	return sigPath, nil

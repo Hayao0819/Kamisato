@@ -103,6 +103,47 @@ func TestOpenOrCreateIsIdempotent(t *testing.T) {
 	}
 }
 
+func TestOpenOrCreateSerializesConcurrentInitialization(t *testing.T) {
+	dir := t.TempDir()
+	const callers = 4
+	start := make(chan struct{})
+	results := make(chan *Keystore, callers)
+	errs := make(chan error, callers)
+
+	for range callers {
+		go func() {
+			<-start
+			k, err := OpenOrCreate(dir, "miko worker", "worker@example.test", "")
+			if err != nil {
+				errs <- err
+				return
+			}
+			results <- k
+		}()
+	}
+	close(start)
+
+	var first *Keystore
+	for range callers {
+		select {
+		case err := <-errs:
+			t.Fatalf("OpenOrCreate: %v", err)
+		case got := <-results:
+			if err := CertifiedBy(got.worker, got.master); err != nil {
+				t.Fatalf("concurrent caller loaded inconsistent keys: %v", err)
+			}
+			if first == nil {
+				first = got
+				continue
+			}
+			if got.master.PrimaryKey.KeyId != first.master.PrimaryKey.KeyId ||
+				got.worker.PrimaryKey.KeyId != first.worker.PrimaryKey.KeyId {
+				t.Fatal("concurrent initialization returned different key pairs")
+			}
+		}
+	}
+}
+
 func TestEncryptedKeystore(t *testing.T) {
 	dir := t.TempDir()
 	if _, err := OpenOrCreate(dir, "worker", "worker@example.test", "s3cret"); err != nil {

@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/Hayao0819/Kamisato/miko/domain"
+	"github.com/Hayao0819/Kamisato/pkg/atomicfile"
 	"github.com/Hayao0819/Kamisato/pkg/httpx"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/depend"
 	ppkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
@@ -76,11 +77,7 @@ func (s *fileSonameStore) save(pkgbase string, sonames []string) error {
 	if err != nil {
 		return err
 	}
-	tmp := p + ".tmp"
-	if err := os.WriteFile(tmp, data, 0o600); err != nil {
-		return err
-	}
-	return os.Rename(tmp, p)
+	return atomicfile.WriteFile(p, data, 0o600)
 }
 
 // maybeRebuildOnSonameBump compares the built package's sonames against the last

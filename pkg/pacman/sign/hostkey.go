@@ -2,8 +2,10 @@ package sign
 
 import (
 	"context"
+	"io"
 	"os"
 
+	"github.com/Hayao0819/Kamisato/pkg/atomicfile"
 	"github.com/ProtonMail/go-crypto/openpgp"
 )
 
@@ -27,14 +29,9 @@ func detachSign(ctx context.Context, entity *openpgp.Entity, pkgPath string) (st
 	defer func() { _ = in.Close() }()
 
 	sigPath := pkgPath + ".sig"
-	out, err := os.Create(sigPath)
-	if err != nil {
-		return "", err
-	}
-	defer func() { _ = out.Close() }()
-
-	if err := openpgp.DetachSign(out, entity, in, keyConfig()); err != nil {
-		_ = os.Remove(sigPath)
+	if err := atomicfile.Replace(sigPath, 0o644, func(out io.Writer) error { //nolint:gosec // detached signatures are public repository artifacts
+		return openpgp.DetachSign(out, entity, in, keyConfig())
+	}); err != nil {
 		return "", err
 	}
 	return sigPath, nil

@@ -1,12 +1,15 @@
 package sign
 
 import (
+	"bytes"
 	"crypto"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 
+	"github.com/Hayao0819/Kamisato/pkg/atomicfile"
+	"github.com/Hayao0819/Kamisato/pkg/filelock"
 	"github.com/ProtonMail/go-crypto/openpgp"
 	"github.com/ProtonMail/go-crypto/openpgp/armor"
 	"github.com/ProtonMail/go-crypto/openpgp/packet"
@@ -16,6 +19,7 @@ const (
 	masterPubFile  = "master.pub"
 	workerKeyFile  = "worker.key"
 	workerCertFile = "worker.pub"
+	keystoreLock   = ".keystore.lock"
 )
 
 // keyConfig pins Ed25519 keys and SHA-256 digests so signatures land inside the
@@ -33,6 +37,18 @@ type Keystore struct {
 
 // OpenOrCreate loads the keystore in dir, or generates a certified master+worker pair on first run. Passphrase encrypts the worker key at rest.
 func OpenOrCreate(dir, name, email, passphrase string) (*Keystore, error) {
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return nil, fmt.Errorf("create keystore directory: %w", err)
+	}
+	lock, err := filelock.Acquire(filepath.Join(dir, keystoreLock), 0o600)
+	if err != nil {
+		return nil, fmt.Errorf("lock keystore: %w", err)
+	}
+	defer func() { _ = lock.Release() }()
+
+	// Recheck only after acquiring the process-shared lock. Otherwise concurrent
+	// first starts can generate different key pairs and interleave their three
+	// files into a keystore whose worker is not certified by its master.
 	if _, err := os.Stat(filepath.Join(dir, workerKeyFile)); err == nil {
 		return load(dir, passphrase)
 	} else if !os.IsNotExist(err) {
@@ -86,10 +102,6 @@ func (k *Keystore) save(passphrase string) error {
 		return k.worker.SerializePrivateWithoutSigning(w, nil)
 	}); err != nil {
 		return fmt.Errorf("write worker key: %w", err)
-	}
-	// OpenFile honors the umask, so force 0600 on the private key explicitly.
-	if err := os.Chmod(keyPath, 0o600); err != nil {
-		return err
 	}
 	if passphrase != "" {
 		return decryptPrivate(k.worker, passphrase)
@@ -146,73 +158,40 @@ func CertifiedBy(child, parent *openpgp.Entity) error {
 }
 
 func readEntity(path string) (*openpgp.Entity, error) {
-	f, err := os.Open(path)
+	entity, _, err := readEntityData(path)
+	return entity, err
+}
+
+func readEntityData(path string) (*openpgp.Entity, []byte, error) {
+	raw, err := os.ReadFile(path)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	defer func() { _ = f.Close() }()
-	el, err := openpgp.ReadArmoredKeyRing(f)
+	el, err := openpgp.ReadArmoredKeyRing(bytes.NewReader(raw))
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if len(el) != 1 {
-		return nil, fmt.Errorf("%s: expected one key, got %d", path, len(el))
+		return nil, nil, fmt.Errorf("%s: expected one key, got %d", path, len(el))
 	}
-	return el[0], nil
+	return el[0], raw, nil
 }
 
-// writeArmored writes armored data to path atomically (temp file → fsync → rename) so a crash never truncates the key.
-// os.CreateTemp sets 0600 so the private key is never briefly world-readable.
-func writeArmored(path, blockType string, perm os.FileMode, serialize func(io.Writer) error) (err error) {
-	dir := filepath.Dir(path)
-	tmp, err := os.CreateTemp(dir, "."+filepath.Base(path)+".tmp-*")
-	if err != nil {
-		return err
-	}
-	tmpName := tmp.Name()
-	// On any failure, drop the temp file so we do not litter the key directory.
-	defer func() {
+// writeArmored publishes an armored key only after serialization and durable
+// storage both succeed. The sibling temporary file starts as 0600, so private
+// material is never briefly exposed with the public-key mode.
+func writeArmored(path, blockType string, perm os.FileMode, serialize func(io.Writer) error) error {
+	return atomicfile.Replace(path, perm, func(w io.Writer) error {
+		armored, err := armor.Encode(w, blockType, nil)
 		if err != nil {
-			_ = tmp.Close()
-			_ = os.Remove(tmpName)
+			return err
 		}
-	}()
-
-	a, aerr := armor.Encode(tmp, blockType, nil)
-	if aerr != nil {
-		return aerr
-	}
-	if serr := serialize(a); serr != nil {
-		_ = a.Close()
-		return serr
-	}
-	if cerr := a.Close(); cerr != nil {
-		return cerr
-	}
-	if cherr := tmp.Chmod(perm); cherr != nil {
-		return cherr
-	}
-	if serr := tmp.Sync(); serr != nil {
-		return serr
-	}
-	if cerr := tmp.Close(); cerr != nil {
-		return cerr
-	}
-	if rerr := os.Rename(tmpName, path); rerr != nil {
-		return rerr
-	}
-	return fsyncDir(dir)
-}
-
-// fsyncDir flushes the directory so the rename is durable; failure to open is non-fatal on platforms that disallow dir fsync.
-func fsyncDir(dir string) error {
-	d, err := os.Open(dir)
-	if err != nil {
-		return nil
-	}
-	defer func() { _ = d.Close() }()
-	_ = d.Sync()
-	return nil
+		if err := serialize(armored); err != nil {
+			_ = armored.Close()
+			return err
+		}
+		return armored.Close()
+	})
 }
 
 func readString(path string) (string, error) {
