@@ -3,63 +3,32 @@ package aurcmd
 import (
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/spf13/cobra"
 
-	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
 	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
 func aurAddCmd() *cobra.Command {
-	var force bool
-	cmd := &cobra.Command{
-		Use:   "add <srcrepo> <pkgname>...",
-		Short: "Clone AUR packages into a source repository (.ayakarc)",
-		Args:  cobra.MinimumNArgs(2),
-		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-			if len(args) == 0 {
-				return shared.AppFrom(cmd).GetSrcRepoNames(), cobra.ShellCompDirectiveNoFileComp
-			}
-			return nil, cobra.ShellCompDirectiveNoFileComp
-		},
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return runAurAdd(cmd, args[0], args[1:], force)
-		},
-	}
-	cmd.Flags().BoolVarP(&force, "force", "f", false, "Re-clone even if already tracked")
-	return cmd
+	return aurMutationCmd(
+		"add <srcrepo> <pkgname>...",
+		"Clone AUR packages into a source repository (.ayakarc)",
+		"Re-clone even if already tracked",
+		runAurAdd,
+	)
 }
 
 func runAurAdd(cmd *cobra.Command, repoName string, pkgs []string, force bool) error {
-	app := shared.AppFrom(cmd)
-	if app.GetSrcRepo(repoName) == nil {
-		return errors.WrapErr(shared.ErrInvalidRepoName, repoName)
-	}
-	repoDir := app.GetSrcDir(repoName)
-	if repoDir == "" {
-		return errors.WrapErr(shared.ErrNoSourceDir, repoName)
-	}
-
-	var errs []string
-	for _, name := range pkgs {
+	return runAurPackages(cmd, repoName, pkgs, "one or more AUR adds failed:\n", func(repoDir, name string) error {
 		gitDir := filepath.Join(repoDir, name, ".git")
 		if _, err := os.Stat(gitDir); err == nil {
 			if !force {
-				errs = append(errs, errors.NewErrf("package %q is already tracked; use --force to re-clone", name).Error())
-				continue
+				return errors.NewErrf("package %q is already tracked; use --force to re-clone", name)
 			}
 			if err := os.RemoveAll(filepath.Join(repoDir, name)); err != nil {
-				errs = append(errs, errors.WrapErr(err, "failed to remove "+name).Error())
-				continue
+				return errors.WrapErr(err, "failed to remove "+name)
 			}
 		}
-		if err := updateAurPkg(cmd, repoDir, name, false); err != nil {
-			errs = append(errs, err.Error())
-		}
-	}
-	if len(errs) > 0 {
-		return errors.NewErr("one or more AUR adds failed:\n" + strings.Join(errs, "\n"))
-	}
-	return nil
+		return updateAurPkg(cmd, repoDir, name, false)
+	})
 }

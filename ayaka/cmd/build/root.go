@@ -100,11 +100,11 @@ func Cmd() *cobra.Command {
 			if srcrepo == nil {
 				return errors.WrapErr(shared.ErrSourceRepoNotFound, repo)
 			}
-			destDir := app.GetDestDir(repo)
+			destDir := srcrepo.DestDir
 			if destDir == "" {
 				return errors.WrapErr(shared.ErrNoDestDir, repo)
 			}
-			srcdir := app.GetSrcDir(repo)
+			srcdir := srcrepo.Dir
 			if srcdir == "" {
 				return errors.WrapErr(shared.ErrNoSourceDir, repo)
 			}

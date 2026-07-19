@@ -25,18 +25,14 @@ func TestParseLoginOrID(t *testing.T) {
 	}
 }
 
-func TestAdminRemoveRequiresOneArg(t *testing.T) {
-	cmd := Cmd()
-	cmd.SetArgs([]string{"remove"})
-	if err := cmd.Execute(); err == nil {
-		t.Error("expected error for zero args to 'remove', got nil")
-	}
-}
-
-func TestAdminAddRequiresOneArg(t *testing.T) {
-	cmd := Cmd()
-	cmd.SetArgs([]string{"add"})
-	if err := cmd.Execute(); err == nil {
-		t.Error("expected error for zero args to 'add', got nil")
+func TestAdminMutationsRequireOneArg(t *testing.T) {
+	for _, subcommand := range []string{"add", "remove"} {
+		t.Run(subcommand, func(t *testing.T) {
+			cmd := Cmd()
+			cmd.SetArgs([]string{subcommand})
+			if err := cmd.Execute(); err == nil {
+				t.Errorf("expected error for zero args to %q, got nil", subcommand)
+			}
+		})
 	}
 }

@@ -26,12 +26,10 @@ func ListCmd() *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:   "list [<server>...]",
-		Short: "List registered ayato servers",
-		Args:  cobra.ArbitraryArgs,
-		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-			return serverstore.Names(toComplete), cobra.ShellCompDirectiveNoFileComp
-		},
+		Use:               "list [<server>...]",
+		Short:             "List registered ayato servers",
+		Args:              cobra.ArbitraryArgs,
+		ValidArgsFunction: completeServerNames,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			endpoints, err := serverstore.ListEndpoints()
 			if err != nil {

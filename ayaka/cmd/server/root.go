@@ -2,7 +2,13 @@ package servercmd
 
 import (
 	"github.com/spf13/cobra"
+
+	"github.com/Hayao0819/Kamisato/internal/serverstore"
 )
+
+func completeServerNames(_ *cobra.Command, _ []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	return serverstore.Names(toComplete), cobra.ShellCompDirectiveNoFileComp
+}
 
 func Cmd() *cobra.Command {
 	cmd := &cobra.Command{

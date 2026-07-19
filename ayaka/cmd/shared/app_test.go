@@ -27,15 +27,6 @@ func TestAppLookups(t *testing.T) {
 	if r := app.GetSrcRepo("missing"); r != nil {
 		t.Errorf("GetSrcRepo(missing) = %v, want nil", r)
 	}
-	if got := app.GetSrcDir("extra"); got != "/src/extra" {
-		t.Errorf("GetSrcDir(extra) = %q, want /src/extra", got)
-	}
-	if got := app.GetDestDir("extra"); got != "/out/extra" {
-		t.Errorf("GetDestDir(extra) = %q, want /out/extra", got)
-	}
-	if got := app.GetSrcDir("missing"); got != "" {
-		t.Errorf("GetSrcDir(missing) = %q, want empty", got)
-	}
 	names := app.GetSrcRepoNames()
 	if len(names) != 2 || names[0] != "extra" || names[1] != "community" {
 		t.Errorf("GetSrcRepoNames = %v, want [extra community]", names)

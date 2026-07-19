@@ -7,64 +7,62 @@ import (
 	"testing"
 )
 
-func TestGithubReleaseSource(t *testing.T) {
+func assertLatest(
+	t *testing.T,
+	path, body, want string,
+	newSource func(base string, client *http.Client) VersionSource,
+) {
+	t.Helper()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/repos/owner/proj/releases/latest" {
+		if r.URL.Path != path {
 			http.NotFound(w, r)
 			return
 		}
-		_, _ = w.Write([]byte(`{"tag_name":"v2.5.1","name":"release"}`))
+		_, _ = w.Write([]byte(body))
 	}))
 	defer srv.Close()
 
-	src := &githubReleaseSource{repo: "owner/proj", prefix: "v", base: srv.URL, client: srv.Client()}
+	src := newSource(srv.URL, srv.Client())
 	got, err := src.Latest(context.Background())
 	if err != nil {
 		t.Fatalf("Latest: %v", err)
 	}
-	if got != "2.5.1" {
-		t.Errorf("got %q, want 2.5.1", got)
+	if got != want {
+		t.Errorf("got %q, want %q", got, want)
 	}
 }
 
-func TestGithubTagSourcePicksHighest(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/repos/owner/proj/tags" {
-			http.NotFound(w, r)
-			return
-		}
-		// Deliberately unordered: the source must pick the highest by vercmp.
-		_, _ = w.Write([]byte(`[{"name":"v1.2.0"},{"name":"v1.10.0"},{"name":"v1.9.0"}]`))
-	}))
-	defer srv.Close()
-
-	src := &githubTagSource{repo: "owner/proj", prefix: "v", base: srv.URL, client: srv.Client()}
-	got, err := src.Latest(context.Background())
-	if err != nil {
-		t.Fatalf("Latest: %v", err)
+func TestJSONSources(t *testing.T) {
+	tests := []struct {
+		name, path, body, want string
+		newSource              func(string, *http.Client) VersionSource
+	}{
+		{
+			"GitHub release", "/repos/owner/proj/releases/latest",
+			`{"tag_name":"v2.5.1","name":"release"}`, "2.5.1",
+			func(base string, client *http.Client) VersionSource {
+				return &githubReleaseSource{repo: "owner/proj", prefix: "v", base: base, client: client}
+			},
+		},
+		{
+			"GitHub tags", "/repos/owner/proj/tags",
+			// Deliberately unordered: the source must pick the highest by vercmp.
+			`[{"name":"v1.2.0"},{"name":"v1.10.0"},{"name":"v1.9.0"}]`, "1.10.0",
+			func(base string, client *http.Client) VersionSource {
+				return &githubTagSource{repo: "owner/proj", prefix: "v", base: base, client: client}
+			},
+		},
+		{
+			"PyPI", "/pypi/requests/json", `{"info":{"version":"2.31.0"}}`, "2.31.0",
+			func(base string, client *http.Client) VersionSource {
+				return &pypiSource{pkg: "requests", base: base, client: client}
+			},
+		},
 	}
-	if got != "1.10.0" {
-		t.Errorf("got %q, want 1.10.0", got)
-	}
-}
-
-func TestPypiSource(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/pypi/requests/json" {
-			http.NotFound(w, r)
-			return
-		}
-		_, _ = w.Write([]byte(`{"info":{"version":"2.31.0"}}`))
-	}))
-	defer srv.Close()
-
-	src := &pypiSource{pkg: "requests", base: srv.URL, client: srv.Client()}
-	got, err := src.Latest(context.Background())
-	if err != nil {
-		t.Fatalf("Latest: %v", err)
-	}
-	if got != "2.31.0" {
-		t.Errorf("got %q, want 2.31.0", got)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assertLatest(t, tt.path, tt.body, tt.want, tt.newSource)
+		})
 	}
 }
 

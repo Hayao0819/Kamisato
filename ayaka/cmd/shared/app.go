@@ -88,20 +88,6 @@ func (a *App) GetSrcRepo(name string) *repo.SourceRepo {
 	return nil
 }
 
-func (a *App) GetDestDir(name string) string {
-	if r := a.GetSrcRepo(name); r != nil {
-		return r.DestDir
-	}
-	return ""
-}
-
-func (a *App) GetSrcDir(name string) string {
-	if r := a.GetSrcRepo(name); r != nil {
-		return r.Dir
-	}
-	return ""
-}
-
 func (a *App) GetSrcRepoNames() []string {
 	return lo.Map(a.SrcRepos, func(r *repo.SourceRepo, _ int) string {
 		return r.Config.Name

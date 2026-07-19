@@ -5,10 +5,12 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
 	"github.com/Hayao0819/Kamisato/kayo/trust"
+	"github.com/spf13/cobra"
 )
 
 func seedStore(t *testing.T, dir string) {
@@ -87,39 +89,24 @@ func TestTrustListJSONOutput(t *testing.T) {
 	}
 }
 
-func TestTrustRemoveAlias(t *testing.T) {
-	cmd := trustRemoveCmd()
-	aliases := cmd.Aliases
-	found := false
-	for _, a := range aliases {
-		if a == "rm" {
-			found = true
-			break
-		}
+func TestRemoveCommands(t *testing.T) {
+	tests := []struct {
+		name, use string
+		cmd       func() *cobra.Command
+	}{
+		{"trust", "remove [<pkgname>]", trustRemoveCmd},
+		{"whitelist", "remove <pkgname>", whitelistRemoveCmd},
 	}
-	if !found {
-		t.Errorf("trustRemoveCmd should have 'rm' alias, got %v", aliases)
-	}
-	if cmd.Use != "remove [<pkgname>]" {
-		t.Errorf("trustRemoveCmd Use = %q, want \"remove [<pkgname>]\"", cmd.Use)
-	}
-}
-
-func TestWhitelistRemoveAlias(t *testing.T) {
-	cmd := whitelistRemoveCmd()
-	aliases := cmd.Aliases
-	found := false
-	for _, a := range aliases {
-		if a == "rm" {
-			found = true
-			break
-		}
-	}
-	if !found {
-		t.Errorf("whitelistRemoveCmd should have 'rm' alias, got %v", aliases)
-	}
-	if cmd.Use != "remove <pkgname>" {
-		t.Errorf("whitelistRemoveCmd Use = %q, want \"remove <pkgname>\"", cmd.Use)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cmd := tt.cmd()
+			if !slices.Contains(cmd.Aliases, "rm") {
+				t.Errorf("aliases = %v, want rm", cmd.Aliases)
+			}
+			if cmd.Use != tt.use {
+				t.Errorf("Use = %q, want %q", cmd.Use, tt.use)
+			}
+		})
 	}
 }
 

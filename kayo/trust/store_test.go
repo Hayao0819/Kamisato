@@ -5,6 +5,23 @@ import (
 	"testing"
 )
 
+type evaluationCase struct {
+	name               string
+	source, base, main string
+	want               Decision
+}
+
+func assertEvaluations(t *testing.T, store *Store, cases []evaluationCase) {
+	t.Helper()
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := store.Evaluate(c.source, c.base, c.main); got.Decision != c.want {
+				t.Errorf("Evaluate = %v (%v), want %v", got.Decision, got.Reasons, c.want)
+			}
+		})
+	}
+}
+
 func TestStorePersistence(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "trust.json")
 
@@ -38,24 +55,13 @@ func TestEvaluate(t *testing.T) {
 	s, _ := Open(filepath.Join(t.TempDir(), "trust.json"))
 	s.Approve(Approval{Pkgbase: "yay", Source: "aur", Maintainer: "jguer", Commit: "c1"})
 
-	cases := []struct {
-		name               string
-		source, base, main string
-		want               Decision
-	}{
+	assertEvaluations(t, s, []evaluationCase{
 		{"overlay always trusted", "overlay", "anything", "", Trusted},
 		{"approved, same maintainer", "aur", "yay", "jguer", Trusted},
 		{"unreviewed package", "aur", "newpkg", "someone", NeedsReview},
 		{"maintainer changed (takeover)", "aur", "yay", "attacker", NeedsReview},
 		{"orphaned", "aur", "yay", "", NeedsReview},
-	}
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			if got := s.Evaluate(c.source, c.base, c.main); got.Decision != c.want {
-				t.Errorf("Evaluate = %v (%v), want %v", got.Decision, got.Reasons, c.want)
-			}
-		})
-	}
+	})
 }
 
 func TestEvaluateWhitelist(t *testing.T) {
@@ -63,23 +69,12 @@ func TestEvaluateWhitelist(t *testing.T) {
 	s.Approve(Approval{Pkgbase: "yay", Source: "aur", Maintainer: "jguer", Commit: "c1"})
 	s.AddWhitelist("firefox", "vendored, reviewed out-of-band")
 
-	cases := []struct {
-		name               string
-		source, base, main string
-		want               Decision
-	}{
+	assertEvaluations(t, s, []evaluationCase{
 		{"whitelisted brand-new pkgbase is trusted", "aur", "firefox", "anyone", Trusted},
 		{"non-whitelisted brand-new pkgbase needs review", "aur", "newpkg", "someone", NeedsReview},
 		{"non-whitelisted changed maintainer needs review", "aur", "yay", "attacker", NeedsReview},
 		{"non-whitelisted unchanged is trusted", "aur", "yay", "jguer", Trusted},
-	}
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			if got := s.Evaluate(c.source, c.base, c.main); got.Decision != c.want {
-				t.Errorf("Evaluate = %v (%v), want %v", got.Decision, got.Reasons, c.want)
-			}
-		})
-	}
+	})
 
 	// A whitelist entry bypasses maintainer-change detection even for a pkgbase that
 	// also has an approval, so removing it restores the maintainer-swap gate.

@@ -29,6 +29,15 @@ type member struct {
 	content string
 }
 
+var repoToolBackends = []struct {
+	name         string
+	tool         Tool
+	needsRepoAdd bool
+}{
+	{"native", NativeTool{}, false},
+	{"cli", CLITool{}, true},
+}
+
 // buildPkg writes a .pkg.tar.zst (pure Go) with the given .PKGINFO and members.
 func buildPkg(t *testing.T, path, pkginfo string, members []member) {
 	t.Helper()
@@ -149,6 +158,13 @@ func sampleMembers() []member {
 	}
 }
 
+func samplePackage(t *testing.T, dir string) string {
+	t.Helper()
+	path := filepath.Join(dir, "sample-1.0-1-x86_64.pkg.tar.zst")
+	buildPkg(t, path, pkginfoSample("sample", "sample", "1.0-1"), sampleMembers())
+	return path
+}
+
 func requireRepoAdd(t *testing.T) {
 	t.Helper()
 	if _, err := exec.LookPath("repo-add"); err != nil {
@@ -161,34 +177,23 @@ func requireRepoAdd(t *testing.T) {
 // artifact quartet, the same readable package, and the same files listing. The
 // CLI subtest skips where repo-add is absent.
 func TestBackendsRepoAddAndRemove(t *testing.T) {
-	backends := []struct {
-		name         string
-		tool         Tool
-		needsRepoAdd bool
-	}{
-		{"native", NativeTool{}, false},
-		{"cli", CLITool{}, true},
-	}
-
-	for _, be := range backends {
+	for _, be := range repoToolBackends {
 		t.Run(be.name, func(t *testing.T) {
 			if be.needsRepoAdd {
 				requireRepoAdd(t)
 			}
 
 			dir := t.TempDir()
-			pkgPath := filepath.Join(dir, "sample-1.0-1-x86_64.pkg.tar.zst")
-			buildPkg(t, pkgPath, pkginfoSample("sample", "sample", "1.0-1"), sampleMembers())
+			pkgPath := samplePackage(t, dir)
 
 			dbPath := filepath.Join(dir, "r.db.tar.gz")
 			if err := be.tool.RepoAdd(dbPath, pkgPath, false, nil); err != nil {
 				t.Fatalf("RepoAdd: %v", err)
 			}
 
-			for _, name := range []string{"r.db", "r.db.tar.gz", "r.files", "r.files.tar.gz"} {
-				if _, err := os.Stat(filepath.Join(dir, name)); err != nil {
-					t.Errorf("artifact %s missing: %v", name, err)
-				}
+			assertArtifactQuartet(t, dir)
+			if !be.needsRepoAdd {
+				assertNativeByteCopies(t, dir)
 			}
 
 			rr, err := RepoFromDBFile("r", dbPath)
@@ -222,24 +227,6 @@ func TestBackendsRepoAddAndRemove(t *testing.T) {
 	}
 }
 
-func TestNativeRepoAddAndRemove(t *testing.T) {
-	dir := t.TempDir()
-	pkgPath := filepath.Join(dir, "sample-1.0-1-x86_64.pkg.tar.zst")
-	buildPkg(t, pkgPath, pkginfoSample("sample", "sample", "1.0-1"), sampleMembers())
-
-	dbPath := filepath.Join(dir, "r.db.tar.gz")
-	if err := (NativeTool{}).RepoAdd(dbPath, pkgPath, false, nil); err != nil {
-		t.Fatalf("RepoAdd: %v", err)
-	}
-
-	// .db copy must be byte-identical to the .db.tar.gz archive (no symlinks in blob).
-	archive, _ := os.ReadFile(dbPath)
-	copyBytes, _ := os.ReadFile(filepath.Join(dir, "r.db"))
-	if !bytes.Equal(archive, copyBytes) {
-		t.Error("r.db is not a byte copy of r.db.tar.gz")
-	}
-}
-
 func TestWriteToolArchiveFailurePreservesExistingDatabase(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "repo.db.tar.gz")
 	if err := os.WriteFile(path, []byte("published"), 0o644); err != nil {
@@ -267,16 +254,8 @@ func TestWriteToolArchiveFailurePreservesExistingDatabase(t *testing.T) {
 // TestRepoAddBatch adds several packages in a single RepoAddBatch call and
 // asserts every one lands in the database, for both backends.
 func TestRepoAddBatch(t *testing.T) {
-	backends := []struct {
-		name         string
-		tool         Tool
-		needsRepoAdd bool
-	}{
-		{"native", NativeTool{}, false},
-		{"cli", CLITool{}, true},
-	}
 	names := []string{"alpha", "bravo", "charlie"}
-	for _, be := range backends {
+	for _, be := range repoToolBackends {
 		t.Run(be.name, func(t *testing.T) {
 			if be.needsRepoAdd {
 				requireRepoAdd(t)
@@ -332,8 +311,7 @@ func TestNativeEmbedsAdjacentPGPSIG(t *testing.T) {
 	want := base64.StdEncoding.EncodeToString(sig)
 
 	build := func(dir string) string {
-		pkgPath := filepath.Join(dir, "sample-1.0-1-x86_64.pkg.tar.zst")
-		buildPkg(t, pkgPath, pkginfoSample("sample", "sample", "1.0-1"), sampleMembers())
+		pkgPath := samplePackage(t, dir)
 		if err := os.WriteFile(pkgPath+".sig", sig, 0o644); err != nil {
 			t.Fatal(err)
 		}
@@ -376,8 +354,7 @@ func TestNativeEmbedsAdjacentPGPSIG(t *testing.T) {
 // yields a desc with no %PGPSIG% field.
 func TestNativeNoAdjacentSig(t *testing.T) {
 	dir := t.TempDir()
-	pkgPath := filepath.Join(dir, "sample-1.0-1-x86_64.pkg.tar.zst")
-	buildPkg(t, pkgPath, pkginfoSample("sample", "sample", "1.0-1"), sampleMembers())
+	pkgPath := samplePackage(t, dir)
 
 	dbPath := filepath.Join(dir, "r.db.tar.gz")
 	if err := (NativeTool{}).RepoAddBatch(dbPath, []string{pkgPath}, false, nil); err != nil {
@@ -399,8 +376,7 @@ func TestNativeNoAdjacentSig(t *testing.T) {
 // package is rejected rather than embedded (pacman cannot use armored sigs).
 func TestNativeRejectsArmoredSig(t *testing.T) {
 	dir := t.TempDir()
-	pkgPath := filepath.Join(dir, "sample-1.0-1-x86_64.pkg.tar.zst")
-	buildPkg(t, pkgPath, pkginfoSample("sample", "sample", "1.0-1"), sampleMembers())
+	pkgPath := samplePackage(t, dir)
 	armored := "-----BEGIN PGP SIGNATURE-----\n\nc2ln\n-----END PGP SIGNATURE-----\n"
 	if err := os.WriteFile(pkgPath+".sig", []byte(armored), 0o644); err != nil {
 		t.Fatal(err)
@@ -449,8 +425,7 @@ func TestNativeSignedDB(t *testing.T) {
 	}
 
 	dir := t.TempDir()
-	pkgPath := filepath.Join(dir, "sample-1.0-1-x86_64.pkg.tar.zst")
-	buildPkg(t, pkgPath, pkginfoSample("sample", "sample", "1.0-1"), sampleMembers())
+	pkgPath := samplePackage(t, dir)
 
 	dbPath := filepath.Join(dir, "r.db.tar.gz")
 	if err := NewSigningNativeTool(entity).RepoAddBatch(dbPath, []string{pkgPath}, true, nil); err != nil {
@@ -711,8 +686,7 @@ func TestNativeSignedMatchesRepoAdd(t *testing.T) {
 	}
 
 	src := t.TempDir()
-	pkgPath := filepath.Join(src, "sample-1.0-1-x86_64.pkg.tar.zst")
-	buildPkg(t, pkgPath, pkginfoSample("sample", "sample", "1.0-1"), sampleMembers())
+	pkgPath := samplePackage(t, src)
 
 	ourDir := t.TempDir()
 	ourDB := filepath.Join(ourDir, "r.db.tar.gz")

@@ -10,12 +10,10 @@ import (
 
 func SetDefaultCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "set-default <server>",
-		Short: "Set the default ayato server",
-		Args:  cobra.ExactArgs(1),
-		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-			return serverstore.Names(toComplete), cobra.ShellCompDirectiveNoFileComp
-		},
+		Use:               "set-default <server>",
+		Short:             "Set the default ayato server",
+		Args:              cobra.ExactArgs(1),
+		ValidArgsFunction: completeServerNames,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := serverstore.SetDefault(args[0]); err != nil {
 				if errors.Is(err, serverstore.ErrServerNotFound) {

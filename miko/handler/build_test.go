@@ -184,30 +184,26 @@ func TestJobCancelHandlerOK(t *testing.T) {
 	}
 }
 
-func TestJobCancelHandlerNotFound(t *testing.T) {
-	ctrl, mockSvc, r := setup(t)
-	defer ctrl.Finish()
-
-	mockSvc.EXPECT().Cancel("missing").Return(service.ErrInvalidRequest)
-
-	w := httptest.NewRecorder()
-	r.ServeHTTP(w, httptest.NewRequest(http.MethodDelete, "/api/unstable/jobs/missing", nil))
-
-	if w.Code != http.StatusNotFound {
-		t.Fatalf("status = %d, want 404: %s", w.Code, w.Body.String())
+func TestJobCancelHandlerErrors(t *testing.T) {
+	cases := []struct {
+		id     string
+		err    error
+		status int
+	}{
+		{"missing", service.ErrInvalidRequest, http.StatusNotFound},
+		{"done", service.ErrJobNotCancelable, http.StatusConflict},
 	}
-}
+	for _, tc := range cases {
+		t.Run(tc.id, func(t *testing.T) {
+			ctrl, mockSvc, r := setup(t)
+			defer ctrl.Finish()
+			mockSvc.EXPECT().Cancel(tc.id).Return(tc.err)
 
-func TestJobCancelHandlerConflict(t *testing.T) {
-	ctrl, mockSvc, r := setup(t)
-	defer ctrl.Finish()
-
-	mockSvc.EXPECT().Cancel("done").Return(service.ErrJobNotCancelable)
-
-	w := httptest.NewRecorder()
-	r.ServeHTTP(w, httptest.NewRequest(http.MethodDelete, "/api/unstable/jobs/done", nil))
-
-	if w.Code != http.StatusConflict {
-		t.Fatalf("status = %d, want 409: %s", w.Code, w.Body.String())
+			w := httptest.NewRecorder()
+			r.ServeHTTP(w, httptest.NewRequest(http.MethodDelete, "/api/unstable/jobs/"+tc.id, nil))
+			if w.Code != tc.status {
+				t.Fatalf("status = %d, want %d: %s", w.Code, tc.status, w.Body.String())
+			}
+		})
 	}
 }

@@ -13,6 +13,18 @@ import (
 	"testing"
 )
 
+func mustWriteTarFile(t *testing.T, writer *tar.Writer, name string, body []byte) {
+	t.Helper()
+	if err := writer.WriteHeader(&tar.Header{
+		Name: name, Mode: 0o644, Size: int64(len(body)), Typeflag: tar.TypeReg,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := writer.Write(body); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestRemoteRepoFromDB(t *testing.T) {
 	desc := "%FILENAME%\nfoo-1.0-1-x86_64.pkg.tar.zst\n\n" +
 		"%NAME%\nfoo\n\n%BASE%\nfoobase\n\n%VERSION%\n1.0-1\n\n%ARCH%\nx86_64\n"
@@ -23,13 +35,7 @@ func TestRemoteRepoFromDB(t *testing.T) {
 	if err := tw.WriteHeader(&tar.Header{Name: "foo-1.0-1/", Mode: 0o755, Typeflag: tar.TypeDir}); err != nil {
 		t.Fatal(err)
 	}
-	body := []byte(desc)
-	if err := tw.WriteHeader(&tar.Header{Name: "foo-1.0-1/desc", Mode: 0o644, Size: int64(len(body)), Typeflag: tar.TypeReg}); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := tw.Write(body); err != nil {
-		t.Fatal(err)
-	}
+	mustWriteTarFile(t, tw, "foo-1.0-1/desc", []byte(desc))
 	if err := tw.Close(); err != nil {
 		t.Fatal(err)
 	}
@@ -65,12 +71,7 @@ func TestRemoteRepoFromDB_NewDBFormat(t *testing.T) {
 	gw := gzip.NewWriter(&gz)
 	tw := tar.NewWriter(gw)
 	body := append([]byte("SQLite format 3\x00"), make([]byte, 100)...)
-	if err := tw.WriteHeader(&tar.Header{Name: "pacman.db", Mode: 0o644, Size: int64(len(body)), Typeflag: tar.TypeReg}); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := tw.Write(body); err != nil {
-		t.Fatal(err)
-	}
+	mustWriteTarFile(t, tw, "pacman.db", body)
 	if err := tw.Close(); err != nil {
 		t.Fatal(err)
 	}
@@ -136,17 +137,7 @@ func TestRemoteRepoFromDBRejectsOversizedDesc(t *testing.T) {
 	gw := gzip.NewWriter(&gz)
 	tw := tar.NewWriter(gw)
 	body := make([]byte, maxRepoDBDescBytes+1)
-	if err := tw.WriteHeader(&tar.Header{
-		Name:     "foo-1-1/desc",
-		Mode:     0o644,
-		Size:     int64(len(body)),
-		Typeflag: tar.TypeReg,
-	}); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := tw.Write(body); err != nil {
-		t.Fatal(err)
-	}
+	mustWriteTarFile(t, tw, "foo-1-1/desc", body)
 	if err := tw.Close(); err != nil {
 		t.Fatal(err)
 	}

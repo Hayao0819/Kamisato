@@ -26,11 +26,11 @@ func Cmd() *cobra.Command {
 			app := shared.AppFrom(cmd)
 			dirs := make([]string, 0, len(app.Config.Repos))
 			if len(args) > 0 {
-				d := app.GetSrcDir(args[0])
-				if d == "" {
+				sourceRepo := app.GetSrcRepo(args[0])
+				if sourceRepo == nil || sourceRepo.Dir == "" {
 					return errors.WrapErr(shared.ErrInvalidRepoName, args[0])
 				}
-				dirs = append(dirs, d)
+				dirs = append(dirs, sourceRepo.Dir)
 			} else {
 				for _, r := range app.Config.Repos {
 					dirs = append(dirs, r.Dir)

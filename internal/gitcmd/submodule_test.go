@@ -3,7 +3,6 @@ package gitcmd
 import (
 	"context"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -12,34 +11,23 @@ import (
 )
 
 func TestAddSubmodule(t *testing.T) {
-	runGit := func(dir string, args ...string) {
-		t.Helper()
-		cmd := exec.Command("git", args...)
-		cmd.Dir = dir
-		cmd.Env = append(os.Environ(),
-			"GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@t",
-			"GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@t")
-		if out, err := cmd.CombinedOutput(); err != nil {
-			t.Fatalf("git %v: %v\n%s", args, err, out)
-		}
-	}
 	// origin repo that becomes the submodule
 	origin := t.TempDir()
-	runGit(origin, "init", "-q", "-b", "main")
+	runTestGit(t, origin, "init", "-q", "-b", "main")
 	if err := os.WriteFile(filepath.Join(origin, "f.txt"), []byte("x"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	runGit(origin, "add", "-A")
-	runGit(origin, "commit", "-q", "-m", "one")
+	runTestGit(t, origin, "add", "-A")
+	runTestGit(t, origin, "commit", "-q", "-m", "one")
 
 	// superproject
 	super := t.TempDir()
-	runGit(super, "init", "-q", "-b", "main")
+	runTestGit(t, super, "init", "-q", "-b", "main")
 	if err := os.WriteFile(filepath.Join(super, "g.txt"), []byte("y"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	runGit(super, "add", "-A")
-	runGit(super, "commit", "-q", "-m", "init")
+	runTestGit(t, super, "add", "-A")
+	runTestGit(t, super, "commit", "-q", "-m", "init")
 
 	if err := AddSubmodule(context.Background(), super, origin, "sub"); err != nil {
 		t.Fatalf("AddSubmodule: %v", err)

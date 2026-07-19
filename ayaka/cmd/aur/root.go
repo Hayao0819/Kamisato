@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -35,6 +36,56 @@ func Cmd() *cobra.Command {
 		aurUpdateCmd(),
 	)
 	return cmd
+}
+
+func aurMutationCmd(
+	use, short, forceHelp string,
+	run func(*cobra.Command, string, []string, bool) error,
+) *cobra.Command {
+	var force bool
+	cmd := &cobra.Command{
+		Use:   use,
+		Short: short,
+		Args:  cobra.MinimumNArgs(2),
+		ValidArgsFunction: func(cmd *cobra.Command, args []string, _ string) ([]string, cobra.ShellCompDirective) {
+			if len(args) == 0 {
+				return shared.AppFrom(cmd).GetSrcRepoNames(), cobra.ShellCompDirectiveNoFileComp
+			}
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return run(cmd, args[0], args[1:], force)
+		},
+	}
+	cmd.Flags().BoolVarP(&force, "force", "f", false, forceHelp)
+	return cmd
+}
+
+func runAurPackages(
+	cmd *cobra.Command,
+	repoName string,
+	pkgs []string,
+	errorPrefix string,
+	run func(repoDir, name string) error,
+) error {
+	repo := shared.AppFrom(cmd).GetSrcRepo(repoName)
+	if repo == nil {
+		return errors.WrapErr(shared.ErrInvalidRepoName, repoName)
+	}
+	if repo.Dir == "" {
+		return errors.WrapErr(shared.ErrNoSourceDir, repoName)
+	}
+
+	var failures []string
+	for _, name := range pkgs {
+		if err := run(repo.Dir, name); err != nil {
+			failures = append(failures, err.Error())
+		}
+	}
+	if len(failures) > 0 {
+		return errors.NewErr(errorPrefix + strings.Join(failures, "\n"))
+	}
+	return nil
 }
 
 func updateAurPkg(cobraCmd *cobra.Command, repoDir, name string, force bool) error {

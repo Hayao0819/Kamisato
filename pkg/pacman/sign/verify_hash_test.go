@@ -17,16 +17,6 @@ import (
 	"github.com/Hayao0819/Kamisato/pkg/pacman/sign"
 )
 
-// rtRSAConfig is a local V4 RSA signing config; RSA permits weak digests.
-func rtRSAConfig() *packet.Config {
-	deterministic := false
-	return &packet.Config{
-		Algorithm:                             packet.PubKeyAlgoRSA,
-		RSABits:                               2048,
-		NonDeterministicSignaturesViaNotation: &deterministic,
-	}
-}
-
 // forgeDetachedWithHash tries to build a V4 detached binary signature over
 // payload using an arbitrary digest, mirroring openpgp.DetachSign but pinning
 // Hash so we can probe whether the verifier accepts a weak/broken digest. It
@@ -35,7 +25,7 @@ func rtRSAConfig() *packet.Config {
 // the attacker cannot even produce the bytes via this library.
 func forgeDetachedWithHash(t *testing.T, signer *openpgp.Entity, payload []byte, h crypto.Hash) (sigBytes []byte, ok bool) {
 	t.Helper()
-	cfg := rtRSAConfig()
+	cfg := rsaConfig()
 	sig := &packet.Signature{
 		Version:      signer.PrimaryKey.Version,
 		SigType:      packet.SigTypeBinary,
@@ -88,7 +78,7 @@ func rtWriteKeyring(t *testing.T, e *openpgp.Entity) *sign.Keyring {
 // PoC: any non-{SHA256,SHA384,SHA512} digest must be refused before the signer
 // is resolved.
 func TestRedteam_WeakDigestsRejected(t *testing.T) {
-	signer, err := openpgp.NewEntity("rsa-signer", "test", "rsa@example.com", rtRSAConfig())
+	signer, err := openpgp.NewEntity("rsa-signer", "test", "rsa@example.com", rsaConfig())
 	if err != nil {
 		t.Fatalf("NewEntity rsa: %v", err)
 	}
@@ -97,7 +87,7 @@ func TestRedteam_WeakDigestsRejected(t *testing.T) {
 
 	// sanity: SHA-256 from the trusted key verifies.
 	var good bytes.Buffer
-	if err := openpgp.DetachSign(&good, signer, bytes.NewReader(payload), rtRSAConfig()); err != nil {
+	if err := openpgp.DetachSign(&good, signer, bytes.NewReader(payload), rsaConfig()); err != nil {
 		t.Fatalf("DetachSign SHA-256: %v", err)
 	}
 	if _, err := kr.VerifyDetached(bytes.NewReader(payload), bytes.NewReader(good.Bytes())); err != nil {
@@ -152,7 +142,7 @@ func pgpHashByte(h crypto.Hash) byte {
 // / RIPEMD160 in place, then asserts VerifyDetached still rejects it. This models
 // an attacker hand-crafting bytes the go-crypto signing API would refuse.
 func TestRedteam_RawWeakHashByteRejected(t *testing.T) {
-	signer, err := openpgp.NewEntity("rsa-signer", "test", "rsa@example.com", rtRSAConfig())
+	signer, err := openpgp.NewEntity("rsa-signer", "test", "rsa@example.com", rsaConfig())
 	if err != nil {
 		t.Fatalf("NewEntity rsa: %v", err)
 	}
@@ -160,7 +150,7 @@ func TestRedteam_RawWeakHashByteRejected(t *testing.T) {
 	kr := rtWriteKeyring(t, signer)
 
 	var good bytes.Buffer
-	if err := openpgp.DetachSign(&good, signer, bytes.NewReader(payload), rtRSAConfig()); err != nil {
+	if err := openpgp.DetachSign(&good, signer, bytes.NewReader(payload), rsaConfig()); err != nil {
 		t.Fatalf("DetachSign SHA-256: %v", err)
 	}
 	base := good.Bytes()

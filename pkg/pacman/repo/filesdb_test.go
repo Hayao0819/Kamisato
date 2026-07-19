@@ -18,12 +18,7 @@ func writeFilesDB(t *testing.T, pkgs map[string][]string) []byte {
 	gz := gzip.NewWriter(&buf)
 	tw := tar.NewWriter(gz)
 	write := func(name string, data string) {
-		if err := tw.WriteHeader(&tar.Header{Name: name, Mode: 0o644, Size: int64(len(data)), Typeflag: tar.TypeReg}); err != nil {
-			t.Fatal(err)
-		}
-		if _, err := tw.Write([]byte(data)); err != nil {
-			t.Fatal(err)
-		}
+		mustWriteTarFile(t, tw, name, []byte(data))
 	}
 	for name, files := range pkgs {
 		dir := name + "-1.0-1"
@@ -68,12 +63,7 @@ func TestFilesFromDB_NewDBFormat(t *testing.T) {
 	gz := gzip.NewWriter(&buf)
 	tw := tar.NewWriter(gz)
 	body := append([]byte("SQLite format 3\x00"), make([]byte, 100)...)
-	if err := tw.WriteHeader(&tar.Header{Name: "pacman.db", Mode: 0o644, Size: int64(len(body)), Typeflag: tar.TypeReg}); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := tw.Write(body); err != nil {
-		t.Fatal(err)
-	}
+	mustWriteTarFile(t, tw, "pacman.db", body)
 	if err := tw.Close(); err != nil {
 		t.Fatal(err)
 	}
