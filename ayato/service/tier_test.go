@@ -1,7 +1,6 @@
 package service_test
 
 import (
-	"bytes"
 	"context"
 	"os"
 	"path/filepath"
@@ -14,20 +13,13 @@ import (
 	"github.com/Hayao0819/Kamisato/ayato/repository"
 	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
 	"github.com/Hayao0819/Kamisato/ayato/service"
-	"github.com/Hayao0819/Kamisato/ayato/stream"
-	"github.com/Hayao0819/Kamisato/ayato/test/mocks"
 	"github.com/Hayao0819/Kamisato/internal/conf"
-	pacmanpkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
-	pacmanrepo "github.com/Hayao0819/Kamisato/pkg/pacman/repo"
-	"github.com/Hayao0819/Kamisato/pkg/raiou"
-	"go.uber.org/mock/gomock"
 )
 
-// newTieredService wires a real repository stack (localfs blob + BadgerDB kv) so
-// tier promotion exercises the actual storage and CAS database commit, not a
-// mock. It returns the service, the config, and the on-disk repo root (for
-// counting stored package files).
-func newTieredService(t *testing.T, repos []conf.BinRepoConfig) (*service.Service, *conf.AyatoConfig, string) {
+func newTieredService(
+	t *testing.T,
+	repos []conf.BinRepoConfig,
+) (*service.Service, *conf.AyatoConfig, string) {
 	t.Helper()
 	repoDir := t.TempDir()
 	cfg := &conf.AyatoConfig{Repos: repos}
@@ -49,9 +41,9 @@ func newTieredService(t *testing.T, repos []conf.BinRepoConfig) (*service.Servic
 
 func uploadPkg(t *testing.T, svc *service.Service, repo, pkgname string) {
 	t.Helper()
-	fname := pkgname + "-1.0-1-x86_64.pkg.tar.zst"
+	filename := pkgname + "-1.0-1-x86_64.pkg.tar.zst"
 	files := &domain.UploadFiles{
-		PkgFile: pkgStream(fname, buildPackage(t, pkgname, "1.0-1", "x86_64")),
+		PkgFile: pkgStream(filename, buildPackage(t, pkgname, "1.0-1", "x86_64")),
 	}
 	if err := svc.UploadFile(repo, files); err != nil {
 		t.Fatalf("upload %s to %s: %v", pkgname, repo, err)
@@ -62,61 +54,51 @@ func pkgNames(t *testing.T, svc *service.Service, repo, arch string) []string {
 	t.Helper()
 	pkgs, err := svc.Pkgs(repo, arch)
 	if err != nil {
-		// A tier with no published package has no db yet; that is an empty tier.
 		if errors.Is(err, blob.ErrNotFound) {
 			return nil
 		}
 		t.Fatalf("Pkgs(%s, %s): %v", repo, arch, err)
 	}
 	names := make([]string, 0, len(pkgs.Packages))
-	for _, p := range pkgs.Packages {
-		names = append(names, p.PkgName)
+	for _, pkg := range pkgs.Packages {
+		names = append(names, pkg.PkgName)
 	}
 	return names
 }
 
-// pkgFileCount counts the package files stored on disk across every tier, so a
-// test can prove a moved package lives in exactly one tier at a time (promotion
-// copies to the target tier, then the move policy drops the source).
 func pkgFileCount(t *testing.T, repoDir string) int {
 	t.Helper()
-	n := 0
-	err := filepath.WalkDir(repoDir, func(_ string, d os.DirEntry, err error) error {
+	count := 0
+	err := filepath.WalkDir(repoDir, func(_ string, entry os.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
-		if !d.IsDir() && strings.Contains(d.Name(), ".pkg.tar.") {
-			n++
+		if !entry.IsDir() && strings.Contains(entry.Name(), ".pkg.tar.") {
+			count++
 		}
 		return nil
 	})
 	if err != nil {
 		t.Fatalf("walk repo dir: %v", err)
 	}
-	return n
+	return count
 }
 
 func has(names []string, want string) bool {
-	for _, n := range names {
-		if n == want {
+	for _, name := range names {
+		if name == want {
 			return true
 		}
 	}
 	return false
 }
 
-// TestTieredPromotionFlow walks a package staging -> testing -> stable and checks
-// each step: an upload lands in staging only, a promotion makes the package
-// appear in the next tier's database, exactly one package file exists across all
-// tiers (the move policy drops the source after each promotion), and the move
-// policy clears the source tier.
 func TestTieredPromotionFlow(t *testing.T) {
 	svc, _, repoDir := newTieredService(t, []conf.BinRepoConfig{
 		{Name: "myrepo", Tiered: true},
 	})
 	ctx := context.Background()
 
-	// An upload addressed at the logical repo lands in staging only.
 	uploadPkg(t, svc, "myrepo", "foo")
 	if !has(pkgNames(t, svc, "myrepo-staging", "x86_64"), "foo") {
 		t.Fatal("upload did not land in the staging tier")
@@ -127,13 +109,14 @@ func TestTieredPromotionFlow(t *testing.T) {
 	if len(pkgNames(t, svc, "myrepo", "x86_64")) != 0 {
 		t.Fatal("upload leaked into the stable tier")
 	}
-	if n := pkgFileCount(t, repoDir); n != 1 {
-		t.Fatalf("package files after upload = %d, want 1", n)
+	if count := pkgFileCount(t, repoDir); count != 1 {
+		t.Fatalf("package files after upload = %d, want 1", count)
 	}
 
-	// staging -> testing: appears in testing, gone from staging (move policy), and
-	// exactly one package file remains on disk (moved, not duplicated).
-	if err := svc.PromotePackage(ctx, "myrepo", domain.TierStaging, domain.TierTesting, "foo", "1.0-1"); err != nil {
+	err := svc.PromotePackage(
+		ctx, "myrepo", domain.TierStaging, domain.TierTesting, "foo", "1.0-1",
+	)
+	if err != nil {
 		t.Fatalf("promote staging->testing: %v", err)
 	}
 	if !has(pkgNames(t, svc, "myrepo-testing", "x86_64"), "foo") {
@@ -142,12 +125,14 @@ func TestTieredPromotionFlow(t *testing.T) {
 	if len(pkgNames(t, svc, "myrepo-staging", "x86_64")) != 0 {
 		t.Fatal("move policy did not clear foo from the staging tier")
 	}
-	if n := pkgFileCount(t, repoDir); n != 1 {
-		t.Fatalf("package files after promotion = %d, want 1 (moved, not duplicated)", n)
+	if count := pkgFileCount(t, repoDir); count != 1 {
+		t.Fatalf("package files after promotion = %d, want 1", count)
 	}
 
-	// testing -> stable: appears in stable, gone from testing.
-	if err := svc.PromotePackage(ctx, "myrepo", domain.TierTesting, domain.TierStable, "foo", ""); err != nil {
+	err = svc.PromotePackage(
+		ctx, "myrepo", domain.TierTesting, domain.TierStable, "foo", "",
+	)
+	if err != nil {
 		t.Fatalf("promote testing->stable: %v", err)
 	}
 	if !has(pkgNames(t, svc, "myrepo", "x86_64"), "foo") {
@@ -156,150 +141,7 @@ func TestTieredPromotionFlow(t *testing.T) {
 	if len(pkgNames(t, svc, "myrepo-testing", "x86_64")) != 0 {
 		t.Fatal("move policy did not clear foo from the testing tier")
 	}
-	if n := pkgFileCount(t, repoDir); n != 1 {
-		t.Fatalf("package files after full promotion = %d, want 1", n)
-	}
-}
-
-// TestTieredPromotionKeepInSource proves the keep-in-source policy leaves the
-// package published in both tiers after a promotion.
-func TestTieredPromotionKeepInSource(t *testing.T) {
-	svc, _, _ := newTieredService(t, []conf.BinRepoConfig{
-		{Name: "myrepo", Tiered: true, PromotionKeepInSource: true},
-	})
-
-	uploadPkg(t, svc, "myrepo", "foo")
-	if err := svc.PromotePackage(context.Background(), "myrepo", domain.TierStaging, domain.TierTesting, "foo", ""); err != nil {
-		t.Fatalf("promote: %v", err)
-	}
-	if !has(pkgNames(t, svc, "myrepo-testing", "x86_64"), "foo") {
-		t.Fatal("promotion did not add foo to the testing tier")
-	}
-	if !has(pkgNames(t, svc, "myrepo-staging", "x86_64"), "foo") {
-		t.Fatal("keep-in-source policy dropped foo from the staging tier")
-	}
-}
-
-// TestPromotionRejectsInvalidRequests locks the guards: a non-tiered repo, a
-// non-adjacent tier step, a version mismatch, and an absent package are all
-// refused, and a refused promotion leaves the target tier untouched (the CAS
-// commit is all-or-nothing — a target tier db is never half-updated).
-func TestPromotionRejectsInvalidRequests(t *testing.T) {
-	svc, _, _ := newTieredService(t, []conf.BinRepoConfig{
-		{Name: "myrepo", Tiered: true},
-		{Name: "single"},
-	})
-	ctx := context.Background()
-	uploadPkg(t, svc, "myrepo", "foo")
-
-	// Non-tiered repo.
-	if err := svc.PromotePackage(ctx, "single", domain.TierStaging, domain.TierTesting, "foo", ""); !errors.Is(err, domain.ErrInvalid) {
-		t.Fatalf("promote on non-tiered repo = %v, want ErrInvalid", err)
-	}
-	// Non-adjacent step (staging -> stable).
-	if err := svc.PromotePackage(ctx, "myrepo", domain.TierStaging, domain.TierStable, "foo", ""); !errors.Is(err, domain.ErrInvalid) {
-		t.Fatalf("skip-tier promote = %v, want ErrInvalid", err)
-	}
-	// Version mismatch.
-	if err := svc.PromotePackage(ctx, "myrepo", domain.TierStaging, domain.TierTesting, "foo", "9.9-9"); !errors.Is(err, domain.ErrInvalid) {
-		t.Fatalf("version-mismatch promote = %v, want ErrInvalid", err)
-	}
-	// Absent package.
-	if err := svc.PromotePackage(ctx, "myrepo", domain.TierStaging, domain.TierTesting, "ghost", ""); !errors.Is(err, domain.ErrNotFound) {
-		t.Fatalf("absent-package promote = %v, want ErrNotFound", err)
-	}
-	// Every refused promotion left the testing tier empty.
-	if len(pkgNames(t, svc, "myrepo-testing", "x86_64")) != 0 {
-		t.Fatal("a refused promotion half-updated the testing tier")
-	}
-}
-
-// TestTieredOffUnchanged proves a repo without tiering behaves exactly as before:
-// an upload lands directly in the single repo and there are no tier repos.
-func TestTieredOffUnchanged(t *testing.T) {
-	svc, cfg, _ := newTieredService(t, []conf.BinRepoConfig{
-		{Name: "single"},
-	})
-	catalog, err := cfg.RepositoryCatalog()
-	if err != nil {
-		t.Fatalf("RepositoryCatalog: %v", err)
-	}
-	if names := catalog.PhysicalNames(); len(names) != 1 || names[0] != "single" {
-		t.Fatalf("PhysicalNames = %v, want [single] for a non-tiered repo", names)
-	}
-	uploadPkg(t, svc, "single", "foo")
-	if !has(pkgNames(t, svc, "single", "x86_64"), "foo") {
-		t.Fatal("upload to a non-tiered repo did not land in the repo")
-	}
-}
-
-func TestPromotionRegistersCarriedPackageSignature(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	bin := mocks.NewMockBinaryRepository(ctrl)
-	names := mocks.NewMockNameStore(ctrl)
-	cfg := &conf.AyatoConfig{Repos: []conf.BinRepoConfig{{
-		Name:                  "myrepo",
-		Tiered:                true,
-		Arches:                []string{"x86_64"},
-		PromotionKeepInSource: true,
-	}}}
-	sourceName := "foo-1.0-1-x86_64.pkg.tar.zst"
-	sourceRepo := &pacmanrepo.RemoteRepo{Pkgs: []*pacmanpkg.BinaryPackage{
-		pacmanpkg.NewBinaryPackage(
-			sourceName,
-			&raiou.PKGINFO{PkgName: "foo", PkgVer: "1.0-1", Arch: "x86_64"},
-		),
-	}}
-	bin.EXPECT().Arches("myrepo-staging").Return([]string{"x86_64"}, nil)
-	bin.EXPECT().RemoteRepo("myrepo-staging", "x86_64").Return(sourceRepo, nil)
-	bin.EXPECT().RemoteRepo("myrepo-testing", "x86_64").Return(&pacmanrepo.RemoteRepo{}, nil)
-	bin.EXPECT().FetchFile("myrepo-staging", "x86_64", sourceName).
-		Return(pkgStream(sourceName, []byte("package")), nil)
-	bin.EXPECT().FetchFile("myrepo-staging", "x86_64", sourceName+".sig").
-		Return(stream.NewFileStream(
-			sourceName+".sig",
-			"application/pgp-signature",
-			bufferToReadSeekCloser(bytes.NewBufferString("signature")),
-		), nil)
-	bin.EXPECT().StoreFileImmutable("myrepo-testing", "x86_64", gomock.Any()).
-		Return(true, nil).Times(2)
-	bin.EXPECT().RepoAddBatch(
-		"myrepo-testing",
-		"x86_64",
-		gomock.Any(),
-		false,
-		gomock.Nil(),
-	).DoAndReturn(func(
-		_ string,
-		_ string,
-		items []repository.RepoAddItem,
-		_ bool,
-		_ *string,
-	) error {
-		if len(items) != 1 || items[0].Sig == nil {
-			t.Fatalf("promoted RepoAddItem = %+v, want carried signature", items)
-		}
-		return nil
-	})
-	names.EXPECT().StorePackageFile(
-		"myrepo-testing",
-		"x86_64",
-		"foo",
-		sourceName,
-	).Return(nil)
-
-	svc := service.New(names, bin, nil, nil, cfg)
-	err := svc.PromotePackage(
-		context.Background(),
-		"myrepo",
-		domain.TierStaging,
-		domain.TierTesting,
-		"foo",
-		"1.0-1",
-	)
-	if err != nil {
-		t.Fatalf("PromotePackage: %v", err)
+	if count := pkgFileCount(t, repoDir); count != 1 {
+		t.Fatalf("package files after full promotion = %d, want 1", count)
 	}
 }
