@@ -61,10 +61,7 @@ func New(driver, dsn string) (*Store, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := db.AutoMigrate(&Entry{}); err != nil {
-		return nil, fmt.Errorf("failed to auto migrate: %w", err)
-	}
-	return &Store{db: db}, nil
+	return migratedStore(db)
 }
 
 // NewWithDB wraps an already-open *gorm.DB (migrating the Entry table). It is the
@@ -73,6 +70,10 @@ func NewWithDB(db *gorm.DB) (*Store, error) {
 	if db == nil {
 		return nil, errors.New("sqlkv: nil db")
 	}
+	return migratedStore(db)
+}
+
+func migratedStore(db *gorm.DB) (*Store, error) {
 	if err := db.AutoMigrate(&Entry{}); err != nil {
 		return nil, fmt.Errorf("failed to auto migrate: %w", err)
 	}
