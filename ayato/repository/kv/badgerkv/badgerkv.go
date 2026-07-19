@@ -18,7 +18,7 @@ import (
 	"github.com/dgraph-io/badger/v4"
 
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
-	"github.com/Hayao0819/Kamisato/ayato/repository/kv/badgerkv/logger"
+	"github.com/Hayao0819/Kamisato/ayato/repository/kv/slogadapter"
 )
 
 // NUL cannot appear in the namespaces or keys callers use (package names, hex
@@ -46,7 +46,7 @@ var _ kv.Store = (*Store)(nil)
 
 func New(dir string) (*Store, error) {
 	opt := badger.DefaultOptions(dir)
-	opt.Logger = logger.Default()
+	opt.Logger = slogadapter.Default()
 	// BadgerDB memory-maps each value-log file at twice its configured size
 	// (~2 GiB by default). That mapping does not fit — let alone repeatedly — in a
 	// 32-bit process's limited address space, so on 32-bit builds cap the value-log

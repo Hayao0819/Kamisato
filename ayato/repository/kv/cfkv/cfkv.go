@@ -18,7 +18,7 @@ import (
 	"github.com/cloudflare/cloudflare-go"
 
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
-	"github.com/Hayao0819/Kamisato/ayato/repository/kv/cfkv/logger"
+	"github.com/Hayao0819/Kamisato/ayato/repository/kv/slogadapter"
 )
 
 // Keys are URL-safe base64 so no byte can break the Workers KV REST URL: the NUL
@@ -37,7 +37,7 @@ type Store struct {
 var _ kv.Store = (*Store)(nil)
 
 func New(account, token, namespace string) (*Store, error) {
-	c, err := cloudflare.NewWithAPIToken(token, cloudflare.UsingLogger(logger.Default()))
+	c, err := cloudflare.NewWithAPIToken(token, cloudflare.UsingLogger(slogadapter.Default()))
 	if err != nil {
 		return nil, fmt.Errorf("cfkv: new client: %w", err)
 	}
