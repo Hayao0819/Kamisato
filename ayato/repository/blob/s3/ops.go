@@ -10,7 +10,6 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awss3 "github.com/aws/aws-sdk-go-v2/service/s3"
-	"github.com/samber/lo"
 
 	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
 	"github.com/Hayao0819/Kamisato/ayato/stream"
@@ -35,13 +34,8 @@ func (s *S3) StoreFileWithSignedURL(repo string, arch string, name string) (stri
 		return "", err
 	}
 
-	input := awss3.GetObjectInput{
-		Bucket: aws.String(s.bucket),
-		Key:    aws.String(k),
-	}
-
 	presignClient := awss3.NewPresignClient(s.storage)
-	presignResult, err := presignClient.PresignGetObject(s.ctx, &input, func(po *awss3.PresignOptions) {
+	presignResult, err := presignClient.PresignGetObject(s.ctx, s.getObjectInput(k), func(po *awss3.PresignOptions) {
 		po.Expires = 15 * time.Minute
 	})
 	if err != nil {
@@ -130,9 +124,7 @@ func (s *S3) Arches(repo string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	return lo.Map(dl, func(name string, _ int) string {
-		return path.Base(name)
-	}), nil
+	return baseNames(dl), nil
 }
 
 func (s *S3) Files(repo string, arch string) ([]string, error) {
@@ -145,12 +137,18 @@ func (s *S3) Files(repo string, arch string) ([]string, error) {
 		return nil, err
 	}
 
-	files := lo.Map(l, func(name string, _ int) string {
-		return path.Base(name)
-	})
+	files := baseNames(l)
 
 	slog.Debug("get files", "repo", repo, "arch", arch, "files", files)
 	return files, nil
+}
+
+func baseNames(names []string) []string {
+	result := make([]string, len(names))
+	for index, name := range names {
+		result[index] = path.Base(name)
+	}
+	return result
 }
 
 // FilesWithMeta lists objects with their last-modified time, applying the same

@@ -21,12 +21,26 @@ import (
 )
 
 func (s *S3) putObject(objectKey string, body io.ReadCloser) error {
-	_, err := s.storage.PutObject(s.ctx, &awss3.PutObjectInput{
+	_, err := s.storage.PutObject(s.ctx, s.putObjectInput(objectKey, body))
+	return err
+}
+
+func (s *S3) putObjectInput(
+	objectKey string,
+	body io.Reader,
+) *awss3.PutObjectInput {
+	return &awss3.PutObjectInput{
 		Bucket: aws.String(s.bucket),
 		Key:    aws.String(objectKey),
 		Body:   body,
-	})
-	return err
+	}
+}
+
+func (s *S3) getObjectInput(objectKey string) *awss3.GetObjectInput {
+	return &awss3.GetObjectInput{
+		Bucket: aws.String(s.bucket),
+		Key:    aws.String(objectKey),
+	}
 }
 
 func (s *S3) deleteObject(objectKey string) error {
@@ -52,10 +66,7 @@ func (s *S3) getObjectWithETag(
 func (s *S3) getObjectWithMeta(
 	objectKey string,
 ) (stream.File, blob.FileMeta, error) {
-	output, err := s.storage.GetObject(s.ctx, &awss3.GetObjectInput{
-		Bucket: aws.String(s.bucket),
-		Key:    aws.String(objectKey),
-	})
+	output, err := s.storage.GetObject(s.ctx, s.getObjectInput(objectKey))
 	if err != nil {
 		if isNotFound(err) {
 			return nil, blob.FileMeta{}, blob.ErrNotFound
@@ -96,11 +107,7 @@ func (s *S3) putObjectIfMatch(
 	body io.ReadSeeker,
 	etag string,
 ) error {
-	input := &awss3.PutObjectInput{
-		Bucket: aws.String(s.bucket),
-		Key:    aws.String(objectKey),
-		Body:   body,
-	}
+	input := s.putObjectInput(objectKey, body)
 	if etag != "" {
 		input.IfMatch = aws.String(etag)
 	} else {
