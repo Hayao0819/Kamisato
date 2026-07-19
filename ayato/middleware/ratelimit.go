@@ -8,7 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"golang.org/x/time/rate"
 
-	"github.com/Hayao0819/Kamisato/ayato/ratelimit"
+	"github.com/Hayao0819/Kamisato/ayato/platform"
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
 	sharedlimit "github.com/Hayao0819/Kamisato/pkg/ratelimit"
 )
@@ -16,7 +16,7 @@ import (
 // WithRateLimiter wires the shared kv-backed limiter so limits hold across
 // replicas. An unwired Middleware leaves RateLimit as a pass-through.
 func (m *Middleware) WithRateLimiter(store kv.Store) *Middleware {
-	m.limiter = ratelimit.New(store)
+	m.limiter = platform.NewRateLimiter(store, kv.ErrNotFound)
 	return m
 }
 

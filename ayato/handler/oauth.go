@@ -11,7 +11,7 @@ import (
 	"golang.org/x/oauth2"
 	githuboauth "golang.org/x/oauth2/github"
 
-	"github.com/Hayao0819/Kamisato/ayato/httpsecurity"
+	"github.com/Hayao0819/Kamisato/ayato/platform"
 	"github.com/Hayao0819/Kamisato/internal/conf"
 )
 
@@ -76,10 +76,10 @@ func (h *AuthHandler) externalBase(c *gin.Context) (scheme, base string) {
 
 func externalBase(cfg *conf.AyatoConfig, c *gin.Context) (scheme, base string) {
 	if cfg != nil {
-		if s, b, ok := httpsecurity.ParseOrigin(cfg.Auth.SelfOrigin); ok {
+		if s, b, ok := platform.ParseOrigin(cfg.Auth.SelfOrigin); ok {
 			return s, b
 		}
-		if s, b, ok := httpsecurity.ParseOrigin(cfg.Auth.PublicOrigin); ok {
+		if s, b, ok := platform.ParseOrigin(cfg.Auth.PublicOrigin); ok {
 			return s, b
 		}
 	}
@@ -93,7 +93,7 @@ func externalBase(cfg *conf.AyatoConfig, c *gin.Context) (scheme, base string) {
 // SPA origin (PublicOrigin) used as the exact postMessage target; empty when unset.
 func (h *AuthHandler) spaOrigin() string {
 	if h.cfg != nil {
-		if _, b, ok := httpsecurity.ParseOrigin(h.cfg.Auth.PublicOrigin); ok {
+		if _, b, ok := platform.ParseOrigin(h.cfg.Auth.PublicOrigin); ok {
 			return b
 		}
 	}

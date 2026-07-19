@@ -4,7 +4,7 @@ import (
 	"sync/atomic"
 
 	"github.com/Hayao0819/Kamisato/ayato/auth"
-	"github.com/Hayao0819/Kamisato/ayato/ratelimit"
+	"github.com/Hayao0819/Kamisato/ayato/platform"
 	"github.com/Hayao0819/Kamisato/internal/conf"
 )
 
@@ -27,7 +27,7 @@ type Middleware struct {
 	logTokens logTokenConsumer
 
 	// Each RateLimit call site gets an independent counter namespace.
-	limiter *ratelimit.Limiter
+	limiter *platform.RateLimiter
 	rlScope atomic.Int64
 }
 

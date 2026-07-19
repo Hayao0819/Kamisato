@@ -1,9 +1,4 @@
-// Package ratelimit is a fixed-window request limiter backed by the shared
-// kv.Store, so a limit holds across ayato's Cloud Run replicas instead of each
-// process granting its own quota. The per-window counter lives in kv with a TTL,
-// keyed by scope+client+window, and a request is rejected once the count exceeds
-// the limit until the window rolls over.
-package ratelimit
+package platform
 
 import (
 	"strconv"
@@ -11,8 +6,6 @@ import (
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
 	sharedlimit "github.com/Hayao0819/Kamisato/pkg/ratelimit"
-
-	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
 )
 
 // ns partitions the limiter's counters from every other kv consumer.
@@ -24,22 +17,33 @@ const ns = "ratelimit"
 // leaves a harmless stale counter the next window never consults.
 const minTTL = 3 * time.Second
 
-// Limiter enforces a fixed-window request limit on a shared kv.Store. It is safe
-// for concurrent use provided the store is.
-type Limiter struct {
-	store kv.Store
-	now   func() time.Time
+// RateLimitStore is the narrow persistence port required by RateLimiter.
+type RateLimitStore interface {
+	Get(namespace, key string) ([]byte, error)
+	Set(namespace, key string, value []byte, ttl time.Duration) error
 }
 
-func New(store kv.Store) *Limiter {
-	return &Limiter{store: store, now: time.Now}
+type rateLimitAdder interface {
+	Add(namespace, key string, value []byte, ttl time.Duration) (bool, error)
+}
+
+// RateLimiter enforces a fixed-window request limit on a shared kv.Store. It is
+// safe for concurrent use provided the store is.
+type RateLimiter struct {
+	store    RateLimitStore
+	notFound error
+	now      func() time.Time
+}
+
+func NewRateLimiter(store RateLimitStore, notFound error) *RateLimiter {
+	return &RateLimiter{store: store, notFound: notFound, now: time.Now}
 }
 
 // Allow records one request for (scope, client) in the current window. Scope
 // separates independent consumers sharing the store; client is the caller
 // identity. On a kv error it fails open so a limiter outage does not turn every
 // request into a server outage.
-func (l *Limiter) Allow(scope, client string, policy sharedlimit.Policy) sharedlimit.Decision {
+func (l *RateLimiter) Allow(scope, client string, policy sharedlimit.Policy) sharedlimit.Decision {
 	if !policy.Enabled() {
 		return sharedlimit.Decision{Allowed: true}
 	}
@@ -65,10 +69,10 @@ func (l *Limiter) Allow(scope, client string, policy sharedlimit.Policy) sharedl
 // residual bounded by in-flight concurrency per key per window that never resets
 // the limit. An eventually-consistent store (cfkv) widens it because a stale read
 // can miss a just-written increment.
-func (l *Limiter) bump(key string, limit int, ttl time.Duration) (int, error) {
+func (l *RateLimiter) bump(key string, limit int, ttl time.Duration) (int, error) {
 	b, err := l.store.Get(ns, key)
-	if errors.Is(err, kv.ErrNotFound) {
-		if adder, ok := l.store.(kv.Adder); ok {
+	if errors.Is(err, l.notFound) {
+		if adder, ok := l.store.(rateLimitAdder); ok {
 			created, aerr := adder.Add(ns, key, itob(1), ttl)
 			if aerr != nil {
 				return 0, aerr

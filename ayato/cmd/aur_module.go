@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	ayatoratelimit "github.com/Hayao0819/Kamisato/ayato/ratelimit"
+	"github.com/Hayao0819/Kamisato/ayato/platform"
 	"github.com/Hayao0819/Kamisato/ayato/repository/aurrepo"
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
 	"github.com/Hayao0819/Kamisato/ayato/service/aur"
@@ -39,7 +39,11 @@ func buildAUR(cfg *conf.AyatoConfig, store kv.Store) (http.Handler, *aur.Service
 	}
 	if rateLimit > 0 {
 		policy := ratelimit.Policy{Limit: rateLimit, Window: aurweb.DefaultRateWindow}
-		opts = append(opts, aurweb.WithLimiter(ayatoratelimit.New(store), policy, nil))
+		opts = append(opts, aurweb.WithLimiter(
+			platform.NewRateLimiter(store, kv.ErrNotFound),
+			policy,
+			nil,
+		))
 	}
 
 	// TTL bounds both the signed envelope's freshness and how long the public

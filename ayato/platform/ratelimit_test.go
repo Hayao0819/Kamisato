@@ -1,9 +1,10 @@
-package ratelimit
+package platform
 
 import (
 	"testing"
 	"time"
 
+	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv/badgerkv"
 	sharedlimit "github.com/Hayao0819/Kamisato/pkg/ratelimit"
 )
@@ -19,7 +20,7 @@ func newBadger(t *testing.T) *badgerkv.Store {
 }
 
 func TestAllowUnderLimitThenReject(t *testing.T) {
-	l := New(newBadger(t))
+	l := NewRateLimiter(newBadger(t), kv.ErrNotFound)
 	policy := sharedlimit.Policy{Limit: 3, Window: time.Hour}
 
 	for i := 1; i <= policy.Limit; i++ {
@@ -37,7 +38,7 @@ func TestAllowUnderLimitThenReject(t *testing.T) {
 }
 
 func TestScopeAndClientIsolated(t *testing.T) {
-	l := New(newBadger(t))
+	l := NewRateLimiter(newBadger(t), kv.ErrNotFound)
 	policy := sharedlimit.Policy{Limit: 1, Window: time.Hour}
 	if decision := l.Allow("a", "1.1.1.1", policy); !decision.Allowed {
 		t.Fatal("scope a, ip1: first rejected")
@@ -56,7 +57,7 @@ func TestScopeAndClientIsolated(t *testing.T) {
 
 func TestWindowResets(t *testing.T) {
 	clock := time.Unix(1_700_000_000, 0)
-	l := New(newBadger(t))
+	l := NewRateLimiter(newBadger(t), kv.ErrNotFound)
 	l.now = func() time.Time { return clock }
 
 	policy := sharedlimit.Policy{Limit: 1, Window: time.Minute}
@@ -77,8 +78,8 @@ func TestSharedAcrossInstances(t *testing.T) {
 	// Two limiters over ONE kv model two Cloud Run replicas: the limit must hold
 	// across both, not be granted twice.
 	store := newBadger(t)
-	a := New(store)
-	b := New(store)
+	a := NewRateLimiter(store, kv.ErrNotFound)
+	b := NewRateLimiter(store, kv.ErrNotFound)
 
 	policy := sharedlimit.Policy{Limit: 4, Window: time.Hour}
 	allowed := 0
@@ -97,7 +98,7 @@ func TestSharedAcrossInstances(t *testing.T) {
 }
 
 func TestDisabledWhenNonPositive(t *testing.T) {
-	l := New(newBadger(t))
+	l := NewRateLimiter(newBadger(t), kv.ErrNotFound)
 	if decision := l.Allow("s", "ip", sharedlimit.Policy{Window: time.Hour}); !decision.Allowed {
 		t.Fatal("limit 0 should disable limiting")
 	}

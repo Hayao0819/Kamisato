@@ -7,7 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/Hayao0819/Kamisato/ayato/auth"
-	"github.com/Hayao0819/Kamisato/ayato/httpsecurity"
+	"github.com/Hayao0819/Kamisato/ayato/platform"
 	"github.com/Hayao0819/Kamisato/internal/conf"
 )
 
@@ -97,12 +97,12 @@ func (h *AuthHandler) sameOriginRequest(c *gin.Context) bool {
 		_, base := h.externalBase(c)
 		allowed = append(allowed, base)
 	}
-	return httpsecurity.SameOrigin(c.Request, allowed...)
+	return platform.SameOrigin(c.Request, allowed...)
 }
 
 func allowedOrigin(origins []string) string {
 	for _, origin := range origins {
-		if httpsecurity.Origin(origin) != "" {
+		if platform.Origin(origin) != "" {
 			return origin
 		}
 	}

@@ -1,4 +1,4 @@
-package lifecycle
+package platform
 
 import (
 	"context"
@@ -7,24 +7,24 @@ import (
 	"time"
 )
 
-func TestStateStartsUnready(t *testing.T) {
+func TestReadinessStartsUnready(t *testing.T) {
 	t.Parallel()
-	if (&State{}).Ready() {
+	if (&Readiness{}).Ready() {
 		t.Fatal("zero-value lifecycle state is ready")
 	}
-	var state *State
+	var state *Readiness
 	if state.Ready() {
 		t.Fatal("nil lifecycle state is ready")
 	}
 }
 
-func TestServeTracksReadyAndDraining(t *testing.T) {
+func TestServeHTTPTracksReadyAndDraining(t *testing.T) {
 	t.Parallel()
 	ctx, cancel := context.WithCancel(context.Background())
-	state := &State{}
+	state := &Readiness{}
 	done := make(chan error, 1)
 	go func() {
-		done <- Serve(ctx, &http.Server{
+		done <- ServeHTTP(ctx, &http.Server{
 			Addr:              "127.0.0.1:0",
 			Handler:           http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}),
 			ReadHeaderTimeout: time.Second,
@@ -54,12 +54,12 @@ func TestServeTracksReadyAndDraining(t *testing.T) {
 	}
 }
 
-func TestServeRejectsInvalidDependencies(t *testing.T) {
+func TestServeHTTPRejectsInvalidDependencies(t *testing.T) {
 	t.Parallel()
-	if err := Serve(context.Background(), nil, &State{}); err == nil {
-		t.Fatal("Serve(nil server) succeeded")
+	if err := ServeHTTP(context.Background(), nil, &Readiness{}); err == nil {
+		t.Fatal("ServeHTTP(nil server) succeeded")
 	}
-	if err := Serve(context.Background(), &http.Server{}, nil); err == nil {
-		t.Fatal("Serve(nil state) succeeded")
+	if err := ServeHTTP(context.Background(), &http.Server{}, nil); err == nil {
+		t.Fatal("ServeHTTP(nil state) succeeded")
 	}
 }

@@ -1,7 +1,4 @@
-// Package lifecycle owns Ayato's process readiness and graceful HTTP server
-// lifecycle. It deliberately has no dependency on Gin, repositories, or config,
-// so transport wiring can observe readiness without owning process state.
-package lifecycle
+package platform
 
 import (
 	"context"
@@ -15,27 +12,27 @@ import (
 
 const shutdownTimeout = 15 * time.Second
 
-// State is the process-level readiness state. Its zero value is unready: an
+// Readiness is the process-level readiness state. Its zero value is unready: an
 // instance becomes ready only after initialization and listener creation have
 // both succeeded.
-type State struct {
+type Readiness struct {
 	ready atomic.Bool
 }
 
-func (s *State) Ready() bool {
+func (s *Readiness) Ready() bool {
 	return s != nil && s.ready.Load()
 }
 
-func (s *State) setReady(ready bool) {
+func (s *Readiness) setReady(ready bool) {
 	if s != nil {
 		s.ready.Store(ready)
 	}
 }
 
-// Serve listens, marks the process ready, and serves until ctx is cancelled or
+// ServeHTTP listens, marks the process ready, and serves until ctx is cancelled or
 // the HTTP server fails. Cancellation first makes the process unready, then
 // waits for in-flight requests before forcibly closing on the deadline.
-func Serve(ctx context.Context, server *http.Server, state *State) error {
+func ServeHTTP(ctx context.Context, server *http.Server, state *Readiness) error {
 	if server == nil {
 		return errors.New("lifecycle: nil HTTP server")
 	}

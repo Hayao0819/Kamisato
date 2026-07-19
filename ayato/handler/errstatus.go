@@ -9,7 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/Hayao0819/Kamisato/ayato/domain"
-	"github.com/Hayao0819/Kamisato/ayato/httpapi"
+	"github.com/Hayao0819/Kamisato/ayato/platform"
 )
 
 // errToStatus maps a domain error to its HTTP status. The single place transport
@@ -33,7 +33,7 @@ func errToStatus(err error) int {
 }
 
 func respondError(ctx *gin.Context, status int, message string) {
-	ctx.JSON(status, httpapi.NewError(status, message))
+	ctx.JSON(status, platform.NewHTTPError(status, message))
 }
 
 // respondServiceError converts errors deliberately classified by the domain

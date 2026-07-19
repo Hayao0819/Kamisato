@@ -11,7 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/Hayao0819/Kamisato/ayato/domain"
-	"github.com/Hayao0819/Kamisato/ayato/httpapi"
+	"github.com/Hayao0819/Kamisato/ayato/platform"
 )
 
 func TestHelloHandler(t *testing.T) {
@@ -157,12 +157,12 @@ func TestPkgFilesHandlerNotImplemented(t *testing.T) {
 	if w.Code != http.StatusNotImplemented {
 		t.Fatalf("status = %d, want 501: %s", w.Code, w.Body.String())
 	}
-	var response httpapi.ErrorResponse
+	var response platform.HTTPErrorResponse
 	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
 		t.Fatal(err)
 	}
-	if response.Code != httpapi.CodeNotImplemented {
-		t.Errorf("code = %q, want %q", response.Code, httpapi.CodeNotImplemented)
+	if response.Code != platform.HTTPCodeNotImplemented {
+		t.Errorf("code = %q, want %q", response.Code, platform.HTTPCodeNotImplemented)
 	}
 }
 
@@ -182,11 +182,11 @@ func TestPkgFilesHandlerNotFound(t *testing.T) {
 	if w.Code != http.StatusNotFound {
 		t.Fatalf("status = %d, want 404: %s", w.Code, w.Body.String())
 	}
-	var response httpapi.ErrorResponse
+	var response platform.HTTPErrorResponse
 	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
 		t.Fatal(err)
 	}
-	if response.Code != httpapi.CodeNotFound || strings.Contains(w.Body.String(), "private storage detail") {
+	if response.Code != platform.HTTPCodeNotFound || strings.Contains(w.Body.String(), "private storage detail") {
 		t.Errorf("response = %s, want safe not_found envelope", w.Body.String())
 	}
 }
