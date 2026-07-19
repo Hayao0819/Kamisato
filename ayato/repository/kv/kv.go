@@ -4,6 +4,9 @@
 package kv
 
 import (
+	"fmt"
+	"log/slog"
+	"strings"
 	"time"
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
@@ -58,4 +61,41 @@ type KeyAuditor interface {
 // implement it; security-sensitive consumers must fail closed.
 type Adder interface {
 	Add(ns, key string, value []byte, ttl time.Duration) (created bool, err error)
+}
+
+// PrintfLogger adapts slog to the printf-style logger interfaces used by KV
+// backend clients.
+type PrintfLogger struct {
+	logger *slog.Logger
+}
+
+func NewPrintfLogger(logger *slog.Logger) *PrintfLogger {
+	if logger == nil {
+		logger = slog.Default()
+	}
+	return &PrintfLogger{logger: logger}
+}
+
+func printfMessage(format string, args ...interface{}) string {
+	return strings.TrimSuffix(fmt.Sprintf(format, args...), "\n")
+}
+
+func (l *PrintfLogger) Printf(format string, args ...interface{}) {
+	l.logger.Info(printfMessage(format, args...))
+}
+
+func (l *PrintfLogger) Errorf(format string, args ...interface{}) {
+	l.logger.Error(printfMessage(format, args...))
+}
+
+func (l *PrintfLogger) Warningf(format string, args ...interface{}) {
+	l.logger.Warn(printfMessage(format, args...))
+}
+
+func (l *PrintfLogger) Infof(format string, args ...interface{}) {
+	l.logger.Info(printfMessage(format, args...))
+}
+
+func (l *PrintfLogger) Debugf(format string, args ...interface{}) {
+	l.logger.Debug(printfMessage(format, args...))
 }
