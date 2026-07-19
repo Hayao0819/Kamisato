@@ -111,11 +111,10 @@ func (a *CIAuthorizer) AuthorizeScope(h http.Header, scope string) (CIOutcome, *
 // segments). ayato's own HMAC token has 2, so this only routes — the OIDC RS256
 // check is the real boundary.
 func bearerJWT(h http.Header) (string, bool) {
-	authz := h.Get("Authorization")
-	if !strings.HasPrefix(authz, "Bearer ") {
+	tok, ok := BearerToken(h)
+	if !ok {
 		return "", false
 	}
-	tok := strings.TrimPrefix(authz, "Bearer ")
 	if strings.Count(tok, ".") != 2 {
 		return "", false
 	}

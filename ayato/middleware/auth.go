@@ -13,11 +13,6 @@ type adminChecker interface {
 	IsAdmin(id int64) bool
 }
 
-type denylistChecker interface {
-	IsRevoked(jti string) (bool, error)
-	IsSessionRevoked(sessionID string) (bool, error)
-}
-
 // logTokenConsumer redeems a one-time SSE log token, returning its bound job ID.
 type logTokenConsumer interface {
 	ConsumeLogToken(token string) (jobID string, ok bool, err error)
@@ -28,7 +23,7 @@ type Middleware struct {
 	checker   adminChecker
 	signer    *auth.Signer
 	ci        *auth.CIAuthorizer
-	denylist  denylistChecker
+	denylist  auth.RevocationChecker
 	logTokens logTokenConsumer
 
 	// Each RateLimit call site gets an independent counter namespace.
@@ -47,7 +42,7 @@ func (m *Middleware) WithAuth(checker adminChecker, signer *auth.Signer) *Middle
 }
 
 // WithDenylist enables per-token and refresh-family revocation checks.
-func (m *Middleware) WithDenylist(denylist denylistChecker) *Middleware {
+func (m *Middleware) WithDenylist(denylist auth.RevocationChecker) *Middleware {
 	m.denylist = denylist
 	return m
 }
@@ -65,15 +60,13 @@ func (m *Middleware) sessionCookieName() string {
 	return m.cfg.Auth.CookieName()
 }
 
+func (m *Middleware) requestResolver() auth.RequestResolver {
+	return auth.NewRequestResolver(m.signer, m.denylist, m.sessionCookieName())
+}
+
 // Gin context keys for the resolved requester (audit logging).
 const (
 	ctxGitHubID = "auth_github_id"
 	ctxLogin    = "auth_login"
 	ctxVia      = "auth_via"
-)
-
-const (
-	ctxViaSession = "session"
-	ctxViaBearer  = "bearer"
-	ctxViaBasic   = "basic"
 )

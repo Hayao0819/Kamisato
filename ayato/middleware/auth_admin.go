@@ -5,17 +5,12 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/Hayao0819/Kamisato/ayato/auth"
 	"github.com/Hayao0819/Kamisato/ayato/httpsecurity"
 )
 
 // accessTokenExpiredHeader tells a CLI that refreshing can recover the request.
 const accessTokenExpiredHeader = "X-Access-Token-Expired" //nolint:gosec // HTTP header name
-
-type requester struct {
-	gitHubID int64
-	login    string
-	via      string
-}
 
 // RequireAdmin gates a route to an allowlisted admin via session or bearer.
 func (m *Middleware) RequireAdmin() gin.HandlerFunc {
@@ -48,14 +43,15 @@ func (m *Middleware) authorizeAdminRequest(
 		return false
 	}
 
-	identity, ok, err := m.resolveRequester(c, allowBasic)
+	resolver := m.requestResolver()
+	identity, ok, err := resolver.Resolve(c.Request, allowBasic)
 	if err != nil {
 		c.AbortWithStatus(http.StatusServiceUnavailable)
 		return false
 	}
 	if !ok {
 		if hintExpiredToken {
-			expired, expiryErr := m.expiredAccessToken(c, allowBasic)
+			expired, expiryErr := resolver.ExpiredAccessToken(c.Request, allowBasic)
 			if expiryErr != nil {
 				c.AbortWithStatus(http.StatusServiceUnavailable)
 				return false
@@ -68,18 +64,18 @@ func (m *Middleware) authorizeAdminRequest(
 		return false
 	}
 
-	if identity.via == ctxViaSession && !m.sameOriginRequest(c) {
+	if identity.Via == auth.ViaSession && !m.sameOriginRequest(c) {
 		c.AbortWithStatus(http.StatusForbidden)
 		return false
 	}
-	if !m.checker.IsAdmin(identity.gitHubID) {
+	if !m.checker.IsAdmin(identity.GitHubID) {
 		c.AbortWithStatus(http.StatusForbidden)
 		return false
 	}
 
-	c.Set(ctxGitHubID, identity.gitHubID)
-	c.Set(ctxLogin, identity.login)
-	c.Set(ctxVia, identity.via)
+	c.Set(ctxGitHubID, identity.GitHubID)
+	c.Set(ctxLogin, identity.Login)
+	c.Set(ctxVia, string(identity.Via))
 	return true
 }
 

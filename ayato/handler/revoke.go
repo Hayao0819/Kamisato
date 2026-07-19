@@ -2,7 +2,6 @@ package handler
 
 import (
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -18,19 +17,6 @@ func sessionFamilyID(claims *auth.Claims) string {
 		return claims.SessionID
 	}
 	return claims.JTI
-}
-
-func (h *AuthHandler) claimsRevoked(claims *auth.Claims) (bool, error) {
-	if claims.JTI != "" {
-		revoked, err := h.revoker.IsRevoked(claims.JTI)
-		if err != nil || revoked {
-			return revoked, err
-		}
-	}
-	if claims.SessionID != "" {
-		return h.revoker.IsSessionRevoked(claims.SessionID)
-	}
-	return false, nil
 }
 
 // RevokeCLIHandler denylists the presented tokens by jti before their TTL: the Bearer
@@ -49,8 +35,8 @@ func (h *AuthHandler) RevokeCLIHandler(c *gin.Context) {
 	_ = c.ShouldBindJSON(&body) // body is optional (access-only revoke)
 
 	var access, refresh *auth.Claims
-	if authz := c.GetHeader("Authorization"); strings.HasPrefix(authz, "Bearer ") {
-		if claims, err := h.signer.VerifyTyp(strings.TrimPrefix(authz, "Bearer "), auth.TypCLI); err == nil {
+	if token, ok := auth.BearerToken(c.Request.Header); ok {
+		if claims, err := h.signer.VerifyTyp(token, auth.TypCLI); err == nil {
 			access = claims
 		}
 	}

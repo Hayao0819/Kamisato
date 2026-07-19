@@ -2,13 +2,13 @@ package handler
 
 import (
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 
 	"github.com/Hayao0819/Kamisato/ayato/auth"
 	"github.com/Hayao0819/Kamisato/ayato/httpsecurity"
+	"github.com/Hayao0819/Kamisato/internal/conf"
 )
 
 // MeHandler accepts a cookie session or bearer token and re-checks the admin
@@ -18,41 +18,29 @@ func (h *AuthHandler) MeHandler(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"authenticated": false})
 		return
 	}
-	if sid, err := c.Cookie(h.cfg.Auth.CookieName()); err == nil && sid != "" {
-		claims, verifyErr := h.signer.VerifyTyp(sid, auth.TypSession)
-		if verifyErr == nil && h.admins.IsAdmin(claims.GitHubID) {
-			c.JSON(http.StatusOK, gin.H{
-				"authenticated": true,
-				"id":            claims.GitHubID,
-				"login":         claims.Login,
-			})
-			return
-		}
+	cookieName := (conf.AuthConfig{}).CookieName()
+	if h.cfg != nil {
+		cookieName = h.cfg.Auth.CookieName()
 	}
-	if authz := c.GetHeader("Authorization"); strings.HasPrefix(authz, "Bearer ") {
-		token := strings.TrimPrefix(authz, "Bearer ")
-		for _, tokenType := range []string{auth.TypBearer, auth.TypCLI} {
-			claims, verifyErr := h.signer.VerifyTyp(token, tokenType)
-			if verifyErr != nil || !h.admins.IsAdmin(claims.GitHubID) {
-				continue
-			}
-			revoked, revokeErr := h.claimsRevoked(claims)
-			if revokeErr != nil {
-				c.JSON(http.StatusServiceUnavailable, gin.H{
-					"authenticated": false,
-					"error":         "revocation store",
-				})
-				return
-			}
-			if !revoked {
-				c.JSON(http.StatusOK, gin.H{
-					"authenticated": true,
-					"id":            claims.GitHubID,
-					"login":         claims.Login,
-				})
-				return
-			}
-		}
+	identity, ok, err := auth.NewRequestResolver(
+		h.signer,
+		h.revoker,
+		cookieName,
+	).Resolve(c.Request, false)
+	if err != nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{
+			"authenticated": false,
+			"error":         "revocation store",
+		})
+		return
+	}
+	if ok && h.admins.IsAdmin(identity.GitHubID) {
+		c.JSON(http.StatusOK, gin.H{
+			"authenticated": true,
+			"id":            identity.GitHubID,
+			"login":         identity.Login,
+		})
+		return
 	}
 	c.JSON(http.StatusOK, gin.H{"authenticated": false})
 }
@@ -76,11 +64,10 @@ func (h *AuthHandler) LogoutHandler(c *gin.Context) {
 }
 
 func (h *AuthHandler) revokePresentedAccess(c *gin.Context) {
-	authz := c.GetHeader("Authorization")
-	if !strings.HasPrefix(authz, "Bearer ") {
+	token, ok := auth.BearerToken(c.Request.Header)
+	if !ok {
 		return
 	}
-	token := strings.TrimPrefix(authz, "Bearer ")
 	for _, tokenType := range []string{auth.TypBearer, auth.TypCLI} {
 		claims, err := h.signer.VerifyTyp(token, tokenType)
 		if err != nil || claims.JTI == "" {
