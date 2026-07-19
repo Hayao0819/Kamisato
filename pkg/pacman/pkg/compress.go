@@ -14,7 +14,13 @@ import (
 // an empty name when it is not a recognized compressed stream. Detection and
 // decoding are delegated to mholt/archives.
 func DetectCompression(r io.Reader) (io.ReadCloser, string, error) {
-	format, stream, err := archives.Identify(context.Background(), "", r)
+	return DetectCompressionContext(context.Background(), r)
+}
+
+// DetectCompressionContext is DetectCompression with cancellation support for
+// callers parsing data received from a remote source.
+func DetectCompressionContext(ctx context.Context, r io.Reader) (io.ReadCloser, string, error) {
+	format, stream, err := archives.Identify(ctx, "", r)
 	if err != nil {
 		if errors.Is(err, archives.NoMatch) {
 			if stream == nil {

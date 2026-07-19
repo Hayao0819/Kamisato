@@ -27,8 +27,12 @@ func nvcheckCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			serviceOptions, err := serviceDependencies(cfg)
+			if err != nil {
+				return err
+			}
 
-			s, ok := service.New(cfg, nil, nil, nil).(*service.Service)
+			s, ok := service.New(cfg, nil, nil, nil, serviceOptions...).(*service.Service)
 			if !ok {
 				return fmt.Errorf("unexpected service type")
 			}

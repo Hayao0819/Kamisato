@@ -33,6 +33,7 @@ func (c *Catalog) Fetch(ctx context.Context) ([]byte, error) {
 		c.transport.endpoint("api", "unstable", "aur", "catalog"),
 		maxCatalogBytes,
 		"fetch Ayato catalog",
+		"application/json",
 	)
 }
 
@@ -42,10 +43,17 @@ func (c *Catalog) FetchPublicKey(ctx context.Context) ([]byte, error) {
 		c.transport.endpoint("api", "unstable", "aur", "pubkey"),
 		maxPublicKeyBytes,
 		"fetch Ayato catalog public key",
+		"application/octet-stream",
 	)
 }
 
-func (t *transport) readBytes(ctx context.Context, targetURL *url.URL, maxBytes int64, operation string) ([]byte, error) {
+func (t *transport) readBytes(
+	ctx context.Context,
+	targetURL *url.URL,
+	maxBytes int64,
+	operation string,
+	accept string,
+) ([]byte, error) {
 	for attempt := 0; attempt < t.readAttempts; attempt++ {
 		attemptCtx := ctx
 		cancel := func() {}
@@ -57,7 +65,9 @@ func (t *transport) readBytes(ctx context.Context, targetURL *url.URL, maxBytes 
 			cancel()
 			return nil, errors.WrapErr(err, "create "+operation+" request")
 		}
-		request.Header.Set("Accept", "application/json")
+		if accept != "" {
+			request.Header.Set("Accept", accept)
+		}
 		response, err := t.http.Do(request)
 		if err != nil {
 			cancel()
@@ -83,6 +93,11 @@ func (t *transport) readBytes(ctx context.Context, targetURL *url.URL, maxBytes 
 			cancel()
 			return nil, err
 		}
+		if response.ContentLength > maxBytes {
+			_ = response.Body.Close()
+			cancel()
+			return nil, errors.NewErrf("%s response exceeds %d bytes", operation, maxBytes)
+		}
 		body, readErr := io.ReadAll(io.LimitReader(response.Body, maxBytes+1))
 		_ = response.Body.Close()
 		cancel()
@@ -94,5 +109,5 @@ func (t *transport) readBytes(ctx context.Context, targetURL *url.URL, maxBytes 
 		}
 		return body, nil
 	}
-	return nil, errors.NewErr("unreachable catalog retry state")
+	return nil, errors.NewErr("unreachable public read retry state")
 }

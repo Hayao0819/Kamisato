@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"log/slog"
+	"net/http"
 	"sync"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/miko/domain"
 	"github.com/Hayao0819/Kamisato/miko/joblog"
+	"github.com/Hayao0819/Kamisato/pkg/httpx"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/sign"
 )
 
@@ -48,6 +50,10 @@ type Service struct {
 	persist  Persister   // durable job store; nil disables persistence
 	uploader Uploader    // publishes built packages to ayato
 	sonames  sonameStore // per-pkgbase soname history; nil disables bump detection
+	// httpClient is shared by upstream-version providers. repositories owns the
+	// separate Ayato repository protocol and parsing policy.
+	httpClient   *http.Client
+	repositories RepositoryDBReader
 
 	startedAt time.Time
 
@@ -72,17 +78,31 @@ type Service struct {
 
 // New builds the service with its collaborators injected: persister durably
 // stores jobs (nil disables persistence) and uploader publishes built packages.
-func New(cfg *conf.MikoConfig, signer sign.Signer, persister Persister, uploader Uploader) Servicer {
+func New(
+	cfg *conf.MikoConfig,
+	signer sign.Signer,
+	persister Persister,
+	uploader Uploader,
+	options ...ServiceOption,
+) Servicer {
+	dependencies := serviceOptions{httpClient: httpx.Default()}
+	for _, option := range options {
+		if option != nil {
+			option(&dependencies)
+		}
+	}
 	s := &Service{
-		cfg:       cfg,
-		signer:    signer,
-		queue:     newQueue(),
-		persist:   persister,
-		uploader:  uploader,
-		store:     make(map[string]*domain.BuildJob),
-		running:   make(map[string]context.CancelFunc),
-		logs:      make(map[string]*joblog.Buffer),
-		startedAt: time.Now(),
+		cfg:          cfg,
+		signer:       signer,
+		queue:        newQueue(),
+		persist:      persister,
+		uploader:     uploader,
+		httpClient:   dependencies.httpClient,
+		repositories: dependencies.repositories,
+		store:        make(map[string]*domain.BuildJob),
+		running:      make(map[string]context.CancelFunc),
+		logs:         make(map[string]*joblog.Buffer),
+		startedAt:    time.Now(),
 	}
 	if persister != nil {
 		s.restore()

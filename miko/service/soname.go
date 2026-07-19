@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
-	"net/http"
 	"os"
 	"path/filepath"
 	"slices"
@@ -13,7 +12,6 @@ import (
 
 	"github.com/Hayao0819/Kamisato/miko/domain"
 	"github.com/Hayao0819/Kamisato/pkg/atomicfile"
-	"github.com/Hayao0819/Kamisato/pkg/httpx"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/depend"
 	ppkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
@@ -131,7 +129,7 @@ func (s *Service) triggerReverseDepRebuilds(ctx context.Context, job *domain.Bui
 		slog.Warn("cannot resolve reverse deps without a published repo; skipping soname rebuilds", "pkgbase", bumped)
 		return
 	}
-	rr, err := s.fetchRepoDB(ctx, job.Repo, job.Arch)
+	rr, err := s.repositoryDB(ctx, job.Repo, job.Arch)
 	if err != nil {
 		slog.Warn("could not fetch repo db for reverse deps", "pkgbase", bumped, "err", err)
 		return
@@ -326,21 +324,4 @@ func pkgbaseOf(pkgFile string) (string, error) {
 		return b, nil
 	}
 	return bp.Name(), nil
-}
-
-func (s *Service) fetchRepoDB(ctx context.Context, repoName, arch string) (*repo.RemoteRepo, error) {
-	dbURL := strings.TrimRight(s.cfg.Ayato.URL, "/") + "/repo/" + repoName + "/" + arch + "/" + repoName + ".db"
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, dbURL, nil)
-	if err != nil {
-		return nil, err
-	}
-	resp, err := httpx.Default().Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer func() { _ = resp.Body.Close() }()
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("fetch %s: status %d", dbURL, resp.StatusCode)
-	}
-	return repo.RemoteRepoFromDB(repoName, resp.Body)
 }

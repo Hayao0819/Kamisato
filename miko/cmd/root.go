@@ -160,8 +160,12 @@ func RootCmd() *cobra.Command {
 			if err != nil {
 				return errors.WrapErr(err, "failed to configure Ayato publisher")
 			}
+			serviceOptions, err := serviceDependencies(cfg)
+			if err != nil {
+				return err
+			}
 
-			s := service.New(cfg, pkgSigner, persister, uploader)
+			s := service.New(cfg, pkgSigner, persister, uploader, serviceOptions...)
 			h := handler.New(s, cfg)
 			verifier := serviceKeyVerifier(cfg)
 			if !verifier.Enabled() && !cfg.AllowUnauthenticated {

@@ -4,9 +4,12 @@ import (
 	"archive/tar"
 	"bytes"
 	"compress/gzip"
+	"context"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -116,5 +119,57 @@ func TestRepoFromURL_EmptyDB(t *testing.T) {
 	}
 	if len(r.Pkgs) != 0 {
 		t.Fatalf("empty db: want 0 packages, got %d", len(r.Pkgs))
+	}
+}
+
+func TestRemoteRepoFromDBContextHonorsCancellation(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	if _, err := RemoteRepoFromDBContext(ctx, "test", strings.NewReader("unused")); !errors.Is(err, context.Canceled) {
+		t.Fatalf("error = %v, want context.Canceled", err)
+	}
+}
+
+func TestRemoteRepoFromDBRejectsOversizedDesc(t *testing.T) {
+	var gz bytes.Buffer
+	gw := gzip.NewWriter(&gz)
+	tw := tar.NewWriter(gw)
+	body := make([]byte, maxRepoDBDescBytes+1)
+	if err := tw.WriteHeader(&tar.Header{
+		Name:     "foo-1-1/desc",
+		Mode:     0o644,
+		Size:     int64(len(body)),
+		Typeflag: tar.TypeReg,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := tw.Write(body); err != nil {
+		t.Fatal(err)
+	}
+	if err := tw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := gw.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := RemoteRepoFromDB("test", &gz); !errors.Is(err, ErrRepoDBLimitExceeded) {
+		t.Fatalf("error = %v, want ErrRepoDBLimitExceeded", err)
+	}
+}
+
+func TestRepoDBReaderBoundsExpandedInput(t *testing.T) {
+	reader := &repoDBReader{
+		ctx:       context.Background(),
+		reader:    strings.NewReader("abc"),
+		remaining: 2,
+	}
+	data, err := io.ReadAll(reader)
+	if !errors.Is(err, ErrRepoDBLimitExceeded) {
+		t.Fatalf("error = %v, want ErrRepoDBLimitExceeded", err)
+	}
+	if string(data) != "ab" {
+		t.Fatalf("data = %q, want %q", data, "ab")
 	}
 }

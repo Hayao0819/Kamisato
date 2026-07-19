@@ -2,17 +2,13 @@ package service
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
-	"net/http"
 	"strings"
 	"time"
 
 	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/miko/domain"
 	"github.com/Hayao0819/Kamisato/miko/nvcheck"
-	"github.com/Hayao0819/Kamisato/pkg/httpx"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
 )
 
 // nvcheckInterval is how often the periodic monitor runs when enabled; a single
@@ -39,8 +35,7 @@ func (s *Service) runNvCheck(ctx context.Context, enq nvcheck.Enqueuer) []nvchec
 	if len(entries) == 0 {
 		return nil
 	}
-	client := httpx.Default()
-	checker := nvcheck.NewChecker(entries, client, s.publishedVersion(client), enq, slog.Default())
+	checker := nvcheck.NewChecker(entries, s.httpClient, s.publishedVersion(), enq, slog.Default())
 
 	results := checker.Check(ctx)
 	for _, r := range results {
@@ -116,32 +111,15 @@ func (e *versionUpdateEnqueuer) EnqueueVersionUpdate(entry nvcheck.Entry, newVer
 }
 
 // publishedVersion returns a CurrentFunc reading an entry's published version from
-// ayato's repo DB. A missing entry or unreachable repo resolves to an empty
-// version, which the checker treats as out-of-date so the first pass baselines.
-func (s *Service) publishedVersion(client *http.Client) nvcheck.CurrentFunc {
+// ayato's repo DB. A missing repository or package resolves to an empty version,
+// which the checker treats as out-of-date so the first pass baselines. Transport
+// and malformed-database failures remain visible instead of looking outdated.
+func (s *Service) publishedVersion() nvcheck.CurrentFunc {
 	return func(ctx context.Context, entry nvcheck.Entry) (string, error) {
 		if s.cfg.Ayato.URL == "" || entry.Repo == "" || entry.Arch == "" {
 			return "", nil
 		}
-		base := strings.TrimRight(s.cfg.Ayato.URL, "/") + "/repo/" + entry.Repo + "/" + entry.Arch
-		dbURL := base + "/" + entry.Repo + ".db"
-
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, dbURL, nil)
-		if err != nil {
-			return "", err
-		}
-		resp, err := client.Do(req)
-		if err != nil {
-			return "", err
-		}
-		defer func() { _ = resp.Body.Close() }()
-		if resp.StatusCode == http.StatusNotFound {
-			return "", nil // repo not created yet
-		}
-		if resp.StatusCode != http.StatusOK {
-			return "", fmt.Errorf("nvcheck: fetch %s: status %d", dbURL, resp.StatusCode)
-		}
-		rr, err := repo.RemoteRepoFromDB(entry.Repo, resp.Body)
+		rr, err := s.repositoryDB(ctx, entry.Repo, entry.Arch)
 		if err != nil {
 			return "", err
 		}
