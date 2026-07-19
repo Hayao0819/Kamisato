@@ -35,11 +35,12 @@ func setMikoRoutes(
 		middlewares.RateLimit(rate.Every(time.Second/10), 30),
 		middlewares.RequireAdmin(),
 	)
+	jobHandler := proxy.HandlerFunc(func(c *gin.Context) []string {
+		return []string{"api", "unstable", "jobs", c.Param("id")}
+	})
 	authed.POST("/jobs/:id/logs/token", miko.MintLogTokenHandler)
 	authed.GET("/jobs", proxy.Handler("api", "unstable", "jobs"))
-	authed.GET("/jobs/:id", proxy.HandlerFunc(func(c *gin.Context) []string {
-		return []string{"api", "unstable", "jobs", c.Param("id")}
-	}))
+	authed.GET("/jobs/:id", jobHandler)
 	authed.GET("/jobs/:id/artifacts", proxy.HandlerFunc(func(c *gin.Context) []string {
 		return []string{"api", "unstable", "jobs", c.Param("id"), "artifacts"}
 	}))
@@ -48,7 +49,5 @@ func setMikoRoutes(
 	}))
 	authed.GET("/stats", proxy.Handler("api", "unstable", "stats"))
 	authed.POST("/build", proxy.Handler("api", "unstable", "build"))
-	authed.DELETE("/jobs/:id", proxy.HandlerFunc(func(c *gin.Context) []string {
-		return []string{"api", "unstable", "jobs", c.Param("id")}
-	}))
+	authed.DELETE("/jobs/:id", jobHandler)
 }
