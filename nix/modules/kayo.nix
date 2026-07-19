@@ -24,7 +24,7 @@ in
     enable = mkEnableOption "the kayo AUR overlay router";
     package = mkPackageOption pkgs "kayo" { };
     settings = mkOption {
-      type = toml.type;
+      inherit (toml) type;
       default = { };
       example = {
         port = 10713;

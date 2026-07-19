@@ -24,7 +24,7 @@ in
     enable = mkEnableOption "the ayato package-repository server";
     package = mkPackageOption pkgs "ayato" { };
     settings = mkOption {
-      type = json.type;
+      inherit (json) type;
       default = { };
       example = {
         port = 8080;

@@ -25,7 +25,7 @@
       overlays.default =
         final: _prev:
         let
-          inherit (final) lib buildGoModule;
+          inherit (final) buildGoModule;
           version = "0.0.2-${self.shortRev or self.dirtyShortRev or "dirty"}";
 
           src = self; # git-aware: excludes node_modules / built embed/out
