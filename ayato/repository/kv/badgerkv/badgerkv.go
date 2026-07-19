@@ -21,11 +21,6 @@ import (
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv/slogadapter"
 )
 
-// NUL cannot appear in the namespaces or keys callers use (package names, hex
-// digests, ids), so it is a safe, unambiguous boundary for the prefix scan List
-// relies on.
-const sep = "\x00"
-
 // BadgerDB only frees space from deleted/overwritten keys when RunValueLogGC is
 // called, so a background ticker reclaims stale value-log segments to keep the
 // on-disk store from growing without bound on a long-running deployment.
@@ -103,103 +98,6 @@ func (s *Store) collectGarbage() {
 			return
 		}
 	}
-}
-
-func composite(ns, key string) []byte {
-	return []byte(ns + sep + key)
-}
-
-func nsPrefix(ns string) []byte {
-	return []byte(ns + sep)
-}
-
-func (s *Store) Get(ns, key string) ([]byte, error) {
-	var out []byte
-	err := s.db.View(func(txn *badger.Txn) error {
-		item, err := txn.Get(composite(ns, key))
-		if errors.Is(err, badger.ErrKeyNotFound) {
-			return kv.ErrNotFound
-		}
-		if err != nil {
-			return err
-		}
-		out, err = item.ValueCopy(nil)
-		return err
-	})
-	if err != nil {
-		if errors.Is(err, kv.ErrNotFound) {
-			return nil, kv.ErrNotFound
-		}
-		return nil, errors.WrapErr(err, "badgerkv: get")
-	}
-	return out, nil
-}
-
-func (s *Store) Set(ns, key string, value []byte, ttl time.Duration) error {
-	return s.db.Update(func(txn *badger.Txn) error {
-		e := badger.NewEntry(composite(ns, key), value)
-		if ttl > 0 {
-			e = e.WithTTL(ttl)
-		}
-		return txn.SetEntry(e)
-	})
-}
-
-func (s *Store) Delete(ns, key string) error {
-	return s.db.Update(func(txn *badger.Txn) error {
-		return txn.Delete(composite(ns, key))
-	})
-}
-
-// Add sets key only when it is absent. Badger's serializable transaction records
-// the read of a missing key, so two racing Adds of the same key cannot both commit
-// with created=true: one wins and the other's Commit conflicts (surfaced as an
-// error), which fails closed rather than allowing a double-insert.
-func (s *Store) Add(ns, key string, value []byte, ttl time.Duration) (bool, error) {
-	created := false
-	err := s.db.Update(func(txn *badger.Txn) error {
-		_, gerr := txn.Get(composite(ns, key))
-		if gerr == nil {
-			created = false
-			return nil
-		}
-		if !errors.Is(gerr, badger.ErrKeyNotFound) {
-			return gerr
-		}
-		e := badger.NewEntry(composite(ns, key), value)
-		if ttl > 0 {
-			e = e.WithTTL(ttl)
-		}
-		created = true
-		return txn.SetEntry(e)
-	})
-	if err != nil {
-		return false, errors.WrapErr(err, "badgerkv: add")
-	}
-	return created, nil
-}
-
-func (s *Store) List(ns string) ([]kv.Entry, error) {
-	prefix := nsPrefix(ns)
-	var out []kv.Entry
-	err := s.db.View(func(txn *badger.Txn) error {
-		it := txn.NewIterator(badger.DefaultIteratorOptions)
-		defer it.Close()
-		for it.Seek(prefix); it.ValidForPrefix(prefix); it.Next() {
-			item := it.Item()
-			val, verr := item.ValueCopy(nil)
-			if verr != nil {
-				return verr
-			}
-			key := string(item.KeyCopy(nil)[len(prefix):])
-			out = append(out, kv.Entry{Key: key, Value: val})
-		}
-		return nil
-	})
-	if err != nil {
-		return nil, errors.WrapErr(err, "badgerkv: list")
-	}
-	return out, nil
 }
 
 func (s *Store) Close() error {
