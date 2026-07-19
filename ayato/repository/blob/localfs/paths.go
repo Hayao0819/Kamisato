@@ -120,9 +120,12 @@ func writeAtomicFile(dst string, file stream.SeekFile) error {
 	if err := stream.Rewind(file); err != nil {
 		return errors.WrapErr(err, "seek source file")
 	}
-	err := atomicfile.Replace(dst, 0o644, func(out io.Writer) error { //nolint:gosec // published file
-		_, err := io.Copy(out, file)
+	return errors.WrapErr(replaceObject(dst, file), "store object")
+}
+
+func replaceObject(dst string, source io.Reader) error {
+	return atomicfile.Replace(dst, 0o644, func(out io.Writer) error { //nolint:gosec // published file
+		_, err := io.Copy(out, source)
 		return errors.WrapErr(err, "copy object")
 	})
-	return errors.WrapErr(err, "store object")
 }

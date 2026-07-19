@@ -1,7 +1,6 @@
 package localfs
 
 import (
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -59,11 +58,7 @@ func (l *LocalStore) CopyObject(srcKey, dstKey string) error {
 	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil { //nolint:gosec // published pacman repo dir is world-readable by design
 		return errors.WrapErr(err, "mkdir destination")
 	}
-	err = atomicfile.Replace(dst, 0o644, func(out io.Writer) error { //nolint:gosec // published pacman repo file is world-readable by design
-		_, err := io.Copy(out, in)
-		return errors.WrapErr(err, "copy object")
-	})
-	return errors.WrapErr(err, "publish destination object")
+	return errors.WrapErr(replaceObject(dst, in), "publish destination object")
 }
 
 // ListObjects walks prefix as a directory subtree; an absent prefix yields no keys.
