@@ -18,6 +18,7 @@ import (
 	"github.com/Hayao0819/Kamisato/ayato/middleware"
 	"github.com/Hayao0819/Kamisato/ayato/migrate"
 	"github.com/Hayao0819/Kamisato/ayato/repository"
+	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
 	"github.com/Hayao0819/Kamisato/ayato/router"
 	"github.com/Hayao0819/Kamisato/ayato/service"
 	"github.com/Hayao0819/Kamisato/internal/cliutil"
@@ -83,6 +84,9 @@ func RootCmd() *cobra.Command {
 				return errors.WrapErr(err, "failed to seed bootstrap admin")
 			}
 			if len(cfg.Auth.SessionSecret) > 0 {
+				if _, ok := kvStore.(kv.Adder); !ok {
+					return errors.NewErr("authentication requires atomic refresh-token consumption, but the configured KV store does not implement it; use SQL or BadgerDB")
+				}
 				signer, serr := auth.NewSigner(cfg.Auth.SessionSecret)
 				if serr != nil {
 					return errors.WrapErr(serr, "failed to build session signer")
@@ -105,6 +109,9 @@ func RootCmd() *cobra.Command {
 				return errors.WrapErr(cierr, "failed to init CI auth")
 			}
 			m.WithCIAuth(ci)
+			if cfg.Auth.AllowLegacySignerBasic {
+				slog.Warn("legacy Basic authentication is enabled only for signer registration; deploy Ayato before Miko, then disable auth.allow_legacy_signer_basic after the rollback window")
+			}
 
 			engine := gin.New()
 			engine.Use(gin.Recovery())

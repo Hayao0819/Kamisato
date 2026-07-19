@@ -30,7 +30,7 @@ type deviceStore interface {
 	ApproveDevice(userCode string, githubID int64, login string) (ok bool, err error)
 	DenyDevice(userCode string) (ok bool, err error)
 	PollDevice(deviceCode string) (status string, githubID int64, login string, ok bool, err error)
-	ConsumeDevice(deviceCode string) error
+	ConsumeDevice(deviceCode string) (consumed bool, err error)
 }
 
 // replayGuard records a one-time PKCE code id at redemption so a replayed code is

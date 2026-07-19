@@ -15,7 +15,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/cobra"
 
-	"github.com/Hayao0819/Kamisato/internal/auth/apikey"
 	"github.com/Hayao0819/Kamisato/internal/cliutil"
 	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/miko/signer"
@@ -52,7 +51,7 @@ func signerCmd() *cobra.Command {
 				return errors.NewErr("signer service needs a signing key: set signing.key_dir or data_dir")
 			}
 
-			verifier := apikey.NewVerifier(cfg.APIKeys)
+			verifier := serviceKeyVerifier(cfg)
 			if !verifier.Enabled() && !cfg.AllowUnauthenticated {
 				return errors.NewErr("signer service requires api_keys; set one or explicitly set allow_unauthenticated=true")
 			}

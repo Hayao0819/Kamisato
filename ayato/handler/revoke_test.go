@@ -3,6 +3,8 @@ package handler
 import (
 	"net/http"
 	"net/http/httptest"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -12,10 +14,35 @@ import (
 	"github.com/Hayao0819/Kamisato/ayato/service"
 )
 
+func postCLIRevoke(h *Handler, access, refresh string) *httptest.ResponseRecorder {
+	r := gin.New()
+	r.POST("/revoke", h.RevokeCLIHandler)
+	w := httptest.NewRecorder()
+	body := strings.NewReader("")
+	if refresh != "" {
+		body = strings.NewReader(`{"refresh_token":"` + refresh + `"}`)
+	}
+	req := httptest.NewRequest(http.MethodPost, "/revoke", body)
+	if refresh != "" {
+		req.Header.Set("Content-Type", "application/json")
+	}
+	if access != "" {
+		req.Header.Set("Authorization", "Bearer "+access)
+	}
+	r.ServeHTTP(w, req)
+	return w
+}
+
 // fakeDenylistRepo implements repository.DenylistRepository in-memory.
-type fakeDenylistRepo struct{ revoked map[string]bool }
+type fakeDenylistRepo struct {
+	mu       sync.Mutex
+	revoked  map[string]bool
+	sessions map[string]bool
+}
 
 func (f *fakeDenylistRepo) Revoke(jti string, _ time.Duration) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	if f.revoked == nil {
 		f.revoked = map[string]bool{}
 	}
@@ -23,7 +50,40 @@ func (f *fakeDenylistRepo) Revoke(jti string, _ time.Duration) error {
 	return nil
 }
 
-func (f *fakeDenylistRepo) IsRevoked(jti string) bool { return f.revoked[jti] }
+func (f *fakeDenylistRepo) Consume(jti string, _ time.Duration) (bool, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.revoked == nil {
+		f.revoked = make(map[string]bool)
+	}
+	if f.revoked[jti] {
+		return false, nil
+	}
+	f.revoked[jti] = true
+	return true, nil
+}
+
+func (f *fakeDenylistRepo) IsRevoked(jti string) (bool, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.revoked[jti], nil
+}
+
+func (f *fakeDenylistRepo) RevokeSession(sessionID string, _ time.Duration) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.sessions == nil {
+		f.sessions = map[string]bool{}
+	}
+	f.sessions[sessionID] = true
+	return nil
+}
+
+func (f *fakeDenylistRepo) IsSessionRevoked(sessionID string) (bool, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.sessions[sessionID], nil
+}
 
 func TestRevokeCLIHandler(t *testing.T) {
 	gin.SetMode(gin.TestMode)
@@ -71,7 +131,7 @@ func TestRevokeCLIHandler(t *testing.T) {
 	if w := call(h, "Bearer "+tok); w.Code != http.StatusOK {
 		t.Fatalf("valid revoke: status = %d, want 200", w.Code)
 	}
-	if !dl.IsRevoked("abc") {
+	if revoked, err := dl.IsRevoked("abc"); err != nil || !revoked {
 		t.Fatal("the token's jti must be denylisted after a successful revoke")
 	}
 }

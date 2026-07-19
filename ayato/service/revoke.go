@@ -16,8 +16,18 @@ func (s *Service) WithDenylist(dl repository.DenylistRepository) *Service {
 
 // IsRevoked reports whether the token id (jti) was individually revoked; it is
 // false when no denylist is wired.
-func (s *Service) IsRevoked(jti string) bool {
-	return s.denylistRepo != nil && s.denylistRepo.IsRevoked(jti)
+func (s *Service) IsRevoked(jti string) (bool, error) {
+	if s.denylistRepo == nil {
+		return false, nil
+	}
+	return s.denylistRepo.IsRevoked(jti)
+}
+
+func (s *Service) IsSessionRevoked(sessionID string) (bool, error) {
+	if s.denylistRepo == nil {
+		return false, nil
+	}
+	return s.denylistRepo.IsSessionRevoked(sessionID)
 }
 
 // Revoke denylists jti for ttl. It errors when no denylist is wired.
@@ -26,4 +36,18 @@ func (s *Service) Revoke(jti string, ttl time.Duration) error {
 		return fmt.Errorf("token revocation is not configured")
 	}
 	return s.denylistRepo.Revoke(jti, ttl)
+}
+
+func (s *Service) RevokeSession(sessionID string, ttl time.Duration) error {
+	if s.denylistRepo == nil {
+		return fmt.Errorf("token revocation is not configured")
+	}
+	return s.denylistRepo.RevokeSession(sessionID, ttl)
+}
+
+func (s *Service) ConsumeRefreshToken(jti string, ttl time.Duration) (bool, error) {
+	if s.denylistRepo == nil {
+		return false, fmt.Errorf("token revocation is not configured")
+	}
+	return s.denylistRepo.Consume(jti, ttl)
 }

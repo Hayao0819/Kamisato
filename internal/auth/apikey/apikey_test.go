@@ -46,10 +46,10 @@ func TestFromRequest(t *testing.T) {
 		set  func(*http.Request)
 		want string
 	}{
-		{"bearer", func(r *http.Request) { r.Header.Set("Authorization", "Bearer tok123") }, "tok123"},
+		{"bearer is a user token, not an API key", func(r *http.Request) { r.Header.Set("Authorization", "Bearer tok123") }, ""},
 		{"x-api-key", func(r *http.Request) { r.Header.Set("X-API-Key", "tok456") }, "tok456"},
-		{"non-bearer auth falls through to x-api-key", func(r *http.Request) {
-			r.Header.Set("Authorization", "Basic abc")
+		{"authorization does not shadow x-api-key", func(r *http.Request) {
+			r.Header.Set("Authorization", "Bearer user-token")
 			r.Header.Set("X-API-Key", "tok789")
 		}, "tok789"},
 		{"none", func(r *http.Request) {}, ""},
@@ -79,8 +79,11 @@ func TestMiddleware(t *testing.T) {
 	if code := run(v, func(*http.Request) {}); code != http.StatusUnauthorized {
 		t.Errorf("no key: status = %d, want 401", code)
 	}
-	if code := run(v, func(r *http.Request) { r.Header.Set("Authorization", "Bearer good") }); code != http.StatusOK {
+	if code := run(v, func(r *http.Request) { r.Header.Set("X-API-Key", "good") }); code != http.StatusOK {
 		t.Errorf("valid key: status = %d, want 200", code)
+	}
+	if code := run(v, func(r *http.Request) { r.Header.Set("Authorization", "Bearer good") }); code != http.StatusUnauthorized {
+		t.Errorf("Bearer key: status = %d, want 401", code)
 	}
 	if code := run(v, func(r *http.Request) { r.Header.Set("X-API-Key", "bad") }); code != http.StatusUnauthorized {
 		t.Errorf("bad key: status = %d, want 401", code)
@@ -89,5 +92,53 @@ func TestMiddleware(t *testing.T) {
 	// With no keys configured the middleware passes through (closed-network trust).
 	if code := run(NewVerifier(nil), func(*http.Request) {}); code != http.StatusOK {
 		t.Errorf("open middleware: status = %d, want 200", code)
+	}
+}
+
+func TestScopedMiddlewareAndPrincipal(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	verifier := NewScopedVerifier([]Entry{
+		{Name: "thoma", Key: "direct", Scopes: []string{ScopeBuildSubmit, ScopeBuildRead}},
+		{Name: "ayato", Key: "proxy", Scopes: []string{ScopeBuildAdmin}},
+	})
+	run := func(key, scope string) (int, string) {
+		engine := gin.New()
+		name := ""
+		engine.GET("/", verifier.Middleware(scope), func(c *gin.Context) {
+			if principal, ok := PrincipalFrom(c); ok {
+				name = principal.Name
+			}
+			c.Status(http.StatusOK)
+		})
+		request := httptest.NewRequest(http.MethodGet, "/", nil)
+		request.Header.Set(Header, key)
+		response := httptest.NewRecorder()
+		engine.ServeHTTP(response, request)
+		return response.Code, name
+	}
+	if code, name := run("direct", ScopeBuildRead); code != http.StatusOK || name != "thoma" {
+		t.Fatalf("read = status %d principal %q", code, name)
+	}
+	if code, _ := run("direct", ScopeBuildCancel); code != http.StatusForbidden {
+		t.Fatalf("unscoped cancel = status %d, want 403", code)
+	}
+	if code, name := run("proxy", ScopeBuildSubmit); code != http.StatusOK || name != "ayato" {
+		t.Fatalf("build admin = status %d principal %q", code, name)
+	}
+}
+
+func TestRotatedKeysShareStablePrincipalButKeepDistinctKeyIDs(t *testing.T) {
+	verifier := NewScopedVerifier([]Entry{
+		{Name: "thoma-2026-01", Principal: "thoma-builder", Key: "old", Scopes: []string{ScopeBuildRead}},
+		{Name: "thoma-2026-07", Principal: "thoma-builder", Key: "new", Scopes: []string{ScopeBuildRead}},
+	})
+	for key, keyID := range map[string]string{"old": "thoma-2026-01", "new": "thoma-2026-07"} {
+		principal, ok := verifier.Authenticate(key)
+		if !ok {
+			t.Fatalf("key %q did not authenticate", keyID)
+		}
+		if principal.Name != "thoma-builder" || principal.KeyID != keyID {
+			t.Fatalf("key %q principal = %#v", keyID, principal)
+		}
 	}
 }

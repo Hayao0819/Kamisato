@@ -13,6 +13,15 @@ import (
 	"github.com/Hayao0819/Kamisato/miko/signer"
 )
 
+func newRemoteSigner(t *testing.T, base, key string) *signer.RemoteSigner {
+	t.Helper()
+	remote, err := signer.NewRemoteSigner(base, key)
+	if err != nil {
+		t.Fatalf("NewRemoteSigner: %v", err)
+	}
+	return remote
+}
+
 // The client must send the artifact bytes with its API key and write the returned
 // signature next to the package.
 func TestRemoteSignerSendsArtifactAndAppliesSignature(t *testing.T) {
@@ -32,7 +41,7 @@ func TestRemoteSignerSendsArtifactAndAppliesSignature(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	sigPath, err := signer.NewRemoteSigner(srv.URL, key).Sign(context.Background(), pkgPath)
+	sigPath, err := newRemoteSigner(t, srv.URL, key).Sign(context.Background(), pkgPath)
 	if err != nil {
 		t.Fatalf("Sign: %v", err)
 	}
@@ -72,7 +81,7 @@ func TestRemoteSignerRejectsUnauthorized(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, err := signer.NewRemoteSigner(srv.URL, "wrong").Sign(context.Background(), pkgPath); err == nil {
+	if _, err := newRemoteSigner(t, srv.URL, "wrong").Sign(context.Background(), pkgPath); err == nil {
 		t.Fatal("an unauthorized signer response must fail")
 	}
 	if _, err := os.Stat(pkgPath + ".sig"); !os.IsNotExist(err) {
@@ -94,7 +103,7 @@ func TestRemoteSignerRejectsEmptySignature(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, err := signer.NewRemoteSigner(srv.URL, "k").Sign(context.Background(), pkgPath); err == nil {
+	if _, err := newRemoteSigner(t, srv.URL, "k").Sign(context.Background(), pkgPath); err == nil {
 		t.Fatal("an empty signature must be rejected")
 	}
 	if _, err := os.Stat(pkgPath + ".sig"); !os.IsNotExist(err) {
@@ -112,7 +121,7 @@ func TestRemoteSignerRejectsOversizedSignature(t *testing.T) {
 	if err := os.WriteFile(pkgPath, []byte("x"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := signer.NewRemoteSigner(srv.URL, "k").Sign(context.Background(), pkgPath); err == nil {
+	if _, err := newRemoteSigner(t, srv.URL, "k").Sign(context.Background(), pkgPath); err == nil {
 		t.Fatal("oversized signature response must be rejected")
 	}
 }

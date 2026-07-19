@@ -19,6 +19,20 @@ func (failingSigner) Sign(context.Context, string) (string, error) {
 	return "", errors.New("signer unavailable")
 }
 
+type failSecondSigner struct{ calls int }
+
+func (s *failSecondSigner) Sign(_ context.Context, path string) (string, error) {
+	s.calls++
+	if s.calls == 2 {
+		return "", errors.New("second signature failed")
+	}
+	signature := path + ".sig"
+	if err := os.WriteFile(signature, []byte("signature"), 0o600); err != nil {
+		return "", err
+	}
+	return signature, nil
+}
+
 type fakePersister struct {
 	mu    sync.Mutex
 	saved map[string]*domain.BuildJob
@@ -44,11 +58,15 @@ func (f *fakePersister) remove(id string) error {
 func (f *fakePersister) loadAll() ([]*domain.BuildJob, error) { return nil, nil }
 
 type fakeUploader struct {
-	uploaded [][3]string
+	calls    int
+	repo     string
+	uploaded []PackageUpload
 }
 
-func (f *fakeUploader) Upload(repo, pkgPath, sigPath string) error {
-	f.uploaded = append(f.uploaded, [3]string{repo, pkgPath, sigPath})
+func (f *fakeUploader) Upload(_ context.Context, repo string, packages []PackageUpload) error {
+	f.calls++
+	f.repo = repo
+	f.uploaded = append(f.uploaded, packages...)
 	return nil
 }
 
@@ -83,8 +101,26 @@ func TestSignAndUploadUsesInjectedUploader(t *testing.T) {
 	if err := s.signAndUpload(context.Background(), "extra", []string{pkgPath}); err != nil {
 		t.Fatalf("signAndUpload: %v", err)
 	}
-	if len(fu.uploaded) != 1 || fu.uploaded[0] != [3]string{"extra", pkgPath, ""} {
+	if fu.calls != 1 || fu.repo != "extra" || len(fu.uploaded) != 1 || fu.uploaded[0] != (PackageUpload{PackagePath: pkgPath}) {
 		t.Errorf("uploader received %v, want one unsigned upload to extra", fu.uploaded)
+	}
+}
+
+func TestSignAndUploadPublishesSplitPackagesInOneBatch(t *testing.T) {
+	fu := &fakeUploader{}
+	s := New(&conf.MikoConfig{}, nil, nil, fu).(*Service)
+	dir := t.TempDir()
+	paths := []string{filepath.Join(dir, "foo.pkg.tar.zst"), filepath.Join(dir, "foo-docs.pkg.tar.zst")}
+	for _, path := range paths {
+		if err := os.WriteFile(path, []byte("pkg"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := s.signAndUpload(context.Background(), "extra", paths); err != nil {
+		t.Fatal(err)
+	}
+	if fu.calls != 1 || len(fu.uploaded) != 2 {
+		t.Fatalf("batch calls = %d, packages = %d", fu.calls, len(fu.uploaded))
 	}
 }
 
@@ -105,14 +141,39 @@ func TestSignAndUploadFailsClosedOnSignerError(t *testing.T) {
 	}
 }
 
+func TestSignAndUploadDoesNotPublishWhenLaterSignatureFails(t *testing.T) {
+	fu := &fakeUploader{}
+	s := New(&conf.MikoConfig{}, &failSecondSigner{}, nil, fu).(*Service)
+	dir := t.TempDir()
+	var packages []string
+	for _, name := range []string{"foo.pkg.tar.zst", "foo-docs.pkg.tar.zst"} {
+		path := filepath.Join(dir, name)
+		if err := os.WriteFile(path, []byte("pkg"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		packages = append(packages, path)
+	}
+	if err := s.signAndUpload(context.Background(), "extra", packages); err == nil {
+		t.Fatal("later signer failure unexpectedly succeeded")
+	}
+	if fu.calls != 0 {
+		t.Fatalf("partial batch was uploaded after later signer failure: %#v", fu.uploaded)
+	}
+}
+
 func TestSignAndUploadRejectsPackageOverMaxSize(t *testing.T) {
 	fu := &fakeUploader{}
 	s := New(&conf.MikoConfig{MaxSize: 2}, nil, nil, fu).(*Service)
-	pkgPath := filepath.Join(t.TempDir(), "large.pkg.tar.zst")
+	dir := t.TempDir()
+	smallPath := filepath.Join(dir, "small.pkg.tar.zst")
+	if err := os.WriteFile(smallPath, []byte("ok"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	pkgPath := filepath.Join(dir, "large.pkg.tar.zst")
 	if err := os.WriteFile(pkgPath, []byte("three"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.signAndUpload(context.Background(), "extra", []string{pkgPath}); err == nil {
+	if err := s.signAndUpload(context.Background(), "extra", []string{smallPath, pkgPath}); err == nil {
 		t.Fatal("package larger than max_size must be rejected")
 	}
 	if len(fu.uploaded) != 0 {

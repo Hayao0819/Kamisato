@@ -34,25 +34,12 @@ func (r *replayGuard) Consume(id string, ttl time.Duration) (bool, error) {
 	if id == "" {
 		return false, errors.NewErr("replay: empty id")
 	}
-	// A non-positive ttl means the code already expired (verify rejects it earlier),
-	// so no-op rather than recording the id forever (ttl 0 is "no expiry" to the kv
-	// store).
 	if ttl <= 0 {
-		return true, nil
-	}
-	if adder, ok := r.kv.(kv.Adder); ok {
-		return adder.Add(replayNS, id, []byte{1}, ttl)
-	}
-	// Fallback for a backend without an atomic insert: check then set. The residual
-	// race is a single sub-second window between two exchanges of the same code; the
-	// durable replay threat (redeeming a leaked code later) is still closed.
-	if _, err := r.kv.Get(replayNS, id); err == nil {
 		return false, nil
-	} else if !errors.Is(err, kv.ErrNotFound) {
-		return false, errors.WrapErr(err, "replay: get")
 	}
-	if err := r.kv.Set(replayNS, id, []byte{1}, ttl); err != nil {
-		return false, errors.WrapErr(err, "replay: set")
+	adder, ok := r.kv.(kv.Adder)
+	if !ok {
+		return false, errors.NewErr("replay: atomic consumption is not supported by this store")
 	}
-	return true, nil
+	return adder.Add(replayNS, id, []byte{1}, ttl)
 }

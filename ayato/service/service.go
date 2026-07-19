@@ -88,8 +88,11 @@ type AdminService interface {
 // whether a token id (jti) was individually revoked; Revoke denylists one for
 // ttl. Both are no-ops (false / configuration error) when no denylist is wired.
 type Revoker interface {
-	IsRevoked(jti string) bool
+	IsRevoked(jti string) (bool, error)
+	IsSessionRevoked(sessionID string) (bool, error)
 	Revoke(jti string, ttl time.Duration) error
+	RevokeSession(sessionID string, ttl time.Duration) error
+	ConsumeRefreshToken(jti string, ttl time.Duration) (bool, error)
 }
 
 // SignerRegistry manages worker signing keys. RegisterSigner accepts a worker

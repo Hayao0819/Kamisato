@@ -89,6 +89,7 @@ func (s *Service) submitWithReason(req *domain.BuildRequest, reason domain.Build
 		Arch:      req.Arch,
 		Status:    domain.JobStatusQueued,
 		Reason:    reason,
+		Owner:     req.Requester,
 		Request:   req,
 		CreatedAt: time.Now(),
 	}

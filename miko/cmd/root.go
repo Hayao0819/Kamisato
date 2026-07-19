@@ -46,11 +46,29 @@ func buildSigner(ctx context.Context, cfg *conf.MikoConfig) (sign.Signer, error)
 		if env := os.Getenv("MIKO_SIGNING_REMOTE_API_KEY"); env != "" {
 			apiKey = env
 		}
+		if apiKey == "" {
+			return nil, errors.NewErr("signing.mode is remote but signing.remote.api_key is unset")
+		}
 		slog.Info("remote signing enabled", "url", cfg.Signing.Remote.URL)
-		return signer.NewRemoteSigner(cfg.Signing.Remote.URL, apiKey), nil
+		return signer.NewRemoteSigner(cfg.Signing.Remote.URL, apiKey)
 	default:
 		return nil, errors.NewErrf("signing.mode: unknown value %q (want disabled, local or remote)", cfg.Signing.Mode)
 	}
+}
+
+func serviceKeyVerifier(cfg *conf.MikoConfig) *apikey.Verifier {
+	entries := make([]apikey.Entry, 0, len(cfg.APIKeys)+len(cfg.Auth.APIKeys))
+	for index, key := range cfg.APIKeys {
+		entries = append(entries, apikey.Entry{
+			Name:   fmt.Sprintf("legacy-%d", index+1),
+			Key:    key,
+			Scopes: []string{apikey.ScopeAll},
+		})
+	}
+	for _, key := range cfg.Auth.APIKeys {
+		entries = append(entries, apikey.Entry{Name: key.Name, Principal: key.Principal, Key: key.Key, Scopes: key.Scopes})
+	}
+	return apikey.NewScopedVerifier(entries)
 }
 
 // buildHostSigner loads (or on first boot generates) the worker host signing key.
@@ -85,11 +103,11 @@ func buildHostSigner(ctx context.Context, cfg *conf.MikoConfig) (sign.Signer, er
 		"master_fpr", fmt.Sprintf("%X", ks.MasterEntity().PrimaryKey.Fingerprint),
 		"worker_fpr", fmt.Sprintf("%X", ks.WorkerEntity().PrimaryKey.Fingerprint))
 
-	// Best-effort: register this worker's cert with ayato so its host-signed
-	// packages verify. ayato accepts it only if it chains to a trusted master.
 	if cfg.Ayato.URL != "" {
-		if rerr := service.RegisterWorkerCert(ctx, cfg, ks); rerr != nil {
-			slog.Warn("could not register worker key with ayato; signing still works, register it later", "err", rerr)
+		registrationCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+		defer cancel()
+		if rerr := service.RegisterWorkerCert(registrationCtx, cfg, ks); rerr != nil {
+			return nil, errors.WrapErr(rerr, "register local signing key with ayato")
 		}
 	}
 	return sign.NewHostKeySigner(ks), nil
@@ -138,11 +156,14 @@ func RootCmd() *cobra.Command {
 					persister = p
 				}
 			}
-			uploader := service.NewBlinkyUploader(cfg.Ayato.URL, cfg.Ayato.Username, cfg.Ayato.Password)
+			uploader, err := service.NewAyatoUploader(cfg.Ayato.URL, cfg.Ayato.APIKey)
+			if err != nil {
+				return errors.WrapErr(err, "failed to configure Ayato publisher")
+			}
 
 			s := service.New(cfg, pkgSigner, persister, uploader)
 			h := handler.New(s, cfg)
-			verifier := apikey.NewVerifier(cfg.APIKeys)
+			verifier := serviceKeyVerifier(cfg)
 			if !verifier.Enabled() && !cfg.AllowUnauthenticated {
 				return errors.NewErr("no api_keys configured; set one or explicitly set allow_unauthenticated=true")
 			}

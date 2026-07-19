@@ -11,26 +11,40 @@ type apiKeyAuth struct {
 }
 
 type apiKeyEntry struct {
-	name  string
-	key   []byte
-	repos map[string]bool
+	name   string
+	key    []byte
+	repos  map[string]bool
+	scopes map[string]bool
 }
 
 func newAPIKeyAuth(cfg []conf.CIAPIKey) *apiKeyAuth {
 	a := &apiKeyAuth{}
 	for _, k := range cfg {
-		e := apiKeyEntry{name: k.Name, key: []byte(k.Key), repos: map[string]bool{}}
+		e := apiKeyEntry{name: k.Name, key: []byte(k.Key), repos: map[string]bool{}, scopes: map[string]bool{}}
 		for _, r := range k.PublishRepos {
 			e.repos[r] = true
+		}
+		for _, scope := range k.Scopes {
+			e.scopes[scope] = true
 		}
 		a.keys = append(a.keys, e)
 	}
 	return a
 }
 
-// authorize constant-time-compares the presented key against every key with no
-// early return, so timing doesn't reveal which matched, then checks its repo scope.
-func (a *apiKeyAuth) authorize(presented, repo string) (*CIPrincipal, bool) {
+func (a *apiKeyAuth) authorizeScope(presented, scope string) (*CIPrincipal, bool) {
+	e, ok := a.match(presented)
+	if !ok {
+		return nil, false
+	}
+	principal := &CIPrincipal{Via: "apikey", ID: e.name}
+	if !e.scopes[scope] && !e.scopes["*"] {
+		return principal, false
+	}
+	return principal, true
+}
+
+func (a *apiKeyAuth) match(presented string) (apiKeyEntry, bool) {
 	p := []byte(presented)
 	matched := -1
 	for i := range a.keys {
@@ -39,11 +53,20 @@ func (a *apiKeyAuth) authorize(presented, repo string) (*CIPrincipal, bool) {
 		}
 	}
 	if matched < 0 {
+		return apiKeyEntry{}, false
+	}
+	return a.keys[matched], true
+}
+
+// authorize checks the key and repository scope without early secret-dependent exits.
+func (a *apiKeyAuth) authorize(presented, repo string) (*CIPrincipal, bool) {
+	e, ok := a.match(presented)
+	if !ok {
 		return nil, false
 	}
-	e := a.keys[matched]
+	principal := &CIPrincipal{Via: "apikey", ID: e.name}
 	if !e.repos[repo] && !e.repos["*"] {
-		return nil, false
+		return principal, false
 	}
-	return &CIPrincipal{Via: "apikey", ID: e.name}, true
+	return principal, true
 }

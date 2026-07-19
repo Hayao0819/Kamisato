@@ -21,13 +21,14 @@ type adminChecker interface {
 }
 
 type denylistChecker interface {
-	IsRevoked(jti string) bool
+	IsRevoked(jti string) (bool, error)
+	IsSessionRevoked(sessionID string) (bool, error)
 }
 
 // logTokenConsumer redeems a one-time SSE log token, returning its bound job id;
 // ok is false if the token is absent, unknown, or already spent.
 type logTokenConsumer interface {
-	ConsumeLogToken(token string) (jobID string, ok bool)
+	ConsumeLogToken(token string) (jobID string, ok bool, err error)
 }
 
 type Middleware struct {
@@ -78,8 +79,20 @@ func (m *Middleware) WithLogTokens(c logTokenConsumer) *Middleware {
 
 // revoked reports whether a verified token is individually revoked; a JTI-less
 // token (sessions, pre-feature tokens) is never denylisted.
-func (m *Middleware) revoked(c *auth.Claims) bool {
-	return m.denylist != nil && c.JTI != "" && m.denylist.IsRevoked(c.JTI)
+func (m *Middleware) revoked(c *auth.Claims) (bool, error) {
+	if m.denylist == nil {
+		return false, nil
+	}
+	if c.JTI != "" {
+		revoked, err := m.denylist.IsRevoked(c.JTI)
+		if err != nil || revoked {
+			return revoked, err
+		}
+	}
+	if c.SessionID != "" {
+		return m.denylist.IsSessionRevoked(c.SessionID)
+	}
+	return false, nil
 }
 
 // Gin context keys for the resolved requester (audit logging).
@@ -93,8 +106,7 @@ const (
 func (m *Middleware) RequireAdmin() gin.HandlerFunc { return m.requireAdmin(false) }
 
 // RequireBlinkyAdmin gates a route to an allowlisted admin but also accepts a CLI
-// token in HTTP Basic's password field, for machine clients that authenticate with
-// Basic: the blinky-compatible surface and miko's signer self-registration.
+// token in HTTP Basic's password field only for the Blinky-compatible surface.
 func (m *Middleware) RequireBlinkyAdmin() gin.HandlerFunc { return m.requireAdmin(true) }
 
 // requireAdmin authenticates the requester and re-checks the admin allowlist,
@@ -107,11 +119,20 @@ func (m *Middleware) requireAdmin(allowBasic bool) gin.HandlerFunc {
 			return
 		}
 
-		id, login, via, ok := m.resolve(c, allowBasic)
+		id, login, via, ok, err := m.resolve(c, allowBasic)
+		if err != nil {
+			c.AbortWithStatus(http.StatusServiceUnavailable)
+			return
+		}
 		if !ok {
 			// Hint the client that a refresh (not a full re-login) is enough when the
 			// only problem is an expired-but-valid access token.
-			if m.expiredAccessToken(c, allowBasic) {
+			expired, expiryErr := m.expiredAccessToken(c, allowBasic)
+			if expiryErr != nil {
+				c.AbortWithStatus(http.StatusServiceUnavailable)
+				return
+			}
+			if expired {
 				c.Header(accessTokenExpiredHeader, "1")
 			}
 			c.Header("WWW-Authenticate", `Bearer realm="ayato"`)
@@ -158,9 +179,9 @@ const accessTokenExpiredHeader = "X-Access-Token-Expired" //nolint:gosec // G101
 // expiredAccessToken reports whether the request carries a Bearer (or Basic
 // password, when allowed) access token that is validly signed and non-revoked but
 // has expired — the one 401 case a refresh can recover from.
-func (m *Middleware) expiredAccessToken(c *gin.Context, allowBasic bool) bool {
+func (m *Middleware) expiredAccessToken(c *gin.Context, allowBasic bool) (bool, error) {
 	if m.signer == nil {
-		return false
+		return false, nil
 	}
 	authz := c.GetHeader("Authorization")
 	tok := ""
@@ -173,14 +194,18 @@ func (m *Middleware) expiredAccessToken(c *gin.Context, allowBasic bool) bool {
 		}
 	}
 	if tok == "" {
-		return false
+		return false, nil
 	}
 	for _, typ := range []string{auth.TypCLI, auth.TypBearer} {
 		if claims, expired, err := m.signer.VerifyTypAllowExpired(tok, typ); err == nil {
-			return expired && !m.revoked(claims)
+			revoked, revokeErr := m.revoked(claims)
+			if revokeErr != nil {
+				return false, revokeErr
+			}
+			return expired && !revoked, nil
 		}
 	}
-	return false
+	return false, nil
 }
 
 // RequireLogAccess gates the SSE build-log stream. A browser EventSource cannot
@@ -192,7 +217,12 @@ func (m *Middleware) RequireLogAccess() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if tok := logTokenFromRequest(c); tok != "" {
 			if m.logTokens != nil {
-				if jobID, ok := m.logTokens.ConsumeLogToken(tok); ok && jobID == c.Param("id") {
+				jobID, ok, err := m.logTokens.ConsumeLogToken(tok)
+				if err != nil {
+					c.AbortWithStatus(http.StatusServiceUnavailable)
+					return
+				}
+				if ok && jobID == c.Param("id") {
 					c.Next()
 					return
 				}
@@ -207,7 +237,11 @@ func (m *Middleware) RequireLogAccess() gin.HandlerFunc {
 			c.AbortWithStatus(http.StatusServiceUnavailable)
 			return
 		}
-		id, login, via, ok := m.resolve(c, false)
+		id, login, via, ok, err := m.resolve(c, false)
+		if err != nil {
+			c.AbortWithStatus(http.StatusServiceUnavailable)
+			return
+		}
 		if !ok {
 			c.Header("WWW-Authenticate", `Bearer realm="ayato"`)
 			c.AbortWithStatus(http.StatusUnauthorized)
@@ -280,10 +314,10 @@ func originOfURL(raw string) string {
 	return u.Scheme + "://" + u.Host
 }
 
-func (m *Middleware) resolve(c *gin.Context, allowBasic bool) (id int64, login, via string, ok bool) {
+func (m *Middleware) resolve(c *gin.Context, allowBasic bool) (id int64, login, via string, ok bool, err error) {
 	if sid, err := c.Cookie(m.cfg.Auth.CookieName()); err == nil && sid != "" {
 		if claims, verr := m.signer.VerifyTyp(sid, auth.TypSession); verr == nil {
-			return claims.GitHubID, claims.Login, ctxViaSession, true
+			return claims.GitHubID, claims.Login, ctxViaSession, true, nil
 		}
 	}
 
@@ -294,10 +328,14 @@ func (m *Middleware) resolve(c *gin.Context, allowBasic bool) (id int64, login, 
 		tok := strings.TrimPrefix(authz, "Bearer ")
 		for _, typ := range []string{auth.TypCLI, auth.TypBearer} {
 			if claims, terr := m.signer.VerifyTyp(tok, typ); terr == nil {
-				if m.revoked(claims) {
-					return 0, "", "", false
+				revoked, revokeErr := m.revoked(claims)
+				if revokeErr != nil {
+					return 0, "", "", false, revokeErr
 				}
-				return claims.GitHubID, claims.Login, ctxViaBearer, true
+				if revoked {
+					return 0, "", "", false, nil
+				}
+				return claims.GitHubID, claims.Login, ctxViaBearer, true, nil
 			}
 		}
 	}
@@ -306,15 +344,19 @@ func (m *Middleware) resolve(c *gin.Context, allowBasic bool) (id int64, login, 
 	if allowBasic && strings.HasPrefix(authz, "Basic ") {
 		if _, pass, perr := decodeBasic(authz); perr == nil {
 			if claims, terr := m.signer.VerifyTyp(pass, auth.TypCLI); terr == nil {
-				if m.revoked(claims) {
-					return 0, "", "", false
+				revoked, revokeErr := m.revoked(claims)
+				if revokeErr != nil {
+					return 0, "", "", false, revokeErr
 				}
-				return claims.GitHubID, claims.Login, ctxViaBasic, true
+				if revoked {
+					return 0, "", "", false, nil
+				}
+				return claims.GitHubID, claims.Login, ctxViaBasic, true, nil
 			}
 		}
 	}
 
-	return 0, "", "", false
+	return 0, "", "", false, nil
 }
 
 func decodeBasic(header string) (user, pass string, err error) {

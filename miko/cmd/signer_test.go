@@ -35,6 +35,7 @@ func TestBuildSignerModes(t *testing.T) {
 	remote := &conf.MikoConfig{}
 	remote.Signing.Mode = "remote"
 	remote.Signing.Remote.URL = "http://miko-signer:8081"
+	remote.Signing.Remote.APIKey = "sign-only-key"
 	s, err = buildSigner(ctx, remote)
 	if err != nil {
 		t.Fatalf("remote: %v", err)
@@ -48,6 +49,12 @@ func TestBuildSignerModes(t *testing.T) {
 	noURL.Signing.Mode = "remote"
 	if _, err := buildSigner(ctx, noURL); err == nil {
 		t.Fatal("remote mode without a URL must fail")
+	}
+	noKey := &conf.MikoConfig{}
+	noKey.Signing.Mode = "remote"
+	noKey.Signing.Remote.URL = "http://miko-signer:8081"
+	if _, err := buildSigner(ctx, noKey); err == nil {
+		t.Fatal("remote mode without an API key must fail")
 	}
 
 	// An unknown mode fails loudly.

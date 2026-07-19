@@ -8,6 +8,8 @@ import (
 
 	"github.com/Hayao0819/Kamisato/pkg/pacman/builder"
 	"github.com/spf13/pflag"
+
+	"github.com/Hayao0819/Kamisato/internal/client"
 )
 
 type MikoConfig struct {
@@ -36,8 +38,9 @@ type MikoConfig struct {
 		CcacheDir      string `koanf:"ccache_dir"`
 	} `koanf:"cache"`
 	// APIKeys are accepted shared secrets for inbound requests (from ayato).
-	// Empty requires AllowUnauthenticated to be explicitly enabled.
-	APIKeys []string `koanf:"api_keys"`
+	// Deprecated: use auth.api_keys.
+	APIKeys []string       `koanf:"api_keys"`
+	Auth    MikoAuthConfig `koanf:"auth"`
 	// AllowUnauthenticated explicitly permits an API with no shared key. This is
 	// intended only for isolated development networks; the secure default is false.
 	AllowUnauthenticated bool `koanf:"allow_unauthenticated"`
@@ -47,7 +50,10 @@ type MikoConfig struct {
 	// DockerHost preserves the legacy Miko schema.
 	DockerHost string `koanf:"docker_host"`
 	Ayato      struct {
-		URL      string `koanf:"url"`
+		URL string `koanf:"url"`
+		// APIKey is the Ayato service key.
+		APIKey string `koanf:"api_key"`
+		// Username and Password are deprecated Basic-auth settings.
 		Username string `koanf:"username"`
 		Password string `koanf:"password"`
 	} `koanf:"ayato"`
@@ -83,6 +89,18 @@ type MikoConfig struct {
 	// AURGitBase is the git base used to clone the PKGBUILD when a monitor or
 	// soname bump rebuilds a package (default https://aur.archlinux.org).
 	AURGitBase string `koanf:"aur_git_base"`
+}
+
+type MikoAuthConfig struct {
+	APIKeys []MikoAPIKey `koanf:"api_keys"`
+}
+
+type MikoAPIKey struct {
+	// Principal defaults to Name.
+	Name      string   `koanf:"name"`
+	Principal string   `koanf:"principal,omitempty"`
+	Key       string   `koanf:"key"`
+	Scopes    []string `koanf:"scopes"`
 }
 
 // NvCheckConfig configures upstream version monitoring.
@@ -269,6 +287,55 @@ func (c *MikoConfig) Validate() error {
 	}
 	if c.Signing.Mode == "remote" && c.Signing.Remote.URL == "" {
 		return fmt.Errorf("signing.mode is remote but signing.remote.url is unset")
+	}
+	if c.Signing.Remote.URL != "" {
+		if _, err := client.ParseBaseURL(c.Signing.Remote.URL); err != nil {
+			return fmt.Errorf("signing.remote.url: %w", err)
+		}
+	}
+	if c.Ayato.URL == "" && c.Ayato.APIKey != "" {
+		return fmt.Errorf("ayato.api_key requires ayato.url")
+	}
+	if c.Ayato.URL != "" {
+		if _, err := client.ParseBaseURL(c.Ayato.URL); err != nil {
+			return fmt.Errorf("ayato.url: %w", err)
+		}
+		if c.Ayato.APIKey == "" {
+			if c.Ayato.Username != "" || c.Ayato.Password != "" {
+				return fmt.Errorf("ayato username/password Basic authentication is no longer supported; set ayato.api_key")
+			}
+			return fmt.Errorf("ayato.api_key is required when ayato.url is configured")
+		}
+	}
+	knownScopes := map[string]bool{
+		"*": true, "build:submit": true, "build:read": true,
+		"build:cancel": true, "build:admin": true, "sign": true,
+	}
+	names := make(map[string]bool, len(c.Auth.APIKeys))
+	keys := make(map[string]bool, len(c.Auth.APIKeys))
+	for index, entry := range c.Auth.APIKeys {
+		if entry.Name == "" || entry.Key == "" || len(entry.Scopes) == 0 {
+			return fmt.Errorf("auth.api_keys[%d]: name, key, and scopes are required", index)
+		}
+		if entry.Principal == "" {
+			entry.Principal = entry.Name
+		}
+		if strings.TrimSpace(entry.Principal) == "" {
+			return fmt.Errorf("auth.api_keys[%d]: principal must not be blank", index)
+		}
+		if names[entry.Name] {
+			return fmt.Errorf("auth.api_keys[%d]: duplicate name %q", index, entry.Name)
+		}
+		if keys[entry.Key] {
+			return fmt.Errorf("auth.api_keys[%d]: duplicate key", index)
+		}
+		names[entry.Name] = true
+		keys[entry.Key] = true
+		for _, scope := range entry.Scopes {
+			if !knownScopes[scope] {
+				return fmt.Errorf("auth.api_keys[%d]: unknown scope %q", index, scope)
+			}
+		}
 	}
 	return nil
 }

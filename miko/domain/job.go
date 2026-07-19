@@ -51,6 +51,8 @@ type BuildRequest struct {
 	SignMode string `json:"sign_mode,omitempty"`
 	// Timeout in minutes; 0 uses the server default.
 	Timeout int `json:"timeout,omitempty"`
+	// Requester is set from the authenticated principal.
+	Requester string `json:"-"`
 }
 
 const (
@@ -77,6 +79,8 @@ type BuildJob struct {
 	// Reason records why this build was triggered (manual submit, dependency,
 	// retry, ...).
 	Reason BuildReason `json:"reason,omitempty"`
+	// Owner is the submitting service principal.
+	Owner string `json:"owner,omitempty"`
 
 	Request *BuildRequest `json:"-"`
 	// ArtifactDir is the retained build-output dir for a client-signed job, served

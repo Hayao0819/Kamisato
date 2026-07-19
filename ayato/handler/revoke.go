@@ -10,6 +10,29 @@ import (
 	"github.com/Hayao0819/Kamisato/ayato/auth"
 )
 
+func sessionFamilyID(claims *auth.Claims) string {
+	if claims == nil {
+		return ""
+	}
+	if claims.SessionID != "" {
+		return claims.SessionID
+	}
+	return claims.JTI
+}
+
+func (h *Handler) claimsRevoked(claims *auth.Claims) (bool, error) {
+	if claims.JTI != "" {
+		revoked, err := h.s.IsRevoked(claims.JTI)
+		if err != nil || revoked {
+			return revoked, err
+		}
+	}
+	if claims.SessionID != "" {
+		return h.s.IsSessionRevoked(claims.SessionID)
+	}
+	return false, nil
+}
+
 // RevokeCLIHandler denylists the presented tokens by jti before their TTL: the Bearer
 // access token and, if supplied, the refresh_token, so logout kills both halves.
 // Possessing a validly-signed token is the authorization (the signature stops a caller
@@ -57,6 +80,29 @@ func (h *Handler) RevokeCLIHandler(c *gin.Context) {
 	}
 	if refresh != nil && refresh.JTI != "" {
 		if err := h.s.Revoke(refresh.JTI, time.Until(refresh.Exp)); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "revoke failed"})
+			return
+		}
+	}
+	families := make(map[string]time.Duration, 2)
+	for _, claims := range []*auth.Claims{access, refresh} {
+		if claims == nil {
+			continue
+		}
+		family := sessionFamilyID(claims)
+		if family == "" {
+			continue
+		}
+		ttl := h.refreshTTL()
+		if remaining := time.Until(claims.Exp); remaining > ttl {
+			ttl = remaining
+		}
+		if current := families[family]; ttl > current {
+			families[family] = ttl
+		}
+	}
+	for family, ttl := range families {
+		if err := h.s.RevokeSession(family, ttl); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "revoke failed"})
 			return
 		}

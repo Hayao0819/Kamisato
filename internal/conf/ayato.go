@@ -13,6 +13,9 @@ import (
 
 	"github.com/Hayao0819/Kamisato/pkg/pacman/builder"
 	"github.com/spf13/pflag"
+
+	"github.com/Hayao0819/Kamisato/internal/client"
+	"github.com/Hayao0819/Kamisato/internal/limits"
 )
 
 type AyatoConfig struct {
@@ -36,6 +39,9 @@ type AyatoConfig struct {
 	// MaxSize is the maximum package size in bytes. Zero selects the shared
 	// default also used by miko.
 	MaxSize int `koanf:"max_size"`
+	// Zero uses the shared batch defaults.
+	MaxBatchPackages int   `koanf:"max_batch_packages"`
+	MaxBatchBytes    int64 `koanf:"max_batch_bytes"`
 	// DefaultArches is the arch set a repo with no explicit Arches serves, so the
 	// per-repo declaration can be omitted when every repo shares one arch list.
 	// Empty leaves per-repo Arches as the only declared source.
@@ -224,10 +230,10 @@ type BuildServiceConfig struct {
 }
 
 type AuthConfig struct {
-	Username string `koanf:"username,omitempty"`
-	Password string `koanf:"password,omitempty"`
-
-	GitHub GitHubOAuthConfig `koanf:"github,omitempty"`
+	// Username and Password are deprecated Basic-auth settings.
+	Username string            `koanf:"username,omitempty"`
+	Password string            `koanf:"password,omitempty"`
+	GitHub   GitHubOAuthConfig `koanf:"github,omitempty"`
 	// PublicOrigin is the browser-facing SPA origin (e.g. https://repo.example.com):
 	// the CORS allow-origin for bearer-mode callers and the postMessage target for the
 	// one-time login code. In the same-origin/BFF deployment the OAuth flow lands here.
@@ -257,6 +263,8 @@ type AuthConfig struct {
 	// CI holds non-interactive publish credentials (API key / GitHub OIDC) for CI
 	// pipelines on the upload route, separate from the user admin allowlist.
 	CI CIAuthConfig `koanf:"ci,omitempty"`
+	// AllowLegacySignerBasic enables the signer-registration migration bridge.
+	AllowLegacySignerBasic bool `koanf:"allow_legacy_signer_basic,omitempty"`
 	// AccessTokenTTLMinutes bounds a freshly issued CLI access token's lifetime.
 	// Short by default (1h) so a leaked access token is a small window; the client
 	// silently trades a refresh token for a new one. Unset/<=0 uses the default. A
@@ -441,6 +449,32 @@ func (c *AyatoConfig) Validate() error {
 	}
 	if err := c.Auth.CI.validate(); err != nil {
 		return err
+	}
+	if c.Auth.Username != "" || c.Auth.Password != "" {
+		return fmt.Errorf("auth.username/password Basic authentication is no longer supported; configure GitHub OAuth for users and auth.ci.api_keys for services")
+	}
+	if c.MaxBatchPackages < 0 || c.MaxBatchBytes < 0 {
+		return fmt.Errorf("max_batch_packages and max_batch_bytes must not be negative")
+	}
+	if c.MaxBatchBytes > 0 && c.MaxBatchBytes < limits.PackageBytes(c.MaxSize)+limits.MaxSignatureBytes {
+		return fmt.Errorf("max_batch_bytes must fit one max_size package plus a detached signature")
+	}
+	if len(c.Auth.SessionSecret) > 0 && c.Store.DBType == "cfkv" {
+		return fmt.Errorf("auth.session_secret requires an atomic refresh/replay store; store.db_type cfkv cannot atomically consume refresh tokens (use sql or badgerdb)")
+	}
+	if c.Auth.AllowLegacySignerBasic && len(c.Auth.SessionSecret) == 0 {
+		return fmt.Errorf("auth.allow_legacy_signer_basic requires auth.session_secret to verify the legacy CLI token")
+	}
+	if c.Miko.URL == "" && c.Miko.APIKey != "" {
+		return fmt.Errorf("miko.api_key requires miko.url")
+	}
+	if c.Miko.URL != "" {
+		if _, err := client.ParseBaseURL(c.Miko.URL); err != nil {
+			return fmt.Errorf("miko.url: %w", err)
+		}
+		if c.Miko.APIKey == "" {
+			return fmt.Errorf("miko.api_key is required when miko.url is configured")
+		}
 	}
 	githubEnabled := c.Auth.GitHub.ClientID != "" || c.Auth.GitHub.ClientSecret != ""
 	if !githubEnabled {

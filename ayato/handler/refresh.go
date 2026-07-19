@@ -23,21 +23,32 @@ func (h *Handler) refreshTTL() time.Duration {
 	return 30 * 24 * time.Hour
 }
 
-// issueAccessRefresh mints a short-lived access token paired with a long-lived
-// refresh token, each with its own jti so either can be revoked independently.
+// issueAccessRefresh creates a CLI session family.
 func (h *Handler) issueAccessRefresh(githubID int64, login, name string) (access, refresh string, expiresIn int, err error) {
+	sessionID, err := auth.NewJTI()
+	if err != nil {
+		return "", "", 0, err
+	}
+	return h.issueAccessRefreshForSession(githubID, login, name, sessionID, time.Now().Add(h.refreshTTL()))
+}
+
+func (h *Handler) issueAccessRefreshForSession(githubID int64, login, name, sessionID string, refreshExpiresAt time.Time) (access, refresh string, expiresIn int, err error) {
+	if sessionID == "" || !refreshExpiresAt.After(time.Now()) {
+		return "", "", 0, auth.ErrExpired
+	}
 	accessJTI, err := auth.NewJTI()
 	if err != nil {
 		return "", "", 0, err
 	}
 	accessTTL := h.accessTTL()
 	access, err = h.signer.Sign(auth.Claims{
-		Typ:      auth.TypCLI,
-		GitHubID: githubID,
-		Login:    login,
-		Name:     name,
-		JTI:      accessJTI,
-		Exp:      time.Now().Add(accessTTL),
+		Typ:       auth.TypCLI,
+		GitHubID:  githubID,
+		Login:     login,
+		Name:      name,
+		JTI:       accessJTI,
+		SessionID: sessionID,
+		Exp:       time.Now().Add(accessTTL),
 	})
 	if err != nil {
 		return "", "", 0, err
@@ -47,11 +58,12 @@ func (h *Handler) issueAccessRefresh(githubID int64, login, name string) (access
 		return "", "", 0, err
 	}
 	refresh, err = h.signer.Sign(auth.Claims{
-		Typ:      auth.TypRefresh,
-		GitHubID: githubID,
-		Login:    login,
-		JTI:      refreshJTI,
-		Exp:      time.Now().Add(h.refreshTTL()),
+		Typ:       auth.TypRefresh,
+		GitHubID:  githubID,
+		Login:     login,
+		JTI:       refreshJTI,
+		SessionID: sessionID,
+		Exp:       refreshExpiresAt,
 	})
 	if err != nil {
 		return "", "", 0, err
@@ -81,7 +93,17 @@ func (h *Handler) RefreshHandler(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid_grant"})
 		return
 	}
-	if rec.JTI != "" && h.s.IsRevoked(rec.JTI) {
+	if rec.JTI == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid_grant"})
+		return
+	}
+	sessionID := sessionFamilyID(rec)
+	sessionRevoked, err := h.s.IsSessionRevoked(sessionID)
+	if err != nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "refresh unavailable"})
+		return
+	}
+	if sessionRevoked {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid_grant"})
 		return
 	}
@@ -91,15 +113,27 @@ func (h *Handler) RefreshHandler(c *gin.Context) {
 		return
 	}
 
-	// Rotate: denylist the consumed refresh token before issuing its replacement.
-	// Best-effort — without a denylist the old refresh token stays valid until expiry.
-	if rec.JTI != "" {
-		_ = h.s.Revoke(rec.JTI, time.Until(rec.Exp))
-	}
-
-	access, refresh, expiresIn, err := h.issueAccessRefresh(rec.GitHubID, rec.Login, "cli")
+	access, refresh, expiresIn, err := h.issueAccessRefreshForSession(rec.GitHubID, rec.Login, "cli", sessionID, rec.Exp)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "token"})
+		return
+	}
+	consumed, err := h.s.ConsumeRefreshToken(rec.JTI, time.Until(rec.Exp))
+	if err != nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "refresh unavailable"})
+		return
+	}
+	if !consumed {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid_grant"})
+		return
+	}
+	sessionRevoked, err = h.s.IsSessionRevoked(sessionID)
+	if err != nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "refresh unavailable"})
+		return
+	}
+	if sessionRevoked {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid_grant"})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{

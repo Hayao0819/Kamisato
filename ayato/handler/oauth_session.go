@@ -159,7 +159,12 @@ func (h *Handler) MeHandler(c *gin.Context) {
 		tok := strings.TrimPrefix(authz, "Bearer ")
 		for _, typ := range []string{auth.TypBearer, auth.TypCLI} {
 			if claims, verr := h.signer.VerifyTyp(tok, typ); verr == nil && h.s.IsAdmin(claims.GitHubID) {
-				if claims.JTI != "" && h.s.IsRevoked(claims.JTI) {
+				revoked, revokeErr := h.claimsRevoked(claims)
+				if revokeErr != nil {
+					c.JSON(http.StatusServiceUnavailable, gin.H{"authenticated": false, "error": "revocation store"})
+					return
+				}
+				if revoked {
 					continue
 				}
 				c.JSON(http.StatusOK, gin.H{"authenticated": true, "id": claims.GitHubID, "login": claims.Login})
@@ -173,20 +178,25 @@ func (h *Handler) MeHandler(c *gin.Context) {
 // Sessions are stateless: clearing the cookie ends the session; the signed token
 // otherwise expires by TTL.
 func (h *Handler) LogoutHandler(c *gin.Context) {
-	// Logout mutates session state, so gate it against CSRF: accept only a proven
-	// same-origin caller, rejecting a request with no same-origin signal (fail closed).
 	if !h.sameOriginRequest(c) {
 		c.AbortWithStatus(http.StatusForbidden)
 		return
 	}
-	// Bearer-mode logout: revoke the presented token by jti so it cannot be replayed
-	// before its TTL. Best-effort; cookie-mode logout is handled by clearing the cookie below.
 	if h.signer != nil {
 		if authz := c.GetHeader("Authorization"); strings.HasPrefix(authz, "Bearer ") {
 			tok := strings.TrimPrefix(authz, "Bearer ")
 			for _, typ := range []string{auth.TypBearer, auth.TypCLI} {
 				if claims, verr := h.signer.VerifyTyp(tok, typ); verr == nil && claims.JTI != "" {
-					_ = h.s.Revoke(claims.JTI, time.Until(claims.Exp))
+					if err := h.s.Revoke(claims.JTI, time.Until(claims.Exp)); err != nil {
+						c.JSON(http.StatusServiceUnavailable, gin.H{"error": "revocation store"})
+						return
+					}
+					if typ == auth.TypCLI && claims.SessionID != "" {
+						if err := h.s.RevokeSession(claims.SessionID, h.refreshTTL()); err != nil {
+							c.JSON(http.StatusServiceUnavailable, gin.H{"error": "revocation store"})
+							return
+						}
+					}
 					break
 				}
 			}

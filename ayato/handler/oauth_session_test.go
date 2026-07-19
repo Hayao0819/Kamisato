@@ -45,6 +45,10 @@ func denylistHandler(t *testing.T, adminID int64) (*Handler, *fakeDenylistRepo, 
 }
 
 func jtiOf(t *testing.T, token string) string {
+	return claimsOf(t, token).JTI
+}
+
+func claimsOf(t *testing.T, token string) auth.Claims {
 	t.Helper()
 	payloadB64, _, ok := strings.Cut(token, ".")
 	if !ok {
@@ -58,7 +62,7 @@ func jtiOf(t *testing.T, token string) string {
 	if err := json.Unmarshal(raw, &c); err != nil {
 		t.Fatalf("unmarshal claims: %v", err)
 	}
-	return c.JTI
+	return c
 }
 
 // A redeemed code must be rejected on replay: the second exchange of the same code

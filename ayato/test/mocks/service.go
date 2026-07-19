@@ -427,18 +427,49 @@ func (m *MockRevoker) EXPECT() *MockRevokerMockRecorder {
 	return m.recorder
 }
 
+// ConsumeRefreshToken mocks base method.
+func (m *MockRevoker) ConsumeRefreshToken(jti string, ttl time.Duration) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ConsumeRefreshToken", jti, ttl)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ConsumeRefreshToken indicates an expected call of ConsumeRefreshToken.
+func (mr *MockRevokerMockRecorder) ConsumeRefreshToken(jti, ttl any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ConsumeRefreshToken", reflect.TypeOf((*MockRevoker)(nil).ConsumeRefreshToken), jti, ttl)
+}
+
 // IsRevoked mocks base method.
-func (m *MockRevoker) IsRevoked(jti string) bool {
+func (m *MockRevoker) IsRevoked(jti string) (bool, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "IsRevoked", jti)
 	ret0, _ := ret[0].(bool)
-	return ret0
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // IsRevoked indicates an expected call of IsRevoked.
 func (mr *MockRevokerMockRecorder) IsRevoked(jti any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsRevoked", reflect.TypeOf((*MockRevoker)(nil).IsRevoked), jti)
+}
+
+// IsSessionRevoked mocks base method.
+func (m *MockRevoker) IsSessionRevoked(sessionID string) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IsSessionRevoked", sessionID)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// IsSessionRevoked indicates an expected call of IsSessionRevoked.
+func (mr *MockRevokerMockRecorder) IsSessionRevoked(sessionID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsSessionRevoked", reflect.TypeOf((*MockRevoker)(nil).IsSessionRevoked), sessionID)
 }
 
 // Revoke mocks base method.
@@ -453,6 +484,20 @@ func (m *MockRevoker) Revoke(jti string, ttl time.Duration) error {
 func (mr *MockRevokerMockRecorder) Revoke(jti, ttl any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Revoke", reflect.TypeOf((*MockRevoker)(nil).Revoke), jti, ttl)
+}
+
+// RevokeSession mocks base method.
+func (m *MockRevoker) RevokeSession(sessionID string, ttl time.Duration) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RevokeSession", sessionID, ttl)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// RevokeSession indicates an expected call of RevokeSession.
+func (mr *MockRevokerMockRecorder) RevokeSession(sessionID, ttl any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RevokeSession", reflect.TypeOf((*MockRevoker)(nil).RevokeSession), sessionID, ttl)
 }
 
 // MockSignerRegistry is a mock of SignerRegistry interface.
@@ -614,6 +659,21 @@ func (mr *MockServicerMockRecorder) Arches(repo any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Arches", reflect.TypeOf((*MockServicer)(nil).Arches), repo)
 }
 
+// ConsumeRefreshToken mocks base method.
+func (m *MockServicer) ConsumeRefreshToken(jti string, ttl time.Duration) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ConsumeRefreshToken", jti, ttl)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ConsumeRefreshToken indicates an expected call of ConsumeRefreshToken.
+func (mr *MockServicerMockRecorder) ConsumeRefreshToken(jti, ttl any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ConsumeRefreshToken", reflect.TypeOf((*MockServicer)(nil).ConsumeRefreshToken), jti, ttl)
+}
+
 // FinalizeUploads mocks base method.
 func (m *MockServicer) FinalizeUploads(repo string, pkgFilenames []string) error {
 	m.ctrl.T.Helper()
@@ -673,17 +733,33 @@ func (mr *MockServicerMockRecorder) IsAdmin(id any) *gomock.Call {
 }
 
 // IsRevoked mocks base method.
-func (m *MockServicer) IsRevoked(jti string) bool {
+func (m *MockServicer) IsRevoked(jti string) (bool, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "IsRevoked", jti)
 	ret0, _ := ret[0].(bool)
-	return ret0
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // IsRevoked indicates an expected call of IsRevoked.
 func (mr *MockServicerMockRecorder) IsRevoked(jti any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsRevoked", reflect.TypeOf((*MockServicer)(nil).IsRevoked), jti)
+}
+
+// IsSessionRevoked mocks base method.
+func (m *MockServicer) IsSessionRevoked(sessionID string) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IsSessionRevoked", sessionID)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// IsSessionRevoked indicates an expected call of IsSessionRevoked.
+func (mr *MockServicerMockRecorder) IsSessionRevoked(sessionID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsSessionRevoked", reflect.TypeOf((*MockServicer)(nil).IsSessionRevoked), sessionID)
 }
 
 // ListAdmins mocks base method.
@@ -921,6 +997,20 @@ func (m *MockServicer) Revoke(jti string, ttl time.Duration) error {
 func (mr *MockServicerMockRecorder) Revoke(jti, ttl any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Revoke", reflect.TypeOf((*MockServicer)(nil).Revoke), jti, ttl)
+}
+
+// RevokeSession mocks base method.
+func (m *MockServicer) RevokeSession(sessionID string, ttl time.Duration) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RevokeSession", sessionID, ttl)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// RevokeSession indicates an expected call of RevokeSession.
+func (mr *MockServicerMockRecorder) RevokeSession(sessionID, ttl any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RevokeSession", reflect.TypeOf((*MockServicer)(nil).RevokeSession), sessionID, ttl)
 }
 
 // SeedBootstrapAdmin mocks base method.

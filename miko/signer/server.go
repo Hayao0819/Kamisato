@@ -22,8 +22,8 @@ func Handler(signer sign.Signer, verifier *apikey.Verifier, maxSize int) *gin.En
 	e.Use(gin.Recovery())
 	e.GET("/healthz", func(c *gin.Context) { c.String(http.StatusOK, "ok") })
 	api := e.Group("/api/unstable")
-	api.Use(verifier.Middleware())
-	api.POST("sign", signHandler(signer, limits.PackageBytes(maxSize)))
+	api.Use(verifier.Middleware(apikey.ScopeSign))
+	api.POST("/sign", signHandler(signer, limits.PackageBytes(maxSize)))
 	return e
 }
 

@@ -31,6 +31,36 @@ func TestValidateNoGitHubIsOK(t *testing.T) {
 	}
 }
 
+func TestValidateRejectsLegacyBasicConfigExplicitly(t *testing.T) {
+	c := &AyatoConfig{}
+	c.Auth.Username = "legacy"
+	c.Auth.Password = "secret"
+	if err := c.Validate(); err == nil {
+		t.Fatal("legacy auth.username/password was silently accepted")
+	}
+}
+
+func TestValidateRejectsRefreshAuthOnNonAtomicCFKV(t *testing.T) {
+	c := &AyatoConfig{}
+	c.Store.DBType = "cfkv"
+	c.Auth.SessionSecret = []string{testSessionSecret}
+	if err := c.Validate(); err == nil {
+		t.Fatal("session/refresh auth with cfkv unexpectedly passed validation")
+	}
+}
+
+func TestValidateMikoRequiresAPIKey(t *testing.T) {
+	c := &AyatoConfig{}
+	c.Miko.URL = "https://miko.example/prefix"
+	if err := c.Validate(); err == nil {
+		t.Fatal("miko.url without miko.api_key must fail")
+	}
+	c.Miko.APIKey = "build-admin-key"
+	if err := c.Validate(); err != nil {
+		t.Fatalf("named Miko API key rejected: %v", err)
+	}
+}
+
 func TestValidateGitHubRequiresPublicOrigin(t *testing.T) {
 	if err := githubCfg("").Validate(); err == nil {
 		t.Fatal("GitHub enabled without public_origin must fail")

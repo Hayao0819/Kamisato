@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"sync"
 	"testing"
 	"time"
 
@@ -41,14 +42,46 @@ func TestDeviceCreateApproveConsume(t *testing.T) {
 		t.Fatalf("after approve: status=%q id=%d login=%q ok=%v err=%v", status, id, login, ok, err)
 	}
 
-	if err := r.ConsumeDevice("dc"); err != nil {
-		t.Fatalf("ConsumeDevice: %v", err)
+	if consumed, err := r.ConsumeDevice("dc"); err != nil || !consumed {
+		t.Fatalf("ConsumeDevice consumed=%v err=%v", consumed, err)
 	}
 	if _, _, _, ok, _ := r.PollDevice("dc"); ok {
 		t.Fatal("a consumed device_code must not poll")
 	}
 	if _, ok, _ := r.LookupByUserCode("US-ER"); ok {
 		t.Fatal("consuming must drop the user-code index too")
+	}
+}
+
+func TestDeviceConsumeIsAtomic(t *testing.T) {
+	r := newTestDeviceRepo(t)
+	if err := r.CreateDevice("dc-race", "RA-CE", time.Hour); err != nil {
+		t.Fatal(err)
+	}
+	const contenders = 16
+	start := make(chan struct{})
+	results := make(chan bool, contenders)
+	var wait sync.WaitGroup
+	for range contenders {
+		wait.Add(1)
+		go func() {
+			defer wait.Done()
+			<-start
+			consumed, err := r.ConsumeDevice("dc-race")
+			results <- err == nil && consumed
+		}()
+	}
+	close(start)
+	wait.Wait()
+	close(results)
+	winners := 0
+	for won := range results {
+		if won {
+			winners++
+		}
+	}
+	if winners != 1 {
+		t.Fatalf("successful consumers = %d, want exactly 1", winners)
 	}
 }
 

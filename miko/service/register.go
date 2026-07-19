@@ -2,46 +2,27 @@ package service
 
 import (
 	"context"
-	"io"
 	"log/slog"
-	"net/http"
-	"strings"
-	"time"
 
+	"github.com/Hayao0819/Kamisato/internal/client"
 	"github.com/Hayao0819/Kamisato/internal/conf"
-	"github.com/Hayao0819/Kamisato/internal/errors"
-	"github.com/Hayao0819/Kamisato/pkg/httpx"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/sign"
 )
 
-// RegisterWorkerCert registers this worker's signing cert with ayato so its
-// host-signed packages verify; ayato accepts it only if it chains to a trusted
-// master. It is best-effort at boot: the caller logs and continues on failure.
-func RegisterWorkerCert(ctx context.Context, cfg *conf.MikoConfig, ks *sign.Keystore) error {
-	cert, err := ks.WorkerCertArmored()
+// RegisterWorkerCert registers the worker signing certificate with Ayato.
+func RegisterWorkerCert(ctx context.Context, cfg *conf.MikoConfig, keystore *sign.Keystore) error {
+	certificate, err := keystore.WorkerCertArmored()
 	if err != nil {
 		return err
 	}
-	url := strings.TrimRight(cfg.Ayato.URL, "/") + "/api/unstable/auth/signers"
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, strings.NewReader(cert))
+	publisher, err := client.NewPublisher(cfg.Ayato.URL, cfg.Ayato.APIKey)
 	if err != nil {
 		return err
 	}
-	if cfg.Ayato.Username != "" || cfg.Ayato.Password != "" {
-		req.SetBasicAuth(cfg.Ayato.Username, cfg.Ayato.Password)
-	}
-	req.Header.Set("Content-Type", "application/pgp-keys")
-	// A short per-attempt timeout keeps a hung ayato from stalling boot; the
-	// retries ride out ayato still coming up alongside miko in the same stack.
-	resp, err := httpx.New(10*time.Second, 2).Do(req)
+	fingerprint, err := publisher.RegisterSigner(ctx, []byte(certificate))
 	if err != nil {
 		return err
 	}
-	defer func() { _ = resp.Body.Close() }()
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
-		return errors.NewErrf("ayato register signer: status %d: %s", resp.StatusCode, string(body))
-	}
-	slog.Info("registered worker signing key with ayato", "url", url)
+	slog.Info("registered worker signing key with ayato", "url", cfg.Ayato.URL, "fingerprint", fingerprint)
 	return nil
 }

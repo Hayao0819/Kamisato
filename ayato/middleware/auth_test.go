@@ -27,9 +27,16 @@ func (f fakeChecker) IsAdmin(id int64) bool {
 }
 
 // fakeDenylist is a minimal denylistChecker backed by a static revoked set.
-type fakeDenylist struct{ revoked map[string]bool }
+type fakeDenylist struct {
+	revoked        map[string]bool
+	sessionRevoked map[string]bool
+	err            error
+}
 
-func (f fakeDenylist) IsRevoked(jti string) bool { return f.revoked[jti] }
+func (f fakeDenylist) IsRevoked(jti string) (bool, error) { return f.revoked[jti], f.err }
+func (f fakeDenylist) IsSessionRevoked(sessionID string) (bool, error) {
+	return f.sessionRevoked[sessionID], f.err
+}
 
 func testMiddleware(t *testing.T, bootstrap int64) (*Middleware, *auth.Signer) {
 	t.Helper()
@@ -210,6 +217,33 @@ func TestRequireAdminRevokedTokenRejected(t *testing.T) {
 	}
 	if w := run(m, false, func(req *http.Request) { req.Header.Set("Authorization", "Bearer "+live) }); w.Code != http.StatusOK {
 		t.Fatalf("non-revoked token: status = %d, want 200", w.Code)
+	}
+}
+
+func TestRequireAdminRevokedSessionFamilyRejected(t *testing.T) {
+	m, signer := testMiddleware(t, 42)
+	m.WithDenylist(fakeDenylist{sessionRevoked: map[string]bool{"session-1": true}})
+	token, err := signer.Sign(auth.Claims{
+		Typ: auth.TypCLI, GitHubID: 42, Login: "alice", JTI: "fresh-jti", SessionID: "session-1", Exp: time.Now().Add(time.Hour),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if w := run(m, false, func(req *http.Request) { req.Header.Set("Authorization", "Bearer "+token) }); w.Code != http.StatusUnauthorized {
+		t.Fatalf("revoked session descendant: status = %d, want 401", w.Code)
+	}
+}
+
+func TestRequireAdminDenylistFailureFailsClosed(t *testing.T) {
+	m, signer := testMiddleware(t, 42)
+	m.WithDenylist(fakeDenylist{err: errBadBasic})
+	tok, err := signer.Sign(auth.Claims{Typ: auth.TypCLI, GitHubID: 42, Login: "alice", JTI: "checked", Exp: time.Now().Add(time.Hour)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	w := run(m, false, func(req *http.Request) { req.Header.Set("Authorization", "Bearer "+tok) })
+	if w.Code != http.StatusServiceUnavailable {
+		t.Fatalf("denylist failure: status = %d, want 503", w.Code)
 	}
 }
 

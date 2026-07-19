@@ -14,8 +14,9 @@ import (
 // its device_code so the approval page can find the pending record. Both carry the
 // authorization-window TTL (RFC 8628) so unredeemed requests self-evict.
 const (
-	deviceNS     = "device"
-	deviceUserNS = "deviceuc"
+	deviceNS      = "device"
+	deviceUserNS  = "deviceuc"
+	deviceSpentNS = "devicespent"
 )
 
 // deviceRecord is the kv-persisted device authorization. ExpiresAt is stored because
@@ -49,7 +50,7 @@ type DeviceRepository interface {
 	PollDevice(deviceCode string) (status string, githubID int64, login string, ok bool, err error)
 	// ConsumeDevice removes an authorization once its token has been issued so it
 	// cannot be redeemed twice.
-	ConsumeDevice(deviceCode string) error
+	ConsumeDevice(deviceCode string) (consumed bool, err error)
 }
 
 type deviceRepository struct {
@@ -107,15 +108,32 @@ func (r *deviceRepository) PollDevice(deviceCode string) (string, int64, string,
 	return rec.Status, rec.GitHubID, rec.Login, true, nil
 }
 
-func (r *deviceRepository) ConsumeDevice(deviceCode string) error {
+func (r *deviceRepository) ConsumeDevice(deviceCode string) (bool, error) {
 	rec, ok, err := r.getByCode(deviceCode)
 	if err != nil {
-		return err
+		return false, err
 	}
-	if ok {
-		_ = r.kv.Delete(deviceUserNS, rec.UserCode)
+	if !ok {
+		return false, nil
 	}
-	return r.kv.Delete(deviceNS, deviceCode)
+	ttl := time.Until(time.Unix(rec.ExpiresAt, 0))
+	if ttl <= 0 {
+		return false, nil
+	}
+	adder, ok := r.kv.(kv.Adder)
+	if !ok {
+		return false, errors.NewErr("device: atomic consumption is not supported by this store")
+	}
+	created, err := adder.Add(deviceSpentNS, deviceCode, []byte{1}, ttl)
+	if err != nil {
+		return false, errors.WrapErr(err, "device: consume")
+	}
+	if !created {
+		return false, nil
+	}
+	_ = r.kv.Delete(deviceUserNS, rec.UserCode)
+	_ = r.kv.Delete(deviceNS, deviceCode)
+	return true, nil
 }
 
 // transition re-stores the user_code's record after mutate; ok is false when the

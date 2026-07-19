@@ -10,6 +10,8 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/Hayao0819/Kamisato/internal/auth/apikey"
+	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
@@ -23,13 +25,15 @@ func apikeyCmd() *cobra.Command {
 }
 
 func apikeyGenerateCmd() *cobra.Command {
-	return &cobra.Command{
-		Use:   "generate",
+	var scopes []string
+	var principal string
+	cmd := &cobra.Command{
+		Use:   "generate <name>",
 		Short: "Generate an API key and append it to the JSON config",
-		Long: "Generate a 256-bit random API key, append it to the config's api_keys " +
-			"(JSON config only), and print it once. Set the same value on ayato as " +
-			"miko.api_key. Existing keys are kept so old and new keys overlap during rotation. " +
-			"The target file is the inherited --config flag, or miko_config.json.",
+		Long: "Generate a named 256-bit service key, append it to auth.api_keys with explicit scopes " +
+			"(JSON config only), and print it once. --principal keeps job ownership stable while the unique key name changes during rotation. " +
+			"The target is the inherited --config flag, or miko_config.json.",
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			key, err := generateAPIKey()
 			if err != nil {
@@ -40,17 +44,21 @@ func apikeyGenerateCmd() *cobra.Command {
 			if path == "" {
 				path = "miko_config.json"
 			}
-			if err := appendAPIKey(path, key); err != nil {
+			entry := conf.MikoAPIKey{Name: args[0], Principal: principal, Key: key, Scopes: scopes}
+			if err := appendAPIKey(path, entry); err != nil {
 				return err
 			}
 
 			// show-once: the key goes to stdout (never logged); guidance to stderr.
 			fmt.Fprintln(cmd.OutOrStdout(), key)
 			fmt.Fprintf(cmd.ErrOrStderr(),
-				"Appended to %s (mode 0600). Set the same value on ayato as miko.api_key.\n", path)
+				"Appended named key %q to %s (mode 0600) with scopes %v.\n", args[0], path, scopes)
 			return nil
 		},
 	}
+	cmd.Flags().StringSliceVar(&scopes, "scope", []string{apikey.ScopeBuildAdmin}, "allowed scope(s): build:submit, build:read, build:cancel, build:admin, sign")
+	cmd.Flags().StringVar(&principal, "principal", "", "stable owner id shared by rotated keys (default: key name)")
+	return cmd
 }
 
 func generateAPIKey() (string, error) {
@@ -61,8 +69,8 @@ func generateAPIKey() (string, error) {
 	return "miko_" + base64.RawURLEncoding.EncodeToString(b), nil
 }
 
-// appendAPIKey adds key to the JSON config's api_keys array, written 0600 because it holds a secret.
-func appendAPIKey(path, key string) error {
+// appendAPIKey stores a named API key.
+func appendAPIKey(path string, entry conf.MikoAPIKey) error {
 	cfg := map[string]any{}
 	if data, err := os.ReadFile(path); err == nil {
 		if len(data) > 0 {
@@ -74,15 +82,17 @@ func appendAPIKey(path, key string) error {
 		return errors.WrapErr(err, fmt.Sprintf("failed to read %s", path))
 	}
 
-	var keys []string
-	if raw, ok := cfg["api_keys"].([]any); ok {
-		for _, v := range raw {
-			if s, ok := v.(string); ok {
-				keys = append(keys, s)
-			}
-		}
+	auth, _ := cfg["auth"].(map[string]any)
+	if auth == nil {
+		auth = make(map[string]any)
 	}
-	cfg["api_keys"] = append(keys, key)
+	keys, _ := auth["api_keys"].([]any)
+	serialized := map[string]any{"name": entry.Name, "key": entry.Key, "scopes": entry.Scopes}
+	if entry.Principal != "" {
+		serialized["principal"] = entry.Principal
+	}
+	auth["api_keys"] = append(keys, serialized)
+	cfg["auth"] = auth
 
 	out, err := json.MarshalIndent(cfg, "", "  ")
 	if err != nil {

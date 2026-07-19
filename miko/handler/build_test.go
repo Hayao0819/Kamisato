@@ -6,12 +6,14 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/mock/gomock"
 
 	"github.com/Hayao0819/Kamisato/internal/auth/apikey"
 	"github.com/Hayao0819/Kamisato/internal/conf"
+	"github.com/Hayao0819/Kamisato/miko/domain"
 	"github.com/Hayao0819/Kamisato/miko/handler"
 	"github.com/Hayao0819/Kamisato/miko/router"
 	"github.com/Hayao0819/Kamisato/miko/service"
@@ -30,6 +32,10 @@ func (spaceReader) Read(p []byte) (int, error) {
 // setup wires the mock service through the production router so tests exercise
 // the same /api/unstable paths (and middleware) the server serves.
 func setup(t *testing.T) (*gomock.Controller, *mocks.MockServicer, http.Handler) {
+	return setupWithVerifier(t, apikey.NewVerifier(nil))
+}
+
+func setupWithVerifier(t *testing.T, verifier *apikey.Verifier) (*gomock.Controller, *mocks.MockServicer, http.Handler) {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
 	ctrl := gomock.NewController(t)
@@ -37,10 +43,34 @@ func setup(t *testing.T) (*gomock.Controller, *mocks.MockServicer, http.Handler)
 	h := handler.New(mockSvc, &conf.MikoConfig{})
 
 	e := gin.New()
-	if err := router.SetRoute(e, h, apikey.NewVerifier(nil)); err != nil {
+	if err := router.SetRoute(e, h, verifier); err != nil {
 		t.Fatalf("SetRoute: %v", err)
 	}
 	return ctrl, mockSvc, e
+}
+
+func scopedVerifier() *apikey.Verifier {
+	return apikey.NewScopedVerifier([]apikey.Entry{
+		{Name: "alice", Key: "alice-key", Scopes: []string{apikey.ScopeBuildSubmit, apikey.ScopeBuildRead, apikey.ScopeBuildCancel}},
+		{Name: "alice-rotated", Principal: "alice", Key: "alice-new-key", Scopes: []string{apikey.ScopeBuildSubmit, apikey.ScopeBuildRead, apikey.ScopeBuildCancel}},
+		{Name: "bob", Key: "bob-key", Scopes: []string{apikey.ScopeBuildSubmit, apikey.ScopeBuildRead, apikey.ScopeBuildCancel}},
+		{Name: "proxy", Key: "proxy-key", Scopes: []string{apikey.ScopeBuildAdmin}},
+	})
+}
+
+func TestRotatedKeyKeepsExistingJobOwnerIdentity(t *testing.T) {
+	ctrl, mockSvc, router := setupWithVerifier(t, scopedVerifier())
+	defer ctrl.Finish()
+	mockSvc.EXPECT().List().Return([]*domain.BuildJob{
+		{ID: "pre-rotation-job", Owner: "alice", Status: domain.JobStatusQueued, CreatedAt: time.Now()},
+	})
+	request := httptest.NewRequest(http.MethodGet, "/api/unstable/jobs", nil)
+	request.Header.Set(apikey.Header, "alice-new-key")
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, request)
+	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), "pre-rotation-job") {
+		t.Fatalf("rotated key could not see stable-principal job: status=%d body=%s", response.Code, response.Body.String())
+	}
 }
 
 func TestSubmitBuildHandlerSuccess(t *testing.T) {
@@ -58,6 +88,58 @@ func TestSubmitBuildHandlerSuccess(t *testing.T) {
 	}
 	if !strings.Contains(w.Body.String(), "job123") {
 		t.Errorf("body = %q, want to contain job id", w.Body.String())
+	}
+}
+
+func TestScopedPrincipalOwnsSubmittedJob(t *testing.T) {
+	ctrl, mockSvc, router := setupWithVerifier(t, scopedVerifier())
+	defer ctrl.Finish()
+
+	mockSvc.EXPECT().Submit(gomock.Any()).DoAndReturn(func(request *domain.BuildRequest) (string, error) {
+		if request.Requester != "alice" {
+			t.Fatalf("requester = %q", request.Requester)
+		}
+		return "owned-job", nil
+	})
+	request := httptest.NewRequest(http.MethodPost, "/api/unstable/build", strings.NewReader(`{"arch":"x86_64","pkgbuild":"pkgname=foo"}`))
+	request.Header.Set(apikey.Header, "alice-key")
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, request)
+	if response.Code != http.StatusAccepted {
+		t.Fatalf("status = %d: %s", response.Code, response.Body.String())
+	}
+}
+
+func TestScopedPrincipalListsOnlyOwnedJobs(t *testing.T) {
+	ctrl, mockSvc, router := setupWithVerifier(t, scopedVerifier())
+	defer ctrl.Finish()
+	mockSvc.EXPECT().List().Return([]*domain.BuildJob{
+		{ID: "alice-job", Owner: "alice", Status: domain.JobStatusQueued, CreatedAt: time.Now()},
+		{ID: "bob-job", Owner: "bob", Status: domain.JobStatusQueued, CreatedAt: time.Now()},
+		{ID: "legacy-job", Status: domain.JobStatusQueued, CreatedAt: time.Now()},
+	})
+	request := httptest.NewRequest(http.MethodGet, "/api/unstable/jobs", nil)
+	request.Header.Set(apikey.Header, "alice-key")
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, request)
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d", response.Code)
+	}
+	if body := response.Body.String(); !strings.Contains(body, "alice-job") || strings.Contains(body, "bob-job") || strings.Contains(body, "legacy-job") {
+		t.Fatalf("filtered body = %s", body)
+	}
+}
+
+func TestScopedPrincipalCannotReadAnotherOwnersJob(t *testing.T) {
+	ctrl, mockSvc, router := setupWithVerifier(t, scopedVerifier())
+	defer ctrl.Finish()
+	mockSvc.EXPECT().Status("alice-job").Return(&domain.BuildJob{ID: "alice-job", Owner: "alice"}, nil)
+	request := httptest.NewRequest(http.MethodGet, "/api/unstable/jobs/alice-job", nil)
+	request.Header.Set(apikey.Header, "bob-key")
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, request)
+	if response.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, want 404", response.Code)
 	}
 }
 

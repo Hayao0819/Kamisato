@@ -234,9 +234,15 @@ func (h *Handler) issueDeviceToken(c *gin.Context, deviceCode string, githubID i
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "token"})
 		return
 	}
-	// Best-effort: the token is already minted, so a delete miss must not fail the
-	// login. A replay is still blocked because a consumed record polls as expired.
-	_ = h.device.ConsumeDevice(deviceCode)
+	consumed, err := h.device.ConsumeDevice(deviceCode)
+	if err != nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "device store"})
+		return
+	}
+	if !consumed {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "expired_token"})
+		return
+	}
 	c.JSON(http.StatusOK, gin.H{
 		"token":         access,
 		"refresh_token": refresh,

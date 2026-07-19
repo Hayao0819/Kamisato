@@ -6,6 +6,9 @@ const (
 	DefaultPackageBytes int64 = 512 << 20
 	// MultipartOverheadBytes leaves room for framing and a detached signature.
 	MultipartOverheadBytes int64 = 1 << 20
+	MaxSignatureBytes      int64 = 16 << 20
+	DefaultBatchPackages         = 16
+	DefaultBatchBytes            = int64(2 << 30)
 )
 
 // PackageBytes resolves the configured byte limit. Non-positive means the
@@ -19,7 +22,30 @@ func PackageBytes(configured int) int64 {
 
 // MultipartBytes returns the request-body limit for one or more package parts.
 func MultipartBytes(configured int) int64 {
-	return PackageBytes(configured) + MultipartOverheadBytes
+	return PackageBytes(configured) + MaxSignatureBytes + MultipartOverheadBytes
+}
+
+func BatchPackages(configured int) int {
+	if configured > 0 {
+		return configured
+	}
+	return DefaultBatchPackages
+}
+
+// BatchBytes returns the aggregate upload limit.
+func BatchBytes(configured int64, maxPackage int) int64 {
+	if configured > 0 {
+		return configured
+	}
+	minimum := PackageBytes(maxPackage) + MaxSignatureBytes
+	if minimum > DefaultBatchBytes {
+		return minimum
+	}
+	return DefaultBatchBytes
+}
+
+func BatchMultipartBytes(configured int64, maxPackage int) int64 {
+	return BatchBytes(configured, maxPackage) + MultipartOverheadBytes
 }
 
 // Exceeds reports whether size violates the configured package limit.

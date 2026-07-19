@@ -3,6 +3,7 @@ package repository
 import (
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/json"
 	"time"
 
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
@@ -11,7 +12,15 @@ import (
 
 // logTokenNS holds one-time SSE log-stream tokens mapping a random token to the job
 // id it grants, with a short TTL so an unused token self-evicts.
-const logTokenNS = "logtoken"
+const (
+	logTokenNS      = "logtoken"
+	logTokenSpentNS = "logtokenspent"
+)
+
+type logTokenRecord struct {
+	JobID     string `json:"job_id"`
+	ExpiresAt int64  `json:"expires_at"`
+}
 
 // LogTokenRepository issues and redeems the one-time tokens that let a browser
 // EventSource (which cannot send a bearer) open a job's build-log stream. A token
@@ -22,7 +31,7 @@ type LogTokenRepository interface {
 	Mint(jobID string, ttl time.Duration) (string, error)
 	// ConsumeLogToken returns the job id a token was bound to and deletes it, so a
 	// second use finds nothing. A false ok means the token is unknown or spent.
-	ConsumeLogToken(token string) (jobID string, ok bool)
+	ConsumeLogToken(token string) (jobID string, ok bool, err error)
 }
 
 type logTokenRepository struct {
@@ -42,21 +51,47 @@ func (r *logTokenRepository) Mint(jobID string, ttl time.Duration) (string, erro
 		return "", errors.WrapErr(err, "logtoken: read random")
 	}
 	tok := base64.RawURLEncoding.EncodeToString(b)
-	if err := r.kv.Set(logTokenNS, tok, []byte(jobID), ttl); err != nil {
+	record, err := json.Marshal(logTokenRecord{JobID: jobID, ExpiresAt: time.Now().Add(ttl).Unix()})
+	if err != nil {
+		return "", errors.WrapErr(err, "logtoken: marshal")
+	}
+	if err := r.kv.Set(logTokenNS, tok, record, ttl); err != nil {
 		return "", errors.WrapErr(err, "logtoken: store")
 	}
 	return tok, nil
 }
 
-func (r *logTokenRepository) ConsumeLogToken(token string) (string, bool) {
+func (r *logTokenRepository) ConsumeLogToken(token string) (string, bool, error) {
 	if token == "" {
-		return "", false
+		return "", false, nil
 	}
 	v, err := r.kv.Get(logTokenNS, token)
 	if err != nil {
-		return "", false
+		if errors.Is(err, kv.ErrNotFound) {
+			return "", false, nil
+		}
+		return "", false, errors.WrapErr(err, "logtoken: get")
 	}
-	// Delete-on-read: the token is single-use, so drop it before returning.
+	record := logTokenRecord{}
+	if err := json.Unmarshal(v, &record); err != nil {
+		record.JobID = string(v)
+		record.ExpiresAt = time.Now().Add(time.Minute).Unix()
+	}
+	ttl := time.Until(time.Unix(record.ExpiresAt, 0))
+	if record.JobID == "" || ttl <= 0 {
+		return "", false, nil
+	}
+	adder, ok := r.kv.(kv.Adder)
+	if !ok {
+		return "", false, errors.NewErr("logtoken: atomic consumption is not supported by this store")
+	}
+	created, err := adder.Add(logTokenSpentNS, token, []byte{1}, ttl)
+	if err != nil {
+		return "", false, errors.WrapErr(err, "logtoken: consume")
+	}
+	if !created {
+		return "", false, nil
+	}
 	_ = r.kv.Delete(logTokenNS, token)
-	return string(v), true
+	return record.JobID, true, nil
 }

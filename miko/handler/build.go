@@ -8,11 +8,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Hayao0819/Kamisato/internal/auth/apikey"
 	"github.com/Hayao0819/Kamisato/internal/errors"
+	"github.com/Hayao0819/Kamisato/internal/protocol"
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/Hayao0819/Kamisato/miko/domain"
 	"github.com/Hayao0819/Kamisato/miko/service"
 )
 
@@ -21,7 +22,7 @@ const maxBuildRequestBytes = 32 << 20
 // POST /api/unstable/build -> 202 {"job_id": id}
 func (h *Handler) SubmitBuildHandler(c *gin.Context) {
 	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxBuildRequestBytes)
-	var req domain.BuildRequest
+	var req protocol.BuildRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		var maxErr *http.MaxBytesError
 		if stderrors.As(err, &maxErr) {
@@ -32,7 +33,11 @@ func (h *Handler) SubmitBuildHandler(c *gin.Context) {
 		return
 	}
 
-	id, err := h.s.Submit(&req)
+	domainRequest := domainBuildRequest(&req)
+	if principal, ok := apikey.PrincipalFrom(c); ok {
+		domainRequest.Requester = principal.Name
+	}
+	id, err := h.s.Submit(domainRequest)
 	if err != nil {
 		status := http.StatusInternalServerError
 		switch {
@@ -56,12 +61,12 @@ func (h *Handler) JobStatusHandler(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, job)
+	c.JSON(http.StatusOK, protocolBuildJob(job))
 }
 
 // GET /api/unstable/jobs
 func (h *Handler) JobListHandler(c *gin.Context) {
-	c.JSON(http.StatusOK, h.s.List())
+	c.JSON(http.StatusOK, protocolBuildJobs(visibleJobs(c, h.s.List())))
 }
 
 // DELETE /api/unstable/jobs/:id
@@ -80,7 +85,7 @@ func (h *Handler) JobCancelHandler(c *gin.Context) {
 
 // GET /api/unstable/stats
 func (h *Handler) JobStatsHandler(c *gin.Context) {
-	c.JSON(http.StatusOK, h.s.Stats())
+	c.JSON(http.StatusOK, protocolBuildStats(h.s.Stats()))
 }
 
 // JobLogsHandler streams a job's build logs as Server-Sent Events, tailing the

@@ -5,44 +5,55 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/Hayao0819/Kamisato/internal/blinkyutils"
+	"github.com/Hayao0819/Kamisato/internal/client"
 	"github.com/Hayao0819/Kamisato/internal/errors"
 	"github.com/Hayao0819/Kamisato/internal/limits"
 )
 
-// Uploader publishes a built package (with its optional detached signature) to a
-// repo on ayato. The service depends on this seam rather than the blinky client
-// directly so a fake can stand in for tests; blinkyUploader is the production one.
+type PackageUpload struct {
+	PackagePath   string
+	SignaturePath string
+}
+
+// Uploader publishes build artifacts to Ayato.
 type Uploader interface {
-	Upload(repo, pkgPath, sigPath string) error
+	Upload(ctx context.Context, repo string, packages []PackageUpload) error
 }
 
-var _ Uploader = (*blinkyUploader)(nil)
-
-type blinkyUploader struct {
-	info *blinkyutils.ServerInfo
+type ayatoUploader struct {
+	client *client.Publisher
 }
 
-// NewBlinkyUploader returns the ayato-backed Uploader injected into the service
-// in production.
-func NewBlinkyUploader(url, username, password string) Uploader {
-	return &blinkyUploader{info: &blinkyutils.ServerInfo{URL: url, Username: username, Password: password}}
-}
-
-func (u *blinkyUploader) Upload(repo, pkgPath, sigPath string) error {
-	client, err := u.info.Client()
-	if err != nil {
-		return errors.WrapErr(err, "failed to create blinky client")
+func NewAyatoUploader(rawURL, apiKey string) (Uploader, error) {
+	if rawURL == "" {
+		return nil, nil
 	}
-	if err := blinkyutils.Upload(client, repo, pkgPath, sigPath); err != nil {
-		return errors.WrapErr(err, "failed to upload package: "+pkgPath)
+	publisher, err := client.NewPublisher(rawURL, apiKey)
+	if err != nil {
+		return nil, err
+	}
+	return &ayatoUploader{client: publisher}, nil
+}
+
+func (u *ayatoUploader) Upload(ctx context.Context, repo string, packages []PackageUpload) error {
+	files := make([]string, 0, len(packages)*2)
+	for _, item := range packages {
+		files = append(files, item.PackagePath)
+		if item.SignaturePath != "" {
+			files = append(files, item.SignaturePath)
+		}
+	}
+	if err := u.client.UploadPackageFiles(ctx, repo, files...); err != nil {
+		return errors.WrapErr(err, "publish build result")
 	}
 	return nil
 }
 
-// signAndUpload signs each built package with the worker host key (when a signer
-// is configured) and hands it to the injected Uploader with its signature.
+// signAndUpload validates, signs, and publishes a build result.
 func (s *Service) signAndUpload(ctx context.Context, repo string, packages []string) error {
+	if s.uploader == nil {
+		return errors.NewErr("Ayato publisher is not configured")
+	}
 	for _, pkgPath := range packages {
 		info, err := os.Stat(pkgPath)
 		if err != nil {
@@ -51,6 +62,10 @@ func (s *Service) signAndUpload(ctx context.Context, repo string, packages []str
 		if limits.Exceeds(info.Size(), s.cfg.MaxSize) {
 			return fmt.Errorf("package %s exceeds max_size (%d > %d bytes)", pkgPath, info.Size(), limits.PackageBytes(s.cfg.MaxSize))
 		}
+	}
+
+	batch := make([]PackageUpload, 0, len(packages))
+	for _, pkgPath := range packages {
 		sigPath := ""
 		if s.signer != nil {
 			var err error
@@ -60,9 +75,7 @@ func (s *Service) signAndUpload(ctx context.Context, repo string, packages []str
 			}
 		}
 
-		if err := s.uploader.Upload(repo, pkgPath, sigPath); err != nil {
-			return err
-		}
+		batch = append(batch, PackageUpload{PackagePath: pkgPath, SignaturePath: sigPath})
 	}
-	return nil
+	return s.uploader.Upload(ctx, repo, batch)
 }

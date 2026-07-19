@@ -16,6 +16,8 @@ type CIAPIKey struct {
 	Name         string   `koanf:"name"`
 	Key          string   `koanf:"key"`
 	PublishRepos []string `koanf:"publish_repos"`
+	// Scopes authorize service operations.
+	Scopes []string `koanf:"scopes"`
 }
 
 // CIGitHubOIDC verifies a GitHub Actions OIDC token (keyless). No secret is
@@ -39,12 +41,30 @@ type CIOIDCPublisher struct {
 }
 
 func (c *CIAuthConfig) validate() error {
+	names := make(map[string]bool, len(c.APIKeys))
+	keys := make(map[string]bool, len(c.APIKeys))
 	for i, k := range c.APIKeys {
+		if k.Name == "" {
+			return fmt.Errorf("auth.ci.api_keys[%d]: name is required", i)
+		}
 		if k.Key == "" {
 			return fmt.Errorf("auth.ci.api_keys[%d]: key is required", i)
 		}
-		if len(k.PublishRepos) == 0 {
-			return fmt.Errorf("auth.ci.api_keys[%d]: publish_repos is required", i)
+		if names[k.Name] {
+			return fmt.Errorf("auth.ci.api_keys[%d]: duplicate name %q", i, k.Name)
+		}
+		if keys[k.Key] {
+			return fmt.Errorf("auth.ci.api_keys[%d]: duplicate key", i)
+		}
+		names[k.Name] = true
+		keys[k.Key] = true
+		if len(k.PublishRepos) == 0 && len(k.Scopes) == 0 {
+			return fmt.Errorf("auth.ci.api_keys[%d]: publish_repos or scopes is required", i)
+		}
+		for _, scope := range k.Scopes {
+			if scope != "*" && scope != "signer:register" {
+				return fmt.Errorf("auth.ci.api_keys[%d]: unknown scope %q", i, scope)
+			}
 		}
 	}
 	if !c.GitHubOIDC.Enabled {

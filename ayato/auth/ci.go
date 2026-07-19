@@ -73,8 +73,9 @@ func (a *CIAuthorizer) Authorize(ctx context.Context, h http.Header, ayatoRepo s
 		}
 		if p, ok := a.apikey.authorize(k, ayatoRepo); ok {
 			return CIOutcomeAllow, p
+		} else {
+			return CIOutcomeDeny, p
 		}
-		return CIOutcomeDeny, nil
 	}
 
 	if tok, ok := bearerJWT(h); ok {
@@ -88,6 +89,22 @@ func (a *CIAuthorizer) Authorize(ctx context.Context, h http.Header, ayatoRepo s
 	}
 
 	return CIOutcomeNone, nil
+}
+
+// AuthorizeScope authenticates an API key for a service scope.
+func (a *CIAuthorizer) AuthorizeScope(h http.Header, scope string) (CIOutcome, *CIPrincipal) {
+	key := h.Get("X-API-Key")
+	if key == "" {
+		return CIOutcomeNone, nil
+	}
+	if a == nil || a.apikey == nil {
+		return CIOutcomeDeny, nil
+	}
+	principal, ok := a.apikey.authorizeScope(key, scope)
+	if ok {
+		return CIOutcomeAllow, principal
+	}
+	return CIOutcomeDeny, principal
 }
 
 // bearerJWT returns the bearer value only if it's shaped like a JWT (3 dot-separated

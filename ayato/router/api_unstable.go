@@ -83,8 +83,8 @@ func SetRoute(e *gin.Engine, h *handler.Handler, m *middleware.Middleware) error
 			// this job, spent on first use) as an alternative to admin session/bearer. This
 			// closes the formerly-public hole — a build log can echo credentials from a
 			// user-supplied git URL.
-			api.GET("/jobs/:id/logs", m.RequireLogAccess(), mikoProxy.HandlerFunc(func(c *gin.Context) string {
-				return "/api/unstable/jobs/" + c.Param("id") + "/logs"
+			api.GET("/jobs/:id/logs", m.RequireLogAccess(), mikoProxy.HandlerFunc(func(c *gin.Context) []string {
+				return []string{"api", "unstable", "jobs", c.Param("id"), "logs"}
 			}))
 		}
 
@@ -94,9 +94,6 @@ func SetRoute(e *gin.Engine, h *handler.Handler, m *middleware.Middleware) error
 		{
 			upload.Use(m.RateLimit(rate.Every(time.Second/10), 30), m.RequireCI())
 			upload.POST("/repos/:repo/packages", h.BatchUploadHandler) // atomic multi-package publish
-			// Direct-to-R2 upload for packages too large for the request-body limit:
-			// presign a PUT, the client uploads straight to the store, then finalize
-			// validates and registers the already-stored object.
 			upload.POST("/repos/:repo/packages/presign", h.PresignUploadHandler)
 			upload.POST("/repos/:repo/packages/finalize", h.FinalizeUploadHandler)
 		}
@@ -107,6 +104,7 @@ func SetRoute(e *gin.Engine, h *handler.Handler, m *middleware.Middleware) error
 		{
 			remove.Use(m.RateLimit(rate.Every(time.Second/10), 30), m.RequireCI())
 			remove.DELETE("/repos/:repo/:arch/packages/:name", h.BlinkyRemoveHandler)
+			remove.DELETE("/repos/:repo/packages/:name", h.BlinkyRemoveHandler)
 		}
 		// Native repo management (admin-only).
 		mgmt := api.Group("")
@@ -130,20 +128,20 @@ func SetRoute(e *gin.Engine, h *handler.Handler, m *middleware.Middleware) error
 			authed.POST("/jobs/:id/logs/token", h.MintLogTokenHandler)
 			// Static /jobs coexists with the /:repo param route (ayato already uses
 			// both /repos and /:repo).
-			authed.GET("/jobs", mikoProxy.Handler("/api/unstable/jobs"))
-			authed.GET("/jobs/:id", mikoProxy.HandlerFunc(func(c *gin.Context) string {
-				return "/api/unstable/jobs/" + c.Param("id")
+			authed.GET("/jobs", mikoProxy.Handler("api", "unstable", "jobs"))
+			authed.GET("/jobs/:id", mikoProxy.HandlerFunc(func(c *gin.Context) []string {
+				return []string{"api", "unstable", "jobs", c.Param("id")}
 			}))
-			authed.GET("/jobs/:id/artifacts", mikoProxy.HandlerFunc(func(c *gin.Context) string {
-				return "/api/unstable/jobs/" + c.Param("id") + "/artifacts"
+			authed.GET("/jobs/:id/artifacts", mikoProxy.HandlerFunc(func(c *gin.Context) []string {
+				return []string{"api", "unstable", "jobs", c.Param("id"), "artifacts"}
 			}))
-			authed.GET("/jobs/:id/artifacts/:name", mikoProxy.HandlerFunc(func(c *gin.Context) string {
-				return "/api/unstable/jobs/" + c.Param("id") + "/artifacts/" + c.Param("name")
+			authed.GET("/jobs/:id/artifacts/:name", mikoProxy.HandlerFunc(func(c *gin.Context) []string {
+				return []string{"api", "unstable", "jobs", c.Param("id"), "artifacts", c.Param("name")}
 			}))
-			authed.GET("/stats", mikoProxy.Handler("/api/unstable/stats"))
-			authed.POST("/build", mikoProxy.Handler("/api/unstable/build"))
-			authed.DELETE("/jobs/:id", mikoProxy.HandlerFunc(func(c *gin.Context) string {
-				return "/api/unstable/jobs/" + c.Param("id")
+			authed.GET("/stats", mikoProxy.Handler("api", "unstable", "stats"))
+			authed.POST("/build", mikoProxy.Handler("api", "unstable", "build"))
+			authed.DELETE("/jobs/:id", mikoProxy.HandlerFunc(func(c *gin.Context) []string {
+				return []string{"api", "unstable", "jobs", c.Param("id")}
 			}))
 		}
 
@@ -156,15 +154,12 @@ func SetRoute(e *gin.Engine, h *handler.Handler, m *middleware.Middleware) error
 			admins.DELETE("/:id", h.AdminsRemoveHandler)
 		}
 
-		// Worker signing-key registration. RequireBlinkyAdmin allows a Basic CLI token
-		// so miko can self-register at boot; the master-certification chain is the real
-		// gate (only master-certified worker keys are stored).
 		signers := api.Group("/auth/signers")
 		{
-			signers.Use(m.RateLimit(rate.Every(time.Second/10), 30), m.RequireBlinkyAdmin())
-			signers.GET("", h.ListSignersHandler)
-			signers.POST("", h.RegisterSignerHandler)
-			signers.DELETE("/:fingerprint", h.UnregisterSignerHandler)
+			signers.Use(m.RateLimit(rate.Every(time.Second/10), 30))
+			signers.GET("", m.RequireAdmin(), h.ListSignersHandler)
+			signers.POST("", m.RequireSignerRegistration(), h.RegisterSignerHandler)
+			signers.DELETE("/:fingerprint", m.RequireAdmin(), h.UnregisterSignerHandler)
 		}
 	}
 	{

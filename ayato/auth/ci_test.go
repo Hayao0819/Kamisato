@@ -72,6 +72,41 @@ func TestAuthorizeRouting(t *testing.T) {
 	})
 }
 
+func TestAuthorizeServiceScope(t *testing.T) {
+	a := apiKeyAuthorizer(
+		conf.CIAPIKey{Name: "publisher", Key: "publish-only", PublishRepos: []string{"core"}},
+		conf.CIAPIKey{Name: "signer", Key: "signer-key", Scopes: []string{"signer:register"}},
+		conf.CIAPIKey{Name: "root-service", Key: "wildcard", Scopes: []string{"*"}},
+	)
+
+	cases := []struct {
+		name, key, scope string
+		outcome          CIOutcome
+		principal        string
+	}{
+		{name: "named signer scope", key: "signer-key", scope: "signer:register", outcome: CIOutcomeAllow, principal: "signer"},
+		{name: "publish grant is not service scope", key: "publish-only", scope: "signer:register", outcome: CIOutcomeDeny},
+		{name: "wildcard scope", key: "wildcard", scope: "signer:register", outcome: CIOutcomeAllow, principal: "root-service"},
+		{name: "invalid presented key is terminal", key: "wrong", scope: "signer:register", outcome: CIOutcomeDeny},
+		{name: "no key permits admin fallback", scope: "signer:register", outcome: CIOutcomeNone},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			h := make(http.Header)
+			if tc.key != "" {
+				h.Set("X-API-Key", tc.key)
+			}
+			outcome, principal := a.AuthorizeScope(h, tc.scope)
+			if outcome != tc.outcome {
+				t.Fatalf("outcome = %v, want %v", outcome, tc.outcome)
+			}
+			if tc.principal != "" && (principal == nil || principal.ID != tc.principal) {
+				t.Fatalf("principal = %#v, want %q", principal, tc.principal)
+			}
+		})
+	}
+}
+
 func oidcWith(pubs ...conf.CIOIDCPublisher) *oidcAuth {
 	a := &oidcAuth{}
 	for _, p := range pubs {
