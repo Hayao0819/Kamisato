@@ -136,11 +136,5 @@ func (h *AuthHandler) RefreshHandler(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid_grant"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{
-		"token":         access,
-		"refresh_token": refresh,
-		"expires_in":    expiresIn,
-		"login":         rec.Login,
-		"id":            rec.GitHubID,
-	})
+	respondTokenPair(c, access, refresh, expiresIn, rec.Login, rec.GitHubID)
 }

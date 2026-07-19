@@ -14,6 +14,30 @@ type codeExchangeRequest struct {
 	CodeVerifier string `json:"code_verifier"`
 }
 
+type tokenPairResponse struct {
+	Token        string `json:"token"`
+	RefreshToken string `json:"refresh_token"`
+	ExpiresIn    int    `json:"expires_in"`
+	Login        string `json:"login"`
+	ID           int64  `json:"id"`
+}
+
+func respondTokenPair(
+	c *gin.Context,
+	access, refresh string,
+	expiresIn int,
+	login string,
+	id int64,
+) {
+	c.JSON(http.StatusOK, tokenPairResponse{
+		Token:        access,
+		RefreshToken: refresh,
+		ExpiresIn:    expiresIn,
+		Login:        login,
+		ID:           id,
+	})
+}
+
 func (h *AuthHandler) redeemCode(c *gin.Context, tokenType string) (*auth.Claims, bool) {
 	if h.signer == nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "auth not configured"})
@@ -74,13 +98,14 @@ func (h *AuthHandler) CLIExchangeHandler(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "token"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{
-		"token":         access,
-		"refresh_token": refresh,
-		"expires_in":    expiresIn,
-		"login":         claims.Login,
-		"id":            claims.GitHubID,
-	})
+	respondTokenPair(
+		c,
+		access,
+		refresh,
+		expiresIn,
+		claims.Login,
+		claims.GitHubID,
+	)
 }
 
 func (h *AuthHandler) WebExchangeHandler(c *gin.Context) {

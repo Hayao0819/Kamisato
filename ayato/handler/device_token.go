@@ -75,11 +75,5 @@ func (h *AuthHandler) issueDeviceToken(
 		c.JSON(http.StatusBadRequest, gin.H{"error": "expired_token"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{
-		"token":         access,
-		"refresh_token": refresh,
-		"expires_in":    expiresIn,
-		"login":         login,
-		"id":            githubID,
-	})
+	respondTokenPair(c, access, refresh, expiresIn, login, githubID)
 }
