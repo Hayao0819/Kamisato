@@ -45,9 +45,6 @@ func (p *concurrencyProbe) StoreFileWithSignedURL(string, string, string) (strin
 	return "", nil
 }
 
-func (p *concurrencyProbe) StoreFileWithSignedPutURL(string, string, string) (string, error) {
-	return "", nil
-}
 func (p *concurrencyProbe) DeleteFile(string, string, string) error               { return nil }
 func (p *concurrencyProbe) FetchFile(string, string, string) (stream.File, error) { return nil, nil }
 func (p *concurrencyProbe) RepoNames() ([]string, error)                          { return nil, nil }

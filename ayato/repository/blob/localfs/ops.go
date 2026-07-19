@@ -97,12 +97,6 @@ func (l *LocalStore) StoreFileWithSignedURL(repo string, arch string, name strin
 	return "", nil
 }
 
-// StoreFileWithSignedPutURL is unsupported on localfs: there is no object store to
-// PUT to, so the client falls back to the multipart upload.
-func (l *LocalStore) StoreFileWithSignedPutURL(repo string, arch string, name string) (string, error) {
-	return "", blob.ErrPresignUnsupported
-}
-
 // FetchFileWithETag returns the file and its SHA-256 version.
 func (l *LocalStore) FetchFileWithETag(repo, arch, file string) (stream.File, string, error) {
 	f, err := l.FetchFile(repo, arch, file)

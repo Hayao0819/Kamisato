@@ -262,18 +262,15 @@ func (h *Handler) BatchUploadHandler(ctx *gin.Context) {
 	ctx.String(http.StatusOK, fmt.Sprintf("%d package(s) uploaded!", len(files)))
 }
 
-// PresignUploadHandler returns a presigned R2 PUT URL per requested file so a large
-// package can be uploaded directly, bypassing the request-body limit in front of
-// the server. A backend that cannot presign answers 501 so the client falls back
-// to the multipart upload.
+// PresignUploadHandler is a compatibility tombstone for clients released while
+// the unsafe final-key direct-upload protocol existed. It must remain a fixed
+// 501 until a distinct, opaque staging-intent protocol replaces that design.
 func (h *Handler) PresignUploadHandler(ctx *gin.Context) {
-	// Final-key presigning remains disabled until uploads use validated staging keys.
 	ctx.JSON(http.StatusNotImplemented, domain.APIError{Message: "presigned upload is disabled until the staging-intent protocol is available"})
 }
 
-// FinalizeUploadHandler registers packages the client already PUT to R2 via a
-// presigned URL, reusing the same validation and registration as a multipart
-// upload without re-storing the bytes.
+// FinalizeUploadHandler is the matching compatibility tombstone. There is no
+// service or blob-store final-key upload capability behind this endpoint.
 func (h *Handler) FinalizeUploadHandler(ctx *gin.Context) {
 	ctx.JSON(http.StatusNotImplemented, domain.APIError{Message: "presigned upload is disabled until the staging-intent protocol is available"})
 }

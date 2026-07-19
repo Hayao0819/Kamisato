@@ -22,7 +22,7 @@ func repoCmd() *cobra.Command {
 
 // repoGCCmd reconciles a repo's storage against its pacman database, reporting
 // (and with --delete removing) package objects the db does not reference — the
-// residue of a presigned upload PUT but never finalized. Run it as a one-shot job.
+// residue of interrupted or superseded publication. Run it as a one-shot job.
 func repoGCCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "gc <repo>",
@@ -80,7 +80,7 @@ func repoGCCmd() *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().Duration("older-than", time.Hour, "only consider objects at least this old (skips a fresh PUT mid-finalize)")
+	cmd.Flags().Duration("older-than", time.Hour, "only consider objects at least this old (protects active publication)")
 	cmd.Flags().Bool("delete", false, "delete the orphan objects (default: report only)")
 	return cmd
 }

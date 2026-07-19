@@ -204,35 +204,6 @@ func (m *MockUploader) EXPECT() *MockUploaderMockRecorder {
 	return m.recorder
 }
 
-// FinalizeUploads mocks base method.
-func (m *MockUploader) FinalizeUploads(repo string, pkgFilenames []string) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "FinalizeUploads", repo, pkgFilenames)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// FinalizeUploads indicates an expected call of FinalizeUploads.
-func (mr *MockUploaderMockRecorder) FinalizeUploads(repo, pkgFilenames any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FinalizeUploads", reflect.TypeOf((*MockUploader)(nil).FinalizeUploads), repo, pkgFilenames)
-}
-
-// PresignUploads mocks base method.
-func (m *MockUploader) PresignUploads(repo string, filenames []string) (map[string]string, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "PresignUploads", repo, filenames)
-	ret0, _ := ret[0].(map[string]string)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// PresignUploads indicates an expected call of PresignUploads.
-func (mr *MockUploaderMockRecorder) PresignUploads(repo, filenames any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PresignUploads", reflect.TypeOf((*MockUploader)(nil).PresignUploads), repo, filenames)
-}
-
 // ReconcileOrphans mocks base method.
 func (m *MockUploader) ReconcileOrphans(repo string, olderThan time.Duration, dryRun bool) ([]service.OrphanObject, error) {
 	m.ctrl.T.Helper()
@@ -672,20 +643,6 @@ func (mr *MockServicerMockRecorder) ConsumeRefreshToken(jti, ttl any) *gomock.Ca
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ConsumeRefreshToken", reflect.TypeOf((*MockServicer)(nil).ConsumeRefreshToken), jti, ttl)
 }
 
-// FinalizeUploads mocks base method.
-func (m *MockServicer) FinalizeUploads(repo string, pkgFilenames []string) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "FinalizeUploads", repo, pkgFilenames)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// FinalizeUploads indicates an expected call of FinalizeUploads.
-func (mr *MockServicerMockRecorder) FinalizeUploads(repo, pkgFilenames any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FinalizeUploads", reflect.TypeOf((*MockServicer)(nil).FinalizeUploads), repo, pkgFilenames)
-}
-
 // GetFileWithMeta mocks base method.
 func (m *MockServicer) GetFileWithMeta(repoName, archName, name string) (stream.File, domain.FileMeta, error) {
 	m.ctrl.T.Helper()
@@ -833,21 +790,6 @@ func (m *MockServicer) Pkgs(repo, arch string) (*domain.PacmanPkgs, error) {
 func (mr *MockServicerMockRecorder) Pkgs(repo, arch any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Pkgs", reflect.TypeOf((*MockServicer)(nil).Pkgs), repo, arch)
-}
-
-// PresignUploads mocks base method.
-func (m *MockServicer) PresignUploads(repo string, filenames []string) (map[string]string, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "PresignUploads", repo, filenames)
-	ret0, _ := ret[0].(map[string]string)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// PresignUploads indicates an expected call of PresignUploads.
-func (mr *MockServicerMockRecorder) PresignUploads(repo, filenames any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PresignUploads", reflect.TypeOf((*MockServicer)(nil).PresignUploads), repo, filenames)
 }
 
 // PromotePackage mocks base method.

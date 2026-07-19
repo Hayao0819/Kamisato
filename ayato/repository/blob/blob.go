@@ -25,11 +25,6 @@ var ErrPreconditionFailed = errors.New("blob: precondition failed (object change
 // confused with a transient backend error.
 var ErrNotFound = errors.New("blob: not found")
 
-// ErrPresignUnsupported is returned by StoreFileWithSignedPutURL on a backend
-// that cannot presign a direct PUT (localfs). The client falls back to the
-// existing multipart upload.
-var ErrPresignUnsupported = errors.New("blob: presigned upload not supported")
-
 // ErrSafeDeleteUnsupported means conditional orphan deletion is unavailable.
 var ErrSafeDeleteUnsupported = errors.New("blob: safe conditional delete not supported")
 
@@ -44,8 +39,8 @@ func ValidatePathComponent(c string) error {
 	return nil
 }
 
-// FileInfo is one listed object with its last-modified time, used by the orphan
-// reconcile to age out an object that was PUT but never finalized.
+// FileInfo is one listed object with its last-modified time, used by orphan
+// reconciliation to avoid deleting a fresh or concurrently changed object.
 type FileInfo struct {
 	Name         string
 	LastModified time.Time
@@ -96,10 +91,6 @@ type ObjectMover interface {
 type Store interface {
 	StoreFile(repo, arch string, file stream.SeekFile) error
 	StoreFileWithSignedURL(repo, arch, name string) (string, error)
-	// StoreFileWithSignedPutURL returns a presigned URL the client PUTs the object
-	// to directly, bypassing the request-body limit in front of the server. Returns
-	// ErrPresignUnsupported on a backend that cannot presign (localfs).
-	StoreFileWithSignedPutURL(repo, arch, name string) (string, error)
 	DeleteFile(repo, arch, file string) error
 	FetchFile(repo, arch, file string) (stream.File, error)
 	// FetchFileWithETag fetches a file together with an opaque version token (its
@@ -114,7 +105,7 @@ type Store interface {
 	RepoNames() ([]string, error)
 	Files(repo, arch string) ([]string, error)
 	// FilesWithMeta lists (repo, arch) objects with each object's last-modified
-	// time, so the orphan reconcile can skip a fresh PUT that may be mid-finalize.
+	// time, so orphan reconciliation can skip fresh or concurrently changed data.
 	FilesWithMeta(repo, arch string) ([]FileInfo, error)
 	Arches(repo string) ([]string, error)
 }

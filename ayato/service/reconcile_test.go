@@ -98,7 +98,7 @@ func TestReconcileOrphans_DryRunDeletesNothing(t *testing.T) {
 
 // TestReconcileOrphans_AnyDir proves the shared any/ directory is reconciled: a
 // registered arch=any package (referenced by a concrete arch's db) is kept, while
-// an orphaned any object PUT but never finalized is deleted.
+// an orphaned object in the shared any directory is deleted.
 func TestReconcileOrphans_AnyDir(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()

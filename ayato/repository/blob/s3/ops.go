@@ -52,30 +52,6 @@ func (s *S3) StoreFileWithSignedURL(repo string, arch string, name string) (stri
 	return presignResult.URL, nil
 }
 
-// StoreFileWithSignedPutURL presigns a PUT to the final object key so a large
-// package can be uploaded straight to R2, bypassing the server's request-body
-// limit; the server finalizes the already-stored object afterwards.
-func (s *S3) StoreFileWithSignedPutURL(repo string, arch string, name string) (string, error) {
-	k, err := s.validatedKey(repo, arch, name)
-	if err != nil {
-		return "", err
-	}
-
-	input := awss3.PutObjectInput{
-		Bucket: aws.String(s.bucket),
-		Key:    aws.String(k),
-	}
-
-	presignClient := awss3.NewPresignClient(s.storage)
-	presignResult, err := presignClient.PresignPutObject(s.ctx, &input, func(po *awss3.PresignOptions) {
-		po.Expires = 15 * time.Minute
-	})
-	if err != nil {
-		return "", fmt.Errorf("failed to create presigned PUT URL for %s: %w", k, err)
-	}
-	return presignResult.URL, nil
-}
-
 // FetchFile fetches an object by its exact name, with no pacman naming logic: the
 // repo-DB artifacts are real objects written by the repository layer, so a bare
 // <repo>.db is served directly.

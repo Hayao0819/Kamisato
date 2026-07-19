@@ -11,11 +11,90 @@ package mocks
 
 import (
 	reflect "reflect"
+	time "time"
 
 	blob "github.com/Hayao0819/Kamisato/ayato/repository/blob"
 	stream "github.com/Hayao0819/Kamisato/ayato/stream"
 	gomock "go.uber.org/mock/gomock"
 )
+
+// MockOrphanDeleter is a mock of OrphanDeleter interface.
+type MockOrphanDeleter struct {
+	ctrl     *gomock.Controller
+	recorder *MockOrphanDeleterMockRecorder
+	isgomock struct{}
+}
+
+// MockOrphanDeleterMockRecorder is the mock recorder for MockOrphanDeleter.
+type MockOrphanDeleterMockRecorder struct {
+	mock *MockOrphanDeleter
+}
+
+// NewMockOrphanDeleter creates a new mock instance.
+func NewMockOrphanDeleter(ctrl *gomock.Controller) *MockOrphanDeleter {
+	mock := &MockOrphanDeleter{ctrl: ctrl}
+	mock.recorder = &MockOrphanDeleterMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockOrphanDeleter) EXPECT() *MockOrphanDeleterMockRecorder {
+	return m.recorder
+}
+
+// DeleteFileIfUnchanged mocks base method.
+func (m *MockOrphanDeleter) DeleteFileIfUnchanged(repo, arch string, expected blob.FileInfo, cutoff time.Time) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteFileIfUnchanged", repo, arch, expected, cutoff)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// DeleteFileIfUnchanged indicates an expected call of DeleteFileIfUnchanged.
+func (mr *MockOrphanDeleterMockRecorder) DeleteFileIfUnchanged(repo, arch, expected, cutoff any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteFileIfUnchanged", reflect.TypeOf((*MockOrphanDeleter)(nil).DeleteFileIfUnchanged), repo, arch, expected, cutoff)
+}
+
+// MockPublicationLocker is a mock of PublicationLocker interface.
+type MockPublicationLocker struct {
+	ctrl     *gomock.Controller
+	recorder *MockPublicationLockerMockRecorder
+	isgomock struct{}
+}
+
+// MockPublicationLockerMockRecorder is the mock recorder for MockPublicationLocker.
+type MockPublicationLockerMockRecorder struct {
+	mock *MockPublicationLocker
+}
+
+// NewMockPublicationLocker creates a new mock instance.
+func NewMockPublicationLocker(ctrl *gomock.Controller) *MockPublicationLocker {
+	mock := &MockPublicationLocker{ctrl: ctrl}
+	mock.recorder = &MockPublicationLockerMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockPublicationLocker) EXPECT() *MockPublicationLockerMockRecorder {
+	return m.recorder
+}
+
+// LockPublication mocks base method.
+func (m *MockPublicationLocker) LockPublication(repo string) (func(), error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "LockPublication", repo)
+	ret0, _ := ret[0].(func())
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// LockPublication indicates an expected call of LockPublication.
+func (mr *MockPublicationLockerMockRecorder) LockPublication(repo any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LockPublication", reflect.TypeOf((*MockPublicationLocker)(nil).LockPublication), repo)
+}
 
 // MockMetaFetcher is a mock of MetaFetcher interface.
 type MockMetaFetcher struct {
@@ -279,21 +358,6 @@ func (m *MockBlobStore) StoreFileIfMatch(repo, arch string, file stream.SeekFile
 func (mr *MockBlobStoreMockRecorder) StoreFileIfMatch(repo, arch, file, etag any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StoreFileIfMatch", reflect.TypeOf((*MockBlobStore)(nil).StoreFileIfMatch), repo, arch, file, etag)
-}
-
-// StoreFileWithSignedPutURL mocks base method.
-func (m *MockBlobStore) StoreFileWithSignedPutURL(repo, arch, name string) (string, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "StoreFileWithSignedPutURL", repo, arch, name)
-	ret0, _ := ret[0].(string)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// StoreFileWithSignedPutURL indicates an expected call of StoreFileWithSignedPutURL.
-func (mr *MockBlobStoreMockRecorder) StoreFileWithSignedPutURL(repo, arch, name any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StoreFileWithSignedPutURL", reflect.TypeOf((*MockBlobStore)(nil).StoreFileWithSignedPutURL), repo, arch, name)
 }
 
 // StoreFileWithSignedURL mocks base method.

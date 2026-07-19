@@ -262,12 +262,13 @@ copy, reloads canonical alone, materializes each required immutable package
 object, and regenerates the derived archive without changing canonical bytes.
 Package signatures are matched by the
 `<package>.sig` convention. The old presign protocol wrote to the final object
-key before validation; its presign/finalize endpoints therefore return `501`
-until an opaque staging-intent protocol can validate and atomically promote an
-object. Atomic batches are bounded independently: 16 packages and 2 GiB of file
-data by default, plus the per-package `max_size` and a 16 MiB signature cap.
-Multipart still traverses the ingress, whose body limit must match this policy
-while presign remains disabled.
+key before validation. Its service and blob-store capabilities have been
+removed; compatibility endpoints return a fixed `501` so older clients can
+fall back safely. Reintroducing direct upload requires an opaque staging-intent
+protocol that validates and atomically promotes an object. Atomic batches are
+bounded independently: 16 packages and 2 GiB of file data by default, plus the
+per-package `max_size` and a 16 MiB signature cap. Multipart traverses the
+ingress, whose body limit must match this policy.
 
 This is failure compensation across independent blob/KV objects, not a claim
 that the backing stores provide a cross-object transaction. A future strict

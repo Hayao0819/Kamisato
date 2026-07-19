@@ -109,8 +109,8 @@ func (s *Service) ReconcileOrphans(repo string, olderThan time.Duration, dryRun 
 
 // reconcileAnyDir GCs orphans in the shared "any/" directory. It runs after the
 // concrete arches so anyReferenced holds every registered arch=any filename; an
-// object there that no concrete db references is residue of a presigned any
-// upload PUT but never finalized.
+// object there that no concrete db references is residue from an interrupted
+// or superseded publication.
 func (s *Service) reconcileAnyDir(repo string, anyReferenced map[string]struct{}, olderThan time.Duration, dryRun bool, now, cutoff time.Time) ([]OrphanObject, error) {
 	infos, err := s.pkgBinaryRepo.FilesWithMeta(repo, "any")
 	if err != nil {
