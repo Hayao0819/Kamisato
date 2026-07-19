@@ -15,6 +15,12 @@ type logTokenRecord struct {
 	ExpiresAt int64  `json:"expires_at"`
 }
 
+var spentLogTokenConsumption = consumptionPolicy{
+	namespace:    schema.SpentLogTokens,
+	emptyError:   "logtoken: empty token",
+	errorContext: "logtoken: consume",
+}
+
 // LogTokenRepository issues and redeems the one-time tokens that let a browser
 // EventSource (which cannot send a bearer) open a job's build-log stream. A token
 // is bound to one job and spent on first read, so a leaked stream URL cannot be
@@ -73,9 +79,9 @@ func (r *logTokenRepository) ConsumeLogToken(token string) (string, bool, error)
 	if record.JobID == "" || ttl <= 0 {
 		return "", false, nil
 	}
-	created, err := consumeOnce(r.kv, schema.SpentLogTokens, token, ttl)
+	created, err := spentLogTokenConsumption.consume(r.kv, token, ttl)
 	if err != nil {
-		return "", false, errors.WrapErr(err, "logtoken: consume")
+		return "", false, err
 	}
 	if !created {
 		return "", false, nil

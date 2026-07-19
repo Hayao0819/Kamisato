@@ -20,14 +20,13 @@ type DenylistRepository interface {
 }
 
 func (r *denylistRepository) Consume(jti string, ttl time.Duration) (bool, error) {
-	if jti == "" {
-		return false, errors.NewErr("deny: empty jti")
-	}
-	created, err := consumeOnce(r.kv, schema.TokenDenylist, jti, ttl)
-	if err != nil {
-		return false, errors.WrapErr(err, "deny: consume jti")
-	}
-	return created, nil
+	return tokenConsumption.consume(r.kv, jti, ttl)
+}
+
+var tokenConsumption = consumptionPolicy{
+	namespace:    schema.TokenDenylist,
+	emptyError:   "deny: empty jti",
+	errorContext: "deny: consume jti",
 }
 
 type denylistRepository struct {

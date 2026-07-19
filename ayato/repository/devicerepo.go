@@ -23,6 +23,12 @@ type deviceRecord struct {
 	ExpiresAt  int64  `json:"expires_at"`
 }
 
+var spentDeviceConsumption = consumptionPolicy{
+	namespace:    schema.SpentDevices,
+	emptyError:   "device: empty device code",
+	errorContext: "device: consume",
+}
+
 // DeviceRepository stores RFC 8628 device-authorization requests in the shared kv
 // so the polling client and the separate approval browser can rendezvous without
 // ayato holding process-local state.
@@ -112,9 +118,9 @@ func (r *deviceRepository) ConsumeDevice(deviceCode string) (bool, error) {
 	if ttl <= 0 {
 		return false, nil
 	}
-	created, err := consumeOnce(r.kv, schema.SpentDevices, deviceCode, ttl)
+	created, err := spentDeviceConsumption.consume(r.kv, deviceCode, ttl)
 	if err != nil {
-		return false, errors.WrapErr(err, "device: consume")
+		return false, err
 	}
 	if !created {
 		return false, nil
