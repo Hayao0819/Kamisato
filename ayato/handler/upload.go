@@ -35,7 +35,7 @@ func formFileWithValidate(ctx *gin.Context, name string, maxsize int) (*multipar
 func (h *Handler) BlinkyUploadHandler(ctx *gin.Context) {
 	repoName := ctx.Param("repo")
 	if repoName == "" {
-		ctx.JSON(http.StatusBadRequest, domain.APIError{Message: "repository name is required"})
+		respondError(ctx, http.StatusBadRequest, "repository name is required")
 		return
 	}
 	// Bound the body before spooling so an oversized upload is rejected as bytes
@@ -44,10 +44,10 @@ func (h *Handler) BlinkyUploadHandler(ctx *gin.Context) {
 	if err := ctx.Request.ParseMultipartForm(10 << 20); err != nil {
 		var maxErr *http.MaxBytesError
 		if stderrors.As(err, &maxErr) {
-			ctx.JSON(http.StatusRequestEntityTooLarge, domain.APIError{Message: "upload exceeds max_size"})
+			respondError(ctx, http.StatusRequestEntityTooLarge, "upload exceeds max_size")
 			return
 		}
-		ctx.JSON(http.StatusBadRequest, domain.APIError{Message: fmt.Sprintf("parse form err: %s", err.Error())})
+		respondError(ctx, http.StatusBadRequest, "invalid multipart form")
 		return
 	}
 	if ctx.Request.MultipartForm != nil {
@@ -63,22 +63,22 @@ func (h *Handler) BlinkyUploadHandler(ctx *gin.Context) {
 	}
 	slog.Debug("BlinkyUploadHandler", "repo", repoName, "form names", names)
 	if !lo.Contains(names, "package") {
-		ctx.JSON(http.StatusBadRequest, domain.APIError{Message: "no package file found in the request"})
+		respondError(ctx, http.StatusBadRequest, "no package file found in the request")
 		return
 	}
 	if !lo.Contains(names, "signature") && h.cfg.RequireSign {
-		ctx.JSON(http.StatusBadRequest, domain.APIError{Message: "signature file is required"})
+		respondError(ctx, http.StatusBadRequest, "signature file is required")
 		return
 	}
 	pkgHeader, err := formFileWithValidate(ctx, "package", h.cfg.MaxSize)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, domain.APIError{Message: fmt.Sprintf("get package form err: %s", err.Error())})
+		respondError(ctx, http.StatusBadRequest, "invalid package file")
 		return
 	}
 	sigHeader, err := ctx.FormFile("signature")
 	if err != nil {
 		if h.cfg.RequireSign {
-			ctx.JSON(http.StatusBadRequest, domain.APIError{Message: fmt.Sprintf("get signature form err: %s", err.Error())})
+			respondError(ctx, http.StatusBadRequest, "invalid signature file")
 			return
 		} else {
 			sigHeader = nil
@@ -86,12 +86,12 @@ func (h *Handler) BlinkyUploadHandler(ctx *gin.Context) {
 		}
 	}
 	if sigHeader != nil && (sigHeader.Size == 0 || sigHeader.Size > limits.MaxSignatureBytes) {
-		ctx.JSON(http.StatusRequestEntityTooLarge, domain.APIError{Message: "signature is empty or too large"})
+		respondError(ctx, http.StatusRequestEntityTooLarge, "signature is empty or too large")
 		return
 	}
 	pkgStream, err := formFileStream(pkgHeader)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, domain.APIError{Message: fmt.Sprintf("open file err: %s", err.Error())})
+		respondLoggedError(ctx, http.StatusInternalServerError, "open uploaded package", "failed to read uploaded package", err)
 		return
 	}
 	defer pkgStream.Close()
@@ -100,7 +100,7 @@ func (h *Handler) BlinkyUploadHandler(ctx *gin.Context) {
 		sigStream, err = formFileStream(sigHeader)
 		if err != nil {
 			if h.cfg.RequireSign {
-				ctx.JSON(http.StatusBadRequest, domain.APIError{Message: fmt.Sprintf("open signature file err: %s", err.Error())})
+				respondLoggedError(ctx, http.StatusInternalServerError, "open uploaded signature", "failed to read uploaded signature", err)
 				return
 			} else {
 				sigStream = nil
@@ -118,7 +118,7 @@ func (h *Handler) BlinkyUploadHandler(ctx *gin.Context) {
 		files.SigFile = sigStream
 	}
 	if err := h.s.UploadFile(repoName, &files); err != nil {
-		ctx.JSON(errToStatus(err), domain.APIError{Message: fmt.Sprintf("upload file err: %s", err.Error())})
+		respondServiceError(ctx, "upload package", "failed to upload package", err)
 		return
 	}
 	ctx.String(http.StatusOK, fmt.Sprintf("'%s' uploaded!", pkgHeader.Filename))
@@ -130,17 +130,17 @@ func (h *Handler) BlinkyUploadHandler(ctx *gin.Context) {
 func (h *Handler) BatchUploadHandler(ctx *gin.Context) {
 	repoName := ctx.Param("repo")
 	if repoName == "" {
-		ctx.JSON(http.StatusBadRequest, domain.APIError{Message: "repository name is required"})
+		respondError(ctx, http.StatusBadRequest, "repository name is required")
 		return
 	}
 	ctx.Request.Body = http.MaxBytesReader(ctx.Writer, ctx.Request.Body, limits.BatchMultipartBytes(h.cfg.MaxBatchBytes, h.cfg.MaxSize))
 	if err := ctx.Request.ParseMultipartForm(10 << 20); err != nil {
 		var maxErr *http.MaxBytesError
 		if stderrors.As(err, &maxErr) {
-			ctx.JSON(http.StatusRequestEntityTooLarge, domain.APIError{Message: "batch upload exceeds max_batch_bytes"})
+			respondError(ctx, http.StatusRequestEntityTooLarge, "batch upload exceeds max_batch_bytes")
 			return
 		}
-		ctx.JSON(http.StatusBadRequest, domain.APIError{Message: fmt.Sprintf("parse form err: %s", err.Error())})
+		respondError(ctx, http.StatusBadRequest, "invalid multipart form")
 		return
 	}
 	form := ctx.Request.MultipartForm
@@ -152,25 +152,25 @@ func (h *Handler) BatchUploadHandler(ctx *gin.Context) {
 		}()
 	}
 	if form == nil || len(form.File["package"]) == 0 {
-		ctx.JSON(http.StatusBadRequest, domain.APIError{Message: "no package files found in the request"})
+		respondError(ctx, http.StatusBadRequest, "no package files found in the request")
 		return
 	}
 	if len(form.File["package"]) > limits.BatchPackages(h.cfg.MaxBatchPackages) {
-		ctx.JSON(http.StatusRequestEntityTooLarge, domain.APIError{Message: "too many packages in one batch"})
+		respondError(ctx, http.StatusRequestEntityTooLarge, "too many packages in one batch")
 		return
 	}
 	if len(form.File["signature"]) > len(form.File["package"]) {
-		ctx.JSON(http.StatusBadRequest, domain.APIError{Message: "batch contains more signatures than packages"})
+		respondError(ctx, http.StatusBadRequest, "batch contains more signatures than packages")
 		return
 	}
 	for field := range form.File {
 		if field != "package" && field != "signature" {
-			ctx.JSON(http.StatusBadRequest, domain.APIError{Message: fmt.Sprintf("unexpected multipart file field %q", field)})
+			respondError(ctx, http.StatusBadRequest, fmt.Sprintf("unexpected multipart file field %q", field))
 			return
 		}
 	}
 	if len(form.Value) != 0 {
-		ctx.JSON(http.StatusBadRequest, domain.APIError{Message: "unexpected multipart value field"})
+		respondError(ctx, http.StatusBadRequest, "unexpected multipart value field")
 		return
 	}
 
@@ -179,16 +179,16 @@ func (h *Handler) BatchUploadHandler(ctx *gin.Context) {
 	var aggregate int64
 	for _, sh := range form.File["signature"] {
 		if sh.Size == 0 || sh.Size > limits.MaxSignatureBytes {
-			ctx.JSON(http.StatusRequestEntityTooLarge, domain.APIError{Message: fmt.Sprintf("signature %q is empty or too large", sh.Filename)})
+			respondError(ctx, http.StatusRequestEntityTooLarge, fmt.Sprintf("signature %q is empty or too large", sh.Filename))
 			return
 		}
 		artifact, err := pkgfile.Parse(sh.Filename)
 		if err != nil || !artifact.IsSignature() {
-			ctx.JSON(http.StatusBadRequest, domain.APIError{Message: fmt.Sprintf("signature %q must use the <package>.sig filename", sh.Filename)})
+			respondError(ctx, http.StatusBadRequest, fmt.Sprintf("signature %q must use the <package>.sig filename", sh.Filename))
 			return
 		}
 		if _, duplicate := sigByArchive[artifact.ArchiveFilename()]; duplicate {
-			ctx.JSON(http.StatusBadRequest, domain.APIError{Message: fmt.Sprintf("duplicate signature %q", sh.Filename)})
+			respondError(ctx, http.StatusBadRequest, fmt.Sprintf("duplicate signature %q", sh.Filename))
 			return
 		}
 		sigByArchive[artifact.ArchiveFilename()] = sh
@@ -198,11 +198,11 @@ func (h *Handler) BatchUploadHandler(ctx *gin.Context) {
 	for _, ph := range form.File["package"] {
 		artifact, err := pkgfile.Parse(ph.Filename)
 		if err != nil || artifact.IsSignature() {
-			ctx.JSON(http.StatusBadRequest, domain.APIError{Message: fmt.Sprintf("package %q has an invalid package filename", ph.Filename)})
+			respondError(ctx, http.StatusBadRequest, fmt.Sprintf("package %q has an invalid package filename", ph.Filename))
 			return
 		}
 		if packageNames[ph.Filename] {
-			ctx.JSON(http.StatusBadRequest, domain.APIError{Message: fmt.Sprintf("duplicate package %q", ph.Filename)})
+			respondError(ctx, http.StatusBadRequest, fmt.Sprintf("duplicate package %q", ph.Filename))
 			return
 		}
 		packageNames[ph.Filename] = true
@@ -210,12 +210,12 @@ func (h *Handler) BatchUploadHandler(ctx *gin.Context) {
 	}
 	for archive, signature := range sigByArchive {
 		if !packageNames[archive] {
-			ctx.JSON(http.StatusBadRequest, domain.APIError{Message: fmt.Sprintf("signature %q has no matching package", signature.Filename)})
+			respondError(ctx, http.StatusBadRequest, fmt.Sprintf("signature %q has no matching package", signature.Filename))
 			return
 		}
 	}
 	if aggregate > limits.BatchBytes(h.cfg.MaxBatchBytes, h.cfg.MaxSize) {
-		ctx.JSON(http.StatusRequestEntityTooLarge, domain.APIError{Message: "batch file data exceeds max_batch_bytes"})
+		respondError(ctx, http.StatusRequestEntityTooLarge, "batch file data exceeds max_batch_bytes")
 		return
 	}
 
@@ -229,16 +229,16 @@ func (h *Handler) BatchUploadHandler(ctx *gin.Context) {
 
 	for _, ph := range form.File["package"] {
 		if ph.Size == 0 {
-			ctx.JSON(http.StatusBadRequest, domain.APIError{Message: fmt.Sprintf("package %q is empty", ph.Filename)})
+			respondError(ctx, http.StatusBadRequest, fmt.Sprintf("package %q is empty", ph.Filename))
 			return
 		}
 		if limits.Exceeds(ph.Size, h.cfg.MaxSize) {
-			ctx.JSON(http.StatusRequestEntityTooLarge, domain.APIError{Message: fmt.Sprintf("package %q is too large", ph.Filename)})
+			respondError(ctx, http.StatusRequestEntityTooLarge, fmt.Sprintf("package %q is too large", ph.Filename))
 			return
 		}
 		pkgStream, err := formFileStream(ph)
 		if err != nil {
-			ctx.JSON(http.StatusBadRequest, domain.APIError{Message: fmt.Sprintf("open package %q err: %s", ph.Filename, err.Error())})
+			respondLoggedError(ctx, http.StatusInternalServerError, "open batch package", "failed to read uploaded package", err)
 			return
 		}
 		closers = append(closers, pkgStream)
@@ -246,7 +246,7 @@ func (h *Handler) BatchUploadHandler(ctx *gin.Context) {
 		if sh, ok := sigByArchive[ph.Filename]; ok {
 			sigStream, err := formFileStream(sh)
 			if err != nil {
-				ctx.JSON(http.StatusBadRequest, domain.APIError{Message: fmt.Sprintf("open signature for %q err: %s", ph.Filename, err.Error())})
+				respondLoggedError(ctx, http.StatusInternalServerError, "open batch signature", "failed to read uploaded signature", err)
 				return
 			}
 			closers = append(closers, sigStream)
@@ -256,7 +256,7 @@ func (h *Handler) BatchUploadHandler(ctx *gin.Context) {
 	}
 
 	if err := h.s.UploadFiles(repoName, files); err != nil {
-		ctx.JSON(errToStatus(err), domain.APIError{Message: fmt.Sprintf("upload err: %s", err.Error())})
+		respondServiceError(ctx, "upload package batch", "failed to upload package batch", err)
 		return
 	}
 	ctx.String(http.StatusOK, fmt.Sprintf("%d package(s) uploaded!", len(files)))
@@ -266,11 +266,11 @@ func (h *Handler) BatchUploadHandler(ctx *gin.Context) {
 // the unsafe final-key direct-upload protocol existed. It must remain a fixed
 // 501 until a distinct, opaque staging-intent protocol replaces that design.
 func (h *Handler) PresignUploadHandler(ctx *gin.Context) {
-	ctx.JSON(http.StatusNotImplemented, domain.APIError{Message: "presigned upload is disabled until the staging-intent protocol is available"})
+	respondError(ctx, http.StatusNotImplemented, "presigned upload is disabled until the staging-intent protocol is available")
 }
 
 // FinalizeUploadHandler is the matching compatibility tombstone. There is no
 // service or blob-store final-key upload capability behind this endpoint.
 func (h *Handler) FinalizeUploadHandler(ctx *gin.Context) {
-	ctx.JSON(http.StatusNotImplemented, domain.APIError{Message: "presigned upload is disabled until the staging-intent protocol is available"})
+	respondError(ctx, http.StatusNotImplemented, "presigned upload is disabled until the staging-intent protocol is available")
 }

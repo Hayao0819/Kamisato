@@ -17,8 +17,7 @@ import (
 func (h *Handler) ReposHandler(ctx *gin.Context) {
 	repoNames, err := h.s.RepoNames()
 	if err != nil {
-		slog.Error("Failed to get repository names", "error", err)
-		ctx.JSON(http.StatusInternalServerError, domain.APIError{Message: err.Error()})
+		respondServiceError(ctx, "get repository names", "failed to get repository names", err)
 		return
 	}
 	ctx.JSON(http.StatusOK, repoNames)
@@ -27,13 +26,12 @@ func (h *Handler) ReposHandler(ctx *gin.Context) {
 func (h *Handler) RepoDetailHandler(ctx *gin.Context) {
 	repoName := ctx.Param("repo")
 	if repoName == "" {
-		ctx.JSON(http.StatusBadRequest, domain.APIError{Message: "Repository name is required"})
+		respondError(ctx, http.StatusBadRequest, "repository name is required")
 		return
 	}
 	archNames, err := h.s.Arches(repoName)
 	if err != nil {
-		slog.Error("Failed to get architectures for repository", "repo", repoName, "error", err)
-		ctx.JSON(http.StatusInternalServerError, domain.APIError{Message: err.Error()})
+		respondServiceError(ctx, "get repository architectures", "failed to get repository architectures", err)
 		return
 	}
 	ctx.JSON(http.StatusOK, gin.H{"name": repoName, "arches": archNames})
@@ -58,10 +56,7 @@ func (h *Handler) RepoFileHandler(ctx *gin.Context) {
 
 	s, meta, err := h.s.GetFileWithMeta(repoName, arch, fileName)
 	if err != nil {
-		ctx.JSON(errToStatus(err), domain.APIError{
-			Message: "failed to serve " + fileName,
-			Reason:  err.Error(),
-		})
+		respondServiceError(ctx, "get repository file", "failed to serve "+fileName, err)
 		return
 	}
 	defer s.Close()
@@ -142,8 +137,7 @@ func (h *Handler) RepoFileListHandler(ctx *gin.Context) {
 	arch := ctx.Param("arch")
 	l, err := h.s.RepoFileList(repo, arch)
 	if err != nil {
-		slog.Error("err while getting repo dir", "repo", repo, "arch", arch, "err", err)
-		ctx.JSON(http.StatusInternalServerError, domain.APIError{Message: err.Error()})
+		respondServiceError(ctx, "get repository file list", "failed to get repository file list", err)
 		return
 	}
 

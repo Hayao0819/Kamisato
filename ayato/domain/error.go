@@ -6,15 +6,6 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
-type APIError struct {
-	Message string `json:"message,omitempty"`
-	Reason  string `json:"reason,omitempty"`
-}
-
-func (e *APIError) Error() string {
-	return e.Message
-}
-
 // These sentinels let any layer signal an HTTP class without importing net/http;
 // the transport layer's errToStatus resolves the code.
 var (

@@ -1,11 +1,15 @@
 package handler
 
 import (
+	"log/slog"
 	"net/http"
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
 
+	"github.com/gin-gonic/gin"
+
 	"github.com/Hayao0819/Kamisato/ayato/domain"
+	"github.com/Hayao0819/Kamisato/ayato/httpapi"
 )
 
 // errToStatus maps a domain error to its HTTP status. The single place transport
@@ -26,4 +30,25 @@ func errToStatus(err error) int {
 	default:
 		return http.StatusInternalServerError
 	}
+}
+
+func respondError(ctx *gin.Context, status int, message string) {
+	ctx.JSON(status, httpapi.NewError(status, message))
+}
+
+// respondServiceError converts errors deliberately classified by the domain
+// into their client status. Unexpected failures are logged and get only the
+// caller-supplied safe message.
+func respondServiceError(ctx *gin.Context, operation, publicMessage string, err error) {
+	status := errToStatus(err)
+	if status >= http.StatusInternalServerError && status != http.StatusNotImplemented {
+		respondLoggedError(ctx, status, operation, publicMessage, err)
+	} else {
+		respondError(ctx, status, publicMessage)
+	}
+}
+
+func respondLoggedError(ctx *gin.Context, status int, operation, publicMessage string, err error) {
+	slog.Error(operation, "error", err)
+	respondError(ctx, status, publicMessage)
 }

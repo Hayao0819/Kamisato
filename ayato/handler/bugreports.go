@@ -7,7 +7,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/Hayao0819/Kamisato/ayato/domain"
 	"github.com/Hayao0819/Kamisato/ayato/handler/bugreport"
 )
 
@@ -34,36 +33,36 @@ type bugReportRequest struct {
 // SubmitBugReportHandler forwards a report to the configured tracker.
 func (h *Handler) SubmitBugReportHandler(c *gin.Context) {
 	if h.reporter == nil {
-		c.JSON(http.StatusServiceUnavailable, domain.APIError{Message: "bug reporting is not configured"})
+		respondError(c, http.StatusServiceUnavailable, "bug reporting is not configured")
 		return
 	}
 	var req bugReportRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, domain.APIError{Message: "invalid request", Reason: err.Error()})
+		respondError(c, http.StatusBadRequest, "invalid request")
 		return
 	}
 	if req.Description == "" || req.Pkgname == "" {
-		c.JSON(http.StatusBadRequest, domain.APIError{Message: "package name and description are required"})
+		respondError(c, http.StatusBadRequest, "package name and description are required")
 		return
 	}
 	if len(req.Description) > maxBugDescLen ||
 		len(req.Pkgname) > maxBugFieldLen || len(req.Pkgver) > maxBugFieldLen ||
 		len(req.Name) > maxBugFieldLen || len(req.Email) > maxBugFieldLen ||
 		len(req.Repo) > maxBugFieldLen || len(req.Arch) > maxBugFieldLen {
-		c.JSON(http.StatusBadRequest, domain.APIError{Message: "a field exceeds its maximum length"})
+		respondError(c, http.StatusBadRequest, "a field exceeds its maximum length")
 		return
 	}
 	severity := req.Severity
 	if severity == "" {
 		severity = "medium"
 	} else if !bugSeverities[severity] {
-		c.JSON(http.StatusBadRequest, domain.APIError{Message: "invalid severity"})
+		respondError(c, http.StatusBadRequest, "invalid severity")
 		return
 	}
 
 	if h.recaptcha != nil {
 		if err := h.recaptcha.Verify(c.Request.Context(), req.RecaptchaToken, c.ClientIP()); err != nil {
-			c.JSON(http.StatusBadRequest, domain.APIError{Message: "reCAPTCHA verification failed", Reason: err.Error()})
+			respondError(c, http.StatusBadRequest, "reCAPTCHA verification failed")
 			return
 		}
 	}
@@ -78,7 +77,7 @@ func (h *Handler) SubmitBugReportHandler(c *gin.Context) {
 		MaintainerEmail: h.maintainerEmail(req.Repo, req.Arch, req.Pkgname),
 	})
 	if err != nil {
-		c.JSON(http.StatusBadGateway, domain.APIError{Message: "failed to file the bug report", Reason: err.Error()})
+		respondLoggedError(c, http.StatusBadGateway, "file bug report", "failed to file the bug report", err)
 		return
 	}
 	c.JSON(http.StatusCreated, gin.H{"url": url})

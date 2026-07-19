@@ -8,8 +8,6 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-
-	"github.com/Hayao0819/Kamisato/ayato/domain"
 )
 
 // mirrorEntry is one Server line plus the comments rendered above it.
@@ -29,7 +27,7 @@ func (h *Handler) MirrorlistHandler(c *gin.Context) {
 	// Validate against the servable repo set (tiers included) so the path we echo
 	// into Server lines is one ayato actually serves, never an arbitrary string.
 	if _, ok := h.catalog.Resolve(repoName); !ok {
-		c.JSON(http.StatusNotFound, domain.APIError{Message: fmt.Sprintf("unknown repository %q", repoName)})
+		respondError(c, http.StatusNotFound, fmt.Sprintf("unknown repository %q", repoName))
 		return
 	}
 

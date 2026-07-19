@@ -2,6 +2,8 @@ package handler
 
 import (
 	"bytes"
+	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -12,6 +14,7 @@ import (
 	"go.uber.org/mock/gomock"
 
 	"github.com/Hayao0819/Kamisato/ayato/domain"
+	"github.com/Hayao0819/Kamisato/ayato/httpapi"
 	"github.com/Hayao0819/Kamisato/ayato/stream"
 	"github.com/Hayao0819/Kamisato/ayato/test/mocks"
 	"github.com/Hayao0819/Kamisato/internal/conf"
@@ -167,6 +170,38 @@ func TestPkgFilesHandlerNotImplemented(t *testing.T) {
 
 	if w.Code != http.StatusNotImplemented {
 		t.Fatalf("status = %d, want 501: %s", w.Code, w.Body.String())
+	}
+	var response httpapi.ErrorResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
+		t.Fatal(err)
+	}
+	if response.Code != httpapi.CodeNotImplemented {
+		t.Errorf("code = %q, want %q", response.Code, httpapi.CodeNotImplemented)
+	}
+}
+
+func TestPkgFilesHandlerNotFound(t *testing.T) {
+	ctrl, mockSvc, h := setup(t)
+	defer ctrl.Finish()
+
+	mockSvc.EXPECT().PkgFiles("myrepo", "x86_64", "missing").
+		Return(nil, fmt.Errorf("%w: private storage detail", domain.ErrNotFound))
+
+	r := gin.New()
+	r.GET("/repos/:repo/:arch/packages/:name/files", h.PkgFilesHandler)
+
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/repos/myrepo/x86_64/packages/missing/files", nil))
+
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, want 404: %s", w.Code, w.Body.String())
+	}
+	var response httpapi.ErrorResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
+		t.Fatal(err)
+	}
+	if response.Code != httpapi.CodeNotFound || strings.Contains(w.Body.String(), "private storage detail") {
+		t.Errorf("response = %s, want safe not_found envelope", w.Body.String())
 	}
 }
 

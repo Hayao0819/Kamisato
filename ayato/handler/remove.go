@@ -5,8 +5,6 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-
-	"github.com/Hayao0819/Kamisato/ayato/domain"
 )
 
 func (h *Handler) BlinkyRemoveHandler(ctx *gin.Context) {
@@ -16,18 +14,15 @@ func (h *Handler) BlinkyRemoveHandler(ctx *gin.Context) {
 	// the package" (pkgctl default); the native arch-scoped route removes from one arch.
 	archName := ctx.Param("arch")
 	if packageName == "" {
-		ctx.JSON(http.StatusBadRequest, domain.APIError{Message: "Package name is required"})
+		respondError(ctx, http.StatusBadRequest, "package name is required")
 		return
 	}
 	if repoName == "" {
-		ctx.JSON(http.StatusBadRequest, domain.APIError{Message: "Repository name is required"})
+		respondError(ctx, http.StatusBadRequest, "repository name is required")
 		return
 	}
 	if err := h.s.RemovePkg(repoName, archName, packageName); err != nil {
-		ctx.JSON(errToStatus(err), domain.APIError{
-			Message: "Remove package file err",
-			Reason:  err.Error(),
-		})
+		respondServiceError(ctx, "remove package", "failed to remove package", err)
 		return
 	}
 	ctx.String(http.StatusOK, fmt.Sprintf("'%s' removed!", packageName))

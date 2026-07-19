@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"log/slog"
 	"net/http"
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
@@ -15,20 +14,16 @@ func (h *Handler) AllPkgsHandler(ctx *gin.Context) {
 	repoName := ctx.Param("repo")
 	archName := ctx.Param("arch")
 	if repoName == "" {
-		ctx.JSON(http.StatusBadRequest, domain.APIError{Message: "Repository name is required"})
+		respondError(ctx, http.StatusBadRequest, "repository name is required")
 		return
 	}
 	if archName == "" {
-		ctx.JSON(http.StatusBadRequest, domain.APIError{Message: "Arch name is required"})
+		respondError(ctx, http.StatusBadRequest, "architecture name is required")
 		return
 	}
 	pkgs, err := h.s.Pkgs(repoName, archName)
 	if err != nil {
-		slog.Error("Failed to get packages", "error", err)
-		ctx.JSON(http.StatusInternalServerError, domain.APIError{
-			Message: "failed to get packages",
-			Reason:  err.Error(),
-		})
+		respondServiceError(ctx, "get packages", "failed to get packages", err)
 		return
 	}
 	ctx.JSON(http.StatusOK, pkgs)
@@ -39,21 +34,20 @@ func (h *Handler) PkgDetailHandler(ctx *gin.Context) {
 	archName := ctx.Param("arch")
 	pkgName := ctx.Param("name")
 	if repoName == "" {
-		ctx.JSON(http.StatusBadRequest, domain.APIError{Message: "Repository name is required"})
+		respondError(ctx, http.StatusBadRequest, "repository name is required")
 		return
 	}
 	if archName == "" {
-		ctx.JSON(http.StatusBadRequest, domain.APIError{Message: "Arch name is required"})
+		respondError(ctx, http.StatusBadRequest, "architecture name is required")
 		return
 	}
 	if pkgName == "" {
-		ctx.JSON(http.StatusBadRequest, domain.APIError{Message: "Package name is required"})
+		respondError(ctx, http.StatusBadRequest, "package name is required")
 		return
 	}
 	pkgDetail, err := h.s.PkgDetail(repoName, archName, pkgName)
 	if err != nil {
-		slog.Error("Failed to get package detail", "error", err)
-		ctx.JSON(http.StatusInternalServerError, domain.APIError{Message: err.Error()})
+		respondServiceError(ctx, "get package detail", "failed to get package detail", err)
 		return
 	}
 	ctx.JSON(http.StatusOK, pkgDetail)
@@ -64,34 +58,24 @@ func (h *Handler) PkgFilesHandler(ctx *gin.Context) {
 	archName := ctx.Param("arch")
 	pkgName := ctx.Param("name")
 	if repoName == "" {
-		ctx.JSON(http.StatusBadRequest, domain.APIError{
-			Message: "Repository name is required",
-		})
+		respondError(ctx, http.StatusBadRequest, "repository name is required")
 		return
 	}
 	if archName == "" {
-		ctx.JSON(http.StatusBadRequest, domain.APIError{
-			Message: "Arch name is required",
-		})
+		respondError(ctx, http.StatusBadRequest, "architecture name is required")
 		return
 	}
 	if pkgName == "" {
-		ctx.JSON(http.StatusBadRequest, domain.APIError{
-			Message: "Package name is required",
-		})
+		respondError(ctx, http.StatusBadRequest, "package name is required")
 		return
 	}
 	files, err := h.s.PkgFiles(repoName, archName, pkgName)
 	if errors.Is(err, domain.ErrNotImplemented) {
-		ctx.JSON(http.StatusNotImplemented, domain.APIError{Message: "package file listing is not implemented"})
+		respondError(ctx, http.StatusNotImplemented, "package file listing is not implemented")
 		return
 	}
 	if err != nil {
-		slog.Error("Failed to get package files", "error", err)
-		ctx.JSON(http.StatusInternalServerError, domain.APIError{
-			Message: "failed to get package files",
-			Reason:  err.Error(),
-		})
+		respondServiceError(ctx, "get package files", "failed to get package files", err)
 		return
 	}
 	ctx.JSON(http.StatusOK, files)

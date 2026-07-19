@@ -24,33 +24,30 @@ type promoteRequest struct {
 func (h *Handler) PromoteHandler(ctx *gin.Context) {
 	repoName := ctx.Param("repo")
 	if repoName == "" {
-		ctx.JSON(http.StatusBadRequest, domain.APIError{Message: "repository name is required"})
+		respondError(ctx, http.StatusBadRequest, "repository name is required")
 		return
 	}
 	var req promoteRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, domain.APIError{Message: fmt.Sprintf("invalid request body: %s", err.Error())})
+		respondError(ctx, http.StatusBadRequest, "invalid request body")
 		return
 	}
 	if req.Pkgname == "" || req.From == "" || req.To == "" {
-		ctx.JSON(http.StatusBadRequest, domain.APIError{Message: "from, to and pkgname are required"})
+		respondError(ctx, http.StatusBadRequest, "from, to and pkgname are required")
 		return
 	}
 	from, err := domain.ParseTier(req.From)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, domain.APIError{Message: err.Error()})
+		respondError(ctx, http.StatusBadRequest, err.Error())
 		return
 	}
 	to, err := domain.ParseTier(req.To)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, domain.APIError{Message: err.Error()})
+		respondError(ctx, http.StatusBadRequest, err.Error())
 		return
 	}
 	if err := h.s.PromotePackage(ctx.Request.Context(), repoName, from, to, req.Pkgname, req.Version); err != nil {
-		ctx.JSON(errToStatus(err), domain.APIError{
-			Message: "promote package err",
-			Reason:  err.Error(),
-		})
+		respondServiceError(ctx, "promote package", "failed to promote package", err)
 		return
 	}
 	ctx.String(http.StatusOK, fmt.Sprintf("'%s' promoted from %s to %s in %s", req.Pkgname, req.From, req.To, repoName))
@@ -61,15 +58,12 @@ func (h *Handler) PromoteHandler(ctx *gin.Context) {
 func (h *Handler) SyncUpstreamHandler(ctx *gin.Context) {
 	repoName := ctx.Param("repo")
 	if repoName == "" {
-		ctx.JSON(http.StatusBadRequest, domain.APIError{Message: "repository name is required"})
+		respondError(ctx, http.StatusBadRequest, "repository name is required")
 		return
 	}
 	res, err := h.s.SyncUpstream(ctx.Request.Context(), repoName)
 	if err != nil {
-		ctx.JSON(errToStatus(err), domain.APIError{
-			Message: "sync upstream err",
-			Reason:  err.Error(),
-		})
+		respondServiceError(ctx, "sync upstream", "failed to sync upstream", err)
 		return
 	}
 	ctx.JSON(http.StatusOK, res)

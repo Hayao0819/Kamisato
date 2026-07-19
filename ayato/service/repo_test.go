@@ -6,6 +6,7 @@ import (
 	"go.uber.org/mock/gomock"
 
 	"github.com/Hayao0819/Kamisato/ayato/domain"
+	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
 	"github.com/Hayao0819/Kamisato/ayato/service"
 	"github.com/Hayao0819/Kamisato/ayato/test/mocks"
 	"github.com/Hayao0819/Kamisato/internal/conf"
@@ -76,5 +77,55 @@ func TestPkgDetailUsesPackageNameForSplitPackages(t *testing.T) {
 	_, err = svc.PkgDetail("core", "x86_64", "demo")
 	if !errors.Is(err, domain.ErrNotFound) {
 		t.Fatalf("PkgDetail by pkgbase error = %v, want ErrNotFound", err)
+	}
+}
+
+func TestRepositoryQueriesClassifyStorageMisses(t *testing.T) {
+	t.Parallel()
+	ctrl := gomock.NewController(t)
+	binaryRepo := mocks.NewMockBinaryRepository(ctrl)
+	nameRepo := mocks.NewMockNameStore(ctrl)
+	binaryRepo.EXPECT().RemoteRepo("missing", "x86_64").Return(nil, blob.ErrNotFound).Times(2)
+	binaryRepo.EXPECT().Files("missing", "x86_64").Return(nil, blob.ErrNotFound)
+	binaryRepo.EXPECT().Arches("missing").Return(nil, blob.ErrNotFound)
+
+	svc := service.New(nameRepo, binaryRepo, nil, nil, &conf.AyatoConfig{})
+	checks := []struct {
+		name string
+		run  func() error
+	}{
+		{
+			name: "packages",
+			run: func() error {
+				_, err := svc.Pkgs("missing", "x86_64")
+				return err
+			},
+		},
+		{
+			name: "package detail",
+			run: func() error {
+				_, err := svc.PkgDetail("missing", "x86_64", "demo")
+				return err
+			},
+		},
+		{
+			name: "repository files",
+			run: func() error {
+				_, err := svc.RepoFileList("missing", "x86_64")
+				return err
+			},
+		},
+		{
+			name: "architectures",
+			run: func() error {
+				_, err := svc.Arches("missing")
+				return err
+			},
+		},
+	}
+	for _, check := range checks {
+		if err := check.run(); !errors.Is(err, domain.ErrNotFound) {
+			t.Errorf("%s error = %v, want ErrNotFound", check.name, err)
+		}
 	}
 }

@@ -4,20 +4,23 @@ import (
 	"fmt"
 	"log/slog"
 	"maps"
+	"os"
 	"slices"
 
 	"github.com/Hayao0819/Kamisato/ayato/domain"
+	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
 	"github.com/Hayao0819/Kamisato/internal/errors"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/reponame"
 	"github.com/Hayao0819/Kamisato/pkg/raiou"
 )
 
 func (s *Service) RepoFileList(repo, arch string) ([]string, error) {
-	return s.pkgBinaryRepo.Files(repo, arch)
+	files, err := s.pkgBinaryRepo.Files(repo, arch)
+	return files, classifyRepositoryRead(err)
 }
 
 func (s *Service) Repo(repo string) (*domain.PacmanRepo, error) {
-	arches, err := s.pkgBinaryRepo.Arches(repo)
+	arches, err := s.Arches(repo)
 	if err != nil {
 		return nil, err
 	}
@@ -42,7 +45,7 @@ func (s *Service) Repo(repo string) (*domain.PacmanRepo, error) {
 func (s *Service) Pkgs(repo, arch string) (*domain.PacmanPkgs, error) {
 	rr, err := s.pkgBinaryRepo.RemoteRepo(repo, arch)
 	if err != nil {
-		return nil, err
+		return nil, classifyRepositoryRead(err)
 	}
 
 	if len(rr.Pkgs) == 0 {
@@ -66,7 +69,7 @@ func (s *Service) Pkgs(repo, arch string) (*domain.PacmanPkgs, error) {
 func (s *Service) PkgDetail(repo, arch, pkgname string) (*domain.PacmanPackage, error) {
 	rr, err := s.pkgBinaryRepo.RemoteRepo(repo, arch)
 	if err != nil {
-		return nil, err
+		return nil, classifyRepositoryRead(err)
 	}
 
 	pkg := rr.PkgByPkgName(pkgname)
@@ -89,7 +92,23 @@ func (s *Service) RepoNames() ([]string, error) {
 }
 
 func (s *Service) Arches(repo string) ([]string, error) {
-	return s.pkgBinaryRepo.Arches(repo)
+	arches, err := s.pkgBinaryRepo.Arches(repo)
+	return arches, classifyRepositoryRead(err)
+}
+
+// classifyRepositoryRead translates storage-level absence into the service
+// vocabulary. Handlers can then answer 404 without depending on a blob backend.
+func classifyRepositoryRead(err error) error {
+	if err == nil {
+		return nil
+	}
+	if errors.Is(err, blob.ErrNotFound) || errors.Is(err, os.ErrNotExist) {
+		// Preserve the backend miss for service-level callers that distinguish an
+		// initialized-empty tier, while also exposing the transport-neutral domain
+		// classification to handlers.
+		return fmt.Errorf("%w: repository data not found: %w", domain.ErrNotFound, err)
+	}
+	return err
 }
 
 func (s *Service) ValidateRepoName(repo string) error {
