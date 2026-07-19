@@ -14,7 +14,7 @@ import (
 	"github.com/Hayao0819/Kamisato/ayato/domain"
 	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
 	"github.com/Hayao0819/Kamisato/ayato/stream"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/pkgfile"
+	pacmanpkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
 	pacmanrepo "github.com/Hayao0819/Kamisato/pkg/pacman/repo"
 )
 
@@ -157,7 +157,7 @@ func (r *binaryRepository) FetchFile(repo, arch, file string) (stream.File, erro
 			return nil, aerr
 		}
 	}
-	if arch == "any" || !pkgfile.IsAny(file) {
+	if arch == "any" || !pacmanpkg.IsAny(file) {
 		return f, err
 	}
 	if af, aerr := r.Store.FetchFile(repo, "any", file); aerr == nil {
@@ -190,7 +190,7 @@ func (r *binaryRepository) FetchFileWithMeta(repo, arch, file string) (stream.Fi
 			return nil, blob.FileMeta{}, aerr
 		}
 	}
-	if arch == "any" || !pkgfile.IsAny(file) {
+	if arch == "any" || !pacmanpkg.IsAny(file) {
 		return f, meta, err
 	}
 	if af, ameta, aerr := mf.FetchFileWithMeta(repo, "any", file); aerr == nil {
@@ -249,7 +249,7 @@ func (r *binaryRepository) StoreFileWithSignedURL(repo, arch, name string) (stri
 			return "", nil
 		}
 		name = overlay
-	} else if arch != "any" && pkgfile.IsAny(name) {
+	} else if arch != "any" && pacmanpkg.IsAny(name) {
 		arch = "any"
 	}
 	return r.Store.StoreFileWithSignedURL(repo, arch, name)

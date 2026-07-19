@@ -1,11 +1,11 @@
-package pkgfile
+package pkg
 
 import (
 	"errors"
 	"testing"
 )
 
-func TestParse(t *testing.T) {
+func TestParseArtifact(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
 		name        string
@@ -34,70 +34,67 @@ func TestParse(t *testing.T) {
 		{name: "backslash path", filename: `dir\foo-1.0-1-x86_64.pkg.tar.zst`},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
-			got, err := Parse(tt.filename)
-			wantOK := tt.wantArchive || tt.wantSig
+			artifact, err := ParseArtifact(test.filename)
+			wantOK := test.wantArchive || test.wantSig
 			if (err == nil) != wantOK {
-				t.Fatalf("Parse(%q) error = %v, want success %t", tt.filename, err, wantOK)
+				t.Fatalf("ParseArtifact(%q) error = %v, want success %t", test.filename, err, wantOK)
 			}
 			if !wantOK {
-				if !errors.Is(err, ErrInvalid) {
-					t.Fatalf("Parse(%q) error = %v, want ErrInvalid", tt.filename, err)
+				if !errors.Is(err, ErrInvalidArtifact) {
+					t.Fatalf("error = %v, want ErrInvalidArtifact", err)
 				}
 				return
 			}
-			if got.IsSignature() != tt.wantSig {
-				t.Errorf("IsSignature = %t, want %t", got.IsSignature(), tt.wantSig)
+			if artifact.IsSignature() != test.wantSig {
+				t.Errorf("IsSignature = %t, want %t", artifact.IsSignature(), test.wantSig)
 			}
-			if IsArchive(tt.filename) != tt.wantArchive {
-				t.Errorf("IsArchive(%q) = %t, want %t", tt.filename, IsArchive(tt.filename), tt.wantArchive)
+			if IsArchive(test.filename) != test.wantArchive {
+				t.Errorf("IsArchive(%q) = %t, want %t", test.filename, IsArchive(test.filename), test.wantArchive)
 			}
-			if !IsArtifact(tt.filename) {
-				t.Errorf("IsArtifact(%q) = false", tt.filename)
+			if !IsArtifact(test.filename) {
+				t.Errorf("IsArtifact(%q) = false", test.filename)
 			}
 		})
 	}
 }
 
-func TestCoordinates(t *testing.T) {
+func TestArtifactCoordinates(t *testing.T) {
 	t.Parallel()
-	file, err := Parse("python-foo-2:1.2.3-4-any.pkg.tar.zst.sig")
+	artifact, err := ParseArtifact("python-foo-2:1.2.3-4-any.pkg.tar.zst.sig")
 	if err != nil {
 		t.Fatal(err)
 	}
-	coords, err := file.Coordinates()
+	coordinates, err := artifact.Coordinates()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if coords.Name != "python-foo" || coords.Version != "2:1.2.3" ||
-		coords.Release != "4" || coords.Arch != "any" {
-		t.Fatalf("coordinates = %#v", coords)
+	if coordinates.Name != "python-foo" || coordinates.Version != "2:1.2.3" ||
+		coordinates.Release != "4" || coordinates.Arch != "any" {
+		t.Fatalf("coordinates = %#v", coordinates)
 	}
-	if !coords.IsAny() {
-		t.Error("IsAny = false")
+	if !coordinates.IsAny() || !IsAny(artifact.Filename()) {
+		t.Error("architecture-independent artifact was not recognized")
 	}
-	if !IsAny(file.Filename()) {
-		t.Error("IsAny(filename) = false")
-	}
-	if !coords.MatchesMetadata("python-foo", "2:1.2.3-4", "any") {
+	if !coordinates.MatchesMetadata("python-foo", "2:1.2.3-4", "any") {
 		t.Error("coordinates do not match equivalent PKGINFO")
 	}
-	if file.ArchiveFilename() != "python-foo-2:1.2.3-4-any.pkg.tar.zst" {
-		t.Errorf("ArchiveFilename = %q", file.ArchiveFilename())
+	if artifact.ArchiveFilename() != "python-foo-2:1.2.3-4-any.pkg.tar.zst" {
+		t.Errorf("ArchiveFilename = %q", artifact.ArchiveFilename())
 	}
-	if file.SignatureFilename() != file.Filename() {
-		t.Errorf("SignatureFilename = %q, want %q", file.SignatureFilename(), file.Filename())
+	if artifact.SignatureFilename() != artifact.Filename() {
+		t.Errorf("SignatureFilename = %q, want %q", artifact.SignatureFilename(), artifact.Filename())
 	}
 
-	legacy, err := Parse("python-foo-2_1.2.3-4-any.pkg.tar.zst")
+	legacy, err := ParseArtifact("python-foo-2_1.2.3-4-any.pkg.tar.zst")
 	if err != nil {
 		t.Fatal(err)
 	}
-	legacyCoords, err := legacy.Coordinates()
-	if err != nil || !legacyCoords.MatchesMetadata("python-foo", "2:1.2.3-4", "any") {
-		t.Errorf("legacy underscore epoch no longer matches metadata: coordinates=%+v error=%v", legacyCoords, err)
+	legacyCoordinates, err := legacy.Coordinates()
+	if err != nil || !legacyCoordinates.MatchesMetadata("python-foo", "2:1.2.3-4", "any") {
+		t.Errorf("legacy epoch mismatch: coordinates=%+v error=%v", legacyCoordinates, err)
 	}
 }
 
@@ -110,12 +107,12 @@ func TestCoordinatesRejectsUnstructuredArtifact(t *testing.T) {
 		"bad name-1-1-x86_64.pkg.tar.zst",
 		".hidden-1-1-x86_64.pkg.tar.zst",
 	} {
-		file, err := Parse(name)
+		artifact, err := ParseArtifact(name)
 		if err != nil {
-			t.Fatalf("Parse(%q): %v", name, err)
+			t.Fatalf("ParseArtifact(%q): %v", name, err)
 		}
-		if _, err := file.Coordinates(); !errors.Is(err, ErrInvalid) {
-			t.Errorf("Coordinates(%q) error = %v, want ErrInvalid", name, err)
+		if _, err := artifact.Coordinates(); !errors.Is(err, ErrInvalidArtifact) {
+			t.Errorf("Coordinates(%q) error = %v, want ErrInvalidArtifact", name, err)
 		}
 	}
 }
@@ -127,8 +124,7 @@ func TestSupportedArchiveSuffixesReturnsCopy(t *testing.T) {
 		t.Fatal("SupportedArchiveSuffixes returned no formats")
 	}
 	first[0] = ".changed"
-	second := SupportedArchiveSuffixes()
-	if second[0] == ".changed" {
+	if second := SupportedArchiveSuffixes(); second[0] == ".changed" {
 		t.Error("caller mutated the package suffix manifest")
 	}
 }

@@ -17,7 +17,6 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/limits"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/alpm"
 	pkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/pkgfile"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/sign"
 	"github.com/Hayao0819/Kamisato/pkg/raiou"
 )
@@ -175,7 +174,7 @@ func (s *Service) prepareUpload(repo string, files *domain.UploadFiles, kr *sign
 }
 
 func validatedPackageFilename(fileName string, pi *raiou.PKGINFO) (string, error) {
-	artifact, err := pkgfile.Parse(fileName)
+	artifact, err := pkg.ParseArtifact(fileName)
 	if err != nil || artifact.IsSignature() {
 		return "", fmt.Errorf("%w: invalid package filename %q", domain.ErrInvalidUpload, fileName)
 	}
@@ -689,7 +688,7 @@ func (s *Service) backfillAnyInto(repo, arch string, useSignedDB bool, gnupgDir 
 		}
 	}()
 	for _, f := range files {
-		if !pkgfile.IsArchive(f) {
+		if !pkg.IsArchive(f) {
 			continue
 		}
 		pkgFile, cleanup, err := s.spoolTierFile(repo, "any", f)

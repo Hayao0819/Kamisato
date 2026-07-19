@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 
 	"github.com/Hayao0819/Kamisato/pkg/atomicfile"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/pkgfile"
+	pacmanpkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
 )
 
 type fileState struct {
@@ -132,5 +132,5 @@ func moveFile(src, dst string) error {
 }
 
 func IsPackageFile(name string) bool {
-	return pkgfile.IsArchive(name)
+	return pacmanpkg.IsArchive(name)
 }

@@ -5,8 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-
-	"github.com/Hayao0819/Kamisato/pkg/pacman/pkgfile"
 )
 
 // MaxInlineSource caps the size of a build-dir file shipped inline. Larger files
@@ -30,7 +28,7 @@ func ReadInline(dir string, onSkipLarge func(name string, size int64)) (pkgbuild
 			continue
 		}
 		name := e.Name()
-		if name == ".SRCINFO" || strings.HasSuffix(name, ".log") || pkgfile.IsArtifact(name) {
+		if name == ".SRCINFO" || strings.HasSuffix(name, ".log") || IsArtifact(name) {
 			continue
 		}
 		if info, ierr := e.Info(); ierr == nil && name != "PKGBUILD" && info.Size() > MaxInlineSource {

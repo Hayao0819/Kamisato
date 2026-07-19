@@ -10,7 +10,7 @@ import (
 
 	"github.com/Hayao0819/Kamisato/ayato/domain"
 	"github.com/Hayao0819/Kamisato/internal/limits"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/pkgfile"
+	pacmanpkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
 )
 
 // BatchUploadHandler publishes several packages atomically (one RepoAddBatch per
@@ -64,7 +64,7 @@ func (h *PublicationHandler) BatchUploadHandler(ctx *gin.Context) {
 			))
 			return
 		}
-		artifact, err := pkgfile.Parse(signature.Filename)
+		artifact, err := pacmanpkg.ParseArtifact(signature.Filename)
 		if err != nil || !artifact.IsSignature() {
 			respondError(ctx, http.StatusBadRequest, fmt.Sprintf(
 				"signature %q must use the <package>.sig filename",
@@ -86,7 +86,7 @@ func (h *PublicationHandler) BatchUploadHandler(ctx *gin.Context) {
 
 	packageNames := make(map[string]bool, len(form.File["package"]))
 	for _, archive := range form.File["package"] {
-		artifact, err := pkgfile.Parse(archive.Filename)
+		artifact, err := pacmanpkg.ParseArtifact(archive.Filename)
 		if err != nil || artifact.IsSignature() {
 			respondError(ctx, http.StatusBadRequest, fmt.Sprintf(
 				"package %q has an invalid package filename",

@@ -18,7 +18,6 @@ import (
 	"github.com/Hayao0819/Kamisato/pkg/atomicfile"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/makepkgconf"
 	pacmanpkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/pkgfile"
 )
 
 // resolveServer resolves a named or default Ayato server.
@@ -232,7 +231,7 @@ func downloadBuilt(ctx context.Context, cfg *conf.ThomaConfig, buildAPI *client.
 // filenames are returned unchanged so the caller reports a useful non-match.
 func pkgName(filename string) string {
 	base := filepath.Base(filename)
-	file, err := pkgfile.Parse(base)
+	file, err := pacmanpkg.ParseArtifact(base)
 	if err != nil {
 		return base
 	}

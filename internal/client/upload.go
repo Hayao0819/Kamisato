@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/pkgfile"
+	pacmanpkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
 )
 
 func (c *Ayato) UploadPackageFiles(ctx context.Context, repo string, files ...string) error {
@@ -26,7 +26,7 @@ func uploadPackageFiles(ctx context.Context, requester *requester, repo string, 
 	packages := make([]string, 0, len(files))
 	packageSet := make(map[string]bool, len(files))
 	for _, file := range files {
-		artifact, err := pkgfile.Parse(filepath.Base(file))
+		artifact, err := pacmanpkg.ParseArtifact(filepath.Base(file))
 		if err != nil {
 			return errors.WrapErr(err, "invalid package artifact "+file)
 		}
@@ -39,7 +39,7 @@ func uploadPackageFiles(ctx context.Context, requester *requester, repo string, 
 		return errors.NewErr("no package files to upload")
 	}
 	for _, file := range files {
-		artifact, err := pkgfile.Parse(filepath.Base(file))
+		artifact, err := pacmanpkg.ParseArtifact(filepath.Base(file))
 		if err != nil {
 			return errors.WrapErr(err, "invalid package artifact "+file)
 		}

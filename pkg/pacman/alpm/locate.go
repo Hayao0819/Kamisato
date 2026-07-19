@@ -4,7 +4,7 @@ import (
 	"path/filepath"
 
 	"github.com/Hayao0819/Kamisato/pkg/pacman/makepkgconf"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/pkgfile"
+	pacmanpkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
 )
 
 // MakepkgPkgDest returns PKGDEST from makepkg.conf, where a `-U`-installed foreign
@@ -34,7 +34,7 @@ func FindCachedPackage(dirs []string, name, version string) (string, bool) {
 	for _, d := range dirs {
 		matches, _ := filepath.Glob(filepath.Join(d, name+"-*"))
 		for _, m := range matches {
-			file, err := pkgfile.Parse(filepath.Base(m))
+			file, err := pacmanpkg.ParseArtifact(filepath.Base(m))
 			if err != nil || file.IsSignature() {
 				continue
 			}

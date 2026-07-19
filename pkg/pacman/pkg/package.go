@@ -1,6 +1,6 @@
-// Package pkg models two kinds of packages as domain types: the build target
-// (SourcePackage) and the build output (BinaryPackage). Metadata parsing is
-// delegated to pkg/raiou.
+// Package pkg owns pacman package artifacts and their metadata: source build
+// targets, binary build outputs, package filename grammar, and archive
+// inspection. Metadata text parsing is delegated to pkg/raiou.
 package pkg
 
 import (

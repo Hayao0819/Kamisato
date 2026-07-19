@@ -13,7 +13,6 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/client"
 	"github.com/Hayao0819/Kamisato/internal/errors"
 	pkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/pkgfile"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/sign"
 )
@@ -140,7 +139,7 @@ func RunRemoteBuildLocalSign(ctx context.Context, o RemoteBuildOpts, keyPath, pa
 	defer func() { _ = os.RemoveAll(tmp) }()
 
 	for _, name := range names {
-		artifact, parseErr := pkgfile.Parse(name)
+		artifact, parseErr := pkg.ParseArtifact(name)
 		if parseErr != nil {
 			return errors.WrapErr(parseErr, "build returned invalid package artifact "+name)
 		}

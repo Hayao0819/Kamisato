@@ -7,7 +7,7 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/errors"
 
 	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/pkgfile"
+	pacmanpkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
 	pacmanrepo "github.com/Hayao0819/Kamisato/pkg/pacman/repo"
 )
 
@@ -48,7 +48,7 @@ func (s *Service) ReconcileOrphans(repo string, olderThan time.Duration, dryRun 
 			return nil, err
 		}
 		for name := range referenced {
-			if pkgfile.IsAny(name) {
+			if pacmanpkg.IsAny(name) {
 				anyReferenced[name] = struct{}{}
 			}
 		}
@@ -65,7 +65,7 @@ func (s *Service) ReconcileOrphans(repo string, olderThan time.Duration, dryRun 
 			if _, ok := referenced[info.Name]; ok {
 				continue
 			}
-			if !pkgfile.IsArtifact(info.Name) {
+			if !pacmanpkg.IsArtifact(info.Name) {
 				continue
 			}
 			if info.LastModified.IsZero() {
@@ -124,7 +124,7 @@ func (s *Service) reconcileAnyDir(repo string, anyReferenced map[string]struct{}
 		if _, ok := anyReferenced[info.Name]; ok {
 			continue
 		}
-		if !pkgfile.IsArtifact(info.Name) {
+		if !pacmanpkg.IsArtifact(info.Name) {
 			continue
 		}
 		if info.LastModified.IsZero() {

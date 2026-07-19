@@ -7,7 +7,7 @@ import (
 
 	"github.com/Hayao0819/nahi/exutils"
 
-	"github.com/Hayao0819/Kamisato/pkg/pacman/pkgfile"
+	pacmanpkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
 )
 
 // CleanPkgBinary owns the temp dir of packages downloaded by GetCleanPkgBinary;
@@ -69,7 +69,7 @@ func GetCleanPkgBinary(names ...string) ([]string, *CleanPkgBinary, error) {
 	var files []string
 	for _, e := range entries {
 		name := e.Name()
-		if e.IsDir() || !pkgfile.IsArchive(name) {
+		if e.IsDir() || !pacmanpkg.IsArchive(name) {
 			continue
 		}
 		files = append(files, path.Join(cachepath, name))
