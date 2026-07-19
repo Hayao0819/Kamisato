@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/internal/errors"
+	"github.com/Hayao0819/Kamisato/miko/domain"
 	"github.com/Hayao0819/Kamisato/pkg/aurweb"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/depend"
 )
@@ -30,14 +30,14 @@ func (s *Service) checkDepTrust(ctx context.Context, up maintainerLookup, dep de
 		return errors.WrapErr(err, "failed to look up AUR maintainer for "+dep.PackageBase)
 	}
 
-	switch s.cfg.AURTrust.Decide(dep.PackageBase, maintainer) {
-	case conf.AURTrustByPkgbase:
+	switch s.aurTrust.Decide(dep.PackageBase, maintainer) {
+	case domain.AURTrustByPkgbase:
 		slog.Info("AUR dependency trusted via pkgbase allowlist", "pkgbase", dep.PackageBase, "maintainer", maintainerLabel(maintainer))
 		return nil
-	case conf.AURTrustByMaintainer:
+	case domain.AURTrustByMaintainer:
 		slog.Info("AUR dependency trusted via maintainer", "pkgbase", dep.PackageBase, "maintainer", maintainer)
 		return nil
-	case conf.AURTrustUntrusted:
+	case domain.AURTrustUntrusted:
 		slog.Warn("building untrusted AUR dependency because allow_untrusted is set", "pkgbase", dep.PackageBase, "maintainer", maintainerLabel(maintainer))
 		return nil
 	default:

@@ -152,39 +152,6 @@ type AURTrustConfig struct {
 	AllowUntrusted bool `koanf:"allow_untrusted"`
 }
 
-// AURTrustDecision is the outcome of evaluating the trust policy for one dep.
-type AURTrustDecision int
-
-const (
-	// AURTrustBlocked means the dep is neither trusted nor allowed: fail closed.
-	AURTrustBlocked AURTrustDecision = iota
-	// AURTrustByPkgbase means the pkgbase is on the explicit allowlist.
-	AURTrustByPkgbase
-	// AURTrustByMaintainer means the maintainer is trusted.
-	AURTrustByMaintainer
-	// AURTrustUntrusted means the dep is untrusted but allowed via allow_untrusted.
-	AURTrustUntrusted
-)
-
-// Decide classifies an AUR dependency by pkgbase and maintainer. An empty
-// maintainer (orphaned package) is never trusted on its own — orphans are a
-// known takeover vector — so it can pass only via the pkgbase allowlist or
-// allow_untrusted.
-func (c AURTrustConfig) Decide(pkgbase, maintainer string) AURTrustDecision {
-	if slices.Contains(c.TrustedPkgbases, pkgbase) {
-		return AURTrustByPkgbase
-	}
-	if maintainer != "" && slices.ContainsFunc(c.TrustedMaintainers, func(m string) bool {
-		return strings.EqualFold(m, maintainer)
-	}) {
-		return AURTrustByMaintainer
-	}
-	if c.AllowUntrusted {
-		return AURTrustUntrusted
-	}
-	return AURTrustBlocked
-}
-
 func LoadMikoConfig(flags *pflag.FlagSet, configFile string) (*MikoConfig, error) {
 	loadDotEnv()
 	return loadTypedWithSourceTransforms[MikoConfig](

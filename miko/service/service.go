@@ -55,6 +55,7 @@ type Service struct {
 	// separate Ayato repository protocol and parsing policy.
 	httpClient   *http.Client
 	repositories RepositoryDBReader
+	aurTrust     domain.AURTrustPolicy
 
 	startedAt time.Time
 
@@ -89,10 +90,15 @@ func New(cfg *conf.MikoConfig, options ...ServiceOption) *Service {
 		uploader:     dependencies.uploader,
 		httpClient:   dependencies.httpClient,
 		repositories: dependencies.repositories,
-		store:        make(map[string]*domain.BuildJob),
-		running:      make(map[string]context.CancelFunc),
-		logs:         make(map[string]*joblog.Buffer),
-		startedAt:    time.Now(),
+		aurTrust: domain.NewAURTrustPolicy(domain.AURTrustPolicySpec{
+			TrustedMaintainers: cfg.AURTrust.TrustedMaintainers,
+			TrustedPkgbases:    cfg.AURTrust.TrustedPkgbases,
+			AllowUntrusted:     cfg.AURTrust.AllowUntrusted,
+		}),
+		store:     make(map[string]*domain.BuildJob),
+		running:   make(map[string]context.CancelFunc),
+		logs:      make(map[string]*joblog.Buffer),
+		startedAt: time.Now(),
 	}
 	if dependencies.persister != nil {
 		s.restore()
