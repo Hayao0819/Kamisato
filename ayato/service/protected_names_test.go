@@ -1,13 +1,10 @@
 package service_test
 
 import (
-	"archive/tar"
-	"bytes"
 	"testing"
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
 
-	"github.com/klauspost/compress/zstd"
 	"go.uber.org/mock/gomock"
 
 	"github.com/Hayao0819/Kamisato/ayato/domain"
@@ -17,36 +14,6 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
 )
-
-// pkgWithFields builds a foo-1.0-1 .pkg.tar.zst whose .PKGINFO carries the given
-// pkgname plus extra raw lines (provides/replaces/group entries).
-func pkgWithFields(t *testing.T, pkgname, extra string) []byte {
-	t.Helper()
-	body := "pkgname = " + pkgname + "\npkgver = 1.0-1\narch = x86_64\n" + extra
-	var tarBuf bytes.Buffer
-	tw := tar.NewWriter(&tarBuf)
-	if err := tw.WriteHeader(&tar.Header{Name: ".PKGINFO", Mode: 0o644, Size: int64(len(body))}); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := tw.Write([]byte(body)); err != nil {
-		t.Fatal(err)
-	}
-	if err := tw.Close(); err != nil {
-		t.Fatal(err)
-	}
-	var zBuf bytes.Buffer
-	zw, err := zstd.NewWriter(&zBuf)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := zw.Write(tarBuf.Bytes()); err != nil {
-		t.Fatal(err)
-	}
-	if err := zw.Close(); err != nil {
-		t.Fatal(err)
-	}
-	return zBuf.Bytes()
-}
 
 func protectedConfig(names ...string) *conf.AyatoConfig {
 	return &conf.AyatoConfig{
@@ -78,7 +45,10 @@ func TestUploadFile_ProtectedNameCollision(t *testing.T) {
 
 			svc := service.New(name, bin, nil, nil, protectedConfig("pacman", "glibc", "base"))
 			fileName := tc.pkgname + "-1.0-1-x86_64.pkg.tar.zst"
-			files := &domain.UploadFiles{PkgFile: pkgStream(fileName, pkgWithFields(t, tc.pkgname, tc.extra))}
+			files := &domain.UploadFiles{PkgFile: pkgStream(
+				fileName,
+				buildPackage(t, tc.pkgname, "1.0-1", "x86_64", withPKGINFO(tc.extra)),
+			)}
 			err := svc.UploadFile("myrepo", files)
 			if !errors.Is(err, domain.ErrConflict) {
 				t.Fatalf("a protected-name collision must be ErrConflict, got %v", err)
@@ -101,7 +71,10 @@ func TestUploadFile_ProtectedNamesAllowNonCollision(t *testing.T) {
 
 	svc := service.New(name, bin, nil, nil, protectedConfig("pacman", "glibc"))
 	// foo provides a lookalike-but-distinct name; nothing collides with the list.
-	files := &domain.UploadFiles{PkgFile: pkgStream(uploadName, pkgWithFields(t, "foo", "provides = libfoo.so=1-64\n"))}
+	files := &domain.UploadFiles{PkgFile: pkgStream(
+		uploadName,
+		buildPackage(t, "foo", "1.0-1", "x86_64", withPKGINFO("provides = libfoo.so=1-64\n")),
+	)}
 	if err := svc.UploadFile("myrepo", files); err != nil {
 		t.Fatalf("a non-colliding package must be accepted: %v", err)
 	}

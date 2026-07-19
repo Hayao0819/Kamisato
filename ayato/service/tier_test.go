@@ -50,7 +50,9 @@ func newTieredService(t *testing.T, repos []conf.BinRepoConfig) (*service.Servic
 func uploadPkg(t *testing.T, svc *service.Service, repo, pkgname string) {
 	t.Helper()
 	fname := pkgname + "-1.0-1-x86_64.pkg.tar.zst"
-	files := &domain.UploadFiles{PkgFile: pkgStream(fname, buildNamedPkg(t, pkgname))}
+	files := &domain.UploadFiles{
+		PkgFile: pkgStream(fname, buildPackage(t, pkgname, "1.0-1", "x86_64")),
+	}
 	if err := svc.UploadFile(repo, files); err != nil {
 		t.Fatalf("upload %s to %s: %v", pkgname, repo, err)
 	}

@@ -1,8 +1,6 @@
 package service_test
 
 import (
-	"archive/tar"
-	"bytes"
 	"context"
 	"net/http"
 	"net/http/httptest"
@@ -12,42 +10,11 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/klauspost/compress/zstd"
-
 	"github.com/Hayao0819/Kamisato/ayato/domain"
 	"github.com/Hayao0819/Kamisato/ayato/service"
 	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
 )
-
-// buildVersionedPkg returns a .pkg.tar.zst with a chosen pkgname and pkgver.
-func buildVersionedPkg(t *testing.T, name, ver string) []byte {
-	t.Helper()
-	body := "pkgname = " + name + "\npkgver = " + ver + "\narch = x86_64\nxdata = pkgtype=pkg\n"
-	var tarBuf bytes.Buffer
-	tw := tar.NewWriter(&tarBuf)
-	if err := tw.WriteHeader(&tar.Header{Name: ".PKGINFO", Mode: 0o644, Size: int64(len(body))}); err != nil {
-		t.Fatalf("tar header: %v", err)
-	}
-	if _, err := tw.Write([]byte(body)); err != nil {
-		t.Fatalf("tar write: %v", err)
-	}
-	if err := tw.Close(); err != nil {
-		t.Fatalf("tar close: %v", err)
-	}
-	var zBuf bytes.Buffer
-	zw, err := zstd.NewWriter(&zBuf)
-	if err != nil {
-		t.Fatalf("zstd writer: %v", err)
-	}
-	if _, err := zw.Write(tarBuf.Bytes()); err != nil {
-		t.Fatalf("zstd write: %v", err)
-	}
-	if err := zw.Close(); err != nil {
-		t.Fatalf("zstd close: %v", err)
-	}
-	return zBuf.Bytes()
-}
 
 type pkgSpec struct{ name, ver string }
 
@@ -60,7 +27,7 @@ func buildRepoDB(t *testing.T, repoName string, pkgs []pkgSpec) (dbGz, filesGz [
 	for _, p := range pkgs {
 		fname := p.name + "-" + p.ver + "-x86_64.pkg.tar.zst"
 		fp := filepath.Join(dir, fname)
-		if err := os.WriteFile(fp, buildVersionedPkg(t, p.name, p.ver), 0o644); err != nil {
+		if err := os.WriteFile(fp, buildPackage(t, p.name, p.ver, "x86_64"), 0o644); err != nil {
 			t.Fatalf("write pkg: %v", err)
 		}
 		paths = append(paths, fp)
@@ -271,7 +238,7 @@ func TestSyncUpstreamRejectsOversizedResponse(t *testing.T) {
 func uploadVersioned(t *testing.T, svc *service.Service, repo, name, ver string) {
 	t.Helper()
 	fname := name + "-" + ver + "-x86_64.pkg.tar.zst"
-	files := &domain.UploadFiles{PkgFile: pkgStream(fname, buildVersionedPkg(t, name, ver))}
+	files := &domain.UploadFiles{PkgFile: pkgStream(fname, buildPackage(t, name, ver, "x86_64"))}
 	if err := svc.UploadFile(repo, files); err != nil {
 		t.Fatalf("upload %s %s: %v", name, ver, err)
 	}

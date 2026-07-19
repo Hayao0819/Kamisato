@@ -1,7 +1,6 @@
 package service_test
 
 import (
-	"archive/tar"
 	"bytes"
 	"os"
 	"path/filepath"
@@ -11,7 +10,6 @@ import (
 
 	"github.com/ProtonMail/go-crypto/openpgp"
 	"github.com/ProtonMail/go-crypto/openpgp/packet"
-	"github.com/klauspost/compress/zstd"
 	"go.uber.org/mock/gomock"
 
 	"github.com/Hayao0819/Kamisato/ayato/domain"
@@ -32,42 +30,6 @@ func remoteWith(pkgname, version string) *repo.RemoteRepo {
 		pkgpkg.NewBinaryPackage(pkgname+"-"+version+"-x86_64.pkg.tar.zst",
 			&raiou.PKGINFO{PkgName: pkgname, Arch: "x86_64", PkgVer: version}),
 	}}
-}
-
-const pkginfoBody = "pkgname = foo\n" +
-	"pkgver = 1.0-1\n" +
-	"arch = x86_64\n" +
-	"xdata = pkgtype=pkg\n"
-
-// buildPkgArchive returns a .pkg.tar.zst with a minimal .PKGINFO so
-// ReadBinaryPackage can parse name/ver/arch.
-func buildPkgArchive(t *testing.T) []byte {
-	t.Helper()
-	var tarBuf bytes.Buffer
-	tw := tar.NewWriter(&tarBuf)
-	hdr := &tar.Header{Name: ".PKGINFO", Mode: 0o644, Size: int64(len(pkginfoBody))}
-	if err := tw.WriteHeader(hdr); err != nil {
-		t.Fatalf("tar header: %v", err)
-	}
-	if _, err := tw.Write([]byte(pkginfoBody)); err != nil {
-		t.Fatalf("tar write: %v", err)
-	}
-	if err := tw.Close(); err != nil {
-		t.Fatalf("tar close: %v", err)
-	}
-
-	var zBuf bytes.Buffer
-	zw, err := zstd.NewWriter(&zBuf)
-	if err != nil {
-		t.Fatalf("zstd writer: %v", err)
-	}
-	if _, err := zw.Write(tarBuf.Bytes()); err != nil {
-		t.Fatalf("zstd write: %v", err)
-	}
-	if err := zw.Close(); err != nil {
-		t.Fatalf("zstd close: %v", err)
-	}
-	return zBuf.Bytes()
 }
 
 func newSigner(t *testing.T) *openpgp.Entity {
@@ -130,7 +92,7 @@ func TestUploadFile_RequireSignNoSig(t *testing.T) {
 	// No StoreFile / RepoAdd / StorePackageFile must be called.
 
 	svc := service.New(name, bin, nil, nil, baseConfig(true, keyring))
-	files := &domain.UploadFiles{PkgFile: pkgStream(uploadName, buildPkgArchive(t))}
+	files := &domain.UploadFiles{PkgFile: pkgStream(uploadName, buildPackage(t, "foo", "1.0-1", "x86_64"))}
 	err := svc.UploadFile("myrepo", files)
 	if err == nil {
 		t.Fatal("expected error when RequireSign and no signature, got nil")
@@ -149,7 +111,7 @@ func TestUploadFile_BadSigRejected(t *testing.T) {
 			signer := newSigner(t)
 			other := newSigner(t)
 			keyring := writeKeyring(t, signer)
-			payload := buildPkgArchive(t)
+			payload := buildPackage(t, "foo", "1.0-1", "x86_64")
 			// signature made by a key NOT in the keyring -> untrusted/unknown.
 			badSig := detachSignBytes(t, other, payload)
 
@@ -181,7 +143,7 @@ func TestUploadFile_GoodSigStoresTwice(t *testing.T) {
 
 	signer := newSigner(t)
 	keyring := writeKeyring(t, signer)
-	payload := buildPkgArchive(t)
+	payload := buildPackage(t, "foo", "1.0-1", "x86_64")
 	sig := detachSignBytes(t, signer, payload)
 
 	bin := mocks.NewMockBinaryRepository(ctrl)
@@ -211,46 +173,32 @@ func TestUploadFile_GoodSigStoresTwice(t *testing.T) {
 	}
 }
 
-func TestUploadFile_DowngradeRejected(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
+func TestUploadFile_RejectsNonUpgrade(t *testing.T) {
+	for _, test := range []struct {
+		name           string
+		currentVersion string
+	}{
+		{name: "downgrade", currentVersion: "2.0-1"},
+		{name: "duplicate", currentVersion: "1.0-1"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
 
-	bin := mocks.NewMockBinaryRepository(ctrl)
-	name := mocks.NewMockNameStore(ctrl)
-	bin.EXPECT().VerifyPkgRepo("myrepo").Return(nil)
-	// foo 2.0-1 is already published; the upload is the older 1.0-1.
-	bin.EXPECT().RemoteRepo("myrepo", "x86_64").Return(remoteWith("foo", "2.0-1"), nil)
-	// No StoreFile / RepoAddBatch / StorePackageFile must be called.
+			bin := mocks.NewMockBinaryRepository(ctrl)
+			name := mocks.NewMockNameStore(ctrl)
+			bin.EXPECT().VerifyPkgRepo("myrepo").Return(nil)
+			bin.EXPECT().RemoteRepo("myrepo", "x86_64").Return(remoteWith("foo", test.currentVersion), nil)
 
-	svc := service.New(name, bin, nil, nil, baseConfig(false, ""))
-	files := &domain.UploadFiles{PkgFile: pkgStream(uploadName, buildPkgArchive(t))}
-	err := svc.UploadFile("myrepo", files)
-	if err == nil {
-		t.Fatal("expected a downgrade to be rejected, got nil")
-	}
-	if !errors.Is(err, domain.ErrInvalidUpload) {
-		t.Fatalf("downgrade must be a client error (ErrInvalidUpload), got %v", err)
-	}
-}
-
-func TestUploadFile_DuplicateRejected(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	bin := mocks.NewMockBinaryRepository(ctrl)
-	name := mocks.NewMockNameStore(ctrl)
-	bin.EXPECT().VerifyPkgRepo("myrepo").Return(nil)
-	// The same version 1.0-1 is already published.
-	bin.EXPECT().RemoteRepo("myrepo", "x86_64").Return(remoteWith("foo", "1.0-1"), nil)
-
-	svc := service.New(name, bin, nil, nil, baseConfig(false, ""))
-	files := &domain.UploadFiles{PkgFile: pkgStream(uploadName, buildPkgArchive(t))}
-	err := svc.UploadFile("myrepo", files)
-	if err == nil {
-		t.Fatal("expected a duplicate version to be rejected, got nil")
-	}
-	if !errors.Is(err, domain.ErrInvalidUpload) {
-		t.Fatalf("duplicate must be a client error (ErrInvalidUpload), got %v", err)
+			svc := service.New(name, bin, nil, nil, baseConfig(false, ""))
+			files := &domain.UploadFiles{
+				PkgFile: pkgStream(uploadName, buildPackage(t, "foo", "1.0-1", "x86_64")),
+			}
+			err := svc.UploadFile("myrepo", files)
+			if !errors.Is(err, domain.ErrInvalidUpload) {
+				t.Fatalf("%s = %v, want ErrInvalidUpload", test.name, err)
+			}
+		})
 	}
 }
 
@@ -263,7 +211,7 @@ func TestUploadFile_FilenameMustMatchPackageMetadata(t *testing.T) {
 	bin.EXPECT().VerifyPkgRepo("myrepo").Return(nil)
 	svc := service.New(name, bin, nil, nil, baseConfig(false, ""))
 	err := svc.UploadFile("myrepo", &domain.UploadFiles{
-		PkgFile: pkgStream(uploadName, buildRollbackPkg(t, "evil", "1.0-1", "x86_64")),
+		PkgFile: pkgStream(uploadName, buildPackage(t, "evil", "1.0-1", "x86_64")),
 	})
 	if !errors.Is(err, domain.ErrInvalidUpload) {
 		t.Fatalf("filename/metadata mismatch = %v, want ErrInvalidUpload", err)
@@ -279,14 +227,14 @@ func TestUploadFile_UpgradeAccepted(t *testing.T) {
 	bin.EXPECT().VerifyPkgRepo("myrepo").Return(nil)
 	// The published 0.9-1 is older than the uploaded 1.0-1, so it is accepted.
 	bin.EXPECT().RemoteRepo("myrepo", "x86_64").Return(remoteWith("foo", "0.9-1"), nil)
-	bin.EXPECT().FetchFile("myrepo", "x86_64", "foo-0.9-1-x86_64.pkg.tar.zst").Return(pkgStream("foo-0.9-1-x86_64.pkg.tar.zst", buildPkgArchive(t)), nil)
+	bin.EXPECT().FetchFile("myrepo", "x86_64", "foo-0.9-1-x86_64.pkg.tar.zst").Return(pkgStream("foo-0.9-1-x86_64.pkg.tar.zst", buildPackage(t, "foo", "0.9-1", "x86_64")), nil)
 	bin.EXPECT().FetchFile("myrepo", "x86_64", "foo-0.9-1-x86_64.pkg.tar.zst.sig").Return(nil, blob.ErrNotFound)
 	bin.EXPECT().StoreFileImmutable("myrepo", "x86_64", gomock.Any()).Return(true, nil)
 	bin.EXPECT().RepoAddBatch("myrepo", "x86_64", gomock.Any(), false, gomock.Nil()).Return(nil)
 	name.EXPECT().StorePackageFiles("myrepo", []repository.PackageFileEntry{{Arch: "x86_64", Name: "foo", FileName: uploadName}}).Return(nil)
 
 	svc := service.New(name, bin, nil, nil, baseConfig(false, ""))
-	files := &domain.UploadFiles{PkgFile: pkgStream(uploadName, buildPkgArchive(t))}
+	files := &domain.UploadFiles{PkgFile: pkgStream(uploadName, buildPackage(t, "foo", "1.0-1", "x86_64"))}
 	if err := svc.UploadFile("myrepo", files); err != nil {
 		t.Fatalf("an upgrade should be accepted: %v", err)
 	}
@@ -301,7 +249,7 @@ func TestUploadFile_NameStoreFailureRestoresPreviousVersion(t *testing.T) {
 	oldName := "foo-0.9-1-x86_64.pkg.tar.zst"
 	bin.EXPECT().VerifyPkgRepo("myrepo").Return(nil)
 	bin.EXPECT().RemoteRepo("myrepo", "x86_64").Return(remoteWith("foo", "0.9-1"), nil)
-	bin.EXPECT().FetchFile("myrepo", "x86_64", oldName).Return(pkgStream(oldName, buildPkgArchive(t)), nil)
+	bin.EXPECT().FetchFile("myrepo", "x86_64", oldName).Return(pkgStream(oldName, buildPackage(t, "foo", "0.9-1", "x86_64")), nil)
 	bin.EXPECT().FetchFile("myrepo", "x86_64", oldName+".sig").Return(nil, blob.ErrNotFound)
 	storeCalls := 0
 	bin.EXPECT().StoreFileImmutable("myrepo", "x86_64", gomock.Any()).DoAndReturn(
@@ -336,7 +284,7 @@ func TestUploadFile_NameStoreFailureRestoresPreviousVersion(t *testing.T) {
 	name.EXPECT().StorePackageFiles("myrepo", []repository.PackageFileEntry{{Arch: "x86_64", Name: "foo", FileName: oldName}}).Return(nil)
 
 	svc := service.New(name, bin, nil, nil, baseConfig(false, ""))
-	files := &domain.UploadFiles{PkgFile: pkgStream(uploadName, buildPkgArchive(t))}
+	files := &domain.UploadFiles{PkgFile: pkgStream(uploadName, buildPackage(t, "foo", "1.0-1", "x86_64"))}
 	if err := svc.UploadFile("myrepo", files); err == nil {
 		t.Fatal("expected name-store failure")
 	}
@@ -354,7 +302,7 @@ func TestUploadFile_DBFailureLeavesImmutableObjectsForReconcile(t *testing.T) {
 
 	signer := newSigner(t)
 	keyring := writeKeyring(t, signer)
-	payload := buildPkgArchive(t)
+	payload := buildPackage(t, "foo", "1.0-1", "x86_64")
 	sig := detachSignBytes(t, signer, payload)
 
 	bin := mocks.NewMockBinaryRepository(ctrl)
@@ -383,7 +331,7 @@ func TestUploadFile_AtomicPackageStoreFailureReturns(t *testing.T) {
 	bin.EXPECT().RemoteRepo("myrepo", "x86_64").Return(&repo.RemoteRepo{}, nil)
 	bin.EXPECT().StoreFileImmutable("myrepo", "x86_64", gomock.Any()).Return(false, errors.New("atomic object write failed"))
 	svc := service.New(name, bin, nil, nil, baseConfig(false, ""))
-	if err := svc.UploadFile("myrepo", &domain.UploadFiles{PkgFile: pkgStream(uploadName, buildPkgArchive(t))}); err == nil {
+	if err := svc.UploadFile("myrepo", &domain.UploadFiles{PkgFile: pkgStream(uploadName, buildPackage(t, "foo", "1.0-1", "x86_64"))}); err == nil {
 		t.Fatal("package store failure was reported as success")
 	}
 }
@@ -397,7 +345,7 @@ func TestUploadFile_ImmutableContentConflictStopsBeforeDBMutation(t *testing.T) 
 	bin.EXPECT().RemoteRepo("myrepo", "x86_64").Return(&repo.RemoteRepo{}, nil)
 	bin.EXPECT().StoreFileImmutable("myrepo", "x86_64", gomock.Any()).Return(false, repository.ErrImmutableObjectConflict)
 	svc := service.New(name, bin, nil, nil, baseConfig(false, ""))
-	err := svc.UploadFile("myrepo", &domain.UploadFiles{PkgFile: pkgStream(uploadName, buildPkgArchive(t))})
+	err := svc.UploadFile("myrepo", &domain.UploadFiles{PkgFile: pkgStream(uploadName, buildPackage(t, "foo", "1.0-1", "x86_64"))})
 	if !errors.Is(err, domain.ErrConflict) {
 		t.Fatalf("immutable object conflict = %v, want ErrConflict", err)
 	}
@@ -407,7 +355,7 @@ func TestUploadFile_AtomicSignatureStoreFailureReturns(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	signer := newSigner(t)
-	payload := buildPkgArchive(t)
+	payload := buildPackage(t, "foo", "1.0-1", "x86_64")
 	sig := detachSignBytes(t, signer, payload)
 	bin := mocks.NewMockBinaryRepository(ctrl)
 	name := mocks.NewMockNameStore(ctrl)
@@ -440,7 +388,7 @@ func TestUploadFile_DerivedArtifactFailureCompensatesCanonicalCommit(t *testing.
 	bin.EXPECT().RepoRemoveIfMatch("myrepo", "x86_64", "foo", "1.0-1", uploadName, false, gomock.Nil()).Return(&repository.CanonicalCommitError{Err: errors.New("rollback files artifact failed")})
 	bin.EXPECT().ReconcileDB("myrepo", "x86_64", false, gomock.Nil()).Return(nil)
 	svc := service.New(name, bin, nil, nil, baseConfig(false, ""))
-	if err := svc.UploadFile("myrepo", &domain.UploadFiles{PkgFile: pkgStream(uploadName, buildPkgArchive(t))}); err == nil {
+	if err := svc.UploadFile("myrepo", &domain.UploadFiles{PkgFile: pkgStream(uploadName, buildPackage(t, "foo", "1.0-1", "x86_64"))}); err == nil {
 		t.Fatal("derived artifact failure was reported as success")
 	}
 }
@@ -450,40 +398,6 @@ func boolStr(b bool) string {
 		return "true"
 	}
 	return "false"
-}
-
-// buildNamedPkg is buildPkgArchive with a chosen pkgname, for multi-package batch
-// tests.
-func buildNamedPkg(t *testing.T, name string) []byte {
-	return buildRollbackPkg(t, name, "1.0-1", "x86_64")
-}
-
-func buildRollbackPkg(t *testing.T, name, version, arch string) []byte {
-	t.Helper()
-	body := "pkgname = " + name + "\npkgver = " + version + "\narch = " + arch + "\nxdata = pkgtype=pkg\n"
-	var tarBuf bytes.Buffer
-	tw := tar.NewWriter(&tarBuf)
-	if err := tw.WriteHeader(&tar.Header{Name: ".PKGINFO", Mode: 0o644, Size: int64(len(body))}); err != nil {
-		t.Fatalf("tar header: %v", err)
-	}
-	if _, err := tw.Write([]byte(body)); err != nil {
-		t.Fatalf("tar write: %v", err)
-	}
-	if err := tw.Close(); err != nil {
-		t.Fatalf("tar close: %v", err)
-	}
-	var zBuf bytes.Buffer
-	zw, err := zstd.NewWriter(&zBuf)
-	if err != nil {
-		t.Fatalf("zstd writer: %v", err)
-	}
-	if _, err := zw.Write(tarBuf.Bytes()); err != nil {
-		t.Fatalf("zstd write: %v", err)
-	}
-	if err := zw.Close(); err != nil {
-		t.Fatalf("zstd close: %v", err)
-	}
-	return zBuf.Bytes()
 }
 
 func TestUploadFiles_SecondArchFailureRestoresFirstArch(t *testing.T) {
@@ -501,7 +415,7 @@ func TestUploadFiles_SecondArchFailureRestoresFirstArch(t *testing.T) {
 	bin.EXPECT().Arches("myrepo").Return([]string{"x86_64", "aarch64"}, nil).AnyTimes()
 	bin.EXPECT().RemoteRepo("myrepo", "x86_64").Return(oldRepo, nil)
 	bin.EXPECT().RemoteRepo("myrepo", "aarch64").Return(oldRepo, nil)
-	bin.EXPECT().FetchFile("myrepo", "any", oldName).Return(pkgStream(oldName, buildRollbackPkg(t, "foo", "0.9-1", "any")), nil)
+	bin.EXPECT().FetchFile("myrepo", "any", oldName).Return(pkgStream(oldName, buildPackage(t, "foo", "0.9-1", "any")), nil)
 	bin.EXPECT().FetchFile("myrepo", "any", oldName+".sig").Return(nil, blob.ErrNotFound)
 	storeCalls := 0
 	bin.EXPECT().StoreFileImmutable("myrepo", "any", gomock.Any()).DoAndReturn(
@@ -533,7 +447,7 @@ func TestUploadFiles_SecondArchFailureRestoresFirstArch(t *testing.T) {
 	bin.EXPECT().RepoAddBatch("myrepo", "aarch64", gomock.Any(), false, gomock.Nil()).Return(errors.New("aarch64 commit failed"))
 
 	svc := service.New(name, bin, nil, nil, cfg)
-	files := []*domain.UploadFiles{{PkgFile: pkgStream("foo-1.0-1-any.pkg.tar.zst", buildRollbackPkg(t, "foo", "1.0-1", "any"))}}
+	files := []*domain.UploadFiles{{PkgFile: pkgStream("foo-1.0-1-any.pkg.tar.zst", buildPackage(t, "foo", "1.0-1", "any"))}}
 	if err := svc.UploadFiles("myrepo", files); err == nil {
 		t.Fatal("expected second-arch commit failure")
 	}
@@ -561,8 +475,8 @@ func TestUploadFiles_KeyringBuiltOncePerBatch(t *testing.T) {
 
 	signer := newSigner(t)
 	keyring := writeKeyring(t, signer)
-	fooPayload := buildNamedPkg(t, "foo")
-	barPayload := buildNamedPkg(t, "bar")
+	fooPayload := buildPackage(t, "foo", "1.0-1", "x86_64")
+	barPayload := buildPackage(t, "bar", "1.0-1", "x86_64")
 	fooSig := detachSignBytes(t, signer, fooPayload)
 	barSig := detachSignBytes(t, signer, barPayload)
 
@@ -611,8 +525,8 @@ func TestUploadFiles_BatchOneRepoAddPerArch(t *testing.T) {
 
 	svc := service.New(name, bin, nil, nil, baseConfig(false, ""))
 	files := []*domain.UploadFiles{
-		{PkgFile: pkgStream("foo-1.0-1-x86_64.pkg.tar.zst", buildNamedPkg(t, "foo"))},
-		{PkgFile: pkgStream("bar-1.0-1-x86_64.pkg.tar.zst", buildNamedPkg(t, "bar"))},
+		{PkgFile: pkgStream("foo-1.0-1-x86_64.pkg.tar.zst", buildPackage(t, "foo", "1.0-1", "x86_64"))},
+		{PkgFile: pkgStream("bar-1.0-1-x86_64.pkg.tar.zst", buildPackage(t, "bar", "1.0-1", "x86_64"))},
 	}
 	if err := svc.UploadFiles("myrepo", files); err != nil {
 		t.Fatalf("UploadFiles: %v", err)
@@ -633,13 +547,13 @@ func TestUploadFiles_RejectsSamePackageTwicePerArch(t *testing.T) {
 		{
 			PkgFile: pkgStream(
 				"foo-1.0-1-x86_64.pkg.tar.zst",
-				buildRollbackPkg(t, "foo", "1.0-1", "x86_64"),
+				buildPackage(t, "foo", "1.0-1", "x86_64"),
 			),
 		},
 		{
 			PkgFile: pkgStream(
 				"foo-1.1-1-x86_64.pkg.tar.zst",
-				buildRollbackPkg(t, "foo", "1.1-1", "x86_64"),
+				buildPackage(t, "foo", "1.1-1", "x86_64"),
 			),
 		},
 	})
@@ -666,8 +580,8 @@ func TestUploadFiles_PostCanonicalSupersessionCompensatesOwnedPackages(t *testin
 
 	svc := service.New(name, bin, nil, nil, baseConfig(false, ""))
 	err := svc.UploadFiles("myrepo", []*domain.UploadFiles{
-		{PkgFile: pkgStream("foo-1.0-1-x86_64.pkg.tar.zst", buildNamedPkg(t, "foo"))},
-		{PkgFile: pkgStream("bar-1.0-1-x86_64.pkg.tar.zst", buildNamedPkg(t, "bar"))},
+		{PkgFile: pkgStream("foo-1.0-1-x86_64.pkg.tar.zst", buildPackage(t, "foo", "1.0-1", "x86_64"))},
+		{PkgFile: pkgStream("bar-1.0-1-x86_64.pkg.tar.zst", buildPackage(t, "bar", "1.0-1", "x86_64"))},
 	})
 	if !errors.Is(err, domain.ErrConflict) {
 		t.Fatalf("superseded batch = %v, want ErrConflict", err)
