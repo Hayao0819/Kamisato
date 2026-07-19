@@ -2,13 +2,20 @@
   "debug": true,
   "port": 8080,
   "max_size": 1000000000,
+  "max_batch_packages": 16,
+  "max_batch_bytes": 2147483648,
   "auth": {
-    "username": "ayato",
-    "password": "password",
+    "github": {
+      "client_id": "github-oauth-client-id",
+      "client_secret": "github-oauth-client-secret"
+    },
+    "public_origin": "https://repo.example.com",
+    "session_secret": ["replace-with-at-least-32-random-bytes"],
+    "bootstrap_admin_github_id": 123456,
     "trusted_proxies": ["172.16.0.0/12"],
     "ci": {
       "api_keys": [
-        { "name": "myrepo-ci", "key": "example-ci-key", "publish_repos": ["myrepo"] }
+        { "name": "miko-worker", "key": "example-ci-key", "publish_repos": ["myrepo"], "scopes": ["signer:register"] }
       ],
       "github_oidc": {
         "enabled": false,

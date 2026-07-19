@@ -18,11 +18,14 @@
     "resolve_aur_deps": false,
     "aur_rpc_url": ""
   },
-  "api_keys": ["example-build-key"],
+  "auth": {
+    "api_keys": [
+      { "name": "ayato-proxy", "key": "example-build-key", "scopes": ["build:admin"] }
+    ]
+  },
   "ayato": {
     "url": "http://ayato:8080",
-    "username": "ayato",
-    "password": "password"
+    "api_key": "example-ci-key"
   },
   "data_dir": "/data/jobs"
 }

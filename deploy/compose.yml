@@ -3,7 +3,7 @@
 # on every proxied call. ayato publishes on 127.0.0.1 only — Docker's DNAT runs
 # ahead of the host firewall, so "9000:9000" would face the internet even under
 # ufw deny; front it with a TLS reverse proxy. A generated config gives both
-# services the same build API key and package-size policy.
+# services direction-specific API keys and the same package-size policy.
 
 services:
   ayato:
@@ -19,15 +19,24 @@ services:
       AYATO_PORT: "9000"
       AYATO_MIKO_URL: "http://miko:8081"
       AYATO_MIKO_API_KEY: "${KAMISATO_BUILD_API_KEY:?set KAMISATO_BUILD_API_KEY}"
+      KAMISATO_PUBLISH_API_KEY: "${KAMISATO_PUBLISH_API_KEY:?set KAMISATO_PUBLISH_API_KEY}"
+      KAMISATO_REPO: "${KAMISATO_REPO:-aur}"
       KAMISATO_MAX_PACKAGE_SIZE: "${KAMISATO_MAX_PACKAGE_SIZE:-536870912}"
-      AYATO_AUTH_USERNAME: "${AYATO_AUTH_USERNAME:-ayato}"
-      AYATO_AUTH_PASSWORD: "${AYATO_AUTH_PASSWORD:?set AYATO_AUTH_PASSWORD}"
+      KAMISATO_MAX_BATCH_PACKAGES: "${KAMISATO_MAX_BATCH_PACKAGES:-16}"
+      KAMISATO_MAX_BATCH_BYTES: "${KAMISATO_MAX_BATCH_BYTES:-2147483648}"
+      AYATO_AUTH_GITHUB_CLIENT_ID: "${AYATO_AUTH_GITHUB_CLIENT_ID:?set AYATO_AUTH_GITHUB_CLIENT_ID}"
+      AYATO_AUTH_GITHUB_CLIENT_SECRET: "${AYATO_AUTH_GITHUB_CLIENT_SECRET:?set AYATO_AUTH_GITHUB_CLIENT_SECRET}"
+      AYATO_AUTH_PUBLIC_ORIGIN: "${AYATO_AUTH_PUBLIC_ORIGIN:?set AYATO_AUTH_PUBLIC_ORIGIN}"
+      AYATO_AUTH_SESSION_SECRET: "${AYATO_AUTH_SESSION_SECRET:?set AYATO_AUTH_SESSION_SECRET}"
+      AYATO_AUTH_BOOTSTRAP_ADMIN_GITHUB_ID: "${AYATO_AUTH_BOOTSTRAP_ADMIN_GITHUB_ID:?set AYATO_AUTH_BOOTSTRAP_ADMIN_GITHUB_ID}"
+      AYATO_AUTH_TRUSTED_PROXIES: "${AYATO_AUTH_TRUSTED_PROXIES:?set AYATO_AUTH_TRUSTED_PROXIES}"
     entrypoint:
       - /bin/sh
       - -c
       - |
+        umask 077
         cat > /tmp/ayato_config.json <<EOF
-        { "max_size": $${KAMISATO_MAX_PACKAGE_SIZE}, "miko": { "url": "$${AYATO_MIKO_URL}", "api_key": "$${AYATO_MIKO_API_KEY}" } }
+        { "max_size": $${KAMISATO_MAX_PACKAGE_SIZE}, "max_batch_packages": $${KAMISATO_MAX_BATCH_PACKAGES}, "max_batch_bytes": $${KAMISATO_MAX_BATCH_BYTES}, "miko": { "url": "$${AYATO_MIKO_URL}", "api_key": "$${AYATO_MIKO_API_KEY}" }, "auth": { "ci": { "api_keys": [{ "name": "miko-worker", "key": "$${KAMISATO_PUBLISH_API_KEY}", "publish_repos": ["$${KAMISATO_REPO}"], "scopes": ["signer:register"] }] } }, "repos": [{ "name": "$${KAMISATO_REPO}", "arches": ["x86_64"] }] }
         EOF
         exec kamisato ayato -c /tmp/ayato_config.json
 
@@ -46,13 +55,15 @@ services:
       MIKO_PORT: "8081"
       MIKO_BUILDER_BACKEND: "container"
       KAMISATO_BUILD_API_KEY: "${KAMISATO_BUILD_API_KEY:?set KAMISATO_BUILD_API_KEY}"
+      KAMISATO_PUBLISH_API_KEY: "${KAMISATO_PUBLISH_API_KEY:?set KAMISATO_PUBLISH_API_KEY}"
       KAMISATO_MAX_PACKAGE_SIZE: "${KAMISATO_MAX_PACKAGE_SIZE:-536870912}"
     entrypoint:
       - /bin/sh
       - -c
       - |
+        umask 077
         cat > /tmp/miko_config.json <<EOF
-        { "max_size": $${KAMISATO_MAX_PACKAGE_SIZE}, "api_keys": ["$${KAMISATO_BUILD_API_KEY}"], "signing": { "mode": "disabled" } }
+        { "max_size": $${KAMISATO_MAX_PACKAGE_SIZE}, "auth": { "api_keys": [{ "name": "ayato-proxy", "key": "$${KAMISATO_BUILD_API_KEY}", "scopes": ["build:admin"] }] }, "ayato": { "url": "http://ayato:9000", "api_key": "$${KAMISATO_PUBLISH_API_KEY}" }, "signing": { "mode": "disabled" } }
         EOF
         exec kamisato miko -c /tmp/miko_config.json
 
