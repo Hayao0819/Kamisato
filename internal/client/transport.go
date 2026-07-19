@@ -102,10 +102,6 @@ func WithHTTPClient(c *http.Client) Option {
 	return func(o *options) { o.httpClient = c }
 }
 
-func WithAttemptTimeout(timeout time.Duration) Option {
-	return func(o *options) { o.attemptTimeout = timeout }
-}
-
 func WithReadAttempts(attempts int) Option {
 	return func(o *options) { o.readAttempts = attempts }
 }
@@ -180,6 +176,13 @@ func secureUserEndpoint(u *url.URL) bool {
 
 func (t *transport) endpoint(segments ...string) *url.URL {
 	return EndpointURL(t.base, segments...)
+}
+
+func (t *transport) attemptContext(ctx context.Context) (context.Context, context.CancelFunc) {
+	if t.attemptTimeout <= 0 {
+		return ctx, func() {}
+	}
+	return context.WithTimeout(ctx, t.attemptTimeout)
 }
 
 // EndpointURL appends escaped path segments to a base URL.
@@ -271,11 +274,7 @@ func (t *transport) doJSON(ctx context.Context, policy retryPolicy, method strin
 		attempts = t.readAttempts
 	}
 	for attempt := 0; attempt < attempts; attempt++ {
-		attemptCtx := ctx
-		cancel := func() {}
-		if t.attemptTimeout > 0 {
-			attemptCtx, cancel = context.WithTimeout(ctx, t.attemptTimeout)
-		}
+		attemptCtx, cancel := t.attemptContext(ctx)
 		var reader io.Reader
 		if body != nil {
 			reader = bytes.NewReader(encoded)

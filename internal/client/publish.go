@@ -7,10 +7,6 @@ import (
 	"net/http"
 )
 
-func (c *Ayato) RemovePackage(ctx context.Context, repo, arch, name string) error {
-	return removePackage(ctx, c.request, repo, arch, name)
-}
-
 func (c *Publisher) RemovePackage(ctx context.Context, repo, arch, name string) error {
 	return removePackage(ctx, c.request, repo, arch, name)
 }
@@ -59,11 +55,7 @@ func removePackageAllArchitectures(ctx context.Context, requester *requester, re
 func (c *Publisher) RegisterSigner(ctx context.Context, armoredPublicKey []byte) (string, error) {
 	var fingerprint string
 	err := c.request.execute(ctx, func() error {
-		attemptCtx := ctx
-		cancel := func() {}
-		if c.request.transport.attemptTimeout > 0 {
-			attemptCtx, cancel = context.WithTimeout(ctx, c.request.transport.attemptTimeout)
-		}
+		attemptCtx, cancel := c.request.transport.attemptContext(ctx)
 		defer cancel()
 		req, err := c.request.transport.newRequest(
 			attemptCtx,

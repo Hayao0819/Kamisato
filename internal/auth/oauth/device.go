@@ -25,9 +25,6 @@ type deviceOptions struct {
 	request  DeviceRequester
 	poll     DevicePoller
 	sleep    func(ctx context.Context, d time.Duration) error
-	openURL  BrowserOpener
-	noOpen   bool
-	timeout  time.Duration
 	minSleep time.Duration
 }
 
@@ -49,11 +46,6 @@ func WithDevicePoller(fn DevicePoller) DeviceOption { return func(o *deviceOptio
 // the server's interval, honoring ctx cancellation.
 func WithDeviceSleep(fn func(ctx context.Context, d time.Duration) error) DeviceOption {
 	return func(o *deviceOptions) { o.sleep = fn }
-}
-
-// WithDeviceBrowserOpener opens the verification URL automatically when possible.
-func WithDeviceBrowserOpener(fn BrowserOpener) DeviceOption {
-	return func(o *deviceOptions) { o.openURL = fn }
 }
 
 func ctxSleep(ctx context.Context, d time.Duration) error {
@@ -107,9 +99,6 @@ func DeviceLogin(ctx context.Context, serverURL string, opts ...DeviceOption) (t
 	fmt.Fprintf(o.out, "ブラウザで次の URL を開き、コード %s を入力してください:\n%s\n", dc.UserCode, dc.VerificationURI)
 	if dc.VerificationURIComplete != "" {
 		fmt.Fprintf(o.out, "（コード入力済みのリンク: %s）\n", dc.VerificationURIComplete)
-		if !o.noOpen && o.openURL != nil {
-			_ = o.openURL(dc.VerificationURIComplete)
-		}
 	}
 
 	interval := time.Duration(dc.Interval) * time.Second
@@ -118,9 +107,6 @@ func DeviceLogin(ctx context.Context, serverURL string, opts ...DeviceOption) (t
 	}
 
 	timeout := time.Duration(dc.ExpiresIn) * time.Second
-	if o.timeout > 0 {
-		timeout = o.timeout
-	}
 	if timeout <= 0 {
 		timeout = defaultTimeout
 	}

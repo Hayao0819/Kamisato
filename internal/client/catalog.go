@@ -55,11 +55,7 @@ func (t *transport) readBytes(
 	accept string,
 ) ([]byte, error) {
 	for attempt := 0; attempt < t.readAttempts; attempt++ {
-		attemptCtx := ctx
-		cancel := func() {}
-		if t.attemptTimeout > 0 {
-			attemptCtx, cancel = context.WithTimeout(ctx, t.attemptTimeout)
-		}
+		attemptCtx, cancel := t.attemptContext(ctx)
 		request, err := t.newRequest(attemptCtx, http.MethodGet, targetURL, nil, false)
 		if err != nil {
 			cancel()

@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
-	"github.com/Hayao0819/Kamisato/internal/buildclient"
+	"github.com/Hayao0819/Kamisato/internal/client"
 )
 
 func renderToString(t *testing.T, format string, rows []shared.PkgRow) string {
@@ -82,7 +82,7 @@ func TestRenderRowsFormats(t *testing.T) {
 }
 
 func TestLatestJobStatusPicksMostRecent(t *testing.T) {
-	jobs := []buildclient.Job{
+	jobs := []client.Job{
 		{Repo: "extra", Packages: []string{"foo"}, Status: "queued", CreatedAt: "2026-01-01T00:00:00Z"},
 		{Repo: "extra", Packages: []string{"foo"}, Status: "success", CreatedAt: "2026-02-01T00:00:00Z"},
 		{Repo: "other", Packages: []string{"foo"}, Status: "failed", CreatedAt: "2026-03-01T00:00:00Z"},

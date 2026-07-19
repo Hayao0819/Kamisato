@@ -56,9 +56,6 @@ func WithExchanger(fn Exchanger) Option { return func(o *options) { o.exchange =
 // WithOutput sets where user-facing prompts are written (default os.Stdout).
 func WithOutput(w io.Writer) Option { return func(o *options) { o.out = w } }
 
-// WithTimeout bounds the wait for the browser callback (default 3m).
-func WithTimeout(d time.Duration) Option { return func(o *options) { o.timeout = d } }
-
 func defaultExchange(ctx context.Context, serverURL, code, verifier string) (token, refresh, login string, err error) {
 	api, err := client.NewAyato(serverURL, client.StaticBearer(""))
 	if err != nil {

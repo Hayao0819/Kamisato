@@ -46,11 +46,13 @@ type Ayato struct {
 // Miko is the direct build-server client.
 type Miko struct{ *BuildClient }
 
+type apiKeyClient struct{ request *requester }
+
 // Publisher exposes package publication and worker registration.
-type Publisher struct{ request *requester }
+type Publisher apiKeyClient
 
 // Signer exposes remote detached signing.
-type Signer struct{ request *requester }
+type Signer apiKeyClient
 
 func NewAyato(base string, source BearerTokenSource, opts ...Option) (*Ayato, error) {
 	t, err := newTransport(base, bearerCredential{source: source}, opts...)
@@ -65,34 +67,30 @@ func NewAyato(base string, source BearerTokenSource, opts ...Option) (*Ayato, er
 }
 
 func NewMiko(base, apiKey string, opts ...Option) (*Miko, error) {
-	if apiKey == "" {
-		return nil, errors.NewErr("miko API key is required")
-	}
-	t, err := newTransport(base, apiKeyCredential{key: apiKey}, opts...)
+	client, err := newAPIKeyClient(base, apiKey, "miko", opts...)
 	if err != nil {
 		return nil, err
 	}
-	return &Miko{BuildClient: &BuildClient{request: &requester{transport: t}}}, nil
+	return &Miko{BuildClient: &BuildClient{request: client.request}}, nil
 }
 
 func NewPublisher(base, apiKey string, opts ...Option) (*Publisher, error) {
-	if apiKey == "" {
-		return nil, errors.NewErr("publisher API key is required")
-	}
-	t, err := newTransport(base, apiKeyCredential{key: apiKey}, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return &Publisher{request: &requester{transport: t}}, nil
+	client, err := newAPIKeyClient(base, apiKey, "publisher", opts...)
+	return (*Publisher)(client), err
 }
 
 func NewSigner(base, apiKey string, opts ...Option) (*Signer, error) {
+	client, err := newAPIKeyClient(base, apiKey, "signer", opts...)
+	return (*Signer)(client), err
+}
+
+func newAPIKeyClient(base, apiKey, name string, opts ...Option) (*apiKeyClient, error) {
 	if apiKey == "" {
-		return nil, errors.NewErr("signer API key is required")
+		return nil, errors.NewErr(name + " API key is required")
 	}
 	t, err := newTransport(base, apiKeyCredential{key: apiKey}, opts...)
 	if err != nil {
 		return nil, err
 	}
-	return &Signer{request: &requester{transport: t}}, nil
+	return &apiKeyClient{request: &requester{transport: t}}, nil
 }

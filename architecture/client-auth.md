@@ -55,13 +55,13 @@ and error parsing. Callers choose one capability-specific constructor:
 - `NewCatalog(base)` for Kayo's credential-free public reads.
 
 The smaller `Publisher` type intentionally cannot invoke admin or build
-operations. `internal/buildclient` is a function-based compatibility facade and
-must contain no independent transport behavior. `internal/blinkyutils` is the
-only package allowed to import upstream Blinky packages. It translates Blinky
-client and `servers.json` representations into Kamisato-owned types; upstream
-concrete types and type aliases never cross that boundary. `internal/serverstore`
-owns endpoint selection, keyring state, token rotation, and atomic persistence,
-and consumes only the owned registry codec.
+operations. The former function-based `internal/buildclient` facade was removed
+after every caller moved to these capability clients. `internal/blinkyutils`
+retains only the released Blinky `servers.json` representation and translates it
+into Kamisato-owned types; upstream concrete types and type aliases never cross
+that boundary. `internal/serverstore` owns endpoint selection, keyring state,
+token rotation, and atomic persistence, and consumes only the owned registry
+codec.
 
 ### Transport invariants
 

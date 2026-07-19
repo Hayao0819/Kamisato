@@ -1,4 +1,4 @@
-// Package blinkyutils isolates Kamisato from Blinky clients and storage formats.
+// Package blinkyutils preserves the released Blinky server-registry format.
 package blinkyutils
 
 import (

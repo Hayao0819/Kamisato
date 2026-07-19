@@ -7,20 +7,20 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Hayao0819/Kamisato/internal/buildclient"
+	"github.com/Hayao0819/Kamisato/internal/client"
 )
 
-func fixedRequester(dc buildclient.DeviceCodeResponse) DeviceRequester {
-	return func(context.Context, string) (buildclient.DeviceCodeResponse, error) { return dc, nil }
+func fixedRequester(dc client.DeviceCodeResponse) DeviceRequester {
+	return func(context.Context, string) (client.DeviceCodeResponse, error) { return dc, nil }
 }
 
 // noSleep makes the polling loop spin without real delay.
 func noSleep(context.Context, time.Duration) error { return nil }
 
 // scriptedPoller returns each result in turn, then the last one forever.
-func scriptedPoller(results ...buildclient.DeviceTokenResult) (DevicePoller, *int) {
+func scriptedPoller(results ...client.DeviceTokenResult) (DevicePoller, *int) {
 	calls := 0
-	return func(context.Context, string, string) (buildclient.DeviceTokenResult, error) {
+	return func(context.Context, string, string) (client.DeviceTokenResult, error) {
 		r := results[min(calls, len(results)-1)]
 		calls++
 		return r, nil
@@ -28,14 +28,14 @@ func scriptedPoller(results ...buildclient.DeviceTokenResult) (DevicePoller, *in
 }
 
 func TestDeviceLoginApproved(t *testing.T) {
-	dc := buildclient.DeviceCodeResponse{
+	dc := client.DeviceCodeResponse{
 		DeviceCode: "dc", UserCode: "BCDF-GHJK",
 		VerificationURI: "https://ayato.example/api/unstable/auth/device", ExpiresIn: 600, Interval: 5,
 	}
 	poll, calls := scriptedPoller(
-		buildclient.DeviceTokenResult{Status: "authorization_pending"},
-		buildclient.DeviceTokenResult{Status: "authorization_pending"},
-		buildclient.DeviceTokenResult{Token: "the-token", Refresh: "the-refresh", Login: "octocat", ID: 7},
+		client.DeviceTokenResult{Status: "authorization_pending"},
+		client.DeviceTokenResult{Status: "authorization_pending"},
+		client.DeviceTokenResult{Token: "the-token", Refresh: "the-refresh", Login: "octocat", ID: 7},
 	)
 
 	var out strings.Builder
@@ -62,12 +62,12 @@ func TestDeviceLoginApproved(t *testing.T) {
 
 func TestDeviceLoginSlowDownThenApproved(t *testing.T) {
 	poll, calls := scriptedPoller(
-		buildclient.DeviceTokenResult{Status: "slow_down"},
-		buildclient.DeviceTokenResult{Token: "t", Login: "u"},
+		client.DeviceTokenResult{Status: "slow_down"},
+		client.DeviceTokenResult{Token: "t", Login: "u"},
 	)
 	token, _, _, err := DeviceLogin(context.Background(), "https://x",
 		WithDeviceOutput(io.Discard),
-		WithDeviceRequester(fixedRequester(buildclient.DeviceCodeResponse{DeviceCode: "dc", Interval: 1, ExpiresIn: 600})),
+		WithDeviceRequester(fixedRequester(client.DeviceCodeResponse{DeviceCode: "dc", Interval: 1, ExpiresIn: 600})),
 		WithDevicePoller(poll),
 		WithDeviceSleep(noSleep),
 	)
@@ -85,10 +85,10 @@ func TestDeviceLoginDeniedAndExpired(t *testing.T) {
 		"expired_token": "expired",
 	}
 	for status, want := range cases {
-		poll, _ := scriptedPoller(buildclient.DeviceTokenResult{Status: status})
+		poll, _ := scriptedPoller(client.DeviceTokenResult{Status: status})
 		_, _, _, err := DeviceLogin(context.Background(), "https://x",
 			WithDeviceOutput(io.Discard),
-			WithDeviceRequester(fixedRequester(buildclient.DeviceCodeResponse{DeviceCode: "dc", Interval: 1, ExpiresIn: 600})),
+			WithDeviceRequester(fixedRequester(client.DeviceCodeResponse{DeviceCode: "dc", Interval: 1, ExpiresIn: 600})),
 			WithDevicePoller(poll),
 			WithDeviceSleep(noSleep),
 		)
