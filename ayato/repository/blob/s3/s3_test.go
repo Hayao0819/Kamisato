@@ -33,13 +33,17 @@ func TestUploadFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
+	defer file.Close()
 	defer func() { _ = os.Remove(filePath) }()
 	_, err = file.WriteString("This is a test file.")
 	if err != nil {
 		t.Fatalf("Failed to write to test file: %v", err)
 	}
+	if _, err := file.Seek(0, 0); err != nil {
+		t.Fatalf("Failed to rewind test file: %v", err)
+	}
 
-	err = s3.putFile(path.Base(filePath), filePath)
+	err = s3.putObject(path.Base(filePath), file)
 	if err != nil {
 		t.Fatalf("Failed to upload file: %v", err)
 	}

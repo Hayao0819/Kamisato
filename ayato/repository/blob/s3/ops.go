@@ -15,7 +15,6 @@ import (
 
 	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
 	"github.com/Hayao0819/Kamisato/ayato/stream"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/reponame"
 )
 
 // StoreFile stores the package object only; the repo DB is updated separately by
@@ -123,22 +122,9 @@ func (s *S3) RepoNames() ([]string, error) {
 	return s.listDirs("")
 }
 
-// validateListRepo applies the same repo guards as the object-key path: a single
-// safe path element, gated by the allowlist when configured. The S3 keyspace is
-// flat, so this is uniform validation rather than traversal defense.
-func (s *S3) validateListRepo(repo string) error {
-	if err := reponame.Validate(repo); err != nil {
-		return err
-	}
-	if len(s.repoNames) > 0 && !lo.Contains(s.repoNames, repo) {
-		return fmt.Errorf("%w: repo %s", blob.ErrNotFound, repo)
-	}
-	return nil
-}
-
 func (s *S3) Arches(repo string) ([]string, error) {
 	slog.Debug("get arches", "repo", repo)
-	if err := s.validateListRepo(repo); err != nil {
+	if err := s.validateRepo(repo); err != nil {
 		return nil, err
 	}
 	dl, err := s.listDirs(repo + "/")
@@ -151,13 +137,11 @@ func (s *S3) Arches(repo string) ([]string, error) {
 }
 
 func (s *S3) Files(repo string, arch string) ([]string, error) {
-	if err := s.validateListRepo(repo); err != nil {
+	prefix, err := s.validatedArchPrefix(repo, arch)
+	if err != nil {
 		return nil, err
 	}
-	if err := blob.ValidatePathComponent(arch); err != nil {
-		return nil, err
-	}
-	l, err := s.listFiles(fmt.Sprintf("%s/%s/", repo, arch))
+	l, err := s.listFiles(prefix)
 	if err != nil {
 		return nil, err
 	}
@@ -174,13 +158,11 @@ func (s *S3) Files(repo string, arch string) ([]string, error) {
 // repo/arch validation as Files. ListObjectsV2 already returns LastModified, so
 // this is Files plus the time the orphan reconcile ages objects by.
 func (s *S3) FilesWithMeta(repo string, arch string) ([]blob.FileInfo, error) {
-	if err := s.validateListRepo(repo); err != nil {
+	prefix, err := s.validatedArchPrefix(repo, arch)
+	if err != nil {
 		return nil, err
 	}
-	if err := blob.ValidatePathComponent(arch); err != nil {
-		return nil, err
-	}
-	l, err := s.list(fmt.Sprintf("%s/%s/", repo, arch))
+	l, err := s.list(prefix)
 	if err != nil {
 		return nil, err
 	}
@@ -193,4 +175,13 @@ func (s *S3) FilesWithMeta(repo string, arch string) ([]blob.FileInfo, error) {
 		})
 	}
 	return infos, nil
+}
+
+// ListObjects walks the complete prefix subtree (no delimiter).
+func (s *S3) ListObjects(prefix string) ([]string, error) {
+	keys, err := s.listAllKeys(prefix)
+	if err != nil {
+		return nil, fmt.Errorf("list objects %q: %w", prefix, err)
+	}
+	return keys, nil
 }
