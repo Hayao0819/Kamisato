@@ -118,14 +118,8 @@ func (s *Service) promoteOneArch(src, dst, arch, storeArch, filename, pkgname, v
 	}
 	defer artifact.close()
 
-	if _, err := s.pkgBinaryRepo.StoreFileImmutable(dst, storeArch, artifact.pkg); err != nil {
-		return errors.WrapErr(err, "store package pointer in target tier")
-	}
-
-	if artifact.sig != nil {
-		if _, err := s.pkgBinaryRepo.StoreFileImmutable(dst, storeArch, artifact.sig); err != nil {
-			return errors.WrapErr(err, "store signature pointer in target tier")
-		}
+	if err := s.storeSpooledPackage(dst, storeArch, artifact); err != nil {
+		return errors.WrapErr(err, "store package in target tier")
 	}
 
 	if err := stream.Rewind(artifact.pkg); err != nil {

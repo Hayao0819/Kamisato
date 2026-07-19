@@ -13,55 +13,46 @@ import (
 func (p *uploadPublication) storeObjects() error {
 	for i := range p.uploads {
 		upload := &p.uploads[i]
-		if err := stream.Rewind(upload.pkgStream); err != nil {
-			return errors.WrapErr(err, "failed to seek package file")
-		}
-		if _, err := p.service.pkgBinaryRepo.StoreFileImmutable(
-			p.repo,
+		if err := p.storeObject(
 			upload.storeArch,
+			"package",
+			upload.storedName,
 			upload.pkgStream,
 		); err != nil {
-			if errors.Is(err, repository.ErrImmutableObjectConflict) {
-				return fmt.Errorf(
-					"%w: package object %q already exists with different content",
-					domain.ErrConflict,
-					upload.storedName,
-				)
-			}
-			return errors.WrapErr(err, "failed to store package")
+			return err
 		}
-		if err := p.storeSignature(upload); err != nil {
+		if err := p.storeObject(
+			upload.storeArch,
+			"signature",
+			upload.sigName,
+			upload.sigStream,
+		); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (p *uploadPublication) storeSignature(upload *preparedUpload) error {
-	if upload.sigStream == nil {
+func (p *uploadPublication) storeObject(
+	arch, kind, name string,
+	file stream.SeekFile,
+) error {
+	if file == nil {
 		return nil
 	}
-	if err := stream.Rewind(upload.sigStream); err != nil {
-		return errors.WrapErr(err, "failed to seek signature file")
+	if file.FileName() != name {
+		file = stream.NewFileStream(name, file.ContentType(), file)
 	}
-	named := stream.NewFileStream(
-		upload.sigName,
-		upload.sigStream.ContentType(),
-		upload.sigStream,
-	)
-	if _, err := p.service.pkgBinaryRepo.StoreFileImmutable(
-		p.repo,
-		upload.storeArch,
-		named,
-	); err != nil {
+	if err := p.service.storeImmutableFile(p.repo, arch, file); err != nil {
 		if errors.Is(err, repository.ErrImmutableObjectConflict) {
 			return fmt.Errorf(
-				"%w: signature object %q already exists with different content",
+				"%w: %s object %q already exists with different content",
 				domain.ErrConflict,
-				upload.sigName,
+				kind,
+				name,
 			)
 		}
-		return errors.WrapErr(err, "failed to store signature")
+		return errors.WrapErr(err, "failed to store "+kind)
 	}
 	return nil
 }

@@ -63,6 +63,35 @@ func (a *spooledPackage) close() {
 	}
 }
 
+func (s *Service) storeImmutableFile(
+	repo, arch string,
+	file stream.SeekFile,
+) error {
+	if file == nil {
+		return nil
+	}
+	if err := stream.Rewind(file); err != nil {
+		return errors.WrapErr(err, "rewind immutable object")
+	}
+	_, err := s.pkgBinaryRepo.StoreFileImmutable(repo, arch, file)
+	return err
+}
+
+func (s *Service) storeSpooledPackage(
+	repo, arch string,
+	artifact *spooledPackage,
+) error {
+	for _, file := range []stream.SeekFile{artifact.pkg, artifact.sig} {
+		if file == nil {
+			continue
+		}
+		if err := s.storeImmutableFile(repo, arch, file); err != nil {
+			return errors.WrapErr(err, "store package artifact "+file.FileName())
+		}
+	}
+	return nil
+}
+
 func closeSpooledPackages(artifacts []*spooledPackage) {
 	for _, artifact := range artifacts {
 		artifact.close()
