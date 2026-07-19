@@ -15,16 +15,42 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/limits"
 )
 
+type uploadFileError struct {
+	status int
+	reason string
+}
+
+func (e *uploadFileError) Error() string { return e.reason }
+
+func validateUploadFile(header *multipart.FileHeader, maxSize int) error {
+	if header.Size == 0 {
+		return &uploadFileError{status: http.StatusBadRequest, reason: "is empty"}
+	}
+	if limits.Exceeds(header.Size, maxSize) {
+		return &uploadFileError{status: http.StatusRequestEntityTooLarge, reason: "is too large"}
+	}
+	return nil
+}
+
+func uploadFileErrorStatus(err error) int {
+	var validationErr *uploadFileError
+	if stderrors.As(err, &validationErr) {
+		return validationErr.status
+	}
+	return http.StatusBadRequest
+}
+
+func validSignatureSize(header *multipart.FileHeader) bool {
+	return header.Size > 0 && header.Size <= limits.MaxSignatureBytes
+}
+
 func formFileWithValidate(ctx *gin.Context, name string, maxSize int) (*multipart.FileHeader, error) {
 	header, err := ctx.FormFile(name)
 	if err != nil {
 		return nil, fmt.Errorf("get form err: %w", err)
 	}
-	if header.Size == 0 {
-		return nil, fmt.Errorf("file is empty")
-	}
-	if limits.Exceeds(header.Size, maxSize) {
-		return nil, fmt.Errorf("file is too large")
+	if err := validateUploadFile(header, maxSize); err != nil {
+		return nil, err
 	}
 	return header, nil
 }
@@ -88,7 +114,7 @@ func (h *PublicationHandler) BlinkyUploadHandler(ctx *gin.Context) {
 
 	pkgHeader, err := formFileWithValidate(ctx, "package", h.cfg.MaxSize)
 	if err != nil {
-		respondError(ctx, http.StatusBadRequest, "invalid package file")
+		respondError(ctx, uploadFileErrorStatus(err), "invalid package file")
 		return
 	}
 	sigHeader, err := ctx.FormFile("signature")
@@ -100,7 +126,7 @@ func (h *PublicationHandler) BlinkyUploadHandler(ctx *gin.Context) {
 		sigHeader = nil
 		slog.Warn("failed to get signature form", "error", err.Error())
 	}
-	if sigHeader != nil && (sigHeader.Size == 0 || sigHeader.Size > limits.MaxSignatureBytes) {
+	if sigHeader != nil && !validSignatureSize(sigHeader) {
 		respondError(ctx, http.StatusRequestEntityTooLarge, "signature is empty or too large")
 		return
 	}

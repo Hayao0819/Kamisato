@@ -57,7 +57,7 @@ func (h *PublicationHandler) BatchUploadHandler(ctx *gin.Context) {
 	sigByArchive := make(map[string]*multipart.FileHeader, len(form.File["signature"]))
 	var aggregate int64
 	for _, signature := range form.File["signature"] {
-		if signature.Size == 0 || signature.Size > limits.MaxSignatureBytes {
+		if !validSignatureSize(signature) {
 			respondError(ctx, http.StatusRequestEntityTooLarge, fmt.Sprintf(
 				"signature %q is empty or too large",
 				signature.Filename,
@@ -139,12 +139,12 @@ func openBatchFiles(
 	files := make([]*domain.UploadFiles, 0, len(archives))
 	closers := make([]io.Closer, 0, len(archives)*2)
 	for _, archive := range archives {
-		if archive.Size == 0 {
-			respondError(ctx, http.StatusBadRequest, fmt.Sprintf("package %q is empty", archive.Filename))
-			return nil, closers, false
-		}
-		if limits.Exceeds(archive.Size, maxSize) {
-			respondError(ctx, http.StatusRequestEntityTooLarge, fmt.Sprintf("package %q is too large", archive.Filename))
+		if err := validateUploadFile(archive, maxSize); err != nil {
+			respondError(ctx, uploadFileErrorStatus(err), fmt.Sprintf(
+				"package %q %s",
+				archive.Filename,
+				err,
+			))
 			return nil, closers, false
 		}
 		pkgStream, err := formFileStream(archive)

@@ -77,3 +77,35 @@ func TestBatchUploadAllowsAggregateLargerThanOnePackageLimit(t *testing.T) {
 		t.Fatalf("status = %d, body = %s", response.Code, response.Body.String())
 	}
 }
+
+func TestUploadFileValidation(t *testing.T) {
+	for _, test := range []struct {
+		name       string
+		size       int64
+		maxSize    int
+		wantStatus int
+	}{
+		{name: "empty", size: 0, maxSize: 10, wantStatus: http.StatusBadRequest},
+		{name: "within limit", size: 10, maxSize: 10},
+		{name: "over limit", size: 11, maxSize: 10, wantStatus: http.StatusRequestEntityTooLarge},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			err := validateUploadFile(
+				&multipart.FileHeader{Size: test.size},
+				test.maxSize,
+			)
+			if test.wantStatus == 0 {
+				if err != nil {
+					t.Fatalf("validateUploadFile: %v", err)
+				}
+				return
+			}
+			if err == nil {
+				t.Fatal("validateUploadFile returned nil")
+			}
+			if status := uploadFileErrorStatus(err); status != test.wantStatus {
+				t.Fatalf("status = %d, want %d", status, test.wantStatus)
+			}
+		})
+	}
+}
