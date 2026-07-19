@@ -41,13 +41,17 @@ type fakeDenylistRepo struct {
 }
 
 func (f *fakeDenylistRepo) Revoke(jti string, _ time.Duration) error {
+	f.mark(&f.revoked, jti)
+	return nil
+}
+
+func (f *fakeDenylistRepo) mark(target *map[string]bool, key string) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	if f.revoked == nil {
-		f.revoked = map[string]bool{}
+	if *target == nil {
+		*target = map[string]bool{}
 	}
-	f.revoked[jti] = true
-	return nil
+	(*target)[key] = true
 }
 
 func (f *fakeDenylistRepo) Consume(jti string, _ time.Duration) (bool, error) {
@@ -70,12 +74,7 @@ func (f *fakeDenylistRepo) IsRevoked(jti string) (bool, error) {
 }
 
 func (f *fakeDenylistRepo) RevokeSession(sessionID string, _ time.Duration) error {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	if f.sessions == nil {
-		f.sessions = map[string]bool{}
-	}
-	f.sessions[sessionID] = true
+	f.mark(&f.sessions, sessionID)
 	return nil
 }
 

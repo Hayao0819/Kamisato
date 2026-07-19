@@ -49,13 +49,12 @@ func deviceHandler(t *testing.T, adminID int64) (*AuthHandler, repository.Device
 
 func pollDevice(t *testing.T, h *AuthHandler, deviceCode string) *httptest.ResponseRecorder {
 	t.Helper()
-	r := gin.New()
-	r.POST("/token", h.DeviceTokenHandler)
-	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPost, "/token", strings.NewReader(`{"device_code":"`+deviceCode+`"}`))
-	req.Header.Set("Content-Type", "application/json")
-	r.ServeHTTP(w, req)
-	return w
+	return postJSON(
+		t,
+		"/token",
+		`{"device_code":"`+deviceCode+`"}`,
+		h.DeviceTokenHandler,
+	)
 }
 
 func deviceErr(t *testing.T, w *httptest.ResponseRecorder) string {

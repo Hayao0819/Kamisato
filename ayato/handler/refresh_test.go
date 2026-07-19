@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -16,13 +15,12 @@ import (
 
 func postRefresh(t *testing.T, h *AuthHandler, refreshToken string) *httptest.ResponseRecorder {
 	t.Helper()
-	r := gin.New()
-	r.POST("/refresh", h.RefreshHandler)
-	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPost, "/refresh", strings.NewReader(`{"refresh_token":"`+refreshToken+`"}`))
-	req.Header.Set("Content-Type", "application/json")
-	r.ServeHTTP(w, req)
-	return w
+	return postJSON(
+		t,
+		"/refresh",
+		`{"refresh_token":"`+refreshToken+`"}`,
+		h.RefreshHandler,
+	)
 }
 
 func TestRefreshTokenHasAtMostOneConcurrentWinner(t *testing.T) {

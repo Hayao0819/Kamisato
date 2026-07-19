@@ -20,14 +20,6 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/conf"
 )
 
-func setup(t *testing.T) (*gomock.Controller, *mocks.MockServicer, *Set) {
-	t.Helper()
-	gin.SetMode(gin.TestMode)
-	ctrl := gomock.NewController(t)
-	mockSvc := mocks.NewMockServicer(ctrl)
-	return ctrl, mockSvc, New(mockSvc, nil)
-}
-
 func TestHelloHandler(t *testing.T) {
 	_, _, h := setup(t)
 	r := gin.New()
@@ -115,44 +107,44 @@ func TestRepoDetailHandler(t *testing.T) {
 }
 
 func TestBlinkyRemoveHandler(t *testing.T) {
-	ctrl, mockSvc, h := setup(t)
-	defer ctrl.Finish()
+	for _, test := range []struct {
+		name, route, path, arch string
+	}{
+		{
+			name:  "blinky removes from every arch",
+			route: "/:repo/package/:name",
+			path:  "/myrepo/package/mypkg",
+		},
+		{
+			name:  "management route uses explicit arch",
+			route: "/repos/:repo/:arch/packages/:name",
+			path:  "/repos/myrepo/aarch64/packages/mypkg",
+			arch:  "aarch64",
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			controller, service, handlers := setup(t)
+			defer controller.Finish()
+			service.EXPECT().RemovePkg("myrepo", test.arch, "mypkg").Return(nil)
 
-	// The blinky route carries no arch, so the handler passes "" — "remove from
-	// every arch that lists the package".
-	mockSvc.EXPECT().RemovePkg("myrepo", "", "mypkg").Return(nil)
-
-	r := gin.New()
-	r.DELETE("/:repo/package/:name", h.Publications.BlinkyRemoveHandler)
-
-	w := httptest.NewRecorder()
-	r.ServeHTTP(w, httptest.NewRequest(http.MethodDelete, "/myrepo/package/mypkg", nil))
-
-	if w.Code != http.StatusOK {
-		t.Fatalf("status = %d, want 200: %s", w.Code, w.Body.String())
-	}
-	if !strings.Contains(w.Body.String(), "removed") {
-		t.Errorf("body = %q, want to contain removed", w.Body.String())
-	}
-}
-
-func TestRemoveHandlerExplicitArch(t *testing.T) {
-	ctrl, mockSvc, h := setup(t)
-	defer ctrl.Finish()
-
-	mockSvc.EXPECT().RemovePkg("myrepo", "aarch64", "mypkg").Return(nil)
-
-	r := gin.New()
-	r.DELETE("/repos/:repo/:arch/packages/:name", h.Publications.BlinkyRemoveHandler)
-
-	w := httptest.NewRecorder()
-	r.ServeHTTP(w, httptest.NewRequest(http.MethodDelete, "/repos/myrepo/aarch64/packages/mypkg", nil))
-
-	if w.Code != http.StatusOK {
-		t.Fatalf("status = %d, want 200: %s", w.Code, w.Body.String())
-	}
-	if !strings.Contains(w.Body.String(), "removed") {
-		t.Errorf("body = %q, want to contain removed", w.Body.String())
+			router := gin.New()
+			router.DELETE(test.route, handlers.Publications.BlinkyRemoveHandler)
+			response := httptest.NewRecorder()
+			router.ServeHTTP(
+				response,
+				httptest.NewRequest(http.MethodDelete, test.path, nil),
+			)
+			if response.Code != http.StatusOK {
+				t.Fatalf(
+					"status = %d, want 200: %s",
+					response.Code,
+					response.Body.String(),
+				)
+			}
+			if !strings.Contains(response.Body.String(), "removed") {
+				t.Errorf("body = %q, want removed", response.Body.String())
+			}
+		})
 	}
 }
 
@@ -259,12 +251,15 @@ func TestRepoFileHandlerReturns304OnMatchingETag(t *testing.T) {
 	defer ctrl.Finish()
 
 	const body, etag = "db-bytes", `"v1"`
-	mockSvc.EXPECT().SignedURL("myrepo", "x86_64", "myrepo.db").Return("", nil).Times(2)
-	mockSvc.EXPECT().GetFileWithMeta("myrepo", "x86_64", "myrepo.db").DoAndReturn(
-		func(_, _, _ string) (stream.File, domain.FileMeta, error) {
-			return stream.NewFileStream("myrepo.db", "application/octet-stream",
-				bufferToReadSeekCloser(bytes.NewBufferString(body))), domain.FileMeta{ETag: etag}, nil
-		}).Times(2)
+	expectRepositoryFile(
+		mockSvc,
+		"myrepo",
+		"x86_64",
+		"myrepo.db",
+		body,
+		domain.FileMeta{ETag: etag},
+		2,
+	)
 
 	r := gin.New()
 	r.GET("/repo/:repo/:arch/:file", h.Repositories.RepoFileHandler)
@@ -301,12 +296,15 @@ func TestRepoFileHandlerReturns304OnIfModifiedSince(t *testing.T) {
 
 	const body = "db-bytes"
 	modtime := time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC)
-	mockSvc.EXPECT().SignedURL("myrepo", "x86_64", "myrepo.db").Return("", nil).Times(3)
-	mockSvc.EXPECT().GetFileWithMeta("myrepo", "x86_64", "myrepo.db").DoAndReturn(
-		func(_, _, _ string) (stream.File, domain.FileMeta, error) {
-			return stream.NewFileStream("myrepo.db", "application/octet-stream",
-				bufferToReadSeekCloser(bytes.NewBufferString(body))), domain.FileMeta{LastModified: modtime}, nil
-		}).Times(3)
+	expectRepositoryFile(
+		mockSvc,
+		"myrepo",
+		"x86_64",
+		"myrepo.db",
+		body,
+		domain.FileMeta{LastModified: modtime},
+		3,
+	)
 
 	r := gin.New()
 	r.GET("/repo/:repo/:arch/:file", h.Repositories.RepoFileHandler)
@@ -369,9 +367,3 @@ func TestRepoFileHandlerStreamsWhenRedirectDisabled(t *testing.T) {
 		t.Errorf("body = %q, want %q", w.Body.String(), body)
 	}
 }
-
-var errTest = &testError{"boom"}
-
-type testError struct{ msg string }
-
-func (e *testError) Error() string { return e.msg }
