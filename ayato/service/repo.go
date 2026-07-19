@@ -34,7 +34,6 @@ func (s *Service) Repo(repo string) (*domain.PacmanRepo, error) {
 		Packages: pkgsgroup,
 	}
 	return &rt, nil
-
 }
 
 func (s *Service) Pkgs(repo, arch string) (*domain.PacmanPkgs, error) {

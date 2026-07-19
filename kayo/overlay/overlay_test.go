@@ -24,8 +24,11 @@ func makeOverlayRepo(t *testing.T, name, version string) string {
 	write("PKGBUILD", "pkgname="+name+"\npkgver="+version+"\n")
 	write(".SRCINFO", srcinfo)
 	for _, args := range [][]string{
-		{"init", "--quiet"}, {"config", "user.email", "t@t"}, {"config", "user.name", "t"},
-		{"add", "-A"}, {"commit", "--quiet", "-m", "v"},
+		{"init", "--quiet"},
+		{"config", "user.email", "t@t"},
+		{"config", "user.name", "t"},
+		{"add", "-A"},
+		{"commit", "--quiet", "-m", "v"},
 	} {
 		cmd := exec.Command("git", args...)
 		cmd.Dir = dir

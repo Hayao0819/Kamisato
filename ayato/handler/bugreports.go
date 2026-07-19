@@ -7,8 +7,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/Hayao0819/Kamisato/ayato/handler/bugreport"
 	"github.com/Hayao0819/Kamisato/ayato/domain"
+	"github.com/Hayao0819/Kamisato/ayato/handler/bugreport"
 )
 
 // Field caps so a forwarded report cannot abuse the upstream tracker.

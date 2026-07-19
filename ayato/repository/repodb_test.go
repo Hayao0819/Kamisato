@@ -335,6 +335,7 @@ func (fakeTool) RepoAdd(dbPath, _ string, _ bool, _ *string) error { return writ
 func (fakeTool) RepoAddBatch(dbPath string, _ []string, _ bool, _ *string) error {
 	return writeFakeQuartet(dbPath)
 }
+
 func (fakeTool) RepoRemove(dbPath, _ string, _ bool, _ *string) error {
 	return writeFakeQuartet(dbPath)
 }

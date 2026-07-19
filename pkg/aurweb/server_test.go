@@ -281,6 +281,7 @@ func (f *fakeUpstream) Info(_ context.Context, _ []string) ([]Pkg, error) { retu
 func (f *fakeUpstream) Search(_ context.Context, _ By, _ string) ([]Pkg, error) {
 	return f.search, nil
 }
+
 func (f *fakeUpstream) Suggest(_ context.Context, _ string, _ bool) ([]string, error) {
 	return []string{"upstreampkg"}, nil
 }

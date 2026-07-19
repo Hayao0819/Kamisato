@@ -19,8 +19,11 @@ func initRepo(t *testing.T) (dir, commit string) {
 		t.Fatal(err)
 	}
 	for _, args := range [][]string{
-		{"init", "--quiet"}, {"config", "user.email", "t@t"}, {"config", "user.name", "t"},
-		{"add", "-A"}, {"commit", "--quiet", "-m", "v1"},
+		{"init", "--quiet"},
+		{"config", "user.email", "t@t"},
+		{"config", "user.name", "t"},
+		{"add", "-A"},
+		{"commit", "--quiet", "-m", "v1"},
 	} {
 		cmd := exec.Command("git", args...)
 		cmd.Dir = dir

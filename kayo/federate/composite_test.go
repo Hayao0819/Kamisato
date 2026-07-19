@@ -24,6 +24,7 @@ func (s *stub) Info(_ context.Context, names []string) ([]aurweb.Pkg, error) {
 	}
 	return out, nil
 }
+
 func (s *stub) Search(_ context.Context, _ aurweb.By, _ string) ([]aurweb.Pkg, error) {
 	return s.All(context.TODO())
 }
@@ -35,6 +36,7 @@ func (s *stub) All(_ context.Context) ([]aurweb.Pkg, error) {
 	}
 	return out, nil
 }
+
 func (s *stub) SourceURL(_ context.Context, pkgbase string) (string, bool, error) {
 	if u, ok := s.src[pkgbase]; ok {
 		return u, true, nil

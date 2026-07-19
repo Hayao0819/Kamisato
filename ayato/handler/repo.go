@@ -135,6 +135,7 @@ func etagMatches(ifNoneMatch, etag string) bool {
 	}
 	return false
 }
+
 func (h *Handler) RepoFileListHandler(ctx *gin.Context) {
 	repo := ctx.Param("repo")
 	arch := ctx.Param("arch")

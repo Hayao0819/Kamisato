@@ -14,6 +14,7 @@ type keyValue [2]string
 func (kv keyValue) Key() string {
 	return kv[0]
 }
+
 func (kv keyValue) Value() string {
 	return kv[1]
 }
