@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
 
@@ -26,9 +27,16 @@ import (
 // repo database lives here, in the domain layer.
 type BinaryRepository interface {
 	blob.Store
+	// StoreFileImmutable creates or reuses a byte-identical object.
+	StoreFileImmutable(name, arch string, file stream.SeekFile) (created bool, err error)
+	// DeleteOrphanIfUnchanged conditionally deletes an orphan.
+	DeleteOrphanIfUnchanged(name, arch string, expected blob.FileInfo, cutoff time.Time) (deleted bool, err error)
 	RepoAdd(name, arch string, pkg, sig stream.SeekFile, useSignedDB bool, gnupgDir *string) error
 	RepoAddBatch(name, arch string, items []RepoAddItem, useSignedDB bool, gnupgDir *string) error
 	RepoRemove(name, arch, pkg string, useSignedDB bool, gnupgDir *string) error
+	RepoRemoveIfMatch(name, arch, pkg, expectedVersion, expectedFile string, useSignedDB bool, gnupgDir *string) error
+	// ReconcileDB rebuilds derived artifacts from the canonical DB.
+	ReconcileDB(name, arch string, useSignedDB bool, gnupgDir *string) error
 	InitArch(name, arch string, useSignedDB bool, gnupgDir *string) error
 	// BackfillSignatures regenerates the detached signatures for an existing
 	// (repo, arch) database that was published unsigned before DB signing was

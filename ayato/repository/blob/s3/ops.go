@@ -212,6 +212,7 @@ func (s *S3) FilesWithMeta(repo string, arch string) ([]blob.FileInfo, error) {
 		infos = append(infos, blob.FileInfo{
 			Name:         path.Base(aws.ToString(obj.Key)),
 			LastModified: aws.ToTime(obj.LastModified),
+			Version:      aws.ToString(obj.ETag),
 		})
 	}
 	return infos, nil

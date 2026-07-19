@@ -2,6 +2,7 @@ package repository
 
 import (
 	"sync"
+	"time"
 
 	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
 	"github.com/Hayao0819/Kamisato/ayato/stream"
@@ -55,6 +56,23 @@ func (s *serializingStore) StoreFile(repo, arch string, file stream.SeekFile) er
 func (s *serializingStore) DeleteFile(repo, arch, file string) error {
 	defer s.mu.lock(repo + "/" + arch)()
 	return s.Store.DeleteFile(repo, arch, file)
+}
+
+func (s *serializingStore) DeleteFileIfUnchanged(repo, arch string, expected blob.FileInfo, cutoff time.Time) (bool, error) {
+	deleter, ok := s.Store.(blob.OrphanDeleter)
+	if !ok {
+		return false, blob.ErrSafeDeleteUnsupported
+	}
+	defer s.mu.lock(repo + "/" + arch)()
+	return deleter.DeleteFileIfUnchanged(repo, arch, expected, cutoff)
+}
+
+func (s *serializingStore) LockPublication(repo string) (func(), error) {
+	locker, ok := s.Store.(blob.PublicationLocker)
+	if !ok {
+		return func() {}, nil
+	}
+	return locker.LockPublication(repo)
 }
 
 // FetchFileWithMeta forwards the optional MetaFetcher capability through the

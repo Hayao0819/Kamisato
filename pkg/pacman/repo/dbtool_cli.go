@@ -2,7 +2,10 @@ package repo
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
+
+	pkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
 )
 
 // CLITool mutates the database by shelling out to repo-add/repo-remove. It needs
@@ -41,6 +44,54 @@ func (CLITool) RepoRemove(dbPath, pkgName string, useSignedDB bool, gnupgDir *st
 	}
 	args = append(args, dbPath, pkgName)
 	return runRepoDBTool("repo-remove", args, gnupgDir)
+}
+
+// RebuildDerived rebuilds .files and optional signatures.
+func (t CLITool) RebuildDerived(dbPath string, pkgFilePaths []string, useSignedDB bool, gnupgDir *string) error {
+	paths, err := toolPathsFor(dbPath)
+	if err != nil {
+		return err
+	}
+	b, err := loadToolBuilder(paths)
+	if err != nil {
+		return err
+	}
+	for _, pkgFilePath := range pkgFilePaths {
+		if pkgFilePath == "" {
+			continue
+		}
+		meta, err := pkg.ReadBinaryPackageMeta(pkgFilePath)
+		if err != nil {
+			return fmt.Errorf("failed to read package for files rebuild: %w", err)
+		}
+		if err := b.AttachFiles(meta); err != nil {
+			return err
+		}
+	}
+	missing, err := b.missingFileObjects()
+	if err != nil {
+		return err
+	}
+	if len(missing) > 0 {
+		return &MissingPackageFilesError{Filenames: missing}
+	}
+	if err := writeDerivedBuilder(b, paths); err != nil {
+		return err
+	}
+	if !useSignedDB {
+		return nil
+	}
+	for _, artifact := range []string{paths.db, paths.files} {
+		args := []string{"--batch", "--yes", "--no-armor", "--detach-sign", "--output", artifact + ".sig"}
+		if key := os.Getenv("GPGKEY"); key != "" {
+			args = append(args, "--local-user", key)
+		}
+		args = append(args, artifact)
+		if err := runRepoDBTool("gpg", args, gnupgDir); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func runRepoDBTool(bin string, args []string, gnupgDir *string) error {

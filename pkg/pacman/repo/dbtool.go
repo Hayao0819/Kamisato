@@ -25,6 +25,8 @@ type Tool interface {
 	// archive is rewritten once. RepoAdd is the single-package shorthand.
 	RepoAddBatch(dbPath string, pkgFilePaths []string, useSignedDB bool, gnupgDir *string) error
 	RepoRemove(dbPath, pkgName string, useSignedDB bool, gnupgDir *string) error
+	// RebuildDerived rebuilds .files from canonical DB state.
+	RebuildDerived(dbPath string, pkgFilePaths []string, useSignedDB bool, gnupgDir *string) error
 }
 
 var (
@@ -55,6 +57,15 @@ func NewSigningNativeTool(entity *openpgp.Entity) NativeTool {
 // ErrSignedDBUnsupported is returned when a signed database is requested but the
 // tool has no signing key (a plain NativeTool{}). Build a NewSigningNativeTool.
 var ErrSignedDBUnsupported = errors.New("native repo-db tool: signed databases require a signing key")
+
+// MissingPackageFilesError lists package objects needed to rebuild .files.
+type MissingPackageFilesError struct {
+	Filenames []string
+}
+
+func (e *MissingPackageFilesError) Error() string {
+	return fmt.Sprintf("package objects required to rebuild files database: %s", strings.Join(e.Filenames, ", "))
+}
 
 func (t NativeTool) RepoAdd(dbPath, pkgFilePath string, useSignedDB bool, gnupgDir *string) error {
 	var paths []string
@@ -93,6 +104,43 @@ func (t NativeTool) RepoAddBatch(dbPath string, pkgFilePaths []string, useSigned
 		}
 	}
 	if err := writeToolBuilder(b, paths); err != nil {
+		return err
+	}
+	return t.maybeSign(paths, useSignedDB)
+}
+
+func (t NativeTool) RebuildDerived(dbPath string, pkgFilePaths []string, useSignedDB bool, _ *string) error {
+	if useSignedDB && t.signer == nil {
+		return ErrSignedDBUnsupported
+	}
+	paths, err := toolPathsFor(dbPath)
+	if err != nil {
+		return err
+	}
+	b, err := loadToolBuilder(paths)
+	if err != nil {
+		return err
+	}
+	for _, pkgFilePath := range pkgFilePaths {
+		if pkgFilePath == "" {
+			continue
+		}
+		meta, err := pkg.ReadBinaryPackageMeta(pkgFilePath)
+		if err != nil {
+			return fmt.Errorf("failed to read package for files rebuild: %w", err)
+		}
+		if err := b.AttachFiles(meta); err != nil {
+			return err
+		}
+	}
+	missing, err := b.missingFileObjects()
+	if err != nil {
+		return err
+	}
+	if len(missing) > 0 {
+		return &MissingPackageFilesError{Filenames: missing}
+	}
+	if err := writeDerivedBuilder(b, paths); err != nil {
 		return err
 	}
 	return t.maybeSign(paths, useSignedDB)
@@ -206,6 +254,14 @@ func writeToolBuilder(b *dbBuilder, paths toolPaths) error {
 	// A blob store has no symlinks, so the <repo>.db / <repo>.files names that
 	// repo-add makes as symlinks are written as byte copies instead.
 	if err := copyToolFile(paths.db, paths.dbLink); err != nil {
+		return err
+	}
+	return copyToolFile(paths.files, paths.filesLink)
+}
+
+// writeDerivedBuilder rewrites only the .files archive and alias.
+func writeDerivedBuilder(b *dbBuilder, paths toolPaths) error {
+	if err := writeToolArchive(paths.files, b.WriteFiles); err != nil {
 		return err
 	}
 	return copyToolFile(paths.files, paths.filesLink)

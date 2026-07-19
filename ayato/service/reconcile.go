@@ -10,27 +10,27 @@ import (
 	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
 )
 
-// OrphanObject is a stored package/signature object not referenced by the repo
-// database — a presigned direct upload that was PUT but never finalized.
+// OrphanObject is an unreferenced package object.
 type OrphanObject struct {
 	Arch string
 	Name string
 	Age  time.Duration
 }
 
-// ReconcileOrphans finds package objects in the store that the repo's pacman
-// database does not reference — the residue of a presigned upload the client PUT
-// but never finalized (a crash between PUT and finalize) — and, unless dryRun,
-// deletes those older than olderThan. The age gate skips a fresh PUT that may be
-// a finalize in flight. It never touches the DB artifacts themselves.
+// ReconcileOrphans reports or deletes unreferenced package objects.
 func (s *Service) ReconcileOrphans(repo string, olderThan time.Duration, dryRun bool) ([]OrphanObject, error) {
 	repo = s.publishTarget(repo)
 	now := time.Now()
+	cutoff := now.Add(-olderThan)
+	if olderThan < 0 {
+		return nil, errors.New("orphan age must not be negative")
+	}
+	releasePublication, err := s.acquirePublicationLease(repo)
+	if err != nil {
+		return nil, err
+	}
+	defer releasePublication()
 
-	// Arches drops "any", but an arch=any package's object lives once under "any/"
-	// (and a presigned any upload PUTs there), so the reconcile must scan it too.
-	// Its referenced set is the union of every concrete arch's registered any files,
-	// since pacman has no os/any db of its own.
 	arches, err := s.pkgBinaryRepo.Arches(repo)
 	if err != nil {
 		return nil, errors.WrapErr(err, "list arches for reconcile")
@@ -67,6 +67,10 @@ func (s *Service) ReconcileOrphans(repo string, olderThan time.Duration, dryRun 
 			if !isPackageArtifact(info.Name) {
 				continue
 			}
+			if info.LastModified.IsZero() {
+				slog.Warn("skip orphan with unknown modification time", "repo", repo, "arch", arch, "name", info.Name)
+				continue
+			}
 			age := now.Sub(info.LastModified)
 			if age < olderThan {
 				continue
@@ -77,15 +81,24 @@ func (s *Service) ReconcileOrphans(repo string, olderThan time.Duration, dryRun 
 				slog.Info("orphan object (dry-run)", "repo", repo, "arch", arch, "name", info.Name, "age", age)
 				continue
 			}
-			if err := s.pkgBinaryRepo.DeleteFile(repo, arch, info.Name); err != nil {
+			deleted, err := s.pkgBinaryRepo.DeleteOrphanIfUnchanged(repo, arch, info, cutoff)
+			if errors.Is(err, blob.ErrSafeDeleteUnsupported) {
+				slog.Warn("safe online orphan deletion unsupported; object only reported", "repo", repo, "arch", arch, "name", info.Name)
+				continue
+			}
+			if err != nil {
 				slog.Warn("failed to delete orphan object", "repo", repo, "arch", arch, "name", info.Name, "err", err)
+				continue
+			}
+			if !deleted {
+				slog.Info("kept orphan object renewed or changed concurrently", "repo", repo, "arch", arch, "name", info.Name)
 				continue
 			}
 			slog.Info("deleted orphan object", "repo", repo, "arch", arch, "name", info.Name, "age", age)
 		}
 	}
 
-	anyOrphans, err := s.reconcileAnyDir(repo, anyReferenced, olderThan, dryRun, now)
+	anyOrphans, err := s.reconcileAnyDir(repo, anyReferenced, olderThan, dryRun, now, cutoff)
 	if err != nil {
 		return nil, err
 	}
@@ -97,7 +110,7 @@ func (s *Service) ReconcileOrphans(repo string, olderThan time.Duration, dryRun 
 // concrete arches so anyReferenced holds every registered arch=any filename; an
 // object there that no concrete db references is residue of a presigned any
 // upload PUT but never finalized.
-func (s *Service) reconcileAnyDir(repo string, anyReferenced map[string]struct{}, olderThan time.Duration, dryRun bool, now time.Time) ([]OrphanObject, error) {
+func (s *Service) reconcileAnyDir(repo string, anyReferenced map[string]struct{}, olderThan time.Duration, dryRun bool, now, cutoff time.Time) ([]OrphanObject, error) {
 	infos, err := s.pkgBinaryRepo.FilesWithMeta(repo, "any")
 	if err != nil {
 		if errors.Is(err, blob.ErrNotFound) {
@@ -113,6 +126,10 @@ func (s *Service) reconcileAnyDir(repo string, anyReferenced map[string]struct{}
 		if !isPackageArtifact(info.Name) {
 			continue
 		}
+		if info.LastModified.IsZero() {
+			slog.Warn("skip orphan with unknown modification time", "repo", repo, "arch", "any", "name", info.Name)
+			continue
+		}
 		age := now.Sub(info.LastModified)
 		if age < olderThan {
 			continue
@@ -122,8 +139,17 @@ func (s *Service) reconcileAnyDir(repo string, anyReferenced map[string]struct{}
 			slog.Info("orphan object (dry-run)", "repo", repo, "arch", "any", "name", info.Name, "age", age)
 			continue
 		}
-		if err := s.pkgBinaryRepo.DeleteFile(repo, "any", info.Name); err != nil {
+		deleted, err := s.pkgBinaryRepo.DeleteOrphanIfUnchanged(repo, "any", info, cutoff)
+		if errors.Is(err, blob.ErrSafeDeleteUnsupported) {
+			slog.Warn("safe online orphan deletion unsupported; object only reported", "repo", repo, "arch", "any", "name", info.Name)
+			continue
+		}
+		if err != nil {
 			slog.Warn("failed to delete orphan object", "repo", repo, "arch", "any", "name", info.Name, "err", err)
+			continue
+		}
+		if !deleted {
+			slog.Info("kept orphan object renewed or changed concurrently", "repo", repo, "arch", "any", "name", info.Name)
 			continue
 		}
 		slog.Info("deleted orphan object", "repo", repo, "arch", "any", "name", info.Name, "age", age)

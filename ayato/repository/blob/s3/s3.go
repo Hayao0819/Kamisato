@@ -284,7 +284,10 @@ func (s *S3) putObjectIfMatch(key string, body io.ReadSeeker, etag string) error
 	} else {
 		in.IfNoneMatch = aws.String("*")
 	}
-	if _, err := s.storage.PutObject(s.ctx, in); err != nil {
+	// Disable SDK retries for conditional mutations with ambiguous outcomes.
+	if _, err := s.storage.PutObject(s.ctx, in, func(o *awss3.Options) {
+		o.Retryer = aws.NopRetryer{}
+	}); err != nil {
 		if isCASConflict(err) {
 			return blob.ErrPreconditionFailed
 		}

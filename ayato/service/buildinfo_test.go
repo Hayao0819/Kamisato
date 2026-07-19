@@ -69,7 +69,7 @@ func TestUploadFile_BuildinfoProvenanceAccepts(t *testing.T) {
 	name := mocks.NewMockNameStore(ctrl)
 	bin.EXPECT().VerifyPkgRepo("myrepo").Return(nil)
 	bin.EXPECT().RemoteRepo("myrepo", "x86_64").Return(&repo.RemoteRepo{}, nil).AnyTimes()
-	bin.EXPECT().StoreFile("myrepo", "x86_64", gomock.Any()).Return(nil)
+	bin.EXPECT().StoreFileImmutable("myrepo", "x86_64", gomock.Any()).Return(true, nil)
 	bin.EXPECT().RepoAddBatch("myrepo", "x86_64", gomock.Any(), false, gomock.Nil()).Return(nil)
 	name.EXPECT().StorePackageFiles("myrepo", []repository.PackageFileEntry{{Arch: "x86_64", Name: "foo", FileName: uploadName}}).Return(nil)
 

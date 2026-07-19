@@ -3,6 +3,8 @@ package localfs_test
 import (
 	"bytes"
 	"io"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -47,6 +49,40 @@ func TestLocalStorePutGetDelete(t *testing.T) {
 	}
 	if _, err := store.FetchFile("myrepo", "x86_64", name); !errors.Is(err, blob.ErrNotFound) {
 		t.Fatalf("FetchFile after delete = %v, want ErrNotFound", err)
+	}
+}
+
+func TestLocalStoreCompareAndSwap(t *testing.T) {
+	store := localfs.New(t.TempDir(), []string{"myrepo"})
+	const name = "pkg-1.0-1-x86_64.pkg.tar.zst"
+	if err := store.StoreFileIfMatch("myrepo", "x86_64", seekFile(name, []byte("v1")), ""); err != nil {
+		t.Fatalf("create-only write: %v", err)
+	}
+	if err := store.StoreFileIfMatch("myrepo", "x86_64", seekFile(name, []byte("clobber")), ""); !errors.Is(err, blob.ErrPreconditionFailed) {
+		t.Fatalf("second create-only write = %v, want ErrPreconditionFailed", err)
+	}
+	f, etag, err := store.FetchFileWithETag("myrepo", "x86_64", name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = f.Close()
+	if etag == "" {
+		t.Fatal("localfs must return a strong ETag")
+	}
+	if err := store.StoreFileIfMatch("myrepo", "x86_64", seekFile(name, []byte("v2")), etag); err != nil {
+		t.Fatalf("matching update: %v", err)
+	}
+	if err := store.StoreFileIfMatch("myrepo", "x86_64", seekFile(name, []byte("stale")), etag); !errors.Is(err, blob.ErrPreconditionFailed) {
+		t.Fatalf("stale update = %v, want ErrPreconditionFailed", err)
+	}
+	f, err = store.FetchFile("myrepo", "x86_64", name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, err := io.ReadAll(f)
+	_ = f.Close()
+	if err != nil || string(body) != "v2" {
+		t.Fatalf("CAS content = %q, %v; want v2", body, err)
 	}
 }
 
@@ -108,5 +144,88 @@ func TestLocalStoreFilesWithMetaMissingArch(t *testing.T) {
 	}
 	if len(infos) != 0 {
 		t.Errorf("FilesWithMeta(missing arch) = %v, want empty", infos)
+	}
+}
+
+func TestLocalStoreOrphanDeleteKeepsRenewedObject(t *testing.T) {
+	root := t.TempDir()
+	store := localfs.New(root, []string{"myrepo"})
+	const name = "pkg-1.0-1-x86_64.pkg.tar.zst"
+	payload := []byte("payload")
+	if err := store.StoreFile("myrepo", "x86_64", seekFile(name, payload)); err != nil {
+		t.Fatal(err)
+	}
+	old := time.Now().Add(-2 * time.Hour)
+	if err := os.Chtimes(filepath.Join(root, "myrepo", "x86_64", name), old, old); err != nil {
+		t.Fatal(err)
+	}
+	infos, err := store.FilesWithMeta("myrepo", "x86_64")
+	if err != nil || len(infos) != 1 {
+		t.Fatalf("FilesWithMeta = %v, %v", infos, err)
+	}
+	f, etag, err := store.FetchFileWithETag("myrepo", "x86_64", name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = f.Close()
+	if err := store.StoreFileIfMatch("myrepo", "x86_64", seekFile(name, payload), etag); err != nil {
+		t.Fatalf("renew immutable object: %v", err)
+	}
+	deleted, err := store.DeleteFileIfUnchanged("myrepo", "x86_64", infos[0], time.Now().Add(-time.Hour))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if deleted {
+		t.Fatal("collector deleted an object renewed by a concurrent publisher")
+	}
+	if f, err := store.FetchFile("myrepo", "x86_64", name); err != nil {
+		t.Fatalf("renewed object missing: %v", err)
+	} else {
+		_ = f.Close()
+	}
+}
+
+func TestLocalStorePublicationLockSerializesRepositoryWriters(t *testing.T) {
+	root := t.TempDir()
+	first := localfs.New(root, []string{"myrepo"})
+	second := localfs.New(root, []string{"myrepo"})
+
+	releaseFirst, err := first.LockPublication("myrepo")
+	if err != nil {
+		t.Fatalf("first LockPublication: %v", err)
+	}
+	defer releaseFirst()
+
+	started := make(chan struct{})
+	acquired := make(chan func(), 1)
+	errCh := make(chan error, 1)
+	go func() {
+		close(started)
+		release, err := second.LockPublication("myrepo")
+		if err != nil {
+			errCh <- err
+			return
+		}
+		acquired <- release
+	}()
+	<-started
+
+	select {
+	case release := <-acquired:
+		release()
+		t.Fatal("second publication writer acquired the repo lock before the first released it")
+	case err := <-errCh:
+		t.Fatalf("second LockPublication: %v", err)
+	case <-time.After(100 * time.Millisecond):
+	}
+
+	releaseFirst()
+	select {
+	case release := <-acquired:
+		release()
+	case err := <-errCh:
+		t.Fatalf("second LockPublication after release: %v", err)
+	case <-time.After(2 * time.Second):
+		t.Fatal("second publication writer did not acquire the repo lock after release")
 	}
 }

@@ -11,6 +11,7 @@ package mocks
 
 import (
 	reflect "reflect"
+	time "time"
 
 	repository "github.com/Hayao0819/Kamisato/ayato/repository"
 	blob "github.com/Hayao0819/Kamisato/ayato/repository/blob"
@@ -99,6 +100,21 @@ func (m *MockBinaryRepository) DeleteFile(arg0, arch, file string) error {
 func (mr *MockBinaryRepositoryMockRecorder) DeleteFile(arg0, arch, file any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteFile", reflect.TypeOf((*MockBinaryRepository)(nil).DeleteFile), arg0, arch, file)
+}
+
+// DeleteOrphanIfUnchanged mocks base method.
+func (m *MockBinaryRepository) DeleteOrphanIfUnchanged(name, arch string, expected blob.FileInfo, cutoff time.Time) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteOrphanIfUnchanged", name, arch, expected, cutoff)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// DeleteOrphanIfUnchanged indicates an expected call of DeleteOrphanIfUnchanged.
+func (mr *MockBinaryRepositoryMockRecorder) DeleteOrphanIfUnchanged(name, arch, expected, cutoff any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteOrphanIfUnchanged", reflect.TypeOf((*MockBinaryRepository)(nil).DeleteOrphanIfUnchanged), name, arch, expected, cutoff)
 }
 
 // FetchDB mocks base method.
@@ -251,6 +267,20 @@ func (mr *MockBinaryRepositoryMockRecorder) RebuildMerged(name, arch, useSignedD
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RebuildMerged", reflect.TypeOf((*MockBinaryRepository)(nil).RebuildMerged), name, arch, useSignedDB)
 }
 
+// ReconcileDB mocks base method.
+func (m *MockBinaryRepository) ReconcileDB(name, arch string, useSignedDB bool, gnupgDir *string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ReconcileDB", name, arch, useSignedDB, gnupgDir)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// ReconcileDB indicates an expected call of ReconcileDB.
+func (mr *MockBinaryRepositoryMockRecorder) ReconcileDB(name, arch, useSignedDB, gnupgDir any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReconcileDB", reflect.TypeOf((*MockBinaryRepository)(nil).ReconcileDB), name, arch, useSignedDB, gnupgDir)
+}
+
 // RemoteRepo mocks base method.
 func (m *MockBinaryRepository) RemoteRepo(name, arch string) (*repo.RemoteRepo, error) {
 	m.ctrl.T.Helper()
@@ -323,6 +353,20 @@ func (mr *MockBinaryRepositoryMockRecorder) RepoRemove(name, arch, pkg, useSigne
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RepoRemove", reflect.TypeOf((*MockBinaryRepository)(nil).RepoRemove), name, arch, pkg, useSignedDB, gnupgDir)
 }
 
+// RepoRemoveIfMatch mocks base method.
+func (m *MockBinaryRepository) RepoRemoveIfMatch(name, arch, pkg, expectedVersion, expectedFile string, useSignedDB bool, gnupgDir *string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RepoRemoveIfMatch", name, arch, pkg, expectedVersion, expectedFile, useSignedDB, gnupgDir)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// RepoRemoveIfMatch indicates an expected call of RepoRemoveIfMatch.
+func (mr *MockBinaryRepositoryMockRecorder) RepoRemoveIfMatch(name, arch, pkg, expectedVersion, expectedFile, useSignedDB, gnupgDir any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RepoRemoveIfMatch", reflect.TypeOf((*MockBinaryRepository)(nil).RepoRemoveIfMatch), name, arch, pkg, expectedVersion, expectedFile, useSignedDB, gnupgDir)
+}
+
 // StoreFile mocks base method.
 func (m *MockBinaryRepository) StoreFile(arg0, arch string, file stream.SeekFile) error {
 	m.ctrl.T.Helper()
@@ -349,6 +393,21 @@ func (m *MockBinaryRepository) StoreFileIfMatch(arg0, arch string, file stream.S
 func (mr *MockBinaryRepositoryMockRecorder) StoreFileIfMatch(arg0, arch, file, etag any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StoreFileIfMatch", reflect.TypeOf((*MockBinaryRepository)(nil).StoreFileIfMatch), arg0, arch, file, etag)
+}
+
+// StoreFileImmutable mocks base method.
+func (m *MockBinaryRepository) StoreFileImmutable(name, arch string, file stream.SeekFile) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "StoreFileImmutable", name, arch, file)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// StoreFileImmutable indicates an expected call of StoreFileImmutable.
+func (mr *MockBinaryRepositoryMockRecorder) StoreFileImmutable(name, arch, file any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StoreFileImmutable", reflect.TypeOf((*MockBinaryRepository)(nil).StoreFileImmutable), name, arch, file)
 }
 
 // StoreFileWithSignedPutURL mocks base method.

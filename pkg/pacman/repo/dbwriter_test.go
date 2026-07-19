@@ -150,9 +150,16 @@ func TestDBBuilderPreservesUntouchedFiles(t *testing.T) {
 	if err := initial.WriteFiles(&filesArchive); err != nil {
 		t.Fatal(err)
 	}
+	var dbArchive bytes.Buffer
+	if err := initial.WriteDB(&dbArchive); err != nil {
+		t.Fatal(err)
+	}
 
 	// Reload it, add an unrelated package "b", and re-emit the files archive.
 	b := newDBBuilder()
+	if err := b.LoadDB(bytes.NewReader(dbArchive.Bytes())); err != nil {
+		t.Fatal(err)
+	}
 	if err := b.LoadFiles(bytes.NewReader(filesArchive.Bytes())); err != nil {
 		t.Fatal(err)
 	}
@@ -173,5 +180,51 @@ func TestDBBuilderPreservesUntouchedFiles(t *testing.T) {
 	}
 	if _, ok := readMember(t, out.Bytes(), "b-1-1/files"); !ok {
 		t.Error("added package b missing its files member")
+	}
+}
+
+func TestDBBuilderRejectsStaleFilesEntries(t *testing.T) {
+	canonical := newDBBuilder()
+	if err := canonical.Upsert(metaFor("foo", "2.0-1", []string{"usr/bin/foo-v2"}), nil); err != nil {
+		t.Fatal(err)
+	}
+	var canonicalDB bytes.Buffer
+	if err := canonical.WriteDB(&canonicalDB); err != nil {
+		t.Fatal(err)
+	}
+
+	stale := newDBBuilder()
+	if err := stale.Upsert(metaFor("foo", "1.0-1", []string{"usr/bin/foo-v1"}), nil); err != nil {
+		t.Fatal(err)
+	}
+	if err := stale.Upsert(metaFor("removed", "1.0-1", []string{"usr/bin/removed"}), nil); err != nil {
+		t.Fatal(err)
+	}
+	var staleFiles bytes.Buffer
+	if err := stale.WriteFiles(&staleFiles); err != nil {
+		t.Fatal(err)
+	}
+
+	b := newDBBuilder()
+	if err := b.LoadDB(bytes.NewReader(canonicalDB.Bytes())); err != nil {
+		t.Fatal(err)
+	}
+	if err := b.LoadFiles(bytes.NewReader(staleFiles.Bytes())); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := b.missingFileObjects(); err != nil || len(got) != 1 || got[0] != "foo-2.0-1-x86_64.pkg.tar.zst" {
+		t.Fatalf("missing files = %v, want canonical foo v2 only", got)
+	}
+
+	var outDB bytes.Buffer
+	if err := b.WriteDB(&outDB); err != nil {
+		t.Fatal(err)
+	}
+	rr, err := RemoteRepoFromDB("r", bytes.NewReader(outDB.Bytes()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rr.Pkgs) != 1 || rr.Pkgs[0].Name() != "foo" || rr.Pkgs[0].Version() != "2.0-1" {
+		t.Fatalf("stale files changed canonical packages: %v", rr.Pkgs)
 	}
 }

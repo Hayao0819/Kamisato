@@ -77,7 +77,8 @@ func TestUploadFile_ProtectedNameCollision(t *testing.T) {
 			// No StoreFile / RepoAddBatch: the guard rejects before anything is stored.
 
 			svc := service.New(name, bin, nil, nil, protectedConfig("pacman", "glibc", "base"))
-			files := &domain.UploadFiles{PkgFile: pkgStream(uploadName, pkgWithFields(t, tc.pkgname, tc.extra))}
+			fileName := tc.pkgname + "-1.0-1-x86_64.pkg.tar.zst"
+			files := &domain.UploadFiles{PkgFile: pkgStream(fileName, pkgWithFields(t, tc.pkgname, tc.extra))}
 			err := svc.UploadFile("myrepo", files)
 			if !errors.Is(err, domain.ErrConflict) {
 				t.Fatalf("a protected-name collision must be ErrConflict, got %v", err)
@@ -94,7 +95,7 @@ func TestUploadFile_ProtectedNamesAllowNonCollision(t *testing.T) {
 	name := mocks.NewMockNameStore(ctrl)
 	bin.EXPECT().VerifyPkgRepo("myrepo").Return(nil)
 	bin.EXPECT().RemoteRepo("myrepo", "x86_64").Return(&repo.RemoteRepo{}, nil).AnyTimes()
-	bin.EXPECT().StoreFile("myrepo", "x86_64", gomock.Any()).Return(nil)
+	bin.EXPECT().StoreFileImmutable("myrepo", "x86_64", gomock.Any()).Return(true, nil)
 	bin.EXPECT().RepoAddBatch("myrepo", "x86_64", gomock.Any(), false, gomock.Nil()).Return(nil)
 	name.EXPECT().StorePackageFiles("myrepo", []repository.PackageFileEntry{{Arch: "x86_64", Name: "foo", FileName: uploadName}}).Return(nil)
 

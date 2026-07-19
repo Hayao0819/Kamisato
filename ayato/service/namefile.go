@@ -9,21 +9,8 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
-// NameStore is a cache keyed by (store arch, name); a miss falls through to the
-// authoritative .db. storeArch is "any" for an arch=any package, else the
-// concrete arch holding the file.
+// resolvePackage resolves a package from the repository DB and refreshes the name cache.
 func (s *Service) resolvePackage(repo, reqArch, pkgname string) (filename, storeArch string, err error) {
-	if reqArch != "" && reqArch != "any" {
-		if f, e := s.pkgNameRepo.PackageFile(repo, reqArch, pkgname); e == nil && f != "" {
-			return f, reqArch, nil
-		}
-	}
-	if f, e := s.pkgNameRepo.PackageFile(repo, "any", pkgname); e == nil && f != "" {
-		return f, "any", nil
-	}
-
-	// Cache miss: read the .db, trying reqArch first then every configured arch
-	// (an arch=any package is registered in each).
 	var arches []string
 	if reqArch != "" && reqArch != "any" {
 		arches = append(arches, reqArch)
@@ -34,7 +21,6 @@ func (s *Service) resolvePackage(repo, reqArch, pkgname string) (filename, store
 		if dbErr != nil {
 			continue
 		}
-		// Backfill under the resolved store arch so later lookups hit.
 		if storeErr := s.pkgNameRepo.StorePackageFile(repo, sa, pkgname, fn); storeErr != nil {
 			slog.Warn("failed to backfill name store", "repo", repo, "arch", sa, "pkgname", pkgname, "error", storeErr.Error())
 		}
@@ -54,8 +40,6 @@ func (s *Service) packageEntryFromDB(repo, arch, pkgname string) (filename, pkgA
 		return "", "", fmt.Errorf("package %q not found in %s/%s db", pkgname, repo, arch)
 	}
 
-	// A .db package carries its file name in Path (%FILENAME%); take the base to
-	// match what StorePackageFile holds.
 	fn := path.Base(p.Path())
 	if fn == "" || fn == "." || fn == "/" {
 		return "", "", fmt.Errorf("package %q has no filename in %s/%s db", pkgname, repo, arch)

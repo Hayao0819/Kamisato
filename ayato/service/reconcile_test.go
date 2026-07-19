@@ -55,7 +55,7 @@ func TestReconcileOrphans_DeletesOldUnreferenced(t *testing.T) {
 	bin.EXPECT().FilesWithMeta("myrepo", "any").Return(nil, nil)
 
 	// Only the old, unreferenced package object is deleted.
-	bin.EXPECT().DeleteFile("myrepo", "x86_64", orphanOld).Return(nil)
+	bin.EXPECT().DeleteOrphanIfUnchanged("myrepo", "x86_64", gomock.Any(), gomock.Any()).Return(true, nil)
 
 	svc := service.New(name, bin, nil, nil, baseConfig(false, ""))
 	orphans, err := svc.ReconcileOrphans("myrepo", time.Hour, false)
@@ -84,7 +84,7 @@ func TestReconcileOrphans_DryRunDeletesNothing(t *testing.T) {
 		{Name: orphanOld, LastModified: time.Now().Add(-2 * time.Hour)},
 	}, nil)
 	bin.EXPECT().FilesWithMeta("myrepo", "any").Return(nil, nil)
-	bin.EXPECT().DeleteFile(gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
+	bin.EXPECT().DeleteOrphanIfUnchanged(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
 
 	svc := service.New(name, bin, nil, nil, baseConfig(false, ""))
 	orphans, err := svc.ReconcileOrphans("myrepo", time.Hour, true)
@@ -127,7 +127,7 @@ func TestReconcileOrphans_AnyDir(t *testing.T) {
 	}, nil)
 	// Only the unreferenced any object is deleted; keptAny is protected by the
 	// concrete db's registration.
-	bin.EXPECT().DeleteFile("myrepo", "any", orphanAny).Return(nil)
+	bin.EXPECT().DeleteOrphanIfUnchanged("myrepo", "any", gomock.Any(), gomock.Any()).Return(true, nil)
 
 	svc := service.New(name, bin, nil, nil, baseConfig(false, ""))
 	orphans, err := svc.ReconcileOrphans("myrepo", time.Hour, false)
@@ -157,7 +157,7 @@ func TestReconcileOrphans_MissingDBSkipsArch(t *testing.T) {
 		{Name: "myrepo.db.tar.gz", LastModified: time.Now().Add(-2 * time.Hour)},
 	}, nil)
 	bin.EXPECT().FilesWithMeta("myrepo", "any").Return(nil, nil)
-	bin.EXPECT().DeleteFile("myrepo", "x86_64", "stray-1.0-1-x86_64.pkg.tar.zst").Return(nil)
+	bin.EXPECT().DeleteOrphanIfUnchanged("myrepo", "x86_64", gomock.Any(), gomock.Any()).Return(true, nil)
 
 	svc := service.New(name, bin, nil, nil, baseConfig(false, ""))
 	orphans, err := svc.ReconcileOrphans("myrepo", time.Hour, false)

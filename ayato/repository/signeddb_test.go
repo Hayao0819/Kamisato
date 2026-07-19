@@ -2,12 +2,15 @@ package repository
 
 import (
 	"bytes"
+	"compress/gzip"
 	"io"
 	"testing"
+	"time"
 
 	"github.com/ProtonMail/go-crypto/openpgp"
 	"github.com/ProtonMail/go-crypto/openpgp/packet"
 
+	"github.com/Hayao0819/Kamisato/ayato/stream"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
 )
 
@@ -37,6 +40,31 @@ func readStored(t *testing.T, mem *memStore, name string) []byte {
 	b, _ := io.ReadAll(f)
 	f.Close()
 	return b
+}
+
+func reencodeGzipWithLegacyHeader(t *testing.T, body []byte) []byte {
+	t.Helper()
+	zr, err := gzip.NewReader(bytes.NewReader(body))
+	if err != nil {
+		t.Fatal(err)
+	}
+	tarBody, err := io.ReadAll(zr)
+	if closeErr := zr.Close(); err == nil {
+		err = closeErr
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	var out bytes.Buffer
+	zw := gzip.NewWriter(&out)
+	zw.Header.ModTime = time.Unix(1_700_000_000, 0)
+	if _, err := zw.Write(tarBody); err != nil {
+		t.Fatal(err)
+	}
+	if err := zw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	return out.Bytes()
 }
 
 // TestSignedDBArtifactsAtomic proves a signed publish stores the detached
@@ -101,6 +129,15 @@ func TestBackfillSignatures(t *testing.T) {
 	if contains(mem.names("r", "x86_64"), "r.db.tar.gz.sig") {
 		t.Fatal("an unsigned publish must not produce a .sig")
 	}
+	legacyCanonical := reencodeGzipWithLegacyHeader(t, readStored(t, mem, "r.db.tar.gz"))
+	if err := mem.StoreFile("r", "x86_64", stream.NewFileStream("r.db.tar.gz", "application/octet-stream", nopSeekCloser{bytes.NewReader(legacyCanonical)})); err != nil {
+		t.Fatal(err)
+	}
+	db, canonicalVersion, err := mem.FetchFileWithETag("r", "x86_64", "r.db.tar.gz")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = db.Close()
 
 	signed := &binaryRepository{Store: mem, tool: repo.NewSigningNativeTool(signer)}
 	if err := signed.BackfillSignatures("r", "x86_64"); err != nil {
@@ -108,6 +145,14 @@ func TestBackfillSignatures(t *testing.T) {
 	}
 	if !contains(mem.names("r", "x86_64"), "r.db.tar.gz.sig") {
 		t.Fatal("backfill did not create the db signature")
+	}
+	db, afterVersion, err := mem.FetchFileWithETag("r", "x86_64", "r.db.tar.gz")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = db.Close()
+	if afterVersion != canonicalVersion {
+		t.Fatalf("backfill rewrote canonical DB: %s -> %s", canonicalVersion, afterVersion)
 	}
 	verifyDetached(t, signer, readStored(t, mem, "r.db.tar.gz"), readStored(t, mem, "r.db.tar.gz.sig"))
 

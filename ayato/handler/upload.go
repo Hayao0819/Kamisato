@@ -1,20 +1,20 @@
 package handler
 
 import (
+	stderrors "errors"
 	"fmt"
 	"io"
 	"log/slog"
 	"mime/multipart"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/samber/lo"
 
-	"github.com/Hayao0819/Kamisato/internal/errors"
 	"github.com/Hayao0819/Kamisato/internal/limits"
 
 	"github.com/Hayao0819/Kamisato/ayato/domain"
-	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
 	"github.com/Hayao0819/Kamisato/ayato/stream"
 )
 
@@ -42,8 +42,20 @@ func (h *Handler) BlinkyUploadHandler(ctx *gin.Context) {
 	// arrive, not after the whole body is already on disk/in memory.
 	ctx.Request.Body = http.MaxBytesReader(ctx.Writer, ctx.Request.Body, limits.MultipartBytes(h.cfg.MaxSize))
 	if err := ctx.Request.ParseMultipartForm(10 << 20); err != nil {
+		var maxErr *http.MaxBytesError
+		if stderrors.As(err, &maxErr) {
+			ctx.JSON(http.StatusRequestEntityTooLarge, domain.APIError{Message: "upload exceeds max_size"})
+			return
+		}
 		ctx.JSON(http.StatusBadRequest, domain.APIError{Message: fmt.Sprintf("parse form err: %s", err.Error())})
 		return
+	}
+	if ctx.Request.MultipartForm != nil {
+		defer func() {
+			if err := ctx.Request.MultipartForm.RemoveAll(); err != nil {
+				slog.Warn("failed to remove multipart temporary files", "err", err)
+			}
+		}()
 	}
 	var names []string
 	if ctx.Request.MultipartForm != nil {
@@ -72,6 +84,10 @@ func (h *Handler) BlinkyUploadHandler(ctx *gin.Context) {
 			sigHeader = nil
 			slog.Warn("failed to get signature form", "error", err.Error())
 		}
+	}
+	if sigHeader != nil && (sigHeader.Size == 0 || sigHeader.Size > limits.MaxSignatureBytes) {
+		ctx.JSON(http.StatusRequestEntityTooLarge, domain.APIError{Message: "signature is empty or too large"})
+		return
 	}
 	pkgStream, err := formFileStream(pkgHeader)
 	if err != nil {
@@ -117,21 +133,84 @@ func (h *Handler) BatchUploadHandler(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, domain.APIError{Message: "repository name is required"})
 		return
 	}
-	ctx.Request.Body = http.MaxBytesReader(ctx.Writer, ctx.Request.Body, limits.MultipartBytes(h.cfg.MaxSize))
+	ctx.Request.Body = http.MaxBytesReader(ctx.Writer, ctx.Request.Body, limits.BatchMultipartBytes(h.cfg.MaxBatchBytes, h.cfg.MaxSize))
 	if err := ctx.Request.ParseMultipartForm(10 << 20); err != nil {
+		var maxErr *http.MaxBytesError
+		if stderrors.As(err, &maxErr) {
+			ctx.JSON(http.StatusRequestEntityTooLarge, domain.APIError{Message: "batch upload exceeds max_batch_bytes"})
+			return
+		}
 		ctx.JSON(http.StatusBadRequest, domain.APIError{Message: fmt.Sprintf("parse form err: %s", err.Error())})
 		return
 	}
 	form := ctx.Request.MultipartForm
+	if form != nil {
+		defer func() {
+			if err := form.RemoveAll(); err != nil {
+				slog.Warn("failed to remove multipart temporary files", "err", err)
+			}
+		}()
+	}
 	if form == nil || len(form.File["package"]) == 0 {
 		ctx.JSON(http.StatusBadRequest, domain.APIError{Message: "no package files found in the request"})
+		return
+	}
+	if len(form.File["package"]) > limits.BatchPackages(h.cfg.MaxBatchPackages) {
+		ctx.JSON(http.StatusRequestEntityTooLarge, domain.APIError{Message: "too many packages in one batch"})
+		return
+	}
+	if len(form.File["signature"]) > len(form.File["package"]) {
+		ctx.JSON(http.StatusBadRequest, domain.APIError{Message: "batch contains more signatures than packages"})
+		return
+	}
+	for field := range form.File {
+		if field != "package" && field != "signature" {
+			ctx.JSON(http.StatusBadRequest, domain.APIError{Message: fmt.Sprintf("unexpected multipart file field %q", field)})
+			return
+		}
+	}
+	if len(form.Value) != 0 {
+		ctx.JSON(http.StatusBadRequest, domain.APIError{Message: "unexpected multipart value field"})
 		return
 	}
 
 	// Match each signature to the package it signs by the "<pkg>.sig" convention.
 	sigByName := make(map[string]*multipart.FileHeader, len(form.File["signature"]))
+	var aggregate int64
 	for _, sh := range form.File["signature"] {
+		if sh.Size == 0 || sh.Size > limits.MaxSignatureBytes {
+			ctx.JSON(http.StatusRequestEntityTooLarge, domain.APIError{Message: fmt.Sprintf("signature %q is empty or too large", sh.Filename)})
+			return
+		}
+		if !strings.HasSuffix(sh.Filename, ".sig") {
+			ctx.JSON(http.StatusBadRequest, domain.APIError{Message: fmt.Sprintf("signature %q must use the <package>.sig filename", sh.Filename)})
+			return
+		}
+		if _, duplicate := sigByName[sh.Filename]; duplicate {
+			ctx.JSON(http.StatusBadRequest, domain.APIError{Message: fmt.Sprintf("duplicate signature %q", sh.Filename)})
+			return
+		}
 		sigByName[sh.Filename] = sh
+		aggregate += sh.Size
+	}
+	packageNames := make(map[string]bool, len(form.File["package"]))
+	for _, ph := range form.File["package"] {
+		if packageNames[ph.Filename] {
+			ctx.JSON(http.StatusBadRequest, domain.APIError{Message: fmt.Sprintf("duplicate package %q", ph.Filename)})
+			return
+		}
+		packageNames[ph.Filename] = true
+		aggregate += ph.Size
+	}
+	for signature := range sigByName {
+		if !packageNames[strings.TrimSuffix(signature, ".sig")] {
+			ctx.JSON(http.StatusBadRequest, domain.APIError{Message: fmt.Sprintf("signature %q has no matching package", signature)})
+			return
+		}
+	}
+	if aggregate > limits.BatchBytes(h.cfg.MaxBatchBytes, h.cfg.MaxSize) {
+		ctx.JSON(http.StatusRequestEntityTooLarge, domain.APIError{Message: "batch file data exceeds max_batch_bytes"})
+		return
 	}
 
 	var files []*domain.UploadFiles
@@ -148,7 +227,7 @@ func (h *Handler) BatchUploadHandler(ctx *gin.Context) {
 			return
 		}
 		if limits.Exceeds(ph.Size, h.cfg.MaxSize) {
-			ctx.JSON(http.StatusBadRequest, domain.APIError{Message: fmt.Sprintf("package %q is too large", ph.Filename)})
+			ctx.JSON(http.StatusRequestEntityTooLarge, domain.APIError{Message: fmt.Sprintf("package %q is too large", ph.Filename)})
 			return
 		}
 		pkgStream, err := formFileStream(ph)
@@ -182,57 +261,13 @@ func (h *Handler) BatchUploadHandler(ctx *gin.Context) {
 // the server. A backend that cannot presign answers 501 so the client falls back
 // to the multipart upload.
 func (h *Handler) PresignUploadHandler(ctx *gin.Context) {
-	repoName := ctx.Param("repo")
-	if repoName == "" {
-		ctx.JSON(http.StatusBadRequest, domain.APIError{Message: "repository name is required"})
-		return
-	}
-	var req struct {
-		Files []string `json:"files"`
-	}
-	if err := ctx.ShouldBindJSON(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, domain.APIError{Message: fmt.Sprintf("decode request err: %s", err.Error())})
-		return
-	}
-	if len(req.Files) == 0 {
-		ctx.JSON(http.StatusBadRequest, domain.APIError{Message: "no files requested"})
-		return
-	}
-	urls, err := h.s.PresignUploads(repoName, req.Files)
-	if err != nil {
-		if errors.Is(err, blob.ErrPresignUnsupported) {
-			ctx.JSON(http.StatusNotImplemented, domain.APIError{Message: "presigned upload is not available for this storage backend"})
-			return
-		}
-		ctx.JSON(errToStatus(err), domain.APIError{Message: fmt.Sprintf("presign err: %s", err.Error())})
-		return
-	}
-	ctx.JSON(http.StatusOK, gin.H{"urls": urls})
+	// Final-key presigning remains disabled until uploads use validated staging keys.
+	ctx.JSON(http.StatusNotImplemented, domain.APIError{Message: "presigned upload is disabled until the staging-intent protocol is available"})
 }
 
 // FinalizeUploadHandler registers packages the client already PUT to R2 via a
 // presigned URL, reusing the same validation and registration as a multipart
 // upload without re-storing the bytes.
 func (h *Handler) FinalizeUploadHandler(ctx *gin.Context) {
-	repoName := ctx.Param("repo")
-	if repoName == "" {
-		ctx.JSON(http.StatusBadRequest, domain.APIError{Message: "repository name is required"})
-		return
-	}
-	var req struct {
-		Packages []string `json:"packages"`
-	}
-	if err := ctx.ShouldBindJSON(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, domain.APIError{Message: fmt.Sprintf("decode request err: %s", err.Error())})
-		return
-	}
-	if len(req.Packages) == 0 {
-		ctx.JSON(http.StatusBadRequest, domain.APIError{Message: "no packages to finalize"})
-		return
-	}
-	if err := h.s.FinalizeUploads(repoName, req.Packages); err != nil {
-		ctx.JSON(errToStatus(err), domain.APIError{Message: fmt.Sprintf("finalize err: %s", err.Error())})
-		return
-	}
-	ctx.String(http.StatusOK, fmt.Sprintf("%d package(s) finalized!", len(req.Packages)))
+	ctx.JSON(http.StatusNotImplemented, domain.APIError{Message: "presigned upload is disabled until the staging-intent protocol is available"})
 }

@@ -53,6 +53,9 @@ func repoGCCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			if olderThan < 0 {
+				return fmt.Errorf("--older-than must not be negative")
+			}
 			del, err := cmd.Flags().GetBool("delete")
 			if err != nil {
 				return err

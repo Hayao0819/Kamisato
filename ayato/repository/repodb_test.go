@@ -12,6 +12,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
 
@@ -37,7 +38,13 @@ type memStore struct {
 	onFetch func(name string)
 	// fetchErr, when set, is returned by FetchFileWithETag to model a transient
 	// backend error (which must NOT be mistaken for absence).
-	fetchErr error
+	fetchErr          error
+	storeErrName      string
+	storeErr          error
+	storeAfterErrName string
+	storeAfterErr     error
+	afterStoreName    string
+	afterStore        func(name string)
 }
 
 func newMemStore() *memStore {
@@ -102,19 +109,494 @@ func (m *memStore) StoreFileIfMatch(repo, arch string, file stream.SeekFile, eta
 	if err != nil {
 		return err
 	}
+	name := path.Base(file.FileName())
 	m.mu.Lock()
-	defer m.mu.Unlock()
-	k := m.keyOf(repo, arch, path.Base(file.FileName()))
+	if name == m.storeErrName && m.storeErr != nil {
+		m.mu.Unlock()
+		return m.storeErr
+	}
+	k := m.keyOf(repo, arch, name)
 	cur, exists := m.versions[k]
 	if etag == "" {
 		if exists {
+			m.mu.Unlock()
 			return blob.ErrPreconditionFailed
 		}
 	} else if cur != etag {
+		m.mu.Unlock()
 		return blob.ErrPreconditionFailed
 	}
-	m.put(repo, arch, path.Base(file.FileName()), b)
+	m.put(repo, arch, name, b)
+	afterErr := error(nil)
+	if name == m.storeAfterErrName {
+		afterErr = m.storeAfterErr
+	}
+	hook := m.afterStore
+	if name != m.afterStoreName {
+		hook = nil
+	} else {
+		m.afterStore = nil
+	}
+	m.mu.Unlock()
+	if hook != nil {
+		hook(name)
+	}
+	if afterErr != nil {
+		return afterErr
+	}
 	return nil
+}
+
+func TestStoreFileImmutableReusesOnlyByteIdenticalObject(t *testing.T) {
+	mem := newMemStore()
+	r := &binaryRepository{Store: mem}
+	file := func(body string) stream.SeekFile {
+		return stream.NewFileStream("foo-1.0-1-x86_64.pkg.tar.zst", "application/octet-stream", nopSeekCloser{bytes.NewReader([]byte(body))})
+	}
+	created, err := r.StoreFileImmutable("r", "x86_64", file("winner"))
+	if err != nil || !created {
+		t.Fatalf("first create = (%v, %v), want true, nil", created, err)
+	}
+	stored, beforeVersion, err := mem.FetchFileWithETag("r", "x86_64", "foo-1.0-1-x86_64.pkg.tar.zst")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = stored.Close()
+	created, err = r.StoreFileImmutable("r", "x86_64", file("winner"))
+	if err != nil || created {
+		t.Fatalf("identical reuse = (%v, %v), want false, nil", created, err)
+	}
+	stored, afterVersion, err := mem.FetchFileWithETag("r", "x86_64", "foo-1.0-1-x86_64.pkg.tar.zst")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = stored.Close()
+	if beforeVersion == afterVersion {
+		t.Fatal("identical reuse did not renew the object's version/lease")
+	}
+	if _, err := r.StoreFileImmutable("r", "x86_64", file("attacker")); !errors.Is(err, ErrImmutableObjectConflict) {
+		t.Fatalf("different-content reuse = %v, want ErrImmutableObjectConflict", err)
+	}
+	stored, err = mem.FetchFile("r", "x86_64", "foo-1.0-1-x86_64.pkg.tar.zst")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := io.ReadAll(stored)
+	_ = stored.Close()
+	if err != nil || string(got) != "winner" {
+		t.Fatalf("immutable object = %q, %v; want winner", got, err)
+	}
+}
+
+func TestRepoAddConditionalRejectsConcurrentDowngrade(t *testing.T) {
+	mem := newMemStore()
+	r := &binaryRepository{Store: mem}
+	if err := r.InitArch("r", "x86_64", false, nil); err != nil {
+		t.Fatal(err)
+	}
+	dir := t.TempDir()
+	v0Path := makePkg(t, dir, "foo", "0.9-1", "x86_64")
+	v0 := openSeek(t, v0Path)
+	if err := r.RepoAdd("r", "x86_64", v0, nil, false, nil); err != nil {
+		t.Fatal(err)
+	}
+	oldFile := path.Base(v0Path)
+	v2 := openSeek(t, makePkg(t, dir, "foo", "2.0-1", "x86_64"))
+	conditional := func(pkg stream.SeekFile) error {
+		return r.RepoAddBatch("r", "x86_64", []RepoAddItem{{
+			Pkg:                    pkg,
+			CheckCurrent:           true,
+			ExpectedName:           "foo",
+			ExpectedCurrentVersion: "0.9-1",
+			ExpectedCurrentFile:    oldFile,
+		}}, false, nil)
+	}
+	if err := conditional(v2); err != nil {
+		t.Fatal(err)
+	}
+	v1 := openSeek(t, makePkg(t, dir, "foo", "1.0-1", "x86_64"))
+	if err := conditional(v1); !errors.Is(err, ErrPackageChanged) {
+		t.Fatalf("stale v1 publish error = %v, want ErrPackageChanged", err)
+	}
+	rr, err := r.RemoteRepo("r", "x86_64")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := rr.PkgByPkgName("foo").Version(); got != "2.0-1" {
+		t.Fatalf("stale writer downgraded package to %s", got)
+	}
+}
+
+func TestRepoAddReportsCanonicalCommitBeforeDerivedFailure(t *testing.T) {
+	mem := newMemStore()
+	r := &binaryRepository{Store: mem}
+	if err := r.InitArch("r", "x86_64", false, nil); err != nil {
+		t.Fatal(err)
+	}
+	boom := errors.New("files write failed")
+	mem.storeErrName = "r.files.tar.gz"
+	mem.storeErr = boom
+	pkgPath := makePkg(t, t.TempDir(), "foo", "1.0-1", "x86_64")
+	if err := mem.StoreFile("r", "x86_64", openSeek(t, pkgPath)); err != nil {
+		t.Fatal(err)
+	}
+	err := r.RepoAdd("r", "x86_64", openSeek(t, pkgPath), nil, false, nil)
+	if !CanonicalCommitted(err) || !errors.Is(err, boom) {
+		t.Fatalf("RepoAdd error = %v, want canonical-committed wrapper around boom", err)
+	}
+	mem.storeErr = nil
+	rr, fetchErr := r.RemoteRepo("r", "x86_64")
+	if fetchErr != nil {
+		t.Fatal(fetchErr)
+	}
+	if rr.PkgByPkgName("foo") == nil {
+		t.Fatal("canonical DB did not expose the committed package")
+	}
+	if err := r.InitArch("r", "x86_64", false, nil); err != nil {
+		t.Fatalf("startup reconciliation: %v", err)
+	}
+	files, err := mem.FetchFile("r", "x86_64", "r.files.tar.gz")
+	if err != nil {
+		t.Fatal(err)
+	}
+	filesRepo, err := repo.RemoteRepoFromDB("r", files)
+	_ = files.Close()
+	if err != nil || filesRepo.PkgByPkgName("foo") == nil {
+		t.Fatalf("reconciled files DB = %v, %v; want foo", filesRepo, err)
+	}
+}
+
+func TestRepoAddTreatsCanonicalWriteResponseFailureAsCommitted(t *testing.T) {
+	mem := newMemStore()
+	r := &binaryRepository{Store: mem}
+	if err := r.InitArch("r", "x86_64", false, nil); err != nil {
+		t.Fatal(err)
+	}
+	boom := errors.New("response lost after canonical write")
+	mem.storeAfterErrName = "r.db.tar.gz"
+	mem.storeAfterErr = boom
+	pkgPath := makePkg(t, t.TempDir(), "foo", "1.0-1", "x86_64")
+	err := r.RepoAdd("r", "x86_64", openSeek(t, pkgPath), nil, false, nil)
+	if !CanonicalCommitted(err) || !errors.Is(err, boom) {
+		t.Fatalf("RepoAdd error = %v, want canonical-committed ambiguous outcome", err)
+	}
+	rr, fetchErr := r.RemoteRepo("r", "x86_64")
+	if fetchErr != nil || rr.PkgByPkgName("foo") == nil {
+		t.Fatalf("ambiguous write did not leave visible canonical foo: %v, %v", rr, fetchErr)
+	}
+}
+
+func TestReconcileDBNeverImportsStaleFilesIntoCanonical(t *testing.T) {
+	mem := newMemStore()
+	r := &binaryRepository{Store: mem}
+	if err := r.InitArch("r", "x86_64", false, nil); err != nil {
+		t.Fatal(err)
+	}
+	dir := t.TempDir()
+	v1 := makePkg(t, dir, "foo", "1.0-1", "x86_64")
+	if err := mem.StoreFile("r", "x86_64", openSeek(t, v1)); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.RepoAdd("r", "x86_64", openSeek(t, v1), nil, false, nil); err != nil {
+		t.Fatal(err)
+	}
+	staleStream, err := mem.FetchFile("r", "x86_64", "r.files.tar.gz")
+	if err != nil {
+		t.Fatal(err)
+	}
+	staleFiles, err := io.ReadAll(staleStream)
+	_ = staleStream.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	v2 := makePkg(t, dir, "foo", "2.0-1", "x86_64")
+	if err := mem.StoreFile("r", "x86_64", openSeek(t, v2)); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.RepoAdd("r", "x86_64", openSeek(t, v2), nil, false, nil); err != nil {
+		t.Fatal(err)
+	}
+	canonical, beforeVersion, err := mem.FetchFileWithETag("r", "x86_64", "r.db.tar.gz")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = canonical.Close()
+	if err := mem.StoreFile("r", "x86_64", stream.NewFileStream("r.files.tar.gz", "application/octet-stream", nopSeekCloser{bytes.NewReader(staleFiles)})); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := r.ReconcileDB("r", "x86_64", false, nil); err != nil {
+		t.Fatal(err)
+	}
+	canonical, afterVersion, err := mem.FetchFileWithETag("r", "x86_64", "r.db.tar.gz")
+	if err != nil {
+		t.Fatal(err)
+	}
+	canonicalRepo, err := repo.RemoteRepoFromDB("r", canonical)
+	_ = canonical.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if beforeVersion != afterVersion {
+		t.Fatalf("reconcile rewrote canonical version: before=%s after=%s", beforeVersion, afterVersion)
+	}
+	if len(canonicalRepo.Pkgs) != 1 || canonicalRepo.Pkgs[0].Version() != "2.0-1" {
+		t.Fatalf("canonical after reconcile = %v, want foo v2 only", canonicalRepo.Pkgs)
+	}
+	files, err := mem.FetchFile("r", "x86_64", "r.files.tar.gz")
+	if err != nil {
+		t.Fatal(err)
+	}
+	filesRepo, err := repo.RemoteRepoFromDB("r", files)
+	_ = files.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(filesRepo.Pkgs) != 1 || filesRepo.Pkgs[0].Version() != "2.0-1" {
+		t.Fatalf("derived files after reconcile = %v, want foo v2 only", filesRepo.Pkgs)
+	}
+
+	if err := r.RepoRemove("r", "x86_64", "foo", false, nil); err != nil {
+		t.Fatal(err)
+	}
+	canonical, beforeVersion, err = mem.FetchFileWithETag("r", "x86_64", "r.db.tar.gz")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = canonical.Close()
+	if err := mem.StoreFile("r", "x86_64", stream.NewFileStream("r.files.tar.gz", "application/octet-stream", nopSeekCloser{bytes.NewReader(staleFiles)})); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.ReconcileDB("r", "x86_64", false, nil); err != nil {
+		t.Fatal(err)
+	}
+	canonical, afterVersion, err = mem.FetchFileWithETag("r", "x86_64", "r.db.tar.gz")
+	if err != nil {
+		t.Fatal(err)
+	}
+	emptyCanonical, err := repo.RemoteRepoFromDB("r", canonical)
+	_ = canonical.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if beforeVersion != afterVersion || len(emptyCanonical.Pkgs) != 0 {
+		t.Fatalf("stale files resurrected deleted package or rewrote canonical: version %s -> %s, pkgs=%v", beforeVersion, afterVersion, emptyCanonical.Pkgs)
+	}
+	files, err = mem.FetchFile("r", "x86_64", "r.files.tar.gz")
+	if err != nil {
+		t.Fatal(err)
+	}
+	emptyFiles, err := repo.RemoteRepoFromDB("r", files)
+	_ = files.Close()
+	if err != nil || len(emptyFiles.Pkgs) != 0 {
+		t.Fatalf("derived files retained deleted package: %v, %v", emptyFiles, err)
+	}
+}
+
+func TestReconcileDBDiscardsCorruptDerivedFiles(t *testing.T) {
+	mem := newMemStore()
+	r := &binaryRepository{Store: mem}
+	if err := r.InitArch("r", "x86_64", false, nil); err != nil {
+		t.Fatal(err)
+	}
+	pkgPath := makePkg(t, t.TempDir(), "foo", "1.0-1", "x86_64")
+	if err := mem.StoreFile("r", "x86_64", openSeek(t, pkgPath)); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.RepoAdd("r", "x86_64", openSeek(t, pkgPath), nil, false, nil); err != nil {
+		t.Fatal(err)
+	}
+
+	canonical, beforeVersion, err := mem.FetchFileWithETag("r", "x86_64", "r.db.tar.gz")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = canonical.Close()
+	corrupt := stream.NewFileStream("r.files.tar.gz", "application/octet-stream", nopSeekCloser{bytes.NewReader([]byte{0x1f, 0x8b, 0x08, 0x00})})
+	if err := mem.StoreFile("r", "x86_64", corrupt); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := r.ReconcileDB("r", "x86_64", false, nil); err != nil {
+		t.Fatalf("ReconcileDB with corrupt .files: %v", err)
+	}
+	canonical, afterVersion, err := mem.FetchFileWithETag("r", "x86_64", "r.db.tar.gz")
+	if err != nil {
+		t.Fatal(err)
+	}
+	canonicalRepo, err := repo.RemoteRepoFromDB("r", canonical)
+	_ = canonical.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if beforeVersion != afterVersion {
+		t.Fatalf("derived repair rewrote canonical DB: %s -> %s", beforeVersion, afterVersion)
+	}
+	if canonicalRepo.PkgByPkgName("foo") == nil {
+		t.Fatalf("canonical package disappeared during derived repair: %v", canonicalRepo.Pkgs)
+	}
+
+	files, err := mem.FetchFile("r", "x86_64", "r.files.tar.gz")
+	if err != nil {
+		t.Fatal(err)
+	}
+	filesRepo, err := repo.RemoteRepoFromDB("r", files)
+	_ = files.Close()
+	if err != nil || filesRepo.PkgByPkgName("foo") == nil {
+		t.Fatalf("repaired .files = %v, %v; want foo", filesRepo, err)
+	}
+}
+
+func TestConcurrentWritersReconcileDerivedArtifactsToCanonicalDB(t *testing.T) {
+	mem := newMemStore()
+	r1 := &binaryRepository{Store: mem}
+	r2 := &binaryRepository{Store: mem}
+	if err := r1.InitArch("r", "x86_64", false, nil); err != nil {
+		t.Fatal(err)
+	}
+
+	aCanonical := make(chan struct{})
+	releaseA := make(chan struct{})
+	var releaseOnce sync.Once
+	defer releaseOnce.Do(func() { close(releaseA) })
+	mem.mu.Lock()
+	mem.afterStoreName = "r.db.tar.gz"
+	mem.afterStore = func(string) {
+		close(aCanonical)
+		<-releaseA
+	}
+	mem.mu.Unlock()
+
+	dir := t.TempDir()
+	aPkg := openSeek(t, makePkg(t, dir, "alpha", "1.0-1", "x86_64"))
+	bPkg := openSeek(t, makePkg(t, dir, "bravo", "1.0-1", "x86_64"))
+	aDone := make(chan error, 1)
+	go func() {
+		aDone <- r1.RepoAddBatch("r", "x86_64", []RepoAddItem{{
+			Pkg:             aPkg,
+			CheckCurrent:    true,
+			ExpectedName:    "alpha",
+			IntendedVersion: "1.0-1",
+			IntendedFile:    "alpha-1.0-1-x86_64.pkg.tar.zst",
+		}}, false, nil)
+	}()
+
+	select {
+	case <-aCanonical:
+	case <-time.After(5 * time.Second):
+		t.Fatal("writer A did not reach its canonical commit")
+	}
+
+	bDone := make(chan error, 1)
+	go func() { bDone <- r2.RepoAdd("r", "x86_64", bPkg, nil, false, nil) }()
+	select {
+	case err := <-bDone:
+		if err != nil {
+			releaseOnce.Do(func() { close(releaseA) })
+			t.Fatal(err)
+		}
+	case <-time.After(5 * time.Second):
+		releaseOnce.Do(func() { close(releaseA) })
+		t.Fatal("writer B did not complete while writer A was paused")
+	}
+	releaseOnce.Do(func() { close(releaseA) })
+	select {
+	case err := <-aDone:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("writer A did not reconcile after the conflict")
+	}
+
+	for _, artifact := range []string{"r.db.tar.gz", "r.files.tar.gz"} {
+		f, err := mem.FetchFile("r", "x86_64", artifact)
+		if err != nil {
+			t.Fatalf("fetch %s: %v", artifact, err)
+		}
+		rr, err := repo.RemoteRepoFromDB("r", f)
+		_ = f.Close()
+		if err != nil {
+			t.Fatalf("parse %s: %v", artifact, err)
+		}
+		for _, name := range []string{"alpha", "bravo"} {
+			if rr.PkgByPkgName(name) == nil {
+				t.Fatalf("%s is stale: missing %s", artifact, name)
+			}
+		}
+	}
+}
+
+func TestPostCanonicalSupersessionReturnsCommittedOutcome(t *testing.T) {
+	mem := newMemStore()
+	r1 := &binaryRepository{Store: mem}
+	r2 := &binaryRepository{Store: mem}
+	if err := r1.InitArch("r", "x86_64", false, nil); err != nil {
+		t.Fatal(err)
+	}
+
+	aCanonical := make(chan struct{})
+	releaseA := make(chan struct{})
+	var releaseOnce sync.Once
+	defer releaseOnce.Do(func() { close(releaseA) })
+	mem.mu.Lock()
+	mem.afterStoreName = "r.db.tar.gz"
+	mem.afterStore = func(string) {
+		close(aCanonical)
+		<-releaseA
+	}
+	mem.mu.Unlock()
+
+	dir := t.TempDir()
+	alpha1 := openSeek(t, makePkg(t, dir, "alpha", "1.0-1", "x86_64"))
+	charlie1 := openSeek(t, makePkg(t, dir, "charlie", "1.0-1", "x86_64"))
+	aDone := make(chan error, 1)
+	go func() {
+		aDone <- r1.RepoAddBatch("r", "x86_64", []RepoAddItem{
+			{Pkg: alpha1, CheckCurrent: true, ExpectedName: "alpha", IntendedVersion: "1.0-1", IntendedFile: "alpha-1.0-1-x86_64.pkg.tar.zst"},
+			{Pkg: charlie1, CheckCurrent: true, ExpectedName: "charlie", IntendedVersion: "1.0-1", IntendedFile: "charlie-1.0-1-x86_64.pkg.tar.zst"},
+		}, false, nil)
+	}()
+	select {
+	case <-aCanonical:
+	case <-time.After(5 * time.Second):
+		t.Fatal("writer A did not commit canonical DB")
+	}
+
+	alpha2 := openSeek(t, makePkg(t, dir, "alpha", "2.0-1", "x86_64"))
+	if err := r2.RepoAddBatch("r", "x86_64", []RepoAddItem{{
+		Pkg:                    alpha2,
+		CheckCurrent:           true,
+		ExpectedName:           "alpha",
+		ExpectedCurrentVersion: "1.0-1",
+		ExpectedCurrentFile:    "alpha-1.0-1-x86_64.pkg.tar.zst",
+		IntendedVersion:        "2.0-1",
+		IntendedFile:           "alpha-2.0-1-x86_64.pkg.tar.zst",
+	}}, false, nil); err != nil {
+		releaseOnce.Do(func() { close(releaseA) })
+		t.Fatal(err)
+	}
+	releaseOnce.Do(func() { close(releaseA) })
+	select {
+	case err := <-aDone:
+		if !CanonicalCommitted(err) || !errors.Is(err, ErrPackageChanged) {
+			t.Fatalf("writer A error = %v, want canonical-committed ErrPackageChanged", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("writer A did not finish after supersession")
+	}
+
+	rr, err := r1.RemoteRepo("r", "x86_64")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if alpha := rr.PkgByPkgName("alpha"); alpha == nil || alpha.Version() != "2.0-1" {
+		t.Fatalf("newer alpha was not retained: %v", alpha)
+	}
+	if rr.PkgByPkgName("charlie") == nil {
+		t.Fatal("writer B's canonical base should include writer A's other package")
+	}
 }
 
 func (m *memStore) StoreFileWithSignedURL(string, string, string) (string, error)    { return "", nil }
@@ -335,7 +817,9 @@ func (fakeTool) RepoAdd(dbPath, _ string, _ bool, _ *string) error { return writ
 func (fakeTool) RepoAddBatch(dbPath string, _ []string, _ bool, _ *string) error {
 	return writeFakeQuartet(dbPath)
 }
-
+func (fakeTool) RebuildDerived(dbPath string, _ []string, _ bool, _ *string) error {
+	return writeFakeQuartet(dbPath)
+}
 func (fakeTool) RepoRemove(dbPath, _ string, _ bool, _ *string) error {
 	return writeFakeQuartet(dbPath)
 }

@@ -1,6 +1,8 @@
 package repository
 
 import (
+	"crypto/sha256"
+	stderrors "errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -26,6 +28,7 @@ type repoDBTool interface {
 	RepoAdd(dbPath, pkgFilePath string, useSignedDB bool, gnupgDir *string) error
 	RepoAddBatch(dbPath string, pkgFilePaths []string, useSignedDB bool, gnupgDir *string) error
 	RepoRemove(dbPath, pkg string, useSignedDB bool, gnupgDir *string) error
+	RebuildDerived(dbPath string, pkgFilePaths []string, useSignedDB bool, gnupgDir *string) error
 }
 
 func (r *binaryRepository) repoTool() repoDBTool {
@@ -99,6 +102,21 @@ func writeSeekFileToPath(dst string, f stream.SeekFile) error {
 	return nil
 }
 
+func writeReaderToPath(dst string, src io.Reader) error {
+	out, err := os.Create(dst)
+	if err != nil {
+		return errors.WrapErr(err, "failed to create temp file")
+	}
+	if _, err := io.Copy(out, src); err != nil {
+		_ = out.Close()
+		return errors.WrapErr(err, "failed to copy stream to temp file")
+	}
+	if err := out.Close(); err != nil {
+		return errors.WrapErr(err, "failed to close temp file")
+	}
+	return nil
+}
+
 // derivedArtifacts are the DB artifacts commitDB publishes alongside the canonical
 // <repo>.db.tar.gz: the file database and, when signing, the detached signatures.
 // The bare <repo>.db / <repo>.files (and their .sig) are NOT here — they are served
@@ -129,8 +147,28 @@ func (r *binaryRepository) storeIfMatch(repo, arch, dir, name, etag string) erro
 // RepoAddItem is one package — and its optional detached signature — to register
 // in a batch via RepoAddBatch.
 type RepoAddItem struct {
-	Pkg stream.SeekFile
-	Sig stream.SeekFile
+	Pkg                    stream.SeekFile
+	Sig                    stream.SeekFile
+	CheckCurrent           bool
+	ExpectedName           string
+	ExpectedCurrentVersion string
+	ExpectedCurrentFile    string
+	IntendedVersion        string
+	IntendedFile           string
+}
+
+// ErrPackageChanged means the expected package state changed.
+var ErrPackageChanged = errors.New("repository package changed concurrently")
+
+// CanonicalCommitError reports a failure after a canonical DB commit.
+type CanonicalCommitError struct{ Err error }
+
+func (e *CanonicalCommitError) Error() string { return e.Err.Error() }
+func (e *CanonicalCommitError) Unwrap() error { return e.Err }
+
+func CanonicalCommitted(err error) bool {
+	var committed *CanonicalCommitError
+	return stderrors.As(err, &committed)
 }
 
 // RepoAdd registers a single package in the (repo, arch) database, leaving the
@@ -174,6 +212,9 @@ func (r *binaryRepository) RepoAddBatch(repo, arch string, items []RepoAddItem, 
 	}
 
 	return r.mutateDB(repo, arch, t, useSignedDB, func(dbPath string) error {
+		if err := validateAddExpectations(dbPath, items); err != nil {
+			return err
+		}
 		if err := r.repoTool().RepoAddBatch(dbPath, pkgPaths, useSignedDB, gnupgDir); err != nil {
 			slog.Error("repo db add batch", "err", err, "count", len(pkgPaths))
 			return errors.WrapErr(err, "repo db add failed")
@@ -191,6 +232,14 @@ func isPkgNotFound(err error) bool {
 // RepoRemove removes a package from the (repo, arch) database via the same
 // compare-and-swap read-modify-write as RepoAddBatch.
 func (r *binaryRepository) RepoRemove(repo, arch, pkg string, useSignedDB bool, gnupgDir *string) error {
+	return r.repoRemove(repo, arch, pkg, "", "", false, useSignedDB, gnupgDir)
+}
+
+func (r *binaryRepository) RepoRemoveIfMatch(repo, arch, pkg, expectedVersion, expectedFile string, useSignedDB bool, gnupgDir *string) error {
+	return r.repoRemove(repo, arch, pkg, expectedVersion, expectedFile, true, useSignedDB, gnupgDir)
+}
+
+func (r *binaryRepository) repoRemove(repo, arch, pkg, expectedVersion, expectedFile string, conditional, useSignedDB bool, gnupgDir *string) error {
 	defer r.dbMu.lock(repo + "/" + arch)()
 
 	t, err := os.MkdirTemp("", "ayato-repodb-")
@@ -201,7 +250,19 @@ func (r *binaryRepository) RepoRemove(repo, arch, pkg string, useSignedDB bool, 
 
 	return r.mutateDB(repo, arch, t, useSignedDB, func(dbPath string) error {
 		if !exists(dbPath) {
+			if conditional {
+				return ErrPackageChanged
+			}
 			return errors.New("repository database not found")
+		}
+		if conditional {
+			alreadyRemoved, err := validateCurrentPackage(dbPath, pkg, expectedVersion, expectedFile)
+			if err != nil {
+				return err
+			}
+			if alreadyRemoved {
+				return nil
+			}
 		}
 		if err := r.repoTool().RepoRemove(dbPath, pkg, useSignedDB, gnupgDir); err != nil {
 			// Idempotent removal: an already-absent package is a no-op success, so a
@@ -216,6 +277,60 @@ func (r *binaryRepository) RepoRemove(repo, arch, pkg string, useSignedDB bool, 
 	})
 }
 
+func validateAddExpectations(dbPath string, items []RepoAddItem) error {
+	needsCheck := false
+	for _, item := range items {
+		needsCheck = needsCheck || item.CheckCurrent
+	}
+	if !needsCheck {
+		return nil
+	}
+	var rr *repo.RemoteRepo
+	if exists(dbPath) {
+		parsed, err := repo.RepoFromDBFile("", dbPath)
+		if err != nil {
+			return errors.WrapErr(err, "read repo db for conditional publish")
+		}
+		rr = parsed
+	} else {
+		rr = &repo.RemoteRepo{}
+	}
+	for _, item := range items {
+		if !item.CheckCurrent {
+			continue
+		}
+		current := rr.PkgByPkgName(item.ExpectedName)
+		if current != nil && item.IntendedVersion != "" && current.Version() == item.IntendedVersion && path.Base(current.Path()) == item.IntendedFile {
+			continue
+		}
+		if item.ExpectedCurrentVersion == "" {
+			if current != nil {
+				return fmt.Errorf("%w: %s was added", ErrPackageChanged, item.ExpectedName)
+			}
+			continue
+		}
+		if current == nil || current.Version() != item.ExpectedCurrentVersion || path.Base(current.Path()) != item.ExpectedCurrentFile {
+			return fmt.Errorf("%w: %s no longer matches %s/%s", ErrPackageChanged, item.ExpectedName, item.ExpectedCurrentVersion, item.ExpectedCurrentFile)
+		}
+	}
+	return nil
+}
+
+func validateCurrentPackage(dbPath, name, expectedVersion, expectedFile string) (alreadyRemoved bool, err error) {
+	rr, err := repo.RepoFromDBFile("", dbPath)
+	if err != nil {
+		return false, errors.WrapErr(err, "read repo db for conditional remove")
+	}
+	current := rr.PkgByPkgName(name)
+	if current == nil {
+		return true, nil
+	}
+	if current.Version() != expectedVersion || path.Base(current.Path()) != expectedFile {
+		return false, fmt.Errorf("%w: %s no longer matches %s/%s", ErrPackageChanged, name, expectedVersion, expectedFile)
+	}
+	return false, nil
+}
+
 // InitArch ensures an empty (repo, arch) database exists WITHOUT overwriting a
 // populated one. InitAll re-inits every (repo, arch) on every boot, so a blind
 // write would wipe the live index on every restart/redeploy. The existence probe
@@ -227,7 +342,7 @@ func (r *binaryRepository) InitArch(repo, arch string, useSignedDB bool, gnupgDi
 
 	if f, _, err := r.Store.FetchFileWithETag(repo, arch, dbName); err == nil {
 		_ = f.Close()
-		return nil // already initialized
+		return r.reconcileDBLocked(repo, arch, useSignedDB, gnupgDir)
 	} else if !errors.Is(err, blob.ErrNotFound) {
 		return errors.WrapErr(err, "repo db init: probe existing db")
 	}
@@ -255,6 +370,173 @@ func (r *binaryRepository) InitArch(repo, arch string, useSignedDB bool, gnupgDi
 	return nil
 }
 
+// ReconcileDB rebuilds derived artifacts from the canonical DB.
+func (r *binaryRepository) ReconcileDB(repo, arch string, useSignedDB bool, gnupgDir *string) error {
+	defer r.dbMu.lock(repo + "/" + arch)()
+	return r.reconcileDBLocked(repo, arch, useSignedDB, gnupgDir)
+}
+
+func (r *binaryRepository) reconcileDBLocked(repoName, arch string, useSignedDB bool, gnupgDir *string) error {
+	dbName := repoName + ".db.tar.gz"
+	for attempt := range maxDBAttempts {
+		t, err := os.MkdirTemp("", "ayato-repodb-reconcile-")
+		if err != nil {
+			return err
+		}
+		result := func() error {
+			dbPath := path.Join(t, dbName)
+			canonicalSnapshot := path.Join(t, ".canonical-"+dbName)
+			canonical, _, err := r.Store.FetchFileWithETag(repoName, arch, dbName)
+			if errors.Is(err, blob.ErrNotFound) {
+				return nil
+			}
+			if err != nil {
+				return errors.WrapErr(err, "reconcile repo db: fetch canonical db")
+			}
+			if err := writeReaderToPath(dbPath, canonical); err != nil {
+				_ = canonical.Close()
+				return err
+			}
+			if err := canonical.Close(); err != nil {
+				return errors.WrapErr(err, "close canonical db")
+			}
+			canonicalFile, err := os.Open(dbPath)
+			if err != nil {
+				return err
+			}
+			if err := writeReaderToPath(canonicalSnapshot, canonicalFile); err != nil {
+				_ = canonicalFile.Close()
+				return err
+			}
+			if err := canonicalFile.Close(); err != nil {
+				return err
+			}
+
+			filesName := repoName + ".files.tar.gz"
+			hadFiles := false
+			if currentFiles, _, ferr := r.Store.FetchFileWithETag(repoName, arch, filesName); ferr == nil {
+				hadFiles = true
+				if err := writeReaderToPath(path.Join(t, filesName), currentFiles); err != nil {
+					_ = currentFiles.Close()
+					return err
+				}
+				if err := currentFiles.Close(); err != nil {
+					return errors.WrapErr(err, "close files database")
+				}
+			} else if !errors.Is(ferr, blob.ErrNotFound) {
+				return errors.WrapErr(ferr, "reconcile repo db: fetch files database")
+			}
+
+			tool := r.repoTool()
+			err = tool.RebuildDerived(dbPath, nil, useSignedDB, gnupgDir)
+			var missing *repo.MissingPackageFilesError
+			if err != nil && !errors.As(err, &missing) && hadFiles {
+				if removeErr := os.Remove(path.Join(t, filesName)); removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
+					return removeErr
+				}
+				err = tool.RebuildDerived(dbPath, nil, useSignedDB, gnupgDir)
+				missing = nil
+			}
+			if errors.As(err, &missing) {
+				pkgPaths, materializeErr := r.materializePackages(repoName, arch, t, missing.Filenames)
+				if materializeErr != nil {
+					return materializeErr
+				}
+				err = tool.RebuildDerived(dbPath, pkgPaths, useSignedDB, gnupgDir)
+			}
+			if err != nil {
+				return errors.WrapErr(err, "rebuild derived repo artifacts")
+			}
+			return r.commitDerivedAgainst(repoName, arch, t, canonicalSnapshot, useSignedDB)
+		}()
+		_ = os.RemoveAll(t)
+		if result == nil {
+			return nil
+		}
+		if !errors.Is(result, blob.ErrPreconditionFailed) {
+			return result
+		}
+		dbConflictBackoff(attempt)
+	}
+	return errors.WrapErr(blob.ErrPreconditionFailed, fmt.Sprintf("reconcile repo db %s/%s: too many conflicting writers", repoName, arch))
+}
+
+func (r *binaryRepository) materializePackages(repoName, arch, dir string, filenames []string) ([]string, error) {
+	pkgDir := path.Join(dir, "packages")
+	if err := os.MkdirAll(pkgDir, 0o700); err != nil {
+		return nil, err
+	}
+	paths := make([]string, 0, len(filenames))
+	seen := make(map[string]struct{}, len(filenames))
+	for _, filename := range filenames {
+		if path.Base(filename) != filename {
+			return nil, fmt.Errorf("invalid canonical package filename %q", filename)
+		}
+		if _, ok := seen[filename]; ok {
+			continue
+		}
+		seen[filename] = struct{}{}
+		pkgFile, err := r.FetchFile(repoName, arch, filename)
+		if err != nil {
+			return nil, errors.WrapErr(err, "fetch canonical package object "+filename)
+		}
+		dst := path.Join(pkgDir, filename)
+		if err := writeReaderToPath(dst, pkgFile); err != nil {
+			_ = pkgFile.Close()
+			return nil, err
+		}
+		if err := pkgFile.Close(); err != nil {
+			return nil, errors.WrapErr(err, "close canonical package object "+filename)
+		}
+		paths = append(paths, dst)
+	}
+	return paths, nil
+}
+
+// commitDerivedAgainst publishes derived artifacts for a canonical snapshot.
+func (r *binaryRepository) commitDerivedAgainst(repo, arch, dir, canonicalSnapshot string, useSignedDB bool) error {
+	dbName := repo + ".db.tar.gz"
+	for _, name := range derivedArtifacts(repo, useSignedDB) {
+		if !exists(path.Join(dir, name)) {
+			continue
+		}
+		var lastErr error
+		for attempt := range maxDBAttempts {
+			matches, err := r.liveObjectMatchesFile(repo, arch, dbName, canonicalSnapshot)
+			if err != nil {
+				return err
+			}
+			if !matches {
+				return blob.ErrPreconditionFailed
+			}
+			etag, err := r.currentObjectETag(repo, arch, name)
+			if err != nil {
+				return err
+			}
+			if err := r.storeIfMatch(repo, arch, dir, name, etag); err == nil {
+				lastErr = nil
+				break
+			} else if !errors.Is(err, blob.ErrPreconditionFailed) {
+				return err
+			} else {
+				lastErr = err
+			}
+			dbConflictBackoff(attempt)
+		}
+		if lastErr != nil {
+			return errors.WrapErr(lastErr, "reconcile derived repo artifact "+name)
+		}
+	}
+	matches, err := r.liveObjectMatchesFile(repo, arch, dbName, canonicalSnapshot)
+	if err != nil {
+		return err
+	}
+	if !matches {
+		return blob.ErrPreconditionFailed
+	}
+	return nil
+}
+
 // BackfillSignatures regenerates the detached signatures for an existing
 // (repo, arch) database whose db is already published unsigned, for a repo that
 // had DB signing newly enabled. It is idempotent and a no-op when the db is absent
@@ -271,13 +553,16 @@ func (r *binaryRepository) BackfillSignatures(repo, arch string) error {
 	} else {
 		_ = f.Close()
 	}
-	if f, err := r.Store.FetchFile(repo, arch, dbName+".sig"); err == nil {
-		_ = f.Close()
-		return nil // already signed
-	} else if !errors.Is(err, blob.ErrNotFound) {
-		return errors.WrapErr(err, "backfill: probe db signature")
+	for _, name := range []string{dbName + ".sig", repo + ".files.tar.gz.sig"} {
+		if f, err := r.Store.FetchFile(repo, arch, name); err == nil {
+			_ = f.Close()
+			continue
+		} else if !errors.Is(err, blob.ErrNotFound) {
+			return errors.WrapErr(err, "backfill: probe signature "+name)
+		}
+		return r.ReconcileDB(repo, arch, true, nil)
 	}
-	return r.RepoAddBatch(repo, arch, nil, true, nil)
+	return nil
 }
 
 // mutateDB runs a (repo, arch) database read-modify-write with optimistic
@@ -307,55 +592,136 @@ func (r *binaryRepository) mutateDB(repo, arch, dir string, useSignedDB bool, mu
 	dbPath := path.Join(dir, dbName)
 
 	var lastErr error
+	everCanonicalCommitted := false
+	markCommitted := func(err error) error {
+		if err == nil || !everCanonicalCommitted || CanonicalCommitted(err) {
+			return err
+		}
+		return &CanonicalCommitError{Err: err}
+	}
 	for attempt := range maxDBAttempts {
 		if err := clearDBArtifacts(dir, repo, useSignedDB); err != nil {
-			return err
+			return markCommitted(err)
 		}
 		etags, err := r.fetchDBArtifacts(repo, arch, dir, useSignedDB)
 		if err != nil {
-			return err
+			return markCommitted(err)
 		}
 		if err := mutate(dbPath); err != nil {
-			return err // a mutation error is not a conflict; surface it
+			return markCommitted(err)
 		}
 		err = r.commitDB(repo, arch, dir, etags, useSignedDB)
 		if err == nil {
 			return nil
 		}
-		if !errors.Is(err, blob.ErrPreconditionFailed) {
+		if CanonicalCommitted(err) {
+			everCanonicalCommitted = true
+		}
+		if !errors.Is(err, blob.ErrPreconditionFailed) && !CanonicalCommitted(err) {
 			return err
 		}
 		lastErr = err
 		dbConflictBackoff(attempt)
 	}
-	return errors.WrapErr(lastErr, fmt.Sprintf("repo db %s/%s: too many conflicting writers after %d attempts", repo, arch, maxDBAttempts))
+	return markCommitted(errors.WrapErr(lastErr, fmt.Sprintf("repo db %s/%s: too many conflicting writers after %d attempts", repo, arch, maxDBAttempts)))
 }
 
-// commitDB publishes the mutation. The canonical <repo>.db.tar.gz commits FIRST
-// with compare-and-swap on its fetched version: a conflict returns
-// blob.ErrPreconditionFailed before any derived artifact is touched, so a losing
-// writer never clobbers a newer winner's derived artifacts. Each derived artifact
-// (the file db and the detached signatures) then commits with compare-and-swap on
-// its OWN fetched version, and a precondition failure there is success: it means a
-// newer db winner already published a newer artifact, so the live set stays
-// consistent with the live db and a signature never persistently trails it.
+// commitDB writes canonical state before its derived artifacts.
 func (r *binaryRepository) commitDB(repo, arch, dir string, etags map[string]string, useSignedDB bool) error {
 	dbName := repo + ".db.tar.gz"
 	if err := r.storeIfMatch(repo, arch, dir, dbName, etags[dbName]); err != nil {
-		return err // a db conflict propagates so mutateDB retries
+		if errors.Is(err, blob.ErrPreconditionFailed) {
+			return err
+		}
+		return &CanonicalCommitError{Err: err}
 	}
 	for _, name := range derivedArtifacts(repo, useSignedDB) {
 		if !exists(path.Join(dir, name)) {
 			continue
 		}
-		if err := r.storeIfMatch(repo, arch, dir, name, etags[name]); err != nil {
-			if errors.Is(err, blob.ErrPreconditionFailed) {
-				continue // a newer winner already advanced this artifact
+		var lastErr error
+		for attempt := range maxDBAttempts {
+			matches, err := r.liveObjectMatchesFile(repo, arch, dbName, path.Join(dir, dbName))
+			if err != nil {
+				return &CanonicalCommitError{Err: err}
 			}
-			return err
+			if !matches {
+				return &CanonicalCommitError{Err: blob.ErrPreconditionFailed}
+			}
+			etag, err := r.currentObjectETag(repo, arch, name)
+			if err != nil {
+				return &CanonicalCommitError{Err: err}
+			}
+			err = r.storeIfMatch(repo, arch, dir, name, etag)
+			if err == nil {
+				lastErr = nil
+				break
+			}
+			if !errors.Is(err, blob.ErrPreconditionFailed) {
+				return &CanonicalCommitError{Err: err}
+			}
+			lastErr = err
+			dbConflictBackoff(attempt)
+		}
+		if lastErr != nil {
+			return &CanonicalCommitError{Err: errors.WrapErr(lastErr, "reconcile derived repo artifact "+name)}
 		}
 	}
+	matches, err := r.liveObjectMatchesFile(repo, arch, dbName, path.Join(dir, dbName))
+	if err != nil {
+		return &CanonicalCommitError{Err: err}
+	}
+	if !matches {
+		return &CanonicalCommitError{Err: blob.ErrPreconditionFailed}
+	}
 	return nil
+}
+
+func (r *binaryRepository) currentObjectETag(repo, arch, name string) (string, error) {
+	f, etag, err := r.Store.FetchFileWithETag(repo, arch, name)
+	if errors.Is(err, blob.ErrNotFound) {
+		return "", nil
+	}
+	if err != nil {
+		return "", err
+	}
+	return etag, f.Close()
+}
+
+// liveObjectMatchesFile compares a live object with a local file.
+func (r *binaryRepository) liveObjectMatchesFile(repo, arch, name, localPath string) (bool, error) {
+	local, err := os.Open(localPath)
+	if err != nil {
+		return false, err
+	}
+	localHash, err := hashReader(local)
+	_ = local.Close()
+	if err != nil {
+		return false, err
+	}
+	live, _, err := r.Store.FetchFileWithETag(repo, arch, name)
+	if errors.Is(err, blob.ErrNotFound) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	defer live.Close()
+	liveHash, err := hashReader(live)
+	if err != nil {
+		return false, err
+	}
+	return localHash == liveHash, nil
+}
+
+func hashReader(r io.Reader) ([sha256.Size]byte, error) {
+	h := sha256.New()
+	if _, err := io.Copy(h, r); err != nil {
+		return [sha256.Size]byte{}, err
+	}
+	var sum [sha256.Size]byte
+	copy(sum[:], h.Sum(nil))
+	return sum, nil
 }
 
 // clearDBArtifacts removes the DB artifacts a previous attempt seeded, so the next

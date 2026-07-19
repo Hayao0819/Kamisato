@@ -30,6 +30,9 @@ var ErrNotFound = errors.New("blob: not found")
 // existing multipart upload.
 var ErrPresignUnsupported = errors.New("blob: presigned upload not supported")
 
+// ErrSafeDeleteUnsupported means conditional orphan deletion is unavailable.
+var ErrSafeDeleteUnsupported = errors.New("blob: safe conditional delete not supported")
+
 // ValidatePathComponent rejects a repo/arch/name element that could escape its
 // intended directory or key prefix. Backends compose keys by concatenating these
 // components, so a "..", a "/", or an empty/"." element must be refused before it
@@ -46,6 +49,18 @@ func ValidatePathComponent(c string) error {
 type FileInfo struct {
 	Name         string
 	LastModified time.Time
+	// Version is an opaque object validator.
+	Version string
+}
+
+// OrphanDeleter conditionally deletes an unchanged orphan.
+type OrphanDeleter interface {
+	DeleteFileIfUnchanged(repo, arch string, expected FileInfo, cutoff time.Time) (bool, error)
+}
+
+// PublicationLocker serializes publication and orphan collection for a repository.
+type PublicationLocker interface {
+	LockPublication(repo string) (unlock func(), err error)
 }
 
 // FileMeta carries the validators the HTTP layer uses for a conditional GET: an
@@ -94,9 +109,7 @@ type Store interface {
 	// StoreFileIfMatch stores a file with compare-and-swap on its version: it
 	// writes only when the live object's version still equals etag, or — when etag
 	// is "" — only when the object does not yet exist (create-only). On a version
-	// conflict it returns ErrPreconditionFailed. A single-node backend (localfs)
-	// has no object versioning and stores unconditionally; that is correct because
-	// one process serializes its writes.
+	// conflict it returns ErrPreconditionFailed.
 	StoreFileIfMatch(repo, arch string, file stream.SeekFile, etag string) error
 	RepoNames() ([]string, error)
 	Files(repo, arch string) ([]string, error)

@@ -118,7 +118,11 @@ func TestServiceRemovePkg(t *testing.T) {
 
 	// ValidateRepoName -> RepoNames contains "myrepo" -> ok
 	bin.EXPECT().RepoNames().Return([]string{"myrepo"}, nil)
-	name.EXPECT().PackageFile("myrepo", "x86_64", "mypkg").Return("mypkg-1.0-1-x86_64.pkg.tar.zst", nil)
+	bin.EXPECT().Arches("myrepo").Return([]string{"x86_64"}, nil).AnyTimes()
+	bin.EXPECT().RemoteRepo("myrepo", "x86_64").Return(&repo.RemoteRepo{Pkgs: []*pkgpkg.BinaryPackage{
+		pkgpkg.NewBinaryPackage("mypkg-1.0-1-x86_64.pkg.tar.zst", &raiou.PKGINFO{PkgName: "mypkg", Arch: "x86_64"}),
+	}}, nil)
+	name.EXPECT().StorePackageFile("myrepo", "x86_64", "mypkg", "mypkg-1.0-1-x86_64.pkg.tar.zst").Return(nil)
 	// Concrete package scoped to its arch: de-registered, file deleted; Files lists no sig, so none removed.
 	bin.EXPECT().RepoRemove("myrepo", "x86_64", "mypkg", false, gomock.Nil()).Return(nil)
 	bin.EXPECT().DeleteFile("myrepo", "x86_64", "mypkg-1.0-1-x86_64.pkg.tar.zst").Return(nil)
@@ -144,7 +148,10 @@ func TestServiceRemovePkgAny(t *testing.T) {
 
 	bin.EXPECT().RepoNames().Return([]string{"myrepo"}, nil) // ValidateRepoName
 	bin.EXPECT().Arches("myrepo").Return([]string{"x86_64", "aarch64"}, nil).AnyTimes()
-	name.EXPECT().PackageFile("myrepo", "any", "mypkg").Return("mypkg-1.0-1-any.pkg.tar.zst", nil)
+	bin.EXPECT().RemoteRepo("myrepo", "x86_64").Return(&repo.RemoteRepo{Pkgs: []*pkgpkg.BinaryPackage{
+		pkgpkg.NewBinaryPackage("mypkg-1.0-1-any.pkg.tar.zst", &raiou.PKGINFO{PkgName: "mypkg", Arch: "any"}),
+	}}, nil)
+	name.EXPECT().StorePackageFile("myrepo", "any", "mypkg", "mypkg-1.0-1-any.pkg.tar.zst").Return(nil)
 	// arch="" (blinky route) on an any package: de-registered from every arch db; its file and sig live once under "any/" and go with the last arch.
 	bin.EXPECT().RepoRemove("myrepo", "x86_64", "mypkg", false, gomock.Nil()).Return(nil)
 	bin.EXPECT().RepoRemove("myrepo", "aarch64", "mypkg", false, gomock.Nil()).Return(nil)
@@ -173,8 +180,11 @@ func TestServiceRemovePkgAnyOneArch(t *testing.T) {
 	bin.EXPECT().RepoNames().Return([]string{"myrepo"}, nil) // ValidateRepoName
 	bin.EXPECT().Arches("myrepo").Return([]string{"x86_64", "aarch64"}, nil).AnyTimes()
 	// Scoped to x86_64; the any package's file is keyed under "any".
-	name.EXPECT().PackageFile("myrepo", "x86_64", "mypkg").Return("", nil) // concrete miss
-	name.EXPECT().PackageFile("myrepo", "any", "mypkg").Return("mypkg-1.0-1-any.pkg.tar.zst", nil)
+	current := &repo.RemoteRepo{Pkgs: []*pkgpkg.BinaryPackage{
+		pkgpkg.NewBinaryPackage("mypkg-1.0-1-any.pkg.tar.zst", &raiou.PKGINFO{PkgName: "mypkg", Arch: "any"}),
+	}}
+	bin.EXPECT().RemoteRepo("myrepo", "x86_64").Return(current, nil)
+	name.EXPECT().StorePackageFile("myrepo", "any", "mypkg", "mypkg-1.0-1-any.pkg.tar.zst").Return(nil)
 	bin.EXPECT().RepoRemove("myrepo", "x86_64", "mypkg", false, gomock.Nil()).Return(nil)
 	// aarch64 still lists it, so the shared any/ file is kept: no DeleteFile, no metadata deletion.
 	stillThere := &repo.RemoteRepo{Pkgs: []*pkgpkg.BinaryPackage{

@@ -15,6 +15,7 @@ import (
 	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
 	"github.com/Hayao0819/Kamisato/ayato/stream"
 	"github.com/Hayao0819/Kamisato/internal/conf"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/alpm"
 )
 
 // Promoter advances a package through a tiered repo's staging -> testing -> stable
@@ -42,6 +43,11 @@ func (s *Service) PromotePackage(ctx context.Context, repo string, from, to conf
 	}
 	src := rc.TierRepo(from)
 	dst := rc.TierRepo(to)
+	releasePublication, err := s.acquirePublicationLease(dst)
+	if err != nil {
+		return err
+	}
+	defer releasePublication()
 
 	useSignedDB := s.signedDB()
 	var gnupgDir *string
@@ -73,7 +79,7 @@ func (s *Service) PromotePackage(ctx context.Context, repo string, from, to conf
 		if p.Arch() == "any" {
 			storeArch = "any"
 		}
-		if err := s.promoteOneArch(src, dst, arch, storeArch, p.Path(), p.Name(), useSignedDB, gnupgDir); err != nil {
+		if err := s.promoteOneArch(src, dst, arch, storeArch, p.Path(), p.Name(), p.Version(), useSignedDB, gnupgDir); err != nil {
 			return errors.WrapErr(err, fmt.Sprintf("promote %s %s/%s", pkgname, dst, arch))
 		}
 		promotedArches = append(promotedArches, arch)
@@ -90,14 +96,27 @@ func (s *Service) PromotePackage(ctx context.Context, repo string, from, to conf
 
 // promoteOneArch copies the source tier's package into the destination tier and
 // registers it there, so the promoted tier serves the same built bytes.
-func (s *Service) promoteOneArch(src, dst, arch, storeArch, filename, pkgname string, useSignedDB bool, gnupgDir *string) error {
+func (s *Service) promoteOneArch(src, dst, arch, storeArch, filename, pkgname, version string, useSignedDB bool, gnupgDir *string) error {
+	current, exists, err := s.publishedPackage(dst, arch, pkgname)
+	if err != nil {
+		return errors.WrapErr(err, "read target tier package state")
+	}
+	if exists {
+		cmp, _ := alpm.VerCmp(version, current.version)
+		if cmp < 0 {
+			return fmt.Errorf("%w: target tier already has newer %s %s", domain.ErrConflict, pkgname, current.version)
+		}
+		if cmp == 0 && current.fileName != filename {
+			return fmt.Errorf("%w: target tier has %s %s under a different immutable filename", domain.ErrConflict, pkgname, version)
+		}
+	}
 	pkgSeek, cleanup, err := s.spoolTierFile(src, storeArch, filename)
 	if err != nil {
 		return err
 	}
 	defer cleanup()
 
-	if err := s.pkgBinaryRepo.StoreFile(dst, storeArch, pkgSeek); err != nil {
+	if _, err := s.pkgBinaryRepo.StoreFileImmutable(dst, storeArch, pkgSeek); err != nil {
 		return errors.WrapErr(err, "store package pointer in target tier")
 	}
 
@@ -106,7 +125,7 @@ func (s *Service) promoteOneArch(src, dst, arch, storeArch, filename, pkgname st
 	if sigSeek, sigCleanup, serr := s.spoolTierFile(src, storeArch, sigName); serr == nil {
 		defer sigCleanup()
 		named := stream.NewFileStream(sigName, sigSeek.ContentType(), sigSeek)
-		if err := s.pkgBinaryRepo.StoreFile(dst, storeArch, named); err != nil {
+		if _, err := s.pkgBinaryRepo.StoreFileImmutable(dst, storeArch, named); err != nil {
 			return errors.WrapErr(err, "store signature pointer in target tier")
 		}
 	} else if !errors.Is(serr, blob.ErrNotFound) {
@@ -116,7 +135,18 @@ func (s *Service) promoteOneArch(src, dst, arch, storeArch, filename, pkgname st
 	if _, err := pkgSeek.Seek(0, io.SeekStart); err != nil {
 		return errors.WrapErr(err, "rewind package for registration")
 	}
-	if err := s.pkgBinaryRepo.RepoAddBatch(dst, arch, []repository.RepoAddItem{{Pkg: pkgSeek}}, useSignedDB, gnupgDir); err != nil {
+	item := repository.RepoAddItem{
+		Pkg:             pkgSeek,
+		CheckCurrent:    true,
+		ExpectedName:    pkgname,
+		IntendedVersion: version,
+		IntendedFile:    filename,
+	}
+	if exists {
+		item.ExpectedCurrentVersion = current.version
+		item.ExpectedCurrentFile = current.fileName
+	}
+	if err := s.pkgBinaryRepo.RepoAddBatch(dst, arch, []repository.RepoAddItem{item}, useSignedDB, gnupgDir); err != nil {
 		return errors.WrapErr(err, "register package in target tier db")
 	}
 	if err := s.pkgNameRepo.StorePackageFile(dst, storeArch, pkgname, filename); err != nil {

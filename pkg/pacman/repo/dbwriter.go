@@ -2,11 +2,13 @@ package repo
 
 import (
 	"archive/tar"
+	"bytes"
 	"compress/gzip"
 	"encoding/base64"
 	"fmt"
 	"io"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -47,7 +49,21 @@ func (b *dbBuilder) LoadDB(r io.Reader) error {
 // LoadFiles reads a ".files" archive (desc + files) into the builder, capturing
 // each package's files member so a rewrite preserves it.
 func (b *dbBuilder) LoadFiles(r io.Reader) error {
-	return b.load(r, true)
+	if r == nil {
+		return nil
+	}
+	files := newDBBuilder()
+	if err := files.load(r, true); err != nil {
+		return err
+	}
+	for dir, candidate := range files.entries {
+		canonical := b.entries[dir]
+		if canonical == nil || !bytes.Equal(canonical.desc, candidate.desc) {
+			continue
+		}
+		canonical.files = candidate.files
+	}
+	return nil
 }
 
 func (b *dbBuilder) load(r io.Reader, withFiles bool) error {
@@ -127,6 +143,45 @@ func (b *dbBuilder) Upsert(meta *pkg.BinaryPackageMeta, sig []byte) error {
 		files: filesEntry(meta.Files),
 	}
 	return nil
+}
+
+// AttachFiles adds a file list to a matching canonical entry.
+func (b *dbBuilder) AttachFiles(meta *pkg.BinaryPackageMeta) error {
+	if meta == nil || meta.Info == nil {
+		return fmt.Errorf("nil package metadata")
+	}
+	dir := meta.Info.PkgName + "-" + meta.Info.PkgVer
+	e := b.entries[dir]
+	if e == nil {
+		return fmt.Errorf("package %s is not present in canonical database", dir)
+	}
+	checks := map[string]string{
+		"%FILENAME%":  meta.Filename,
+		"%CSIZE%":     strconv.FormatInt(meta.CSize, 10),
+		"%SHA256SUM%": meta.SHA256,
+	}
+	for field, want := range checks {
+		if got := descValue(e.desc, field); got != want {
+			return fmt.Errorf("package %s does not match canonical %s: got %q, want %q", dir, field, got, want)
+		}
+	}
+	e.files = filesEntry(meta.Files)
+	return nil
+}
+
+func (b *dbBuilder) missingFileObjects() ([]string, error) {
+	missing := make([]string, 0)
+	for _, dir := range b.sortedDirs() {
+		e := b.entries[dir]
+		if e.files == nil {
+			filename := descValue(e.desc, "%FILENAME%")
+			if filename == "" {
+				return nil, fmt.Errorf("canonical package %s has no %%FILENAME%%", dir)
+			}
+			missing = append(missing, filename)
+		}
+	}
+	return missing, nil
 }
 
 // Remove drops every entry whose package name matches, reporting whether any
@@ -253,9 +308,13 @@ func splitEntryPath(p string) (dir, member string, ok bool) {
 // descName extracts the %NAME% value from a raw desc entry. repo-add removes
 // existing entries by package name, so the builder must recover it to dedupe.
 func descName(desc []byte) string {
+	return descValue(desc, "%NAME%")
+}
+
+func descValue(desc []byte, field string) string {
 	lines := strings.Split(string(desc), "\n")
 	for i, line := range lines {
-		if line == "%NAME%" && i+1 < len(lines) {
+		if line == field && i+1 < len(lines) {
 			return lines[i+1]
 		}
 	}
