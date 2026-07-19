@@ -39,8 +39,15 @@ func newOIDCAuth(ctx context.Context, cfg conf.CIGitHubOIDC) (*oidcAuth, error) 
 		SupportedSigningAlgs: []string{oidc.RS256},
 	})
 
-	a := &oidcAuth{verifier: verifier}
-	for _, p := range cfg.Publishers {
+	return &oidcAuth{
+		verifier:   verifier,
+		publishers: compileOIDCPublishers(cfg.Publishers),
+	}, nil
+}
+
+func compileOIDCPublishers(config []conf.CIOIDCPublisher) []oidcPublisher {
+	publishers := make([]oidcPublisher, 0, len(config))
+	for _, p := range config {
 		e := oidcPublisher{
 			repository:   p.Repository,
 			repositoryID: p.RepositoryID,
@@ -53,9 +60,9 @@ func newOIDCAuth(ctx context.Context, cfg conf.CIGitHubOIDC) (*oidcAuth, error) 
 		for _, r := range p.PublishRepos {
 			e.repos[r] = true
 		}
-		a.publishers = append(a.publishers, e)
+		publishers = append(publishers, e)
 	}
-	return a, nil
+	return publishers
 }
 
 // oidcClaims are GitHub's OIDC oidcClaims. repository_id is a JSON string, not a number.

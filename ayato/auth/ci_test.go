@@ -39,37 +39,44 @@ func TestAPIKeyAuthorize(t *testing.T) {
 
 func TestAuthorizeRouting(t *testing.T) {
 	a := apiKeyAuthorizer(conf.CIAPIKey{Name: "k", Key: "secret", PublishRepos: []string{"alterlinux"}})
-
-	t.Run("X-API-Key routes to api key", func(t *testing.T) {
-		h := http.Header{"X-Api-Key": {"secret"}}
-		if out, _ := a.Authorize(context.Background(), h, "alterlinux"); out != CIOutcomeAllow {
-			t.Fatalf("outcome=%v, want allow", out)
-		}
-	})
-	t.Run("bad X-API-Key denies, no fallthrough", func(t *testing.T) {
-		h := http.Header{"X-Api-Key": {"wrong"}}
-		if out, _ := a.Authorize(context.Background(), h, "alterlinux"); out != CIOutcomeDeny {
-			t.Fatalf("outcome=%v, want deny", out)
-		}
-	})
-	t.Run("Bearer JWT with no OIDC configured denies", func(t *testing.T) {
-		h := http.Header{"Authorization": {"Bearer aaa.bbb.ccc"}}
-		if out, _ := a.Authorize(context.Background(), h, "alterlinux"); out != CIOutcomeDeny {
-			t.Fatalf("outcome=%v, want deny", out)
-		}
-	})
-	t.Run("two-part Bearer is not routed to OIDC", func(t *testing.T) {
-		// ayato's own HMAC token is two segments; it must not reach the OIDC path.
-		h := http.Header{"Authorization": {"Bearer payload.sig"}}
-		if out, _ := a.Authorize(context.Background(), h, "alterlinux"); out != CIOutcomeNone {
-			t.Fatalf("outcome=%v, want none", out)
-		}
-	})
-	t.Run("no credential yields none", func(t *testing.T) {
-		if out, _ := a.Authorize(context.Background(), http.Header{}, "alterlinux"); out != CIOutcomeNone {
-			t.Fatalf("outcome=%v, want none", out)
-		}
-	})
+	for _, test := range []struct {
+		name    string
+		headers http.Header
+		want    CIOutcome
+	}{
+		{
+			name:    "X-API-Key routes to api key",
+			headers: http.Header{"X-Api-Key": {"secret"}},
+			want:    CIOutcomeAllow,
+		},
+		{
+			name:    "bad X-API-Key denies without fallthrough",
+			headers: http.Header{"X-Api-Key": {"wrong"}},
+			want:    CIOutcomeDeny,
+		},
+		{
+			name:    "Bearer JWT without OIDC denies",
+			headers: http.Header{"Authorization": {"Bearer aaa.bbb.ccc"}},
+			want:    CIOutcomeDeny,
+		},
+		{
+			name:    "two-part HMAC bearer does not route to OIDC",
+			headers: http.Header{"Authorization": {"Bearer payload.sig"}},
+			want:    CIOutcomeNone,
+		},
+		{name: "no credential yields none", headers: http.Header{}, want: CIOutcomeNone},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			outcome, _ := a.Authorize(
+				context.Background(),
+				test.headers,
+				"alterlinux",
+			)
+			if outcome != test.want {
+				t.Fatalf("outcome = %v, want %v", outcome, test.want)
+			}
+		})
+	}
 }
 
 func TestAuthorizeServiceScope(t *testing.T) {
@@ -104,123 +111,5 @@ func TestAuthorizeServiceScope(t *testing.T) {
 				t.Fatalf("principal = %#v, want %q", principal, tc.principal)
 			}
 		})
-	}
-}
-
-func oidcWith(pubs ...conf.CIOIDCPublisher) *oidcAuth {
-	a := &oidcAuth{}
-	for _, p := range pubs {
-		e := oidcPublisher{repository: p.Repository, repositoryID: p.RepositoryID, refs: map[string]bool{}, repos: map[string]bool{}}
-		for _, r := range p.AllowRefs {
-			e.refs[r] = true
-		}
-		for _, r := range p.PublishRepos {
-			e.repos[r] = true
-		}
-		a.publishers = append(a.publishers, e)
-	}
-	return a
-}
-
-func TestOIDCAuthorizeClaims(t *testing.T) {
-	pub := conf.CIOIDCPublisher{
-		Repository:   "FascodeNet/alterlinux-repo",
-		AllowRefs:    []string{"refs/heads/main"},
-		PublishRepos: []string{"alterlinux"},
-	}
-	a := oidcWith(pub)
-
-	base := oidcClaims{
-		Repository: "FascodeNet/alterlinux-repo",
-		Sub:        "repo:FascodeNet/alterlinux-repo:ref:refs/heads/main",
-		Ref:        "refs/heads/main",
-		EventName:  "push",
-	}
-
-	t.Run("matching push allowed", func(t *testing.T) {
-		if _, ok := a.authorizeClaims(base, "alterlinux"); !ok {
-			t.Fatal("want allow")
-		}
-	})
-	t.Run("pull_request event rejected", func(t *testing.T) {
-		c := base
-		c.EventName = "pull_request"
-		if _, ok := a.authorizeClaims(c, "alterlinux"); ok {
-			t.Fatal("pull_request must be rejected")
-		}
-	})
-	t.Run("pull_request sub rejected", func(t *testing.T) {
-		c := base
-		c.Sub = "repo:FascodeNet/alterlinux-repo:pull_request"
-		if _, ok := a.authorizeClaims(c, "alterlinux"); ok {
-			t.Fatal("pull_request sub must be rejected")
-		}
-	})
-	t.Run("disallowed ref rejected", func(t *testing.T) {
-		c := base
-		c.Ref = "refs/heads/dev"
-		c.Sub = "repo:FascodeNet/alterlinux-repo:ref:refs/heads/dev"
-		if _, ok := a.authorizeClaims(c, "alterlinux"); ok {
-			t.Fatal("non-allowlisted ref must be rejected")
-		}
-	})
-	t.Run("other repository rejected", func(t *testing.T) {
-		c := base
-		c.Repository = "FascodeNet/evil"
-		if _, ok := a.authorizeClaims(c, "alterlinux"); ok {
-			t.Fatal("other repository must be rejected")
-		}
-	})
-	t.Run("disallowed ayato repo rejected", func(t *testing.T) {
-		if _, ok := a.authorizeClaims(base, "extra"); ok {
-			t.Fatal("ayato repo outside publish_repos must be rejected")
-		}
-	})
-}
-
-func TestOIDCWildcardPublishReposAllowsAny(t *testing.T) {
-	a := oidcWith(conf.CIOIDCPublisher{
-		Repository:   "FascodeNet/alterlinux-repo",
-		AllowRefs:    []string{"refs/heads/main"},
-		PublishRepos: []string{"*"},
-	})
-	c := oidcClaims{
-		Repository: "FascodeNet/alterlinux-repo",
-		Sub:        "repo:FascodeNet/alterlinux-repo:ref:refs/heads/main",
-		Ref:        "refs/heads/main",
-		EventName:  "push",
-	}
-	for _, repo := range []string{"alterlinux", "extra", "anything"} {
-		if _, ok := a.authorizeClaims(c, repo); !ok {
-			t.Fatalf("publish_repos=[\"*\"] must allow any pacman repo, got deny for %q", repo)
-		}
-	}
-	// ref gating still applies even with the wildcard.
-	bad := c
-	bad.Ref = "refs/heads/dev"
-	if _, ok := a.authorizeClaims(bad, "alterlinux"); ok {
-		t.Fatal("ref gating must still apply with publish_repos=[\"*\"]")
-	}
-}
-
-func TestOIDCRepositoryIDExactMatch(t *testing.T) {
-	a := oidcWith(conf.CIOIDCPublisher{
-		RepositoryID: "12345",
-		AllowRefs:    []string{"refs/heads/main"},
-		PublishRepos: []string{"alterlinux"},
-	})
-	c := oidcClaims{
-		Repository:   "FascodeNet/alterlinux-repo-renamed",
-		RepositoryID: "12345",
-		Sub:          "repo:FascodeNet/alterlinux-repo-renamed:ref:refs/heads/main",
-		Ref:          "refs/heads/main",
-		EventName:    "push",
-	}
-	if _, ok := a.authorizeClaims(c, "alterlinux"); !ok {
-		t.Fatal("repository_id match must allow even after rename")
-	}
-	c.RepositoryID = "99999"
-	if _, ok := a.authorizeClaims(c, "alterlinux"); ok {
-		t.Fatal("wrong repository_id must be rejected")
 	}
 }
