@@ -17,7 +17,6 @@ import (
 	domain "github.com/Hayao0819/Kamisato/ayato/domain"
 	service "github.com/Hayao0819/Kamisato/ayato/service"
 	stream "github.com/Hayao0819/Kamisato/ayato/stream"
-	raiou "github.com/Hayao0819/Kamisato/pkg/raiou"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -77,10 +76,10 @@ func (mr *MockRepoReaderMockRecorder) GetFileWithMeta(repoName, archName, name a
 }
 
 // PkgDetail mocks base method.
-func (m *MockRepoReader) PkgDetail(repo, arch, pkgbase string) (*raiou.PKGINFO, error) {
+func (m *MockRepoReader) PkgDetail(repo, arch, pkgbase string) (*domain.PacmanPackage, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "PkgDetail", repo, arch, pkgbase)
-	ret0, _ := ret[0].(*raiou.PKGINFO)
+	ret0, _ := ret[0].(*domain.PacmanPackage)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -792,10 +791,10 @@ func (mr *MockServicerMockRecorder) ListSigners() *gomock.Call {
 }
 
 // PkgDetail mocks base method.
-func (m *MockServicer) PkgDetail(repo, arch, pkgbase string) (*raiou.PKGINFO, error) {
+func (m *MockServicer) PkgDetail(repo, arch, pkgbase string) (*domain.PacmanPackage, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "PkgDetail", repo, arch, pkgbase)
-	ret0, _ := ret[0].(*raiou.PKGINFO)
+	ret0, _ := ret[0].(*domain.PacmanPackage)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

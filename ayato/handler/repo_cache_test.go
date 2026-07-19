@@ -31,6 +31,8 @@ func TestRepoFileCacheControl(t *testing.T) {
 	}{
 		{"foo-1.0-1-x86_64.pkg.tar.zst", "public, max-age=31536000, immutable"},
 		{"foo-1.0-1-x86_64.pkg.tar.zst.sig", "public, max-age=31536000, immutable"},
+		{"foo-1.0-1-x86_64.pkg.tar", "public, max-age=31536000, immutable"},
+		{"foo-1.0-1-x86_64.pkg.tar.zip", "no-cache"},
 		{"core.db", "no-cache"},
 		{"core.db.tar.gz", "no-cache"},
 	}

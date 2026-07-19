@@ -15,7 +15,8 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/errors"
 	"github.com/Hayao0819/Kamisato/internal/serverstore"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/makepkgconf"
-	"github.com/Hayao0819/Kamisato/pkg/raiou"
+	pacmanpkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/pkgfile"
 )
 
 // resolveServer resolves a named or default Ayato server.
@@ -95,7 +96,7 @@ func remoteBuild(config string) error {
 	if err != nil {
 		return errors.WrapErr(err, "failed to get working directory")
 	}
-	pkgbuild, files, err := raiou.ReadInline(cwd, func(name string, size int64) {
+	pkgbuild, files, err := pacmanpkg.ReadInline(cwd, func(name string, size int64) {
 		fmt.Fprintf(os.Stderr, "thoma: skipping large file %q (%d bytes); miko fetches sources itself\n", name, size)
 	})
 	if err != nil {
@@ -231,17 +232,17 @@ func downloadBuilt(ctx context.Context, cfg *conf.ThomaConfig, buildAPI *client.
 	return f.Close()
 }
 
-// pkgName strips the -<ver>-<rel>-<arch>.pkg.tar.* tail from a package filename,
-// matching how yay derives the package name (the part before the last three
-// dash-separated fields).
+// pkgName extracts pkgname from a conventional package artifact. Invalid
+// filenames are returned unchanged so the caller reports a useful non-match.
 func pkgName(filename string) string {
-	base := filename
-	if i := strings.Index(base, ".pkg.tar"); i >= 0 {
-		base = base[:i]
-	}
-	parts := strings.Split(base, "-")
-	if len(parts) <= 3 {
+	base := filepath.Base(filename)
+	file, err := pkgfile.Parse(base)
+	if err != nil {
 		return base
 	}
-	return strings.Join(parts[:len(parts)-3], "-")
+	coords, err := file.Coordinates()
+	if err != nil {
+		return base
+	}
+	return coords.Name
 }

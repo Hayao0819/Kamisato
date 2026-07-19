@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
+	"github.com/Hayao0819/Kamisato/pkg/pacman/pkgfile"
 	"github.com/otiai10/copy"
 )
 
@@ -108,19 +108,6 @@ func moveFile(src, dst string) error {
 	return os.Remove(src)
 }
 
-var packageExtensions = []string{
-	".pkg.tar.zst", ".pkg.tar.xz", ".pkg.tar.gz", ".pkg.tar.bz2",
-	".pkg.tar.lrz", ".pkg.tar.lzo", ".pkg.tar.Z", ".pkg.tar",
-}
-
 func IsPackageFile(name string) bool {
-	if strings.HasSuffix(name, ".sig") {
-		return false
-	}
-	for _, ext := range packageExtensions {
-		if len(name) > len(ext) && strings.HasSuffix(name, ext) {
-			return true
-		}
-	}
-	return false
+	return pkgfile.IsArchive(name)
 }

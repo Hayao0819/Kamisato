@@ -14,38 +14,6 @@ import (
 	"github.com/Hayao0819/Kamisato/ayato/test/mocks"
 )
 
-func TestArchFromFilename(t *testing.T) {
-	tests := []struct {
-		name    string
-		want    string
-		wantErr bool
-	}{
-		{"foo-1-1-x86_64.pkg.tar.zst", "x86_64", false},
-		{"bar-2-1-any.pkg.tar.zst.sig", "any", false},
-		{"pkg-name-1.2.3-4-aarch64.pkg.tar.xz", "aarch64", false},
-		{"repo/x86_64/foo-1-1-x86_64.pkg.tar.zst", "x86_64", false},
-		{"notapackage.txt", "", true},
-		{"foo.pkg.tar.zst", "", true},
-		{"", "", true},
-	}
-	for _, tc := range tests {
-		got, err := service.ArchFromFilename(tc.name)
-		if tc.wantErr {
-			if err == nil {
-				t.Errorf("ArchFromFilename(%q) = %q, want error", tc.name, got)
-			}
-			continue
-		}
-		if err != nil {
-			t.Errorf("ArchFromFilename(%q): %v", tc.name, err)
-			continue
-		}
-		if got != tc.want {
-			t.Errorf("ArchFromFilename(%q) = %q, want %q", tc.name, got, tc.want)
-		}
-	}
-}
-
 func TestPresignUploads(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()

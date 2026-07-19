@@ -7,16 +7,15 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
-	"strings"
 	"time"
 
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
 	"github.com/Hayao0819/Kamisato/internal/client"
 	"github.com/Hayao0819/Kamisato/internal/errors"
 	pkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/pkgfile"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/sign"
-	"github.com/Hayao0819/Kamisato/pkg/raiou"
 )
 
 type RemoteBuildOpts struct {
@@ -141,8 +140,12 @@ func RunRemoteBuildLocalSign(ctx context.Context, o RemoteBuildOpts, keyPath, pa
 	defer func() { _ = os.RemoveAll(tmp) }()
 
 	for _, name := range names {
+		artifact, parseErr := pkgfile.Parse(name)
+		if parseErr != nil {
+			return errors.WrapErr(parseErr, "build returned invalid package artifact "+name)
+		}
 		// Sign locally, so skip any signature the server may have produced.
-		if strings.HasSuffix(name, ".sig") {
+		if artifact.IsSignature() {
 			continue
 		}
 		pkgPath := filepath.Join(tmp, name)
@@ -186,7 +189,7 @@ func readLocalSource(ctx context.Context, repoName string, pkgs []string) (strin
 		return "", nil, err
 	}
 
-	return raiou.ReadInline(sp.Dir(), func(name string, size int64) {
+	return pkg.ReadInline(sp.Dir(), func(name string, size int64) {
 		slog.Warn("skipping large source file", "name", name, "size", size)
 	})
 }

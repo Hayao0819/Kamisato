@@ -2,6 +2,8 @@ module github.com/Hayao0819/Kamisato
 
 go 1.25.8
 
+tool github.com/gzuidhof/tygo
+
 require (
 	filippo.io/age v1.3.1
 	github.com/BrenekH/blinky v0.0.0-20260701031321-fd31e83d792e
@@ -70,11 +72,13 @@ require (
 	github.com/dlclark/regexp2 v1.10.0 // indirect
 	github.com/dsnet/compress v0.0.2-0.20230904184137-39efe44ab707 // indirect
 	github.com/emirpasic/gods v1.18.1 // indirect
+	github.com/fatih/structtag v1.2.0 // indirect
 	github.com/glebarez/go-sqlite v1.21.2 // indirect
 	github.com/go-git/gcfg/v2 v2.0.2 // indirect
 	github.com/go-jose/go-jose/v4 v4.1.4 // indirect
 	github.com/goccy/go-yaml v1.19.2 // indirect
 	github.com/godbus/dbus/v5 v5.2.2 // indirect
+	github.com/gzuidhof/tygo v0.2.21 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
 	github.com/kevinburke/ssh_config v1.6.0 // indirect
@@ -103,6 +107,7 @@ require (
 	golang.org/x/mod v0.37.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260618152121-87f3d3e198d3 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260618152121-87f3d3e198d3 // indirect
+	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gotest.tools/v3 v3.5.2 // indirect
 	modernc.org/libc v1.22.5 // indirect
 	modernc.org/mathutil v1.5.0 // indirect

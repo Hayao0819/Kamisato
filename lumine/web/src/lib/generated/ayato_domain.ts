@@ -2,6 +2,22 @@
 import type { PKGINFO } from "./raiou";
 
 //////////
+// source: features.go
+
+/**
+ * Features is the capability manifest consumed by Lumine. Optional integrations
+ * are boolean/string fields; protocol grammar is advertised as data so the web
+ * client does not maintain a second allowlist.
+ */
+export interface Features {
+  bug_report: boolean;
+  miko: boolean;
+  github_login: boolean;
+  recaptcha_site_key: string;
+  package_archive_suffixes: string[];
+}
+
+//////////
 // source: repo.go
 
 export interface PacmanRepo {
@@ -12,5 +28,13 @@ export interface PacmanRepo {
 export interface PacmanPkgs {
   name: string;
   arch: string;
-  packages: PKGINFO[];
+  packages: PacmanPackage[];
+}
+/**
+ * PacmanPackage is package metadata together with the canonical %FILENAME% from
+ * the repository database. PKGINFO intentionally does not own this field: it
+ * describes archive contents, while Filename belongs to repository publication.
+ */
+export interface PacmanPackage extends PKGINFO {
+  filename: string;
 }

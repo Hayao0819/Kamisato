@@ -4,9 +4,10 @@ import (
 	"fmt"
 	"os"
 	"path"
-	"strings"
 
 	"github.com/Hayao0819/nahi/exutils"
+
+	"github.com/Hayao0819/Kamisato/pkg/pacman/pkgfile"
 )
 
 // CleanPkgBinary owns the temp dir of packages downloaded by GetCleanPkgBinary;
@@ -68,7 +69,7 @@ func GetCleanPkgBinary(names ...string) ([]string, *CleanPkgBinary, error) {
 	var files []string
 	for _, e := range entries {
 		name := e.Name()
-		if e.IsDir() || !strings.Contains(name, ".pkg.tar.") || strings.HasSuffix(name, ".sig") {
+		if e.IsDir() || !pkgfile.IsArchive(name) {
 			continue
 		}
 		files = append(files, path.Join(cachepath, name))

@@ -17,6 +17,7 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/limits"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/alpm"
 	pkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/pkgfile"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/sign"
 	"github.com/Hayao0819/Kamisato/pkg/raiou"
 )
@@ -96,6 +97,9 @@ func (s *Service) prepareUpload(repo string, files *domain.UploadFiles, kr *sign
 		return preparedUpload{}, fmt.Errorf("%w: package signature is required but none was provided", domain.ErrInvalidUpload)
 	}
 	if hasSig {
+		if files.SigFile.FileName() != storedName+".sig" {
+			return preparedUpload{}, fmt.Errorf("%w: signature filename %q does not match package %q", domain.ErrInvalidUpload, files.SigFile.FileName(), storedName)
+		}
 		if kr == nil {
 			// A signature is present but there is no trust root to verify it;
 			// reject rather than store an unvalidated signature.
@@ -171,19 +175,15 @@ func (s *Service) prepareUpload(repo string, files *domain.UploadFiles, kr *sign
 }
 
 func validatedPackageFilename(fileName string, pi *raiou.PKGINFO) (string, error) {
-	base := path.Base(fileName)
-	if fileName != base {
-		return "", fmt.Errorf("%w: package filename must be a base name", domain.ErrInvalidUpload)
+	artifact, err := pkgfile.Parse(fileName)
+	if err != nil || artifact.IsSignature() {
+		return "", fmt.Errorf("%w: invalid package filename %q", domain.ErrInvalidUpload, fileName)
 	}
-	fileVersion := strings.ReplaceAll(pi.PkgVer, ":", "_")
-	stem := fmt.Sprintf("%s-%s-%s.pkg.tar", pi.PkgName, fileVersion, pi.Arch)
-	if base != stem && !strings.HasPrefix(base, stem+".") {
-		return "", fmt.Errorf("%w: package filename %q does not match .PKGINFO (%s, %s, %s)", domain.ErrInvalidUpload, base, pi.PkgName, pi.PkgVer, pi.Arch)
+	coords, err := artifact.Coordinates()
+	if err != nil || !coords.MatchesMetadata(pi.PkgName, pi.PkgVer, pi.Arch) {
+		return "", fmt.Errorf("%w: package filename %q does not match .PKGINFO (%s, %s, %s)", domain.ErrInvalidUpload, fileName, pi.PkgName, pi.PkgVer, pi.Arch)
 	}
-	if strings.HasSuffix(base, ".sig") || strings.HasSuffix(base, ".part") {
-		return "", fmt.Errorf("%w: invalid package filename %q", domain.ErrInvalidUpload, base)
-	}
-	return base, nil
+	return artifact.Filename(), nil
 }
 
 // checkBuildinfoProvenance is a fail-closed ingest gate: it rejects a package
@@ -689,7 +689,7 @@ func (s *Service) backfillAnyInto(repo, arch string, useSignedDB bool, gnupgDir 
 		}
 	}()
 	for _, f := range files {
-		if !strings.Contains(f, ".pkg.tar.") || strings.HasSuffix(f, ".sig") {
+		if !pkgfile.IsArchive(f) {
 			continue
 		}
 		pkgFile, cleanup, err := s.spoolTierFile(repo, "any", f)

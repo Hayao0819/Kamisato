@@ -9,18 +9,22 @@ import (
 
 	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
 	"github.com/Hayao0819/Kamisato/ayato/stream"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
+	pacmanrepo "github.com/Hayao0819/Kamisato/pkg/pacman/repo"
 )
 
 // The upstream snapshot and merged database live as ordinary blob objects beside
 // the overlay: the merge can be recomputed from the last-synced snapshot with no
 // refetch. The overlay stays the canonical <repo>.db.tar.gz that RepoAddBatch's
 // compare-and-swap owns; the served <repo>.db is aliased to the merged archive.
-func upstreamDBName(name string) string    { return name + ".upstream.db.tar.gz" }
-func upstreamFilesName(name string) string { return name + ".upstream.files.tar.gz" }
-func upstreamMetaName(name string) string  { return name + ".upstream.meta.json" }
-func mergedDBName(name string) string      { return mergedBase(name) + ".db.tar.gz" }
-func mergedFilesName(name string) string   { return mergedBase(name) + ".files.tar.gz" }
+func upstreamArtifacts(name string) pacmanrepo.DatabaseArtifacts {
+	return pacmanrepo.Artifacts(name).WithArchivePrefix(name + ".upstream")
+}
+
+func mergedArtifacts(name string) pacmanrepo.DatabaseArtifacts {
+	return pacmanrepo.Artifacts(name).WithArchivePrefix(name + ".merged")
+}
+
+func upstreamMetaName(name string) string { return name + ".upstream.meta.json" }
 
 // upstreamMeta records the conditional-GET validators of the last synced snapshot.
 type upstreamMeta struct {
@@ -50,22 +54,23 @@ func (r *binaryRepository) UpstreamValidators(name, arch string) (string, string
 // its validators, then rebuilds the merged database — all under one per-(repo,
 // arch) lock so a concurrent overlay publish never reads a half-written snapshot.
 // The returned diff is the change relative to the previous snapshot.
-func (r *binaryRepository) ApplyUpstreamSnapshot(name, arch string, dbGz, filesGz []byte, etag, lastModified string, useSignedDB bool) (repo.DBDiff, error) {
+func (r *binaryRepository) ApplyUpstreamSnapshot(name, arch string, dbGz, filesGz []byte, etag, lastModified string, useSignedDB bool) (pacmanrepo.DBDiff, error) {
 	defer r.dbMu.lock(name + "/" + arch)()
+	upstream := upstreamArtifacts(name)
 
 	// Diff against the previous snapshot before it is overwritten (best-effort
 	// observability; a diff failure does not fail the sync).
-	prev, _ := r.fetchBytes(name, arch, upstreamDBName(name))
-	diff, derr := repo.DiffDB(bytesReaderOrNil(prev), bytes.NewReader(dbGz))
+	prev, _ := r.fetchBytes(name, arch, upstream.DatabaseArchive())
+	diff, derr := pacmanrepo.DiffDB(bytesReaderOrNil(prev), bytes.NewReader(dbGz))
 	if derr != nil {
-		diff = repo.DBDiff{}
+		diff = pacmanrepo.DBDiff{}
 	}
 
-	if err := r.storeBytes(name, arch, upstreamDBName(name), dbGz); err != nil {
+	if err := r.storeBytes(name, arch, upstream.DatabaseArchive(), dbGz); err != nil {
 		return diff, errors.WrapErr(err, "store upstream db snapshot")
 	}
 	if filesGz != nil {
-		if err := r.storeBytes(name, arch, upstreamFilesName(name), filesGz); err != nil {
+		if err := r.storeBytes(name, arch, upstream.FilesArchive(), filesGz); err != nil {
 			return diff, errors.WrapErr(err, "store upstream files snapshot")
 		}
 	}
@@ -92,38 +97,41 @@ func (r *binaryRepository) RebuildMerged(name, arch string, useSignedDB bool) er
 // database is requested. The caller holds dbMu. Local overlay entries are always
 // re-applied, so a sync never drops a locally published package.
 func (r *binaryRepository) rebuildMergedLocked(name, arch string, useSignedDB bool) error {
-	overlayDB, err := r.fetchBytes(name, arch, name+".db.tar.gz")
+	overlay := pacmanrepo.Artifacts(name)
+	upstream := upstreamArtifacts(name)
+	merged := mergedArtifacts(name)
+	overlayDB, err := r.fetchBytes(name, arch, overlay.DatabaseArchive())
 	if err != nil {
 		return errors.WrapErr(err, "read overlay db")
 	}
-	overlayFiles, err := r.fetchBytes(name, arch, name+".files.tar.gz")
+	overlayFiles, err := r.fetchBytes(name, arch, overlay.FilesArchive())
 	if err != nil {
 		return errors.WrapErr(err, "read overlay files db")
 	}
-	upDB, err := r.fetchBytes(name, arch, upstreamDBName(name))
+	upDB, err := r.fetchBytes(name, arch, upstream.DatabaseArchive())
 	if err != nil {
 		return errors.WrapErr(err, "read upstream snapshot db")
 	}
-	upFiles, err := r.fetchBytes(name, arch, upstreamFilesName(name))
+	upFiles, err := r.fetchBytes(name, arch, upstream.FilesArchive())
 	if err != nil {
 		return errors.WrapErr(err, "read upstream snapshot files")
 	}
 
 	var mergedDB, mergedFiles bytes.Buffer
-	if err := repo.Merge(bytesReaderOrNil(upDB), bytesReaderOrNil(upFiles), bytesReaderOrNil(overlayDB), bytesReaderOrNil(overlayFiles), &mergedDB, &mergedFiles); err != nil {
+	if err := pacmanrepo.Merge(bytesReaderOrNil(upDB), bytesReaderOrNil(upFiles), bytesReaderOrNil(overlayDB), bytesReaderOrNil(overlayFiles), &mergedDB, &mergedFiles); err != nil {
 		return errors.WrapErr(err, "merge upstream and overlay databases")
 	}
-	if err := r.storeBytes(name, arch, mergedDBName(name), mergedDB.Bytes()); err != nil {
+	if err := r.storeBytes(name, arch, merged.DatabaseArchive(), mergedDB.Bytes()); err != nil {
 		return errors.WrapErr(err, "store merged db")
 	}
-	if err := r.storeBytes(name, arch, mergedFilesName(name), mergedFiles.Bytes()); err != nil {
+	if err := r.storeBytes(name, arch, merged.FilesArchive(), mergedFiles.Bytes()); err != nil {
 		return errors.WrapErr(err, "store merged files db")
 	}
 	if useSignedDB && r.dbSigner != nil {
-		if err := r.signMerged(name, arch, mergedDBName(name), mergedDB.Bytes()); err != nil {
+		if err := r.signMerged(name, arch, merged.DatabaseArchive(), mergedDB.Bytes()); err != nil {
 			return err
 		}
-		if err := r.signMerged(name, arch, mergedFilesName(name), mergedFiles.Bytes()); err != nil {
+		if err := r.signMerged(name, arch, merged.FilesArchive(), mergedFiles.Bytes()); err != nil {
 			return err
 		}
 	}
@@ -132,7 +140,7 @@ func (r *binaryRepository) rebuildMergedLocked(name, arch string, useSignedDB bo
 
 func (r *binaryRepository) signMerged(name, arch, archiveName string, data []byte) error {
 	var sig bytes.Buffer
-	if err := repo.SignDetached(r.dbSigner, bytes.NewReader(data), &sig); err != nil {
+	if err := pacmanrepo.SignDetached(r.dbSigner, bytes.NewReader(data), &sig); err != nil {
 		return errors.WrapErr(err, "sign merged db")
 	}
 	return r.storeBytes(name, arch, archiveName+".sig", sig.Bytes())

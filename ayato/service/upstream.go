@@ -149,7 +149,7 @@ func (s *Service) overlayRepo(repo, arch string) (*pacmanrepo.RemoteRepo, error)
 	if !s.isUpstreamRepo(repo) {
 		return s.pkgBinaryRepo.RemoteRepo(repo, arch)
 	}
-	f, err := s.pkgBinaryRepo.FetchFile(repo, arch, repo+".db.tar.gz")
+	f, err := s.pkgBinaryRepo.FetchFile(repo, arch, pacmanrepo.Artifacts(repo).DatabaseArchive())
 	if err != nil {
 		return nil, err
 	}

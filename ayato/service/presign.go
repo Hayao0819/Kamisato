@@ -6,32 +6,14 @@ import (
 	"log/slog"
 	"os"
 	"path"
-	"strings"
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
 
 	"github.com/Hayao0819/Kamisato/ayato/domain"
 	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
 	"github.com/Hayao0819/Kamisato/ayato/stream"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/pkgfile"
 )
-
-// archFromFilename derives the storage arch from a pacman package filename
-// (<pkgname>-<pkgver>-<pkgrel>-<arch>.pkg.tar.<ext>, optionally .sig): it is the
-// last '-'-separated field before ".pkg.tar". Presign runs before any bytes exist
-// to read a .PKGINFO from, so the arch has to come from the name the client sends.
-func archFromFilename(filename string) (string, error) {
-	name := strings.TrimSuffix(path.Base(filename), ".sig")
-	i := strings.Index(name, ".pkg.tar")
-	if i <= 0 {
-		return "", fmt.Errorf("%w: %q is not a package filename", domain.ErrInvalidUpload, filename)
-	}
-	stem := name[:i]
-	j := strings.LastIndex(stem, "-")
-	if j < 0 || j == len(stem)-1 {
-		return "", fmt.Errorf("%w: cannot derive arch from %q", domain.ErrInvalidUpload, filename)
-	}
-	return stem[j+1:], nil
-}
 
 // PresignUploads issues a presigned PUT URL for each filename so the client can
 // upload straight to R2, bypassing the request-body limit in front of the server.
@@ -42,17 +24,21 @@ func (s *Service) PresignUploads(repo string, filenames []string) (map[string]st
 	repo = s.publishTarget(repo)
 	urls := make(map[string]string, len(filenames))
 	for _, filename := range filenames {
-		arch, err := archFromFilename(filename)
+		artifact, err := pkgfile.Parse(filename)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("%w: %q is not a package filename", domain.ErrInvalidUpload, filename)
+		}
+		coords, err := artifact.Coordinates()
+		if err != nil {
+			return nil, fmt.Errorf("%w: cannot derive arch from %q", domain.ErrInvalidUpload, filename)
 		}
 		// A concrete-arch package presigned to an arch the repo does not serve would
 		// let the client PUT an object finalize then rejects; gate it up front. A
 		// .sig rides its package's arch, so it needs no separate gate.
-		if !strings.HasSuffix(filename, ".sig") && arch != "any" && !s.archAccepted(repo, arch) {
-			return nil, fmt.Errorf("%w: arch %q is not served by repo %q", domain.ErrInvalidUpload, arch, repo)
+		if !artifact.IsSignature() && coords.Arch != "any" && !s.archAccepted(repo, coords.Arch) {
+			return nil, fmt.Errorf("%w: arch %q is not served by repo %q", domain.ErrInvalidUpload, coords.Arch, repo)
 		}
-		url, err := s.pkgBinaryRepo.StoreFileWithSignedPutURL(repo, arch, filename)
+		url, err := s.pkgBinaryRepo.StoreFileWithSignedPutURL(repo, coords.Arch, filename)
 		if err != nil {
 			if errors.Is(err, blob.ErrPresignUnsupported) {
 				return nil, err
@@ -83,10 +69,15 @@ func (s *Service) FinalizeUploads(repo string, pkgFilenames []string) error {
 	var stored []finalizedObj
 
 	for _, name := range pkgFilenames {
-		arch, err := archFromFilename(name)
-		if err != nil {
-			return err
+		artifact, err := pkgfile.Parse(name)
+		if err != nil || artifact.IsSignature() {
+			return fmt.Errorf("%w: %q is not a package archive filename", domain.ErrInvalidUpload, name)
 		}
+		coords, err := artifact.Coordinates()
+		if err != nil {
+			return fmt.Errorf("%w: cannot derive arch from %q", domain.ErrInvalidUpload, name)
+		}
+		arch := coords.Arch
 		stored = append(stored, finalizedObj{arch, name})
 
 		pkgStream, pkgCleanup, err := s.spoolFetched(repo, arch, name)

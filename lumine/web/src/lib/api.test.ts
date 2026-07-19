@@ -108,6 +108,7 @@ describe("APIClient feature and bug-report calls", () => {
             miko: false,
             github_login: true,
             recaptcha_site_key: "site-key",
+            package_archive_suffixes: [".pkg.tar.zst", ".pkg.tar"],
         };
         const fetchMock = vi.fn<FetchFn>(
             async () => new Response(JSON.stringify(payload), { status: 200 }),

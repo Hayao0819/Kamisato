@@ -1,4 +1,4 @@
-package raiou
+package pkg
 
 import (
 	"os"

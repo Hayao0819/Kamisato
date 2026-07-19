@@ -95,11 +95,7 @@ export default function ClientPackageDetailPage() {
     }
 
     const handleDownload = () => {
-        const url = api.endpoints.repoFile(
-            repo,
-            arch,
-            `${pkg.pkgname}-${pkg.pkgver}.pkg.tar.zst`,
-        );
+        const url = api.endpoints.repoFile(repo, arch, pkg.filename);
         window.open(url, "_blank");
     };
 

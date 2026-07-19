@@ -11,6 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/Hayao0819/Kamisato/ayato/domain"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/pkgfile"
 )
 
 func (h *Handler) ReposHandler(ctx *gin.Context) {
@@ -94,10 +95,10 @@ func (h *Handler) RepoFileHandler(ctx *gin.Context) {
 	}
 }
 
-// isImmutablePackageFile reports whether name is a package archive or its detached
-// signature; the ".pkg.tar." infix (absent from .db/.files metadata) distinguishes them.
+// isImmutablePackageFile reports whether name is a supported package archive or
+// its detached signature.
 func isImmutablePackageFile(name string) bool {
-	return strings.Contains(name, ".pkg.tar.")
+	return pkgfile.IsArtifact(name)
 }
 
 // notModified checks the request's conditional headers against the file's validators.

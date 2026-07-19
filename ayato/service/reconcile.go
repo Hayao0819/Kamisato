@@ -2,12 +2,13 @@ package service
 
 import (
 	"log/slog"
-	"strings"
 	"time"
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
 
 	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/pkgfile"
+	pacmanrepo "github.com/Hayao0819/Kamisato/pkg/pacman/repo"
 )
 
 // OrphanObject is an unreferenced package object.
@@ -47,7 +48,7 @@ func (s *Service) ReconcileOrphans(repo string, olderThan time.Duration, dryRun 
 			return nil, err
 		}
 		for name := range referenced {
-			if strings.Contains(name, "-any.pkg.tar.") {
+			if pkgfile.IsAny(name) {
 				anyReferenced[name] = struct{}{}
 			}
 		}
@@ -64,7 +65,7 @@ func (s *Service) ReconcileOrphans(repo string, olderThan time.Duration, dryRun 
 			if _, ok := referenced[info.Name]; ok {
 				continue
 			}
-			if !isPackageArtifact(info.Name) {
+			if !pkgfile.IsArtifact(info.Name) {
 				continue
 			}
 			if info.LastModified.IsZero() {
@@ -123,7 +124,7 @@ func (s *Service) reconcileAnyDir(repo string, anyReferenced map[string]struct{}
 		if _, ok := anyReferenced[info.Name]; ok {
 			continue
 		}
-		if !isPackageArtifact(info.Name) {
+		if !pkgfile.IsArtifact(info.Name) {
 			continue
 		}
 		if info.LastModified.IsZero() {
@@ -190,22 +191,5 @@ func (s *Service) referencedObjects(repo, arch string) (map[string]struct{}, err
 // dbArtifacts lists the repo-DB objects (and their signatures) that are never
 // package residue, so the reconcile always protects them.
 func dbArtifacts(repo string) []string {
-	bases := []string{
-		repo + ".db",
-		repo + ".db.tar.gz",
-		repo + ".files",
-		repo + ".files.tar.gz",
-	}
-	out := make([]string, 0, len(bases)*2)
-	for _, b := range bases {
-		out = append(out, b, b+".sig")
-	}
-	return out
-}
-
-// isPackageArtifact reports whether a name looks like a package or its detached
-// signature (<...>.pkg.tar.<ext> optionally + .sig), so the reconcile only ever
-// considers package residue and leaves any other stray object alone.
-func isPackageArtifact(name string) bool {
-	return strings.Contains(name, ".pkg.tar.")
+	return pacmanrepo.Artifacts(repo).All()
 }

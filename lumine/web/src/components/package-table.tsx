@@ -141,11 +141,7 @@ export function PackageTable({
 
     const handleDownload = (pkg: PackageInfo) => {
         if (!repo || !arch) return;
-        const url = api.endpoints.repoFile(
-            repo,
-            arch,
-            `${pkg.pkgname}-${pkg.pkgver}.pkg.tar.zst`,
-        );
+        const url = api.endpoints.repoFile(repo, arch, pkg.filename);
         window.open(url, "_blank");
     };
 

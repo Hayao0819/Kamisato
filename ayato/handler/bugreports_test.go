@@ -2,7 +2,6 @@ package handler
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -13,9 +12,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"go.uber.org/mock/gomock"
 
+	"github.com/Hayao0819/Kamisato/ayato/domain"
 	"github.com/Hayao0819/Kamisato/ayato/handler/bugreport"
 	"github.com/Hayao0819/Kamisato/ayato/test/mocks"
-	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/pkg/raiou"
 )
 
@@ -38,34 +37,6 @@ type fakeVerifier struct {
 func (f *fakeVerifier) Verify(_ context.Context, _, _ string) error {
 	f.called = true
 	return f.err
-}
-
-func TestFeaturesHandler(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	cfg := &conf.AyatoConfig{}
-	cfg.Miko.URL = "http://miko:8081"
-	cfg.Recaptcha.SiteKey = "SITE"
-	h := &Handler{cfg: cfg, reporter: &fakeReporter{}}
-
-	r := gin.New()
-	r.GET("/features", h.FeaturesHandler)
-	w := httptest.NewRecorder()
-	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/features", nil))
-	if w.Code != http.StatusOK {
-		t.Fatalf("status = %d", w.Code)
-	}
-	var got struct {
-		BugReport        bool   `json:"bug_report"`
-		Miko             bool   `json:"miko"`
-		GitHubLogin      bool   `json:"github_login"`
-		RecaptchaSiteKey string `json:"recaptcha_site_key"`
-	}
-	if err := json.Unmarshal(w.Body.Bytes(), &got); err != nil {
-		t.Fatal(err)
-	}
-	if !got.BugReport || !got.Miko || got.GitHubLogin || got.RecaptchaSiteKey != "SITE" {
-		t.Errorf("features = %+v (want bug_report+miko on, github off, site SITE)", got)
-	}
 }
 
 func postBug(h *Handler, body string) *httptest.ResponseRecorder {
@@ -114,7 +85,7 @@ func TestSubmitBugReportResolvesMaintainer(t *testing.T) {
 	defer ctrl.Finish()
 	mockSvc := mocks.NewMockServicer(ctrl)
 	mockSvc.EXPECT().PkgDetail("core", "x86_64", "foo").
-		Return(&raiou.PKGINFO{Packager: "Maintainer Name <maint@example.com>"}, nil)
+		Return(&domain.PacmanPackage{PKGINFO: raiou.PKGINFO{Packager: "Maintainer Name <maint@example.com>"}}, nil)
 
 	fr := &fakeReporter{}
 	h := &Handler{s: mockSvc, reporter: fr}

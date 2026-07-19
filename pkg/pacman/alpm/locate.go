@@ -2,10 +2,9 @@ package alpm
 
 import (
 	"path/filepath"
-	"regexp"
-	"strings"
 
 	"github.com/Hayao0819/Kamisato/pkg/pacman/makepkgconf"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/pkgfile"
 )
 
 // MakepkgPkgDest returns PKGDEST from makepkg.conf, where a `-U`-installed foreign
@@ -29,18 +28,18 @@ func FilterForeign(names []string, foreign map[string]bool) []string {
 	return out
 }
 
-// pkgFileTail matches the arch/.pkg.tar/suffix tail of a package file name;
-// the dash-free arch and end anchor exclude look-alikes, .sig, and .part files.
-var pkgFileTail = regexp.MustCompile(`^[^-]+\.pkg\.tar(\.[A-Za-z0-9]+)?$`)
-
 // FindCachedPackage finds the built file for name-version; the prefix and strict
 // tail exclude signatures, partial downloads, and look-alikes.
 func FindCachedPackage(dirs []string, name, version string) (string, bool) {
-	prefix := name + "-" + version + "-"
 	for _, d := range dirs {
-		matches, _ := filepath.Glob(filepath.Join(d, prefix+"*"))
+		matches, _ := filepath.Glob(filepath.Join(d, name+"-*"))
 		for _, m := range matches {
-			if pkgFileTail.MatchString(strings.TrimPrefix(filepath.Base(m), prefix)) {
+			file, err := pkgfile.Parse(filepath.Base(m))
+			if err != nil || file.IsSignature() {
+				continue
+			}
+			coords, err := file.Coordinates()
+			if err == nil && coords.MatchesMetadata(name, version, coords.Arch) {
 				return m, true
 			}
 		}

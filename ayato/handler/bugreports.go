@@ -31,23 +31,6 @@ type bugReportRequest struct {
 	RecaptchaToken string `json:"recaptcha_token"`
 }
 
-// FeaturesHandler advertises which optional features are configured so the web
-// UI can hide what is unavailable.
-func (h *Handler) FeaturesHandler(c *gin.Context) {
-	feat := gin.H{
-		"bug_report":         h.reporter != nil,
-		"miko":               false,
-		"github_login":       false,
-		"recaptcha_site_key": "",
-	}
-	if h.cfg != nil {
-		feat["miko"] = h.cfg.Miko.URL != ""
-		feat["github_login"] = h.oauthEnabled()
-		feat["recaptcha_site_key"] = h.cfg.Recaptcha.SiteKey
-	}
-	c.JSON(http.StatusOK, feat)
-}
-
 // SubmitBugReportHandler forwards a report to the configured tracker.
 func (h *Handler) SubmitBugReportHandler(c *gin.Context) {
 	if h.reporter == nil {

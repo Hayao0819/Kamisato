@@ -15,7 +15,7 @@ import (
 
 	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
 	"github.com/Hayao0819/Kamisato/ayato/stream"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
+	pacmanrepo "github.com/Hayao0819/Kamisato/pkg/pacman/repo"
 )
 
 // repoDBTool runs the pacman repo-DB mutations against a local DB path. The
@@ -35,7 +35,7 @@ func (r *binaryRepository) repoTool() repoDBTool {
 	if r.tool != nil {
 		return r.tool
 	}
-	return repo.NativeTool{}
+	return pacmanrepo.NativeTool{}
 }
 
 // Bounds for the optimistic-concurrency retry on a contended database. A conflict
@@ -50,11 +50,8 @@ const (
 // dbArtifactBases are the canonical repo-DB archive names repo-add/repo-remove
 // read and rewrite. The matching ".db"/".files" entries are symlinks repo-add
 // regenerates, so only the archives need to be seeded into the temp working dir.
-func dbArtifactBases(repo string) []string {
-	return []string{
-		repo + ".db.tar.gz",
-		repo + ".files.tar.gz",
-	}
+func dbArtifactBases(repoName string) []string {
+	return pacmanrepo.Artifacts(repoName).Archives()
 }
 
 // writeSeekFileTo writes a SeekFile's bytes into dir under its base name.
@@ -122,10 +119,11 @@ func writeReaderToPath(dst string, src io.Reader) error {
 // The bare <repo>.db / <repo>.files (and their .sig) are NOT here — they are served
 // as aliases of their archives at fetch time, so a single archive stays the only
 // source of truth. Package files are the caller's StoreFile, never this path.
-func derivedArtifacts(repo string, useSignedDB bool) []string {
-	names := []string{repo + ".files.tar.gz"}
+func derivedArtifacts(repoName string, useSignedDB bool) []string {
+	artifacts := pacmanrepo.Artifacts(repoName)
+	names := []string{artifacts.FilesArchive()}
 	if useSignedDB {
-		names = append(names, repo+".db.tar.gz.sig", repo+".files.tar.gz.sig")
+		names = append(names, artifacts.ArchiveSignatures()...)
 	}
 	return names
 }
@@ -226,7 +224,7 @@ func (r *binaryRepository) RepoAddBatch(repo, arch string, items []RepoAddItem, 
 // isPkgNotFound reports whether err is the tool's "no such package" sentinel. It
 // lives at package scope because RepoRemove shadows the repo import with a param.
 func isPkgNotFound(err error) bool {
-	return errors.Is(err, repo.ErrPackageNotFound)
+	return errors.Is(err, pacmanrepo.ErrPackageNotFound)
 }
 
 // RepoRemove removes a package from the (repo, arch) database via the same
@@ -285,15 +283,15 @@ func validateAddExpectations(dbPath string, items []RepoAddItem) error {
 	if !needsCheck {
 		return nil
 	}
-	var rr *repo.RemoteRepo
+	var rr *pacmanrepo.RemoteRepo
 	if exists(dbPath) {
-		parsed, err := repo.RepoFromDBFile("", dbPath)
+		parsed, err := pacmanrepo.RepoFromDBFile("", dbPath)
 		if err != nil {
 			return errors.WrapErr(err, "read repo db for conditional publish")
 		}
 		rr = parsed
 	} else {
-		rr = &repo.RemoteRepo{}
+		rr = &pacmanrepo.RemoteRepo{}
 	}
 	for _, item := range items {
 		if !item.CheckCurrent {
@@ -317,7 +315,7 @@ func validateAddExpectations(dbPath string, items []RepoAddItem) error {
 }
 
 func validateCurrentPackage(dbPath, name, expectedVersion, expectedFile string) (alreadyRemoved bool, err error) {
-	rr, err := repo.RepoFromDBFile("", dbPath)
+	rr, err := pacmanrepo.RepoFromDBFile("", dbPath)
 	if err != nil {
 		return false, errors.WrapErr(err, "read repo db for conditional remove")
 	}
@@ -338,7 +336,7 @@ func validateCurrentPackage(dbPath, name, expectedVersion, expectedFile string) 
 // cross-instance race net on a shared backend. Serialized per (repo, arch) via dbMu.
 func (r *binaryRepository) InitArch(repo, arch string, useSignedDB bool, gnupgDir *string) error {
 	defer r.dbMu.lock(repo + "/" + arch)()
-	dbName := repo + ".db.tar.gz"
+	dbName := pacmanrepo.Artifacts(repo).DatabaseArchive()
 
 	if f, _, err := r.Store.FetchFileWithETag(repo, arch, dbName); err == nil {
 		_ = f.Close()
@@ -377,7 +375,8 @@ func (r *binaryRepository) ReconcileDB(repo, arch string, useSignedDB bool, gnup
 }
 
 func (r *binaryRepository) reconcileDBLocked(repoName, arch string, useSignedDB bool, gnupgDir *string) error {
-	dbName := repoName + ".db.tar.gz"
+	artifacts := pacmanrepo.Artifacts(repoName)
+	dbName := artifacts.DatabaseArchive()
 	for attempt := range maxDBAttempts {
 		t, err := os.MkdirTemp("", "ayato-repodb-reconcile-")
 		if err != nil {
@@ -412,7 +411,7 @@ func (r *binaryRepository) reconcileDBLocked(repoName, arch string, useSignedDB 
 				return err
 			}
 
-			filesName := repoName + ".files.tar.gz"
+			filesName := artifacts.FilesArchive()
 			hadFiles := false
 			if currentFiles, _, ferr := r.Store.FetchFileWithETag(repoName, arch, filesName); ferr == nil {
 				hadFiles = true
@@ -429,7 +428,7 @@ func (r *binaryRepository) reconcileDBLocked(repoName, arch string, useSignedDB 
 
 			tool := r.repoTool()
 			err = tool.RebuildDerived(dbPath, nil, useSignedDB, gnupgDir)
-			var missing *repo.MissingPackageFilesError
+			var missing *pacmanrepo.MissingPackageFilesError
 			if err != nil && !errors.As(err, &missing) && hadFiles {
 				if removeErr := os.Remove(path.Join(t, filesName)); removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
 					return removeErr
@@ -495,7 +494,7 @@ func (r *binaryRepository) materializePackages(repoName, arch, dir string, filen
 
 // commitDerivedAgainst publishes derived artifacts for a canonical snapshot.
 func (r *binaryRepository) commitDerivedAgainst(repo, arch, dir, canonicalSnapshot string, useSignedDB bool) error {
-	dbName := repo + ".db.tar.gz"
+	dbName := pacmanrepo.Artifacts(repo).DatabaseArchive()
 	for _, name := range derivedArtifacts(repo, useSignedDB) {
 		if !exists(path.Join(dir, name)) {
 			continue
@@ -544,7 +543,8 @@ func (r *binaryRepository) commitDerivedAgainst(repo, arch, dir, canonicalSnapsh
 // signs the db, committing the .sig artifacts through the same compare-and-swap
 // path as a normal publish. Requires a signing tool (a signed repo has one wired).
 func (r *binaryRepository) BackfillSignatures(repo, arch string) error {
-	dbName := repo + ".db.tar.gz"
+	artifacts := pacmanrepo.Artifacts(repo)
+	dbName := artifacts.DatabaseArchive()
 	if f, err := r.Store.FetchFile(repo, arch, dbName); err != nil {
 		if errors.Is(err, blob.ErrNotFound) {
 			return nil // nothing published yet
@@ -553,7 +553,7 @@ func (r *binaryRepository) BackfillSignatures(repo, arch string) error {
 	} else {
 		_ = f.Close()
 	}
-	for _, name := range []string{dbName + ".sig", repo + ".files.tar.gz.sig"} {
+	for _, name := range artifacts.ArchiveSignatures() {
 		if f, err := r.Store.FetchFile(repo, arch, name); err == nil {
 			_ = f.Close()
 			continue
@@ -588,7 +588,7 @@ func (r *binaryRepository) BackfillSignatures(repo, arch string) error {
 // straddling a concurrent publish may see a mismatch and re-sync — which no plain
 // object store (single-object CAS, no cross-object transaction) can close.
 func (r *binaryRepository) mutateDB(repo, arch, dir string, useSignedDB bool, mutate func(dbPath string) error) error {
-	dbName := repo + ".db.tar.gz"
+	dbName := pacmanrepo.Artifacts(repo).DatabaseArchive()
 	dbPath := path.Join(dir, dbName)
 
 	var lastErr error
@@ -628,7 +628,7 @@ func (r *binaryRepository) mutateDB(repo, arch, dir string, useSignedDB bool, mu
 
 // commitDB writes canonical state before its derived artifacts.
 func (r *binaryRepository) commitDB(repo, arch, dir string, etags map[string]string, useSignedDB bool) error {
-	dbName := repo + ".db.tar.gz"
+	dbName := pacmanrepo.Artifacts(repo).DatabaseArchive()
 	if err := r.storeIfMatch(repo, arch, dir, dbName, etags[dbName]); err != nil {
 		if errors.Is(err, blob.ErrPreconditionFailed) {
 			return err
@@ -728,11 +728,11 @@ func hashReader(r io.Reader) ([sha256.Size]byte, error) {
 // fetch+mutate starts from the current backend state. Package files are left
 // untouched (they do not change across attempts).
 func clearDBArtifacts(dir, repo string, useSignedDB bool) error {
-	names := []string{repo + ".db.tar.gz", repo + ".files.tar.gz", repo + ".db", repo + ".files"}
+	artifacts := pacmanrepo.Artifacts(repo)
+	names := append(artifacts.Archives(), artifacts.Aliases()...)
 	if useSignedDB {
-		for _, b := range dbArtifactBases(repo) {
-			names = append(names, b+".sig")
-		}
+		names = append(names, artifacts.ArchiveSignatures()...)
+		names = append(names, artifacts.AliasSignatures()...)
 	}
 	for _, n := range names {
 		if err := os.Remove(path.Join(dir, n)); err != nil && !errors.Is(err, os.ErrNotExist) {

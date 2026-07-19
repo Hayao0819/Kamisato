@@ -8,9 +8,9 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/pkgfile"
 )
 
 func (c *Ayato) UploadPackageFiles(ctx context.Context, repo string, files ...string) error {
@@ -26,7 +26,11 @@ func uploadPackageFiles(ctx context.Context, requester *requester, repo string, 
 	packages := make([]string, 0, len(files))
 	packageSet := make(map[string]bool, len(files))
 	for _, file := range files {
-		if !strings.HasSuffix(file, ".sig") {
+		artifact, err := pkgfile.Parse(filepath.Base(file))
+		if err != nil {
+			return errors.WrapErr(err, "invalid package artifact "+file)
+		}
+		if !artifact.IsSignature() {
 			packages = append(packages, file)
 			packageSet[filepath.Clean(file)] = true
 		}
@@ -35,10 +39,15 @@ func uploadPackageFiles(ctx context.Context, requester *requester, repo string, 
 		return errors.NewErr("no package files to upload")
 	}
 	for _, file := range files {
-		if !strings.HasSuffix(file, ".sig") {
+		artifact, err := pkgfile.Parse(filepath.Base(file))
+		if err != nil {
+			return errors.WrapErr(err, "invalid package artifact "+file)
+		}
+		if !artifact.IsSignature() {
 			continue
 		}
-		if !packageSet[filepath.Clean(strings.TrimSuffix(file, ".sig"))] {
+		archivePath := filepath.Join(filepath.Dir(file), artifact.ArchiveFilename())
+		if !packageSet[filepath.Clean(archivePath)] {
 			return errors.NewErr("signature has no matching package: " + file)
 		}
 		if !fileExists(file) {

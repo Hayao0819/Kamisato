@@ -46,6 +46,10 @@ func TestBinaryRepoSignedURLResolvesDBAlias(t *testing.T) {
 		// -any packages and their .sig live under "any/"; presign must point there.
 		{"x86_64", "pkg-1-1-any.pkg.tar.zst", "any", "pkg-1-1-any.pkg.tar.zst"},
 		{"x86_64", "pkg-1-1-any.pkg.tar.zst.sig", "any", "pkg-1-1-any.pkg.tar.zst.sig"},
+		{"x86_64", "pkg-1-1-any.pkg.tar", "any", "pkg-1-1-any.pkg.tar"},
+		// A look-alike with an unsupported suffix is an ordinary object and must
+		// not be routed into the shared any directory.
+		{"x86_64", "pkg-1-1-any.pkg.tar.zip", "x86_64", "pkg-1-1-any.pkg.tar.zip"},
 	}
 	for _, tc := range cases {
 		if _, err := r.StoreFileWithSignedURL("core", tc.arch, tc.name); err != nil {

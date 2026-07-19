@@ -3,7 +3,6 @@ package repository
 import (
 	"fmt"
 	"path"
-	"strings"
 	"time"
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
@@ -15,7 +14,8 @@ import (
 	"github.com/Hayao0819/Kamisato/ayato/domain"
 	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
 	"github.com/Hayao0819/Kamisato/ayato/stream"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/pkgfile"
+	pacmanrepo "github.com/Hayao0819/Kamisato/pkg/pacman/repo"
 )
 
 //go:generate mockgen -source=repository.go -destination=../test/mocks/repository.go -package=mocks -aux_files=github.com/Hayao0819/Kamisato/ayato/repository/blob=blob/blob.go
@@ -49,14 +49,14 @@ type BinaryRepository interface {
 	// ApplyUpstreamSnapshot records a freshly fetched upstream db/files snapshot and
 	// its conditional-GET validators, then rebuilds the merged database, returning
 	// the change relative to the previous snapshot.
-	ApplyUpstreamSnapshot(name, arch string, dbGz, filesGz []byte, etag, lastModified string, useSignedDB bool) (repo.DBDiff, error)
+	ApplyUpstreamSnapshot(name, arch string, dbGz, filesGz []byte, etag, lastModified string, useSignedDB bool) (pacmanrepo.DBDiff, error)
 	// UpstreamValidators returns the stored ETag/Last-Modified of the last synced
 	// upstream snapshot (empty when none), for a conditional GET.
 	UpstreamValidators(name, arch string) (etag, lastModified string, err error)
 	FetchDB(repoName, archName string) (stream.File, error)
 	FetchFileWithMeta(repo, arch, file string) (stream.File, blob.FileMeta, error)
 	PkgNames(repoName, archName string) ([]string, error)
-	RemoteRepo(name, arch string) (*repo.RemoteRepo, error)
+	RemoteRepo(name, arch string) (*pacmanrepo.RemoteRepo, error)
 	PkgFiles(repoName, archName, pkgName string) ([]string, error)
 	VerifyPkgRepo(name string) error
 }
@@ -90,7 +90,7 @@ type BinaryRepoOption func(*binaryRepository)
 func WithSigningTool(entity *openpgp.Entity) BinaryRepoOption {
 	return func(r *binaryRepository) {
 		if entity != nil {
-			r.tool = repo.NewSigningNativeTool(entity)
+			r.tool = pacmanrepo.NewSigningNativeTool(entity)
 			r.dbSigner = entity
 		}
 	}
@@ -157,7 +157,7 @@ func (r *binaryRepository) FetchFile(repo, arch, file string) (stream.File, erro
 			return nil, aerr
 		}
 	}
-	if arch == "any" || !strings.Contains(file, "-any.pkg.tar.") {
+	if arch == "any" || !pkgfile.IsAny(file) {
 		return f, err
 	}
 	if af, aerr := r.Store.FetchFile(repo, "any", file); aerr == nil {
@@ -190,7 +190,7 @@ func (r *binaryRepository) FetchFileWithMeta(repo, arch, file string) (stream.Fi
 			return nil, blob.FileMeta{}, aerr
 		}
 	}
-	if arch == "any" || !strings.Contains(file, "-any.pkg.tar.") {
+	if arch == "any" || !pkgfile.IsAny(file) {
 		return f, meta, err
 	}
 	if af, ameta, aerr := mf.FetchFileWithMeta(repo, "any", file); aerr == nil {
@@ -203,24 +203,13 @@ func (r *binaryRepository) FetchFileWithMeta(repo, arch, file string) (stream.Fi
 // prefix, or "" if file is not an alias name. The detached signatures alias the
 // same way: <repo>.db.sig is served from the single stored <base>.db.tar.gz.sig,
 // so no copy can trail it.
-func dbAliasArchive(repo, base, file string) string {
-	switch file {
-	case repo + ".db":
-		return base + ".db.tar.gz"
-	case repo + ".files":
-		return base + ".files.tar.gz"
-	case repo + ".db.sig":
-		return base + ".db.tar.gz.sig"
-	case repo + ".files.sig":
-		return base + ".files.tar.gz.sig"
+func dbAliasArchive(artifacts pacmanrepo.DatabaseArtifacts, file string) string {
+	target, ok := artifacts.ArchiveForAlias(file)
+	if !ok {
+		return ""
 	}
-	return ""
+	return target
 }
-
-// mergedBase is the artifact prefix for a repo's merged (upstream + overlay)
-// database, kept distinct from the bare overlay so RepoAddBatch's compare-and-swap
-// still owns <repo>.db.tar.gz.
-func mergedBase(repo string) string { return repo + ".merged" }
 
 func (r *binaryRepository) isUpstreamRepo(repo string) bool { return r.upstream[repo] }
 
@@ -229,12 +218,12 @@ func (r *binaryRepository) isUpstreamRepo(repo string) bool { return r.upstream[
 // is the merged archive first, then the overlay as a fallback before the first
 // sync materializes the merged view. Returns nil when file is not a DB alias name.
 func (r *binaryRepository) dbAliasTargets(repo, file string) []string {
-	overlay := dbAliasArchive(repo, repo, file)
+	overlay := dbAliasArchive(pacmanrepo.Artifacts(repo), file)
 	if overlay == "" {
 		return nil
 	}
 	if r.isUpstreamRepo(repo) {
-		return []string{dbAliasArchive(repo, mergedBase(repo), file), overlay}
+		return []string{dbAliasArchive(mergedArtifacts(repo), file), overlay}
 	}
 	return []string{overlay}
 }
@@ -253,31 +242,31 @@ func (a aliasFile) FileName() string { return a.name }
 // a real object: <repo>.db / <repo>.files resolve to their .tar.gz archive, and
 // an -any package (and its .sig) is stored once under "any/", so presign there.
 func (r *binaryRepository) StoreFileWithSignedURL(repo, arch, name string) (string, error) {
-	if overlay := dbAliasArchive(repo, repo, name); overlay != "" {
+	if overlay := dbAliasArchive(pacmanrepo.Artifacts(repo), name); overlay != "" {
 		// An upstream repo's db/files is synthesized (merged): force streaming so the
 		// FetchFile merged->overlay fallback governs which artifact is served.
 		if r.isUpstreamRepo(repo) {
 			return "", nil
 		}
 		name = overlay
-	} else if arch != "any" && strings.Contains(name, "-any.pkg.tar.") {
+	} else if arch != "any" && pkgfile.IsAny(name) {
 		arch = "any"
 	}
 	return r.Store.StoreFileWithSignedURL(repo, arch, name)
 }
 
 func (r *binaryRepository) FetchDB(repoName, archName string) (stream.File, error) {
-	return r.FetchFile(repoName, archName, repoName+".db")
+	return r.FetchFile(repoName, archName, pacmanrepo.Artifacts(repoName).DatabaseAlias())
 }
 
-func (r *binaryRepository) RemoteRepo(name, arch string) (*repo.RemoteRepo, error) {
+func (r *binaryRepository) RemoteRepo(name, arch string) (*pacmanrepo.RemoteRepo, error) {
 	db, err := r.FetchDB(name, arch)
 	if err != nil {
 		return nil, err
 	}
 	defer db.Close()
 
-	rr, err := repo.RemoteRepoFromDB(name, db)
+	rr, err := pacmanrepo.RemoteRepoFromDB(name, db)
 	if err != nil {
 		return nil, err
 	}
@@ -289,13 +278,13 @@ func (r *binaryRepository) RemoteRepo(name, arch string) (*repo.RemoteRepo, erro
 
 // FIXME: opening the DB on every call is inefficient; caching or similar would help.
 func (r *binaryRepository) PkgNames(repoName, archName string) ([]string, error) {
-	db, err := r.FetchFile(repoName, archName, fmt.Sprintf("%s.db.tar.gz", repoName))
+	db, err := r.FetchFile(repoName, archName, pacmanrepo.Artifacts(repoName).DatabaseArchive())
 	if err != nil {
 		return nil, err
 	}
 	defer db.Close()
 
-	rr, err := repo.RemoteRepoFromDB(repoName, db)
+	rr, err := pacmanrepo.RemoteRepoFromDB(repoName, db)
 	if err != nil {
 		return nil, err
 	}
@@ -313,7 +302,7 @@ func (r *binaryRepository) PkgNames(repoName, archName string) ([]string, error)
 // ".files" database. A repo with no .files archive, or a package absent from it,
 // is domain.ErrNotFound (the handler answers 404).
 func (r *binaryRepository) PkgFiles(repoName, archName, pkgName string) ([]string, error) {
-	f, err := r.FetchFile(repoName, archName, repoName+".files.tar.gz")
+	f, err := r.FetchFile(repoName, archName, pacmanrepo.Artifacts(repoName).FilesArchive())
 	if err != nil {
 		if errors.Is(err, blob.ErrNotFound) {
 			return nil, domain.ErrNotFound
@@ -322,7 +311,7 @@ func (r *binaryRepository) PkgFiles(repoName, archName, pkgName string) ([]strin
 	}
 	defer f.Close()
 
-	byName, err := repo.FilesFromDB(f)
+	byName, err := pacmanrepo.FilesFromDB(f)
 	if err != nil {
 		return nil, errors.WrapErr(err, "failed to parse files db")
 	}
@@ -347,12 +336,7 @@ func (r *binaryRepository) VerifyPkgRepo(name string) error {
 
 		// Only the archives are stored; <repo>.db / <repo>.files are served as
 		// aliases of them, so they are not required as standalone objects.
-		requiredFiles := []string{
-			name + ".db.tar.gz",
-			name + ".files.tar.gz",
-		}
-
-		for _, file := range requiredFiles {
+		for _, file := range pacmanrepo.Artifacts(name).Archives() {
 			if !lo.Contains(files, file) {
 				return fmt.Errorf("%s not found in %s", file, path.Join(name, arch))
 			}

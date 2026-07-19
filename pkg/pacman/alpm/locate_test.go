@@ -35,6 +35,14 @@ func TestFindCachedPackage(t *testing.T) {
 		t.Error("a version with no cached file must report not found")
 	}
 
+	// Historical Kamisato filenames normalized an epoch ':' to '_'; the shared
+	// metadata matcher keeps those cache entries discoverable.
+	mk("epochpkg-2_1.0-1-x86_64.pkg.tar.zst")
+	if got, ok := FindCachedPackage([]string{dir}, "epochpkg", "2:1.0-1"); !ok ||
+		filepath.Base(got) != "epochpkg-2_1.0-1-x86_64.pkg.tar.zst" {
+		t.Errorf("legacy epoch cache lookup = %q, %t", got, ok)
+	}
+
 	// Only a sidecar present (no completed file) must report not found, never the .part.
 	only := t.TempDir()
 	if err := os.WriteFile(filepath.Join(only, "bar-1-1-x86_64.pkg.tar.zst.part"), []byte("x"), 0o644); err != nil {

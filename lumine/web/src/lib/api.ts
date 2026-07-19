@@ -6,25 +6,22 @@ import {
 import type {
     BuildRequest,
     BuildStats,
+    Features as GeneratedFeatures,
     Job,
     PackageInfo,
     PacmanPkgsResponse,
 } from "./types";
 
-// Optional features ayato advertises so the UI hides what is not configured.
-// recaptcha_site_key is non-empty only when the bug form must render a widget.
-export type Features = {
-    bug_report: boolean;
-    miko: boolean;
-    github_login: boolean;
-    recaptcha_site_key: string;
-};
+// Optional features and protocol capabilities generated from ayato's Go API
+// contract. recaptcha_site_key is non-empty only when the bug form needs it.
+export type Features = GeneratedFeatures;
 
 export const defaultFeatures: Features = {
     bug_report: false,
     miko: false,
     github_login: false,
     recaptcha_site_key: "",
+    package_archive_suffixes: [],
 };
 
 export type Severity = "critical" | "high" | "medium" | "low";
@@ -150,7 +147,16 @@ export class APIClient {
         const res = await this.authedFetch(this.endpoints.features());
         if (!res.ok)
             throw new Error(`機能情報の取得に失敗しました: ${res.status}`);
-        return res.json();
+        const payload = (await res.json()) as Partial<Features>;
+        return {
+            ...defaultFeatures,
+            ...payload,
+            package_archive_suffixes: Array.isArray(
+                payload.package_archive_suffixes,
+            )
+                ? payload.package_archive_suffixes
+                : [],
+        };
     }
 
     async submitBugReport(input: BugReportInput): Promise<{ url: string }> {

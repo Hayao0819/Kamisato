@@ -50,7 +50,7 @@ func (r *RemoteRepo) PkgByPkgBase(pkgbase string) *pkg.BinaryPackage {
 }
 
 func RepoFromURL(server string, name string) (*RemoteRepo, error) {
-	dburl, err := url.JoinPath(server, name+".db")
+	dburl, err := url.JoinPath(server, Artifacts(name).DatabaseAlias())
 	if err != nil {
 		return nil, err
 	}

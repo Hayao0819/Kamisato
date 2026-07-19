@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { AuthGate } from "@/components/auth-gate";
-import { useAPIClient } from "@/components/lumine-provider";
+import { useAPIClient, useFeatures } from "@/components/lumine-provider";
 import { PageContainer } from "@/components/page-container";
 import { PageHeader } from "@/components/page-header";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -26,8 +26,7 @@ import {
 } from "@/components/ui/select";
 import { useRepoArch } from "@/hooks/use-repo-arch";
 import { useToast } from "@/hooks/use-toast";
-
-const PKG_NAME_RE = /\.pkg\.tar\.(zst|xz|gz)$/i;
+import { isPackageArchive, packageFileAccept } from "@/lib/package-artifact";
 
 export function UploadPageClient() {
     return (
@@ -49,11 +48,11 @@ export function UploadPageClient() {
 
 function UploadForm() {
     const api = useAPIClient();
+    const features = useFeatures();
     const { toast } = useToast();
     const { selectedRepo, setSelectedRepo, repos } = useRepoArch();
 
     const [packageFile, setPackageFile] = useState<File | null>(null);
-    const [packageError, setPackageError] = useState<string | null>(null);
     const [signatureFile, setSignatureFile] = useState<File | null>(null);
     const [uploading, setUploading] = useState(false);
     const [uploadProgress, setUploadProgress] = useState(0);
@@ -68,13 +67,6 @@ function UploadForm() {
         const file = e.target.files?.[0] ?? null;
         setPackageFile(file);
         setUploadStatus("idle");
-        if (file && !PKG_NAME_RE.test(file.name)) {
-            setPackageError(
-                ".pkg.tar.zst / .pkg.tar.xz / .pkg.tar.gz 形式のファイルを選択してください",
-            );
-        } else {
-            setPackageError(null);
-        }
     };
 
     const handleSignatureFileChange = (
@@ -83,8 +75,23 @@ function UploadForm() {
         setSignatureFile(e.target.files?.[0] ?? null);
     };
 
+    const packageError =
+        packageFile &&
+        !isPackageArchive(packageFile.name, features.package_archive_suffixes)
+            ? `対応しているパッケージ形式を選択してください: ${features.package_archive_suffixes.join(" / ")}`
+            : null;
+    const signatureError =
+        packageFile &&
+        signatureFile &&
+        signatureFile.name !== `${packageFile.name}.sig`
+            ? `署名ファイル名は ${packageFile.name}.sig である必要があります`
+            : null;
     const canSubmit =
-        !uploading && !!selectedRepo && !!packageFile && !packageError;
+        !uploading &&
+        !!selectedRepo &&
+        !!packageFile &&
+        !packageError &&
+        !signatureError;
 
     const handleUpload = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -113,7 +120,6 @@ function UploadForm() {
 
             setPackageFile(null);
             setSignatureFile(null);
-            setPackageError(null);
             const packageInput = document.getElementById(
                 "package-file",
             ) as HTMLInputElement | null;
@@ -172,7 +178,9 @@ function UploadForm() {
                 <Input
                     id="package-file"
                     type="file"
-                    accept=".pkg.tar.zst,.pkg.tar.xz,.pkg.tar.gz"
+                    accept={packageFileAccept(
+                        features.package_archive_suffixes,
+                    )}
                     onChange={handlePackageFileChange}
                 />
                 {packageError ? (
@@ -204,6 +212,9 @@ function UploadForm() {
                     <p className="text-sm text-muted-foreground">
                         選択済み: {signatureFile.name}
                     </p>
+                )}
+                {signatureError && (
+                    <p className="text-sm text-destructive">{signatureError}</p>
                 )}
             </div>
 

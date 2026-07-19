@@ -1,18 +1,21 @@
 // Canonical API shapes are generated from the Go truth types with tygo so the
 // client cannot drift from the server. Regenerate with `pnpm gen:types`
 // (config: tygo.yaml). Only client-only refinements live here by hand.
-import type { PacmanPkgs } from "./generated/ayato_domain";
+import type {
+    Features,
+    PacmanPackage,
+    PacmanPkgs,
+} from "./generated/ayato_domain";
 import type {
     BuildJob,
     BuildStats,
     BuildRequest as GeneratedBuildRequest,
     GitSource,
 } from "./generated/miko_domain";
-import type { PKGINFO } from "./generated/raiou";
 
-export type PackageInfo = PKGINFO;
+export type PackageInfo = PacmanPackage;
 export type PacmanPkgsResponse = PacmanPkgs;
-export type { BuildStats, GitSource };
+export type { BuildStats, Features, GitSource };
 
 // miko serializes install_pkgs unconditionally, but a client may omit it on
 // submit and let the server apply defaults; relax just that field.

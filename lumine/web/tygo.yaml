@@ -7,7 +7,7 @@ packages:
     include_files: ["pkginfo.go"]
   - path: "github.com/Hayao0819/Kamisato/ayato/domain"
     output_path: "src/lib/generated/ayato_domain.ts"
-    include_files: ["repo.go"]
+    include_files: ["repo.go", "features.go"]
     frontmatter: |
       import type { PKGINFO } from "./raiou";
     type_mappings:

@@ -7,7 +7,6 @@ import (
 	"log/slog"
 	"mime/multipart"
 	"net/http"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/samber/lo"
@@ -16,6 +15,7 @@ import (
 
 	"github.com/Hayao0819/Kamisato/ayato/domain"
 	"github.com/Hayao0819/Kamisato/ayato/stream"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/pkgfile"
 )
 
 func formFileWithValidate(ctx *gin.Context, name string, maxsize int) (*multipart.FileHeader, error) {
@@ -175,26 +175,32 @@ func (h *Handler) BatchUploadHandler(ctx *gin.Context) {
 	}
 
 	// Match each signature to the package it signs by the "<pkg>.sig" convention.
-	sigByName := make(map[string]*multipart.FileHeader, len(form.File["signature"]))
+	sigByArchive := make(map[string]*multipart.FileHeader, len(form.File["signature"]))
 	var aggregate int64
 	for _, sh := range form.File["signature"] {
 		if sh.Size == 0 || sh.Size > limits.MaxSignatureBytes {
 			ctx.JSON(http.StatusRequestEntityTooLarge, domain.APIError{Message: fmt.Sprintf("signature %q is empty or too large", sh.Filename)})
 			return
 		}
-		if !strings.HasSuffix(sh.Filename, ".sig") {
+		artifact, err := pkgfile.Parse(sh.Filename)
+		if err != nil || !artifact.IsSignature() {
 			ctx.JSON(http.StatusBadRequest, domain.APIError{Message: fmt.Sprintf("signature %q must use the <package>.sig filename", sh.Filename)})
 			return
 		}
-		if _, duplicate := sigByName[sh.Filename]; duplicate {
+		if _, duplicate := sigByArchive[artifact.ArchiveFilename()]; duplicate {
 			ctx.JSON(http.StatusBadRequest, domain.APIError{Message: fmt.Sprintf("duplicate signature %q", sh.Filename)})
 			return
 		}
-		sigByName[sh.Filename] = sh
+		sigByArchive[artifact.ArchiveFilename()] = sh
 		aggregate += sh.Size
 	}
 	packageNames := make(map[string]bool, len(form.File["package"]))
 	for _, ph := range form.File["package"] {
+		artifact, err := pkgfile.Parse(ph.Filename)
+		if err != nil || artifact.IsSignature() {
+			ctx.JSON(http.StatusBadRequest, domain.APIError{Message: fmt.Sprintf("package %q has an invalid package filename", ph.Filename)})
+			return
+		}
 		if packageNames[ph.Filename] {
 			ctx.JSON(http.StatusBadRequest, domain.APIError{Message: fmt.Sprintf("duplicate package %q", ph.Filename)})
 			return
@@ -202,9 +208,9 @@ func (h *Handler) BatchUploadHandler(ctx *gin.Context) {
 		packageNames[ph.Filename] = true
 		aggregate += ph.Size
 	}
-	for signature := range sigByName {
-		if !packageNames[strings.TrimSuffix(signature, ".sig")] {
-			ctx.JSON(http.StatusBadRequest, domain.APIError{Message: fmt.Sprintf("signature %q has no matching package", signature)})
+	for archive, signature := range sigByArchive {
+		if !packageNames[archive] {
+			ctx.JSON(http.StatusBadRequest, domain.APIError{Message: fmt.Sprintf("signature %q has no matching package", signature.Filename)})
 			return
 		}
 	}
@@ -237,7 +243,7 @@ func (h *Handler) BatchUploadHandler(ctx *gin.Context) {
 		}
 		closers = append(closers, pkgStream)
 		uf := &domain.UploadFiles{PkgFile: pkgStream}
-		if sh, ok := sigByName[ph.Filename+".sig"]; ok {
+		if sh, ok := sigByArchive[ph.Filename]; ok {
 			sigStream, err := formFileStream(sh)
 			if err != nil {
 				ctx.JSON(http.StatusBadRequest, domain.APIError{Message: fmt.Sprintf("open signature for %q err: %s", ph.Filename, err.Error())})
