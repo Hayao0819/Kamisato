@@ -67,12 +67,9 @@ func (r *denylistRepository) isRevoked(namespace, id string) (bool, error) {
 	if id == "" {
 		return false, nil
 	}
-	_, err := r.kv.Get(namespace, id)
-	if errors.Is(err, kv.ErrNotFound) {
-		return false, nil
-	}
+	_, revoked, err := getOptional(r.kv, namespace, id, "deny: check id")
 	if err != nil {
-		return false, errors.WrapErr(err, "deny: check jti")
+		return false, err
 	}
-	return true, nil
+	return revoked, nil
 }

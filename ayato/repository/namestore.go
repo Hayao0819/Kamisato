@@ -3,7 +3,6 @@ package repository
 import (
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv/schema"
-	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
 //go:generate mockgen -source=namestore.go -destination=../test/mocks/namestore.go -package=mocks
@@ -43,12 +42,17 @@ func nameKey(repo, arch, name string) string {
 // PackageFile reports a miss as ("", nil), not an error, so callers keep their
 // read-through-on-miss behaviour.
 func (r *packageMetadataRepo) PackageFile(repo, arch, name string) (string, error) {
-	v, err := r.kv.Get(schema.PackageFiles, nameKey(repo, arch, name))
-	if errors.Is(err, kv.ErrNotFound) {
-		return "", nil
-	}
+	v, ok, err := getOptional(
+		r.kv,
+		schema.PackageFiles,
+		nameKey(repo, arch, name),
+		"package metadata: get file",
+	)
 	if err != nil {
 		return "", err
+	}
+	if !ok {
+		return "", nil
 	}
 	return string(v), nil
 }

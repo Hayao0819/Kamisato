@@ -1,7 +1,6 @@
 package repository
 
 import (
-	"encoding/json"
 	"time"
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
@@ -146,52 +145,4 @@ func (r *deviceRepository) transition(userCode string, mutate func(*deviceRecord
 		return false, err
 	}
 	return true, nil
-}
-
-func (r *deviceRepository) putByCode(deviceCode string, rec deviceRecord, ttl time.Duration) error {
-	raw, err := json.Marshal(rec)
-	if err != nil {
-		return errors.WrapErr(err, "device: marshal record")
-	}
-	if err := r.kv.Set(schema.Devices, deviceCode, raw, ttl); err != nil {
-		return errors.WrapErr(err, "device: store record")
-	}
-	return nil
-}
-
-func (r *deviceRepository) getByCode(deviceCode string) (deviceRecord, bool, error) {
-	if deviceCode == "" {
-		return deviceRecord{}, false, nil
-	}
-	raw, err := r.kv.Get(schema.Devices, deviceCode)
-	if err != nil {
-		if errors.Is(err, kv.ErrNotFound) {
-			return deviceRecord{}, false, nil
-		}
-		return deviceRecord{}, false, errors.WrapErr(err, "device: get record")
-	}
-	var rec deviceRecord
-	if err := json.Unmarshal(raw, &rec); err != nil {
-		return deviceRecord{}, false, errors.WrapErr(err, "device: unmarshal record")
-	}
-	// Guard against a backend with coarse TTL granularity serving a just-expired
-	// entry: the absolute ExpiresAt is authoritative.
-	if time.Now().After(time.Unix(rec.ExpiresAt, 0)) {
-		return deviceRecord{}, false, nil
-	}
-	return rec, true, nil
-}
-
-func (r *deviceRepository) getByUserCode(userCode string) (deviceRecord, bool, error) {
-	if userCode == "" {
-		return deviceRecord{}, false, nil
-	}
-	code, err := r.kv.Get(schema.DeviceUserIndex, userCode)
-	if err != nil {
-		if errors.Is(err, kv.ErrNotFound) {
-			return deviceRecord{}, false, nil
-		}
-		return deviceRecord{}, false, errors.WrapErr(err, "device: get user index")
-	}
-	return r.getByCode(string(code))
 }

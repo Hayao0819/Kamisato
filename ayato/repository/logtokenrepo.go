@@ -63,12 +63,12 @@ func (r *logTokenRepository) ConsumeLogToken(token string) (string, bool, error)
 	if token == "" {
 		return "", false, nil
 	}
-	v, err := r.kv.Get(schema.LogTokens, token)
+	v, ok, err := getOptional(r.kv, schema.LogTokens, token, "logtoken: get")
 	if err != nil {
-		if errors.Is(err, kv.ErrNotFound) {
-			return "", false, nil
-		}
-		return "", false, errors.WrapErr(err, "logtoken: get")
+		return "", false, err
+	}
+	if !ok {
+		return "", false, nil
 	}
 	record := logTokenRecord{}
 	if err := json.Unmarshal(v, &record); err != nil {
