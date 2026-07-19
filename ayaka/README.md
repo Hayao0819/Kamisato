@@ -11,10 +11,18 @@ work from any host.
 
 ## Configuration
 
-`.ayakarc.json` lists the source repositories:
+`.ayakarc.json` holds host-trusted builder settings and source repositories.
+Keep executable selection here; a repository-owned `repo.json` cannot select
+host commands:
 
 ```json
 {
+    "builder": {
+        "backend": "chroot",
+        "devtools": {
+            "archbuild": "extra-x86_64-build"
+        }
+    },
     "repos": [
         { "dir": "./myrepo", "destdir": "./out" }
     ]
@@ -27,8 +35,10 @@ Each source repository has a `repo.json` next to its packages:
 {
     "name": "myrepo",
     "maintainer": "hayao <shun819.mail at gmail.com>",
-    "server": "",
-    "archbuild": "extra-x86_64-build"
+    "url": "",
+    "build": {
+        "timeout": "30m"
+    }
 }
 ```
 
