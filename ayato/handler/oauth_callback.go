@@ -16,8 +16,8 @@ import (
 )
 
 // Completes both the web and CLI OAuth flows.
-func (h *Handler) GitHubCallbackHandler(c *gin.Context) {
-	if !h.oauthEnabled() {
+func (h *AuthHandler) GitHubCallbackHandler(c *gin.Context) {
+	if !h.oauthConfigured() {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "github login not configured"})
 		return
 	}
@@ -53,7 +53,7 @@ func (h *Handler) GitHubCallbackHandler(c *gin.Context) {
 	}
 
 	// Fail-closed allowlist by numeric id.
-	if !h.s.IsAdmin(user.ID) {
+	if !h.admins.IsAdmin(user.ID) {
 		slog.Warn("github login denied (not allowlisted)", "github_id", user.ID, "login", user.Login)
 		// The device flow records the rejection so the polling client stops with
 		// access_denied instead of waiting out the code's TTL.
@@ -81,7 +81,7 @@ func (h *Handler) GitHubCallbackHandler(c *gin.Context) {
 }
 
 // Any error fails closed (ok=false).
-func (h *Handler) resolveGitHubUser(c *gin.Context, code string) (githubUser, bool) {
+func (h *AuthHandler) resolveGitHubUser(c *gin.Context, code string) (githubUser, bool) {
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 15*time.Second)
 	defer cancel()
 
@@ -118,7 +118,7 @@ func (h *Handler) resolveGitHubUser(c *gin.Context, code string) (githubUser, bo
 
 // Fresh session token every login (fixation defense); redirects to "/" only,
 // never an attacker-supplied target.
-func (h *Handler) finishWebLogin(c *gin.Context, user githubUser) {
+func (h *AuthHandler) finishWebLogin(c *gin.Context, user githubUser) {
 	value, err := h.signer.Sign(auth.Claims{
 		Typ:      auth.TypSession,
 		GitHubID: user.ID,
@@ -136,7 +136,7 @@ func (h *Handler) finishWebLogin(c *gin.Context, user githubUser) {
 
 // Returns a one-time CODE (never a token) to the server-reconstructed loopback,
 // echoing ayaka's original state so its state-equality check passes.
-func (h *Handler) finishCLILogin(c *gin.Context, st *auth.Claims, user githubUser) {
+func (h *AuthHandler) finishCLILogin(c *gin.Context, st *auth.Claims, user githubUser) {
 	oneTime, err := h.signer.Sign(auth.Claims{
 		Typ:       auth.TypCodeCLI,
 		GitHubID:  user.ID,
@@ -160,7 +160,7 @@ func (h *Handler) finishCLILogin(c *gin.Context, st *auth.Claims, user githubUse
 
 // Returns a one-time CODE (never a token) to the SPA via the postMessage bridge;
 // redeemed at /auth/web/exchange with PKCE.
-func (h *Handler) finishWebBearerLogin(c *gin.Context, st *auth.Claims, user githubUser) {
+func (h *AuthHandler) finishWebBearerLogin(c *gin.Context, st *auth.Claims, user githubUser) {
 	oneTime, err := h.signer.Sign(auth.Claims{
 		Typ:       auth.TypCodeWeb,
 		GitHubID:  user.ID,

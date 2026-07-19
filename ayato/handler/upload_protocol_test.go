@@ -17,7 +17,7 @@ import (
 
 func TestUnsafePresignProtocolIsDisabled(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	h := &Handler{}
+	h := &PublicationHandler{}
 
 	for _, tc := range []struct {
 		name, path string
@@ -50,7 +50,7 @@ func TestBatchUploadAllowsAggregateLargerThanOnePackageLimit(t *testing.T) {
 		return nil
 	})
 	cfg := &conf.AyatoConfig{MaxSize: 8, MaxBatchPackages: 2, MaxBatchBytes: 32}
-	h := New(service, cfg)
+	h := NewPublicationHandler(service, service, service, cfg)
 
 	var body bytes.Buffer
 	writer := multipart.NewWriter(&body)

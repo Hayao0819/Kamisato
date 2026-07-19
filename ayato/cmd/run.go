@@ -149,7 +149,7 @@ func runServer(ctx context.Context, cfg *conf.AyatoConfig) (runErr error) {
 
 func buildRouter(
 	cfg *conf.AyatoConfig,
-	appHandler *handler.Handler,
+	appHandler *handler.Set,
 	appMiddleware *middleware.Middleware,
 	kvStore kv.Store,
 	state *lifecycle.State,

@@ -49,7 +49,7 @@ func TestRepoFileCacheControl(t *testing.T) {
 			mockSvc.EXPECT().GetFileWithMeta("core", "x86_64", tc.file).Return(fs, domain.FileMeta{ETag: `"v1"`}, nil)
 
 			r := gin.New()
-			r.GET("/repo/:repo/:arch/:file", h.RepoFileHandler)
+			r.GET("/repo/:repo/:arch/:file", h.Repositories.RepoFileHandler)
 			w := httptest.NewRecorder()
 			r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/repo/core/x86_64/"+tc.file, nil))
 

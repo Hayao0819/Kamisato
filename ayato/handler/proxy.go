@@ -20,7 +20,7 @@ type MikoProxy struct {
 }
 
 // Returns nil when no upstream is configured so the router skips the miko routes.
-func (h *Handler) MikoProxy() (*MikoProxy, error) {
+func (h *MikoHandler) Proxy() (*MikoProxy, error) {
 	return NewMikoProxy(h.cfg)
 }
 

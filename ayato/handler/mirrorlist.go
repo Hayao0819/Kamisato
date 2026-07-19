@@ -22,7 +22,7 @@ type mirrorEntry struct {
 // MirrorlistHandler serves a pacman mirrorlist for a repo, advertising only this
 // instance in the mainstream comment-rich style so a client can Include it
 // verbatim.
-func (h *Handler) MirrorlistHandler(c *gin.Context) {
+func (h *RepositoryHandler) MirrorlistHandler(c *gin.Context) {
 	repoName := c.Param("repo")
 	// Validate against the servable repo set (tiers included) so the path we echo
 	// into Server lines is one ayato actually serves, never an arbitrary string.
@@ -44,7 +44,7 @@ func (h *Handler) MirrorlistHandler(c *gin.Context) {
 
 // selfMirror builds this instance's own Server entry. Precondition: h.cfg != nil
 // (MirrorlistHandler gates it).
-func (h *Handler) selfMirror(base, repoName string) mirrorEntry {
+func (h *RepositoryHandler) selfMirror(base, repoName string) mirrorEntry {
 	seg := repoName
 	if h.cfg.Mirror.UseRepoVar {
 		seg = "$repo"
@@ -59,19 +59,19 @@ func (h *Handler) selfMirror(base, repoName string) mirrorEntry {
 // mirrorBase resolves this instance's public base URL and whether it came from a
 // configured origin (mirror.self_url, then auth self/public origin) rather than
 // the spoofable request Host. X-Forwarded-* is not trusted (see externalBase).
-func (h *Handler) mirrorBase(c *gin.Context) (base string, configured bool) {
+func (h *RepositoryHandler) mirrorBase(c *gin.Context) (base string, configured bool) {
 	if h.cfg != nil {
 		if _, b, ok := originOf(h.cfg.Mirror.SelfURL); ok {
 			return b, true
 		}
 	}
-	_, b := h.externalBase(c)
+	_, b := externalBase(h.cfg, c)
 	return strings.TrimRight(b, "/"), h.hasConfiguredOrigin()
 }
 
 // hasConfiguredOrigin reports whether an auth self/public origin is set, so a base
 // derived via externalBase is stable rather than request-Host-derived.
-func (h *Handler) hasConfiguredOrigin() bool {
+func (h *RepositoryHandler) hasConfiguredOrigin() bool {
 	if h.cfg == nil {
 		return false
 	}

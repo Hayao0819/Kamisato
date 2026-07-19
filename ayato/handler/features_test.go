@@ -17,7 +17,7 @@ func TestFeaturesHandler(t *testing.T) {
 	cfg := &conf.AyatoConfig{}
 	cfg.Miko.URL = "http://miko:8081"
 	cfg.Recaptcha.SiteKey = "SITE"
-	h := &Handler{cfg: cfg, reporter: &fakeReporter{}}
+	h := NewSystemHandler(cfg, true, nil)
 
 	r := gin.New()
 	r.GET("/features", h.FeaturesHandler)

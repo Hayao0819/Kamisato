@@ -3,13 +3,13 @@ package middleware
 import (
 	"encoding/base64"
 	"net/http"
-	"net/url"
 	"strings"
 	"sync/atomic"
 
 	"github.com/gin-gonic/gin"
 
 	"github.com/Hayao0819/Kamisato/ayato/auth"
+	"github.com/Hayao0819/Kamisato/ayato/httpsecurity"
 	"github.com/Hayao0819/Kamisato/ayato/ratelimit"
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
 	"github.com/Hayao0819/Kamisato/internal/conf"
@@ -275,43 +275,14 @@ func logTokenFromRequest(c *gin.Context) string {
 // authoritative when present, else an Origin/Referer allowlist; fails closed when
 // no origin can be resolved.
 func (m *Middleware) sameOriginRequest(c *gin.Context) bool {
-	if sfs := c.GetHeader("Sec-Fetch-Site"); sfs != "" {
-		return sfs == "same-origin"
-	}
-	origin := c.GetHeader("Origin")
-	if origin == "" {
-		origin = originOfURL(c.GetHeader("Referer"))
-	}
-	if origin == "" {
-		return false
-	}
-	return m.allowedOrigin(origin)
-}
-
-// allowedOrigin matches an origin case-insensitively against the
-// PublicOrigin/SelfOrigin allowlist, normalizing each so a trailing slash does
-// not cause a spurious mismatch.
-func (m *Middleware) allowedOrigin(origin string) bool {
 	if m.cfg == nil {
-		return false
+		return httpsecurity.SameOrigin(c.Request)
 	}
-	for _, allowed := range []string{m.cfg.Auth.PublicOrigin, m.cfg.Auth.SelfOrigin} {
-		if allowed != "" && strings.EqualFold(origin, originOfURL(allowed)) {
-			return true
-		}
-	}
-	return false
-}
-
-func originOfURL(raw string) string {
-	if raw == "" {
-		return ""
-	}
-	u, err := url.Parse(raw)
-	if err != nil || u.Scheme == "" || u.Host == "" {
-		return ""
-	}
-	return u.Scheme + "://" + u.Host
+	return httpsecurity.SameOrigin(
+		c.Request,
+		m.cfg.Auth.PublicOrigin,
+		m.cfg.Auth.SelfOrigin,
+	)
 }
 
 func (m *Middleware) resolve(c *gin.Context, allowBasic bool) (id int64, login, via string, ok bool, err error) {

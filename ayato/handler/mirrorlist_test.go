@@ -14,7 +14,7 @@ import (
 
 func mirrorlistHandler(cfg *conf.AyatoConfig) *gin.Engine {
 	gin.SetMode(gin.TestMode)
-	h := New(nil, cfg)
+	h := NewRepositoryHandler(nil, cfg)
 	r := gin.New()
 	r.GET("/repo/:repo/mirrorlist", h.MirrorlistHandler)
 	return r

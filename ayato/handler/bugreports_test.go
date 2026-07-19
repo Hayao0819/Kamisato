@@ -38,7 +38,7 @@ func (f *fakeVerifier) Verify(_ context.Context, _, _ string) error {
 	return f.err
 }
 
-func postBug(h *Handler, body string) *httptest.ResponseRecorder {
+func postBug(h *BugReportHandler, body string) *httptest.ResponseRecorder {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 	r.POST("/bug-reports", h.SubmitBugReportHandler)
@@ -50,18 +50,18 @@ func postBug(h *Handler, body string) *httptest.ResponseRecorder {
 }
 
 func TestSubmitBugReport(t *testing.T) {
-	if w := postBug(&Handler{}, `{"pkgname":"foo","description":"x"}`); w.Code != http.StatusServiceUnavailable {
+	if w := postBug(&BugReportHandler{}, `{"pkgname":"foo","description":"x"}`); w.Code != http.StatusServiceUnavailable {
 		t.Errorf("disabled: status %d, want 503", w.Code)
 	}
-	if w := postBug(&Handler{reporter: &fakeReporter{}}, `{"pkgname":"foo"}`); w.Code != http.StatusBadRequest {
+	if w := postBug(&BugReportHandler{reporter: &fakeReporter{}}, `{"pkgname":"foo"}`); w.Code != http.StatusBadRequest {
 		t.Errorf("missing description: status %d, want 400", w.Code)
 	}
-	if w := postBug(&Handler{reporter: &fakeReporter{}}, `{"pkgname":"foo","description":"x","severity":"meh"}`); w.Code != http.StatusBadRequest {
+	if w := postBug(&BugReportHandler{reporter: &fakeReporter{}}, `{"pkgname":"foo","description":"x","severity":"meh"}`); w.Code != http.StatusBadRequest {
 		t.Errorf("bad severity: status %d, want 400", w.Code)
 	}
 
 	fr := &fakeReporter{url: "https://github.com/o/r/issues/1"}
-	w := postBug(&Handler{reporter: fr}, `{"pkgname":"foo","pkgver":"1.0","description":"boom","severity":"high"}`)
+	w := postBug(&BugReportHandler{reporter: fr}, `{"pkgname":"foo","pkgver":"1.0","description":"boom","severity":"high"}`)
 	if w.Code != http.StatusCreated {
 		t.Fatalf("success: status %d, want 201", w.Code)
 	}
@@ -73,7 +73,7 @@ func TestSubmitBugReport(t *testing.T) {
 	}
 
 	def := &fakeReporter{}
-	postBug(&Handler{reporter: def}, `{"pkgname":"foo","description":"x"}`)
+	postBug(&BugReportHandler{reporter: def}, `{"pkgname":"foo","description":"x"}`)
 	if def.last.Severity != "medium" {
 		t.Errorf("default severity = %q, want medium", def.last.Severity)
 	}
@@ -87,7 +87,7 @@ func TestSubmitBugReportResolvesMaintainer(t *testing.T) {
 		Return(&domain.PacmanPackage{PackageMetadata: domain.PackageMetadata{Packager: "Maintainer Name <maint@example.com>"}}, nil)
 
 	fr := &fakeReporter{}
-	h := &Handler{s: mockSvc, reporter: fr}
+	h := &BugReportHandler{reader: mockSvc, reporter: fr}
 	body := `{"pkgname":"foo","repo":"core","arch":"x86_64","description":"boom","email":"reporter@example.com"}`
 	if w := postBug(h, body); w.Code != http.StatusCreated {
 		t.Fatalf("status %d, want 201", w.Code)
@@ -111,7 +111,7 @@ func TestSubmitBugReportMaintainerLookupFailureIsNonFatal(t *testing.T) {
 	mockSvc.EXPECT().PkgDetail("core", "x86_64", "foo").Return(nil, errors.New("not found"))
 
 	fr := &fakeReporter{}
-	h := &Handler{s: mockSvc, reporter: fr}
+	h := &BugReportHandler{reader: mockSvc, reporter: fr}
 	body := `{"pkgname":"foo","repo":"core","arch":"x86_64","description":"boom"}`
 	if w := postBug(h, body); w.Code != http.StatusCreated {
 		t.Fatalf("a failed maintainer lookup must not fail the report: status %d", w.Code)
@@ -139,7 +139,7 @@ func TestSubmitBugReportRecaptcha(t *testing.T) {
 	// A configured verifier that rejects blocks the report (reporter not called).
 	rep := &fakeReporter{}
 	bad := &fakeVerifier{err: errors.New("nope")}
-	if w := postBug(&Handler{reporter: rep, recaptcha: bad}, `{"pkgname":"foo","description":"x","recaptcha_token":"t"}`); w.Code != http.StatusBadRequest {
+	if w := postBug(&BugReportHandler{reporter: rep, recaptcha: bad}, `{"pkgname":"foo","description":"x","recaptcha_token":"t"}`); w.Code != http.StatusBadRequest {
 		t.Errorf("rejected captcha: status %d, want 400", w.Code)
 	}
 	if !bad.called || rep.last.Pkgname != "" {
@@ -149,7 +149,7 @@ func TestSubmitBugReportRecaptcha(t *testing.T) {
 	// A passing verifier lets the report through.
 	rep2 := &fakeReporter{}
 	ok := &fakeVerifier{}
-	if w := postBug(&Handler{reporter: rep2, recaptcha: ok}, `{"pkgname":"foo","description":"x","recaptcha_token":"t"}`); w.Code != http.StatusCreated {
+	if w := postBug(&BugReportHandler{reporter: rep2, recaptcha: ok}, `{"pkgname":"foo","description":"x","recaptcha_token":"t"}`); w.Code != http.StatusCreated {
 		t.Errorf("accepted captcha: status %d, want 201", w.Code)
 	}
 	if !ok.called || rep2.last.Pkgname != "foo" {

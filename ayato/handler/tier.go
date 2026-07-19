@@ -21,7 +21,7 @@ type promoteRequest struct {
 // PromoteHandler advances a package through a tiered repo's staging -> testing ->
 // stable flow. Admin-gated: promotion is a deliberate release action, kept separate
 // from building/uploading.
-func (h *Handler) PromoteHandler(ctx *gin.Context) {
+func (h *PublicationHandler) PromoteHandler(ctx *gin.Context) {
 	repoName := ctx.Param("repo")
 	if repoName == "" {
 		respondError(ctx, http.StatusBadRequest, "repository name is required")
@@ -46,7 +46,7 @@ func (h *Handler) PromoteHandler(ctx *gin.Context) {
 		respondError(ctx, http.StatusBadRequest, err.Error())
 		return
 	}
-	if err := h.s.PromotePackage(ctx.Request.Context(), repoName, from, to, req.Pkgname, req.Version); err != nil {
+	if err := h.promoter.PromotePackage(ctx.Request.Context(), repoName, from, to, req.Pkgname, req.Version); err != nil {
 		respondServiceError(ctx, "promote package", "failed to promote package", err)
 		return
 	}
@@ -55,13 +55,13 @@ func (h *Handler) PromoteHandler(ctx *gin.Context) {
 
 // SyncUpstreamHandler refreshes an upstream-layered repo from its upstream database
 // and rebuilds the served merged view. Admin-gated because it rewrites the served db.
-func (h *Handler) SyncUpstreamHandler(ctx *gin.Context) {
+func (h *PublicationHandler) SyncUpstreamHandler(ctx *gin.Context) {
 	repoName := ctx.Param("repo")
 	if repoName == "" {
 		respondError(ctx, http.StatusBadRequest, "repository name is required")
 		return
 	}
-	res, err := h.s.SyncUpstream(ctx.Request.Context(), repoName)
+	res, err := h.syncer.SyncUpstream(ctx.Request.Context(), repoName)
 	if err != nil {
 		respondServiceError(ctx, "sync upstream", "failed to sync upstream", err)
 		return

@@ -11,6 +11,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"golang.org/x/oauth2"
 	githuboauth "golang.org/x/oauth2/github"
+
+	"github.com/Hayao0819/Kamisato/internal/conf"
 )
 
 const (
@@ -44,7 +46,7 @@ type githubUser struct {
 }
 
 // GitHub login needs the signer wired plus a configured client id/secret.
-func (h *Handler) oauthEnabled() bool {
+func (h *AuthHandler) oauthConfigured() bool {
 	return h.signer != nil && h.cfg != nil && h.cfg.Auth.GitHub.ClientID != "" && h.cfg.Auth.GitHub.ClientSecret != ""
 }
 
@@ -52,12 +54,16 @@ func (h *Handler) oauthEnabled() bool {
 // Prefers SelfOrigin, then PublicOrigin. X-Forwarded-* is ignored because gin
 // does not gate c.GetHeader, so it is spoofable; the request host is used only
 // when neither origin is configured.
-func (h *Handler) externalBase(c *gin.Context) (scheme, base string) {
-	if h.cfg != nil {
-		if s, b, ok := originOf(h.cfg.Auth.SelfOrigin); ok {
+func (h *AuthHandler) externalBase(c *gin.Context) (scheme, base string) {
+	return externalBase(h.cfg, c)
+}
+
+func externalBase(cfg *conf.AyatoConfig, c *gin.Context) (scheme, base string) {
+	if cfg != nil {
+		if s, b, ok := originOf(cfg.Auth.SelfOrigin); ok {
 			return s, b
 		}
-		if s, b, ok := originOf(h.cfg.Auth.PublicOrigin); ok {
+		if s, b, ok := originOf(cfg.Auth.PublicOrigin); ok {
 			return s, b
 		}
 	}
@@ -69,7 +75,7 @@ func (h *Handler) externalBase(c *gin.Context) (scheme, base string) {
 }
 
 // SPA origin (PublicOrigin) used as the exact postMessage target; empty when unset.
-func (h *Handler) spaOrigin() string {
+func (h *AuthHandler) spaOrigin() string {
 	if h.cfg != nil {
 		if _, b, ok := originOf(h.cfg.Auth.PublicOrigin); ok {
 			return b
@@ -89,7 +95,7 @@ func originOf(raw string) (scheme, base string, ok bool) {
 	return u.Scheme, u.Scheme + "://" + u.Host, true
 }
 
-func (h *Handler) oauthConfig(c *gin.Context) *oauth2.Config {
+func (h *AuthHandler) oauthConfig(c *gin.Context) *oauth2.Config {
 	_, base := h.externalBase(c)
 	return &oauth2.Config{
 		ClientID:     h.cfg.Auth.GitHub.ClientID,
@@ -101,7 +107,7 @@ func (h *Handler) oauthConfig(c *gin.Context) *oauth2.Config {
 }
 
 // SameSite=Lax so the cookie returns on GitHub's top-level cross-site redirect back.
-func (h *Handler) setOAuthStateCookie(c *gin.Context, nonce string, secure bool) {
+func (h *AuthHandler) setOAuthStateCookie(c *gin.Context, nonce string, secure bool) {
 	http.SetCookie(c.Writer, &http.Cookie{
 		Name:     oauthStateCookieName,
 		Value:    nonce,
@@ -113,7 +119,7 @@ func (h *Handler) setOAuthStateCookie(c *gin.Context, nonce string, secure bool)
 	})
 }
 
-func (h *Handler) clearOAuthStateCookie(c *gin.Context, secure bool) {
+func (h *AuthHandler) clearOAuthStateCookie(c *gin.Context, secure bool) {
 	http.SetCookie(c.Writer, &http.Cookie{
 		Name:     oauthStateCookieName,
 		Value:    "",
@@ -126,7 +132,7 @@ func (h *Handler) clearOAuthStateCookie(c *gin.Context, secure bool) {
 }
 
 // Uses http.SetCookie (not gin's c.SetCookie) to omit Domain for a host-only cookie.
-func (h *Handler) setSessionCookie(c *gin.Context, value string, secure bool, maxAge int) {
+func (h *AuthHandler) setSessionCookie(c *gin.Context, value string, secure bool, maxAge int) {
 	ck := &http.Cookie{
 		Name:     h.cfg.Auth.CookieName(),
 		Value:    value,
@@ -156,7 +162,7 @@ const webAuthBridgeTmpl = `<!doctype html><meta charset="utf-8"><title>Signing i
 
 // Fails closed without PublicOrigin: there is no trusted postMessage target to
 // deliver the code to.
-func (h *Handler) renderWebAuthBridge(c *gin.Context, code, state string) {
+func (h *AuthHandler) renderWebAuthBridge(c *gin.Context, code, state string) {
 	origin := h.spaOrigin()
 	if origin == "" {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "public_origin not configured"})

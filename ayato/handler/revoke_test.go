@@ -14,7 +14,7 @@ import (
 	"github.com/Hayao0819/Kamisato/ayato/service"
 )
 
-func postCLIRevoke(h *Handler, access, refresh string) *httptest.ResponseRecorder {
+func postCLIRevoke(h *AuthHandler, access, refresh string) *httptest.ResponseRecorder {
 	r := gin.New()
 	r.POST("/revoke", h.RevokeCLIHandler)
 	w := httptest.NewRecorder()
@@ -92,7 +92,7 @@ func TestRevokeCLIHandler(t *testing.T) {
 		t.Fatalf("NewSigner: %v", err)
 	}
 
-	call := func(h *Handler, authz string) *httptest.ResponseRecorder {
+	call := func(h *AuthHandler, authz string) *httptest.ResponseRecorder {
 		r := gin.New()
 		r.POST("/revoke", h.RevokeCLIHandler)
 		w := httptest.NewRecorder()
@@ -105,13 +105,13 @@ func TestRevokeCLIHandler(t *testing.T) {
 	}
 
 	// Unconfigured (no signer/denylist) -> 503.
-	if w := call(&Handler{}, ""); w.Code != http.StatusServiceUnavailable {
+	if w := call(&AuthHandler{}, ""); w.Code != http.StatusServiceUnavailable {
 		t.Fatalf("unconfigured: status = %d, want 503", w.Code)
 	}
 
 	dl := &fakeDenylistRepo{}
 	svc := service.New(nil, nil, nil, nil, nil).WithDenylist(dl)
-	h := New(svc, nil).WithAuth(signer)
+	h := NewAuthHandler(svc, svc, nil).WithSigner(signer)
 
 	if w := call(h, ""); w.Code != http.StatusUnauthorized {
 		t.Fatalf("no bearer: status = %d, want 401", w.Code)

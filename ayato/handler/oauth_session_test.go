@@ -19,7 +19,7 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/conf"
 )
 
-func denylistHandler(t *testing.T, adminID int64) (*Handler, *fakeDenylistRepo, *auth.Signer) {
+func denylistHandler(t *testing.T, adminID int64) (*AuthHandler, *fakeDenylistRepo, *auth.Signer) {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
 	store, err := badgerkv.New(t.TempDir())
@@ -41,7 +41,7 @@ func denylistHandler(t *testing.T, adminID int64) (*Handler, *fakeDenylistRepo, 
 	if err != nil {
 		t.Fatalf("NewSigner: %v", err)
 	}
-	return New(svc, cfg).WithAuth(signer), dl, signer
+	return NewAuthHandler(svc, svc, cfg).WithSigner(signer), dl, signer
 }
 
 func jtiOf(t *testing.T, token string) string {

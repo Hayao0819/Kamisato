@@ -10,7 +10,7 @@ import (
 	"github.com/Hayao0819/Kamisato/ayato/domain"
 )
 
-func (h *Handler) AllPkgsHandler(ctx *gin.Context) {
+func (h *RepositoryHandler) AllPkgsHandler(ctx *gin.Context) {
 	repoName := ctx.Param("repo")
 	archName := ctx.Param("arch")
 	if repoName == "" {
@@ -21,7 +21,7 @@ func (h *Handler) AllPkgsHandler(ctx *gin.Context) {
 		respondError(ctx, http.StatusBadRequest, "architecture name is required")
 		return
 	}
-	pkgs, err := h.s.Pkgs(repoName, archName)
+	pkgs, err := h.reader.Pkgs(repoName, archName)
 	if err != nil {
 		respondServiceError(ctx, "get packages", "failed to get packages", err)
 		return
@@ -29,7 +29,7 @@ func (h *Handler) AllPkgsHandler(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, pkgs)
 }
 
-func (h *Handler) PkgDetailHandler(ctx *gin.Context) {
+func (h *RepositoryHandler) PkgDetailHandler(ctx *gin.Context) {
 	repoName := ctx.Param("repo")
 	archName := ctx.Param("arch")
 	pkgName := ctx.Param("name")
@@ -45,7 +45,7 @@ func (h *Handler) PkgDetailHandler(ctx *gin.Context) {
 		respondError(ctx, http.StatusBadRequest, "package name is required")
 		return
 	}
-	pkgDetail, err := h.s.PkgDetail(repoName, archName, pkgName)
+	pkgDetail, err := h.reader.PkgDetail(repoName, archName, pkgName)
 	if err != nil {
 		respondServiceError(ctx, "get package detail", "failed to get package detail", err)
 		return
@@ -53,7 +53,7 @@ func (h *Handler) PkgDetailHandler(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, pkgDetail)
 }
 
-func (h *Handler) PkgFilesHandler(ctx *gin.Context) {
+func (h *RepositoryHandler) PkgFilesHandler(ctx *gin.Context) {
 	repoName := ctx.Param("repo")
 	archName := ctx.Param("arch")
 	pkgName := ctx.Param("name")
@@ -69,7 +69,7 @@ func (h *Handler) PkgFilesHandler(ctx *gin.Context) {
 		respondError(ctx, http.StatusBadRequest, "package name is required")
 		return
 	}
-	files, err := h.s.PkgFiles(repoName, archName, pkgName)
+	files, err := h.reader.PkgFiles(repoName, archName, pkgName)
 	if errors.Is(err, domain.ErrNotImplemented) {
 		respondError(ctx, http.StatusNotImplemented, "package file listing is not implemented")
 		return

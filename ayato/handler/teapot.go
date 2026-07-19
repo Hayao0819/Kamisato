@@ -6,6 +6,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func (h *Handler) TeapotHandler(ctx *gin.Context) {
+func (h *SystemHandler) TeapotHandler(ctx *gin.Context) {
 	ctx.String(http.StatusTeapot, "I'm a teapot!")
 }

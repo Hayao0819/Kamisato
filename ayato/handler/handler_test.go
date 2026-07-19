@@ -20,7 +20,7 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/conf"
 )
 
-func setup(t *testing.T) (*gomock.Controller, *mocks.MockServicer, *Handler) {
+func setup(t *testing.T) (*gomock.Controller, *mocks.MockServicer, *Set) {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
 	ctrl := gomock.NewController(t)
@@ -31,7 +31,7 @@ func setup(t *testing.T) (*gomock.Controller, *mocks.MockServicer, *Handler) {
 func TestHelloHandler(t *testing.T) {
 	_, _, h := setup(t)
 	r := gin.New()
-	r.GET("/hello", h.HelloHandler)
+	r.GET("/hello", h.System.HelloHandler)
 
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/hello", nil))
@@ -47,7 +47,7 @@ func TestHelloHandler(t *testing.T) {
 func TestTeapotHandler(t *testing.T) {
 	_, _, h := setup(t)
 	r := gin.New()
-	r.GET("/teapot", h.TeapotHandler)
+	r.GET("/teapot", h.System.TeapotHandler)
 
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/teapot", nil))
@@ -64,7 +64,7 @@ func TestReposHandler(t *testing.T) {
 	mockSvc.EXPECT().RepoNames().Return([]string{"core", "extra"}, nil)
 
 	r := gin.New()
-	r.GET("/repos", h.ReposHandler)
+	r.GET("/repos", h.Repositories.ReposHandler)
 
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/repos", nil))
@@ -84,7 +84,7 @@ func TestReposHandler_Error(t *testing.T) {
 	mockSvc.EXPECT().RepoNames().Return(nil, errTest)
 
 	r := gin.New()
-	r.GET("/repos", h.ReposHandler)
+	r.GET("/repos", h.Repositories.ReposHandler)
 
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/repos", nil))
@@ -101,7 +101,7 @@ func TestRepoDetailHandler(t *testing.T) {
 	mockSvc.EXPECT().Arches("myrepo").Return([]string{"x86_64"}, nil)
 
 	r := gin.New()
-	r.GET("/repos/:repo", h.RepoDetailHandler)
+	r.GET("/repos/:repo", h.Repositories.RepoDetailHandler)
 
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/repos/myrepo", nil))
@@ -123,7 +123,7 @@ func TestBlinkyRemoveHandler(t *testing.T) {
 	mockSvc.EXPECT().RemovePkg("myrepo", "", "mypkg").Return(nil)
 
 	r := gin.New()
-	r.DELETE("/:repo/package/:name", h.BlinkyRemoveHandler)
+	r.DELETE("/:repo/package/:name", h.Publications.BlinkyRemoveHandler)
 
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, httptest.NewRequest(http.MethodDelete, "/myrepo/package/mypkg", nil))
@@ -143,7 +143,7 @@ func TestRemoveHandlerExplicitArch(t *testing.T) {
 	mockSvc.EXPECT().RemovePkg("myrepo", "aarch64", "mypkg").Return(nil)
 
 	r := gin.New()
-	r.DELETE("/repos/:repo/:arch/packages/:name", h.BlinkyRemoveHandler)
+	r.DELETE("/repos/:repo/:arch/packages/:name", h.Publications.BlinkyRemoveHandler)
 
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, httptest.NewRequest(http.MethodDelete, "/repos/myrepo/aarch64/packages/mypkg", nil))
@@ -163,7 +163,7 @@ func TestPkgFilesHandlerNotImplemented(t *testing.T) {
 	mockSvc.EXPECT().PkgFiles("myrepo", "x86_64", "mypkg").Return(nil, domain.ErrNotImplemented)
 
 	r := gin.New()
-	r.GET("/repos/:repo/:arch/packages/:name/files", h.PkgFilesHandler)
+	r.GET("/repos/:repo/:arch/packages/:name/files", h.Repositories.PkgFilesHandler)
 
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/repos/myrepo/x86_64/packages/mypkg/files", nil))
@@ -188,7 +188,7 @@ func TestPkgFilesHandlerNotFound(t *testing.T) {
 		Return(nil, fmt.Errorf("%w: private storage detail", domain.ErrNotFound))
 
 	r := gin.New()
-	r.GET("/repos/:repo/:arch/packages/:name/files", h.PkgFilesHandler)
+	r.GET("/repos/:repo/:arch/packages/:name/files", h.Repositories.PkgFilesHandler)
 
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/repos/myrepo/x86_64/packages/missing/files", nil))
@@ -213,7 +213,7 @@ func TestRepoFileHandlerRedirectsToPresignedURL(t *testing.T) {
 	mockSvc.EXPECT().SignedURL("myrepo", "x86_64", "foo.pkg.tar.zst").Return(want, nil)
 
 	r := gin.New()
-	r.GET("/repo/:repo/:arch/:file", h.RepoFileHandler)
+	r.GET("/repo/:repo/:arch/:file", h.Repositories.RepoFileHandler)
 
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/repo/myrepo/x86_64/foo.pkg.tar.zst", nil))
@@ -239,7 +239,7 @@ func TestRepoFileHandlerStreamsWhenPresignUnavailable(t *testing.T) {
 	mockSvc.EXPECT().GetFileWithMeta("myrepo", "x86_64", "foo.pkg.tar.zst").Return(fs, domain.FileMeta{}, nil)
 
 	r := gin.New()
-	r.GET("/repo/:repo/:arch/:file", h.RepoFileHandler)
+	r.GET("/repo/:repo/:arch/:file", h.Repositories.RepoFileHandler)
 
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/repo/myrepo/x86_64/foo.pkg.tar.zst", nil))
@@ -267,7 +267,7 @@ func TestRepoFileHandlerReturns304OnMatchingETag(t *testing.T) {
 		}).Times(2)
 
 	r := gin.New()
-	r.GET("/repo/:repo/:arch/:file", h.RepoFileHandler)
+	r.GET("/repo/:repo/:arch/:file", h.Repositories.RepoFileHandler)
 
 	// First fetch: 200 with the ETag advertised.
 	w := httptest.NewRecorder()
@@ -309,7 +309,7 @@ func TestRepoFileHandlerReturns304OnIfModifiedSince(t *testing.T) {
 		}).Times(3)
 
 	r := gin.New()
-	r.GET("/repo/:repo/:arch/:file", h.RepoFileHandler)
+	r.GET("/repo/:repo/:arch/:file", h.Repositories.RepoFileHandler)
 
 	do := func(ifModifiedSince string) *httptest.ResponseRecorder {
 		w := httptest.NewRecorder()
@@ -357,7 +357,7 @@ func TestRepoFileHandlerStreamsWhenRedirectDisabled(t *testing.T) {
 	mockSvc.EXPECT().GetFileWithMeta("myrepo", "x86_64", "foo.pkg.tar.zst").Return(fs, domain.FileMeta{}, nil)
 
 	r := gin.New()
-	r.GET("/repo/:repo/:arch/:file", h.RepoFileHandler)
+	r.GET("/repo/:repo/:arch/:file", h.Repositories.RepoFileHandler)
 
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/repo/myrepo/x86_64/foo.pkg.tar.zst", nil))

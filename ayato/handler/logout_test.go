@@ -51,10 +51,10 @@ func TestLogoutFailsClosedOnCSRF(t *testing.T) {
 		t.Fatalf("same-origin: status = %d, want 200", code)
 	}
 
-	// Fallback: Origin host equals the request host (example.com) -> accept.
+	// Fallback: Origin matches the configured public origin -> accept.
 	if code := call(func(r *http.Request) {
-		r.Header.Set("Origin", "http://example.com")
+		r.Header.Set("Origin", "https://repo.example.com")
 	}); code != http.StatusOK {
-		t.Fatalf("origin-host match: status = %d, want 200", code)
+		t.Fatalf("configured origin match: status = %d, want 200", code)
 	}
 }

@@ -19,7 +19,7 @@ func TestAdminsRemoveHandlerRejectsLastAdmin(t *testing.T) {
 	mockSvc.EXPECT().ListAdmins().Return([]domain.AllowedAdmin{{ID: 42}}, nil)
 
 	r := gin.New()
-	r.DELETE("/auth/admins/:id", h.AdminsRemoveHandler)
+	r.DELETE("/auth/admins/:id", h.Admins.AdminsRemoveHandler)
 
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, httptest.NewRequest(http.MethodDelete, "/auth/admins/42", nil))
@@ -37,7 +37,7 @@ func TestAdminsRemoveHandlerAllowsWhenOthersRemain(t *testing.T) {
 	mockSvc.EXPECT().RemoveAdmin(int64(42)).Return(nil)
 
 	r := gin.New()
-	r.DELETE("/auth/admins/:id", h.AdminsRemoveHandler)
+	r.DELETE("/auth/admins/:id", h.Admins.AdminsRemoveHandler)
 
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, httptest.NewRequest(http.MethodDelete, "/auth/admins/42", nil))
@@ -57,7 +57,7 @@ func TestAdminsRemoveHandlerAllowsRemovingNonAdmin(t *testing.T) {
 	mockSvc.EXPECT().RemoveAdmin(int64(7)).Return(nil)
 
 	r := gin.New()
-	r.DELETE("/auth/admins/:id", h.AdminsRemoveHandler)
+	r.DELETE("/auth/admins/:id", h.Admins.AdminsRemoveHandler)
 
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, httptest.NewRequest(http.MethodDelete, "/auth/admins/7", nil))

@@ -14,7 +14,7 @@ import (
 	"github.com/Hayao0819/Kamisato/ayato/auth"
 )
 
-func postRefresh(t *testing.T, h *Handler, refreshToken string) *httptest.ResponseRecorder {
+func postRefresh(t *testing.T, h *AuthHandler, refreshToken string) *httptest.ResponseRecorder {
 	t.Helper()
 	r := gin.New()
 	r.POST("/refresh", h.RefreshHandler)

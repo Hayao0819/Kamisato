@@ -31,7 +31,7 @@ type bugReportRequest struct {
 }
 
 // SubmitBugReportHandler forwards a report to the configured tracker.
-func (h *Handler) SubmitBugReportHandler(c *gin.Context) {
+func (h *BugReportHandler) SubmitBugReportHandler(c *gin.Context) {
 	if h.reporter == nil {
 		respondError(c, http.StatusServiceUnavailable, "bug reporting is not configured")
 		return
@@ -85,11 +85,11 @@ func (h *Handler) SubmitBugReportHandler(c *gin.Context) {
 
 // The maintainer address is resolved from the stored PKGINFO Packager, never from
 // the request, so a reporter cannot spoof who gets mailed.
-func (h *Handler) maintainerEmail(repo, arch, pkgname string) string {
-	if repo == "" || arch == "" || pkgname == "" || h.s == nil {
+func (h *BugReportHandler) maintainerEmail(repo, arch, pkgname string) string {
+	if repo == "" || arch == "" || pkgname == "" || h.reader == nil {
 		return ""
 	}
-	detail, err := h.s.PkgDetail(repo, arch, pkgname)
+	detail, err := h.reader.PkgDetail(repo, arch, pkgname)
 	if err != nil || detail == nil {
 		return ""
 	}

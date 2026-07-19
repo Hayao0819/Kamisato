@@ -7,7 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func (h *Handler) BlinkyRemoveHandler(ctx *gin.Context) {
+func (h *PublicationHandler) BlinkyRemoveHandler(ctx *gin.Context) {
 	repoName := ctx.Param("repo")
 	packageName := ctx.Param("name")
 	// Empty arch (the blinky route has none) means "remove from every arch that lists
@@ -21,7 +21,7 @@ func (h *Handler) BlinkyRemoveHandler(ctx *gin.Context) {
 		respondError(ctx, http.StatusBadRequest, "repository name is required")
 		return
 	}
-	if err := h.s.RemovePkg(repoName, archName, packageName); err != nil {
+	if err := h.uploader.RemovePkg(repoName, archName, packageName); err != nil {
 		respondServiceError(ctx, "remove package", "failed to remove package", err)
 		return
 	}

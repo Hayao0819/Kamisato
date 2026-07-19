@@ -22,7 +22,7 @@ func TestPromoteHandlerParsesKnownTiers(t *testing.T) {
 		Return(nil)
 
 	router := gin.New()
-	router.POST("/repo/:repo/promote", New(svc, nil).PromoteHandler)
+	router.POST("/repo/:repo/promote", NewPublicationHandler(svc, svc, svc, nil).PromoteHandler)
 	req := httptest.NewRequest(
 		http.MethodPost,
 		"/repo/core/promote",
@@ -43,7 +43,7 @@ func TestPromoteHandlerRejectsUnknownTierBeforeService(t *testing.T) {
 	svc := mocks.NewMockServicer(ctrl)
 
 	router := gin.New()
-	router.POST("/repo/:repo/promote", New(svc, nil).PromoteHandler)
+	router.POST("/repo/:repo/promote", NewPublicationHandler(svc, svc, svc, nil).PromoteHandler)
 	req := httptest.NewRequest(
 		http.MethodPost,
 		"/repo/core/promote",

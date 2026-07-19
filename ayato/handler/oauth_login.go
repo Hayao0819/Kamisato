@@ -12,8 +12,8 @@ import (
 
 // Starts the web GitHub flow. No server-side state is written — the signed token
 // IS the state.
-func (h *Handler) GitHubLoginHandler(c *gin.Context) {
-	if !h.oauthEnabled() {
+func (h *AuthHandler) GitHubLoginHandler(c *gin.Context) {
+	if !h.oauthConfigured() {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "github login not configured"})
 		return
 	}
@@ -42,8 +42,8 @@ func (h *Handler) GitHubLoginHandler(c *gin.Context) {
 
 // Starts the CLI flow. The loopback is reconstructed server-side from the integer
 // port (never a full URL); ayaka's state rides inside the signed state token.
-func (h *Handler) CLIStartHandler(c *gin.Context) {
-	if !h.oauthEnabled() {
+func (h *AuthHandler) CLIStartHandler(c *gin.Context) {
+	if !h.oauthConfigured() {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "github login not configured"})
 		return
 	}
@@ -98,8 +98,8 @@ func parseChallengeAndState(c *gin.Context) (challenge, cliState string, ok bool
 
 // Cross-origin web-bearer flow: PKCE (not a binding cookie) ties the code to the
 // SPA, so no state cookie is set; the code returns via postMessage.
-func (h *Handler) WebStartHandler(c *gin.Context) {
-	if !h.oauthEnabled() {
+func (h *AuthHandler) WebStartHandler(c *gin.Context) {
+	if !h.oauthConfigured() {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "github login not configured"})
 		return
 	}

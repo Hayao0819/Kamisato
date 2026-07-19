@@ -14,8 +14,8 @@ import (
 	"github.com/Hayao0819/Kamisato/pkg/pacman/pkgfile"
 )
 
-func (h *Handler) ReposHandler(ctx *gin.Context) {
-	repoNames, err := h.s.RepoNames()
+func (h *RepositoryHandler) ReposHandler(ctx *gin.Context) {
+	repoNames, err := h.reader.RepoNames()
 	if err != nil {
 		respondServiceError(ctx, "get repository names", "failed to get repository names", err)
 		return
@@ -23,13 +23,13 @@ func (h *Handler) ReposHandler(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, repoNames)
 }
 
-func (h *Handler) RepoDetailHandler(ctx *gin.Context) {
+func (h *RepositoryHandler) RepoDetailHandler(ctx *gin.Context) {
 	repoName := ctx.Param("repo")
 	if repoName == "" {
 		respondError(ctx, http.StatusBadRequest, "repository name is required")
 		return
 	}
-	archNames, err := h.s.Arches(repoName)
+	archNames, err := h.reader.Arches(repoName)
 	if err != nil {
 		respondServiceError(ctx, "get repository architectures", "failed to get repository architectures", err)
 		return
@@ -37,7 +37,7 @@ func (h *Handler) RepoDetailHandler(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"name": repoName, "arches": archNames})
 }
 
-func (h *Handler) RepoFileHandler(ctx *gin.Context) {
+func (h *RepositoryHandler) RepoFileHandler(ctx *gin.Context) {
 	repoName := ctx.Param("repo")
 	arch := ctx.Param("arch")
 	fileName := ctx.Param("file")
@@ -48,13 +48,13 @@ func (h *Handler) RepoFileHandler(ctx *gin.Context) {
 	// transit ayato (Cloud Run bills egress); a backend that cannot (localfs) returns
 	// "" and we fall through to streaming.
 	if h.cfg == nil || h.cfg.RedirectDownloadsEnabled() {
-		if url, err := h.s.SignedURL(repoName, arch, fileName); err == nil && url != "" {
+		if url, err := h.reader.SignedURL(repoName, arch, fileName); err == nil && url != "" {
 			ctx.Redirect(http.StatusFound, url)
 			return
 		}
 	}
 
-	s, meta, err := h.s.GetFileWithMeta(repoName, arch, fileName)
+	s, meta, err := h.reader.GetFileWithMeta(repoName, arch, fileName)
 	if err != nil {
 		respondServiceError(ctx, "get repository file", "failed to serve "+fileName, err)
 		return
@@ -132,10 +132,10 @@ func etagMatches(ifNoneMatch, etag string) bool {
 	return false
 }
 
-func (h *Handler) RepoFileListHandler(ctx *gin.Context) {
+func (h *RepositoryHandler) RepoFileListHandler(ctx *gin.Context) {
 	repo := ctx.Param("repo")
 	arch := ctx.Param("arch")
-	l, err := h.s.RepoFileList(repo, arch)
+	l, err := h.reader.RepoFileList(repo, arch)
 	if err != nil {
 		respondServiceError(ctx, "get repository file list", "failed to get repository file list", err)
 		return

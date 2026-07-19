@@ -20,15 +20,15 @@ func sessionFamilyID(claims *auth.Claims) string {
 	return claims.JTI
 }
 
-func (h *Handler) claimsRevoked(claims *auth.Claims) (bool, error) {
+func (h *AuthHandler) claimsRevoked(claims *auth.Claims) (bool, error) {
 	if claims.JTI != "" {
-		revoked, err := h.s.IsRevoked(claims.JTI)
+		revoked, err := h.revoker.IsRevoked(claims.JTI)
 		if err != nil || revoked {
 			return revoked, err
 		}
 	}
 	if claims.SessionID != "" {
-		return h.s.IsSessionRevoked(claims.SessionID)
+		return h.revoker.IsSessionRevoked(claims.SessionID)
 	}
 	return false, nil
 }
@@ -38,7 +38,7 @@ func (h *Handler) claimsRevoked(claims *auth.Claims) (bool, error) {
 // Possessing a validly-signed token is the authorization (the signature stops a caller
 // denylisting arbitrary jtis), so no admin middleware guards this route; a refresh
 // token alone suffices once the access token has expired.
-func (h *Handler) RevokeCLIHandler(c *gin.Context) {
+func (h *AuthHandler) RevokeCLIHandler(c *gin.Context) {
 	if h.signer == nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "revocation not configured"})
 		return
@@ -72,22 +72,16 @@ func (h *Handler) RevokeCLIHandler(c *gin.Context) {
 		return
 	}
 
-	if access != nil && access.JTI != "" {
-		if err := h.s.Revoke(access.JTI, time.Until(access.Exp)); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "revoke failed"})
-			return
-		}
-	}
-	if refresh != nil && refresh.JTI != "" {
-		if err := h.s.Revoke(refresh.JTI, time.Until(refresh.Exp)); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "revoke failed"})
-			return
-		}
-	}
 	families := make(map[string]time.Duration, 2)
 	for _, claims := range []*auth.Claims{access, refresh} {
 		if claims == nil {
 			continue
+		}
+		if claims.JTI != "" {
+			if err := h.revoker.Revoke(claims.JTI, time.Until(claims.Exp)); err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "revoke failed"})
+				return
+			}
 		}
 		family := sessionFamilyID(claims)
 		if family == "" {
@@ -102,7 +96,7 @@ func (h *Handler) RevokeCLIHandler(c *gin.Context) {
 		}
 	}
 	for family, ttl := range families {
-		if err := h.s.RevokeSession(family, ttl); err != nil {
+		if err := h.revoker.RevokeSession(family, ttl); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "revoke failed"})
 			return
 		}

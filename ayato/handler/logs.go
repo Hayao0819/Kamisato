@@ -14,7 +14,7 @@ const logTokenTTL = 60 * time.Second
 // MintLogTokenHandler issues a short-lived one-time token bound to a job id, so a
 // browser EventSource can open the SSE build-log stream without a long-lived
 // bearer; it is spent on first use so a leaked stream URL cannot be replayed.
-func (h *Handler) MintLogTokenHandler(c *gin.Context) {
+func (h *MikoHandler) MintLogTokenHandler(c *gin.Context) {
 	if h.logTokens == nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "log tokens not configured"})
 		return

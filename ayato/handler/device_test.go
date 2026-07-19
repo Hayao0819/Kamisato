@@ -19,7 +19,7 @@ import (
 
 // deviceHandler builds a handler with a real kv-backed device store, GitHub OAuth
 // configured, and adminID seeded into the allowlist.
-func deviceHandler(t *testing.T, adminID int64) (*Handler, repository.DeviceRepository, *auth.Signer) {
+func deviceHandler(t *testing.T, adminID int64) (*AuthHandler, repository.DeviceRepository, *auth.Signer) {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
 	store, err := badgerkv.New(t.TempDir())
@@ -43,11 +43,11 @@ func deviceHandler(t *testing.T, adminID int64) (*Handler, repository.DeviceRepo
 	if err != nil {
 		t.Fatalf("NewSigner: %v", err)
 	}
-	h := New(svc, cfg).WithAuth(signer).WithDeviceStore(dev)
+	h := NewAuthHandler(svc, svc, cfg).WithSigner(signer).WithDeviceStore(dev)
 	return h, dev, signer
 }
 
-func pollDevice(t *testing.T, h *Handler, deviceCode string) *httptest.ResponseRecorder {
+func pollDevice(t *testing.T, h *AuthHandler, deviceCode string) *httptest.ResponseRecorder {
 	t.Helper()
 	r := gin.New()
 	r.POST("/token", h.DeviceTokenHandler)

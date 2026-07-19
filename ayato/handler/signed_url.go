@@ -6,7 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func (h *Handler) SignedURLHandler(ctx *gin.Context) {
+func (h *RepositoryHandler) SignedURLHandler(ctx *gin.Context) {
 	repoName := ctx.Param("repo")
 	arch := ctx.Param("arch")
 	name := ctx.Query("name")
@@ -16,7 +16,7 @@ func (h *Handler) SignedURLHandler(ctx *gin.Context) {
 		return
 	}
 
-	url, err := h.s.SignedURL(repoName, arch, name)
+	url, err := h.reader.SignedURL(repoName, arch, name)
 	if url == "" && err == nil {
 		ctx.Status(http.StatusNoContent)
 		return

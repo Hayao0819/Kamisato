@@ -18,7 +18,7 @@ import (
 
 const testSecret = "0123456789abcdef0123456789abcdef" // 32 bytes
 
-func testHandler(t *testing.T) (*Handler, service.Servicer, *auth.Signer) {
+func testHandler(t *testing.T) (*AuthHandler, service.Servicer, *auth.Signer) {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
 	store, err := badgerkv.New(t.TempDir())
@@ -40,7 +40,7 @@ func testHandler(t *testing.T) (*Handler, service.Servicer, *auth.Signer) {
 		t.Fatalf("NewSigner: %v", err)
 	}
 
-	h := New(svc, cfg).WithAuth(signer)
+	h := NewAuthHandler(svc, svc, cfg).WithSigner(signer)
 	return h, svc, signer
 }
 
