@@ -76,18 +76,18 @@ func (mr *MockRepoReaderMockRecorder) GetFileWithMeta(repoName, archName, name a
 }
 
 // PkgDetail mocks base method.
-func (m *MockRepoReader) PkgDetail(repo, arch, pkgbase string) (*domain.PacmanPackage, error) {
+func (m *MockRepoReader) PkgDetail(repo, arch, pkgname string) (*domain.PacmanPackage, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "PkgDetail", repo, arch, pkgbase)
+	ret := m.ctrl.Call(m, "PkgDetail", repo, arch, pkgname)
 	ret0, _ := ret[0].(*domain.PacmanPackage)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // PkgDetail indicates an expected call of PkgDetail.
-func (mr *MockRepoReaderMockRecorder) PkgDetail(repo, arch, pkgbase any) *gomock.Call {
+func (mr *MockRepoReaderMockRecorder) PkgDetail(repo, arch, pkgname any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PkgDetail", reflect.TypeOf((*MockRepoReader)(nil).PkgDetail), repo, arch, pkgbase)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PkgDetail", reflect.TypeOf((*MockRepoReader)(nil).PkgDetail), repo, arch, pkgname)
 }
 
 // PkgFiles mocks base method.
@@ -748,18 +748,18 @@ func (mr *MockServicerMockRecorder) ListSigners() *gomock.Call {
 }
 
 // PkgDetail mocks base method.
-func (m *MockServicer) PkgDetail(repo, arch, pkgbase string) (*domain.PacmanPackage, error) {
+func (m *MockServicer) PkgDetail(repo, arch, pkgname string) (*domain.PacmanPackage, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "PkgDetail", repo, arch, pkgbase)
+	ret := m.ctrl.Call(m, "PkgDetail", repo, arch, pkgname)
 	ret0, _ := ret[0].(*domain.PacmanPackage)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // PkgDetail indicates an expected call of PkgDetail.
-func (mr *MockServicerMockRecorder) PkgDetail(repo, arch, pkgbase any) *gomock.Call {
+func (mr *MockServicerMockRecorder) PkgDetail(repo, arch, pkgname any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PkgDetail", reflect.TypeOf((*MockServicer)(nil).PkgDetail), repo, arch, pkgbase)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PkgDetail", reflect.TypeOf((*MockServicer)(nil).PkgDetail), repo, arch, pkgname)
 }
 
 // PkgFiles mocks base method.

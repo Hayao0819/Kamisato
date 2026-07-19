@@ -51,7 +51,7 @@ type RepoReader interface {
 	Arches(repo string) ([]string, error)
 	Repo(repo string) (*domain.PacmanRepo, error)
 	Pkgs(repo, arch string) (*domain.PacmanPkgs, error)
-	PkgDetail(repo, arch, pkgbase string) (*domain.PacmanPackage, error)
+	PkgDetail(repo, arch, pkgname string) (*domain.PacmanPackage, error)
 	PkgFiles(repo, arch, pkg string) ([]string, error)
 	RepoFileList(repo, arch string) ([]string, error)
 	GetFileWithMeta(repoName, archName, name string) (stream.File, domain.FileMeta, error)

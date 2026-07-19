@@ -63,20 +63,25 @@ func (s *Service) Pkgs(repo, arch string) (*domain.PacmanPkgs, error) {
 	return &rt, nil
 }
 
-func (s *Service) PkgDetail(repo, arch, pkgbase string) (*domain.PacmanPackage, error) {
+func (s *Service) PkgDetail(repo, arch, pkgname string) (*domain.PacmanPackage, error) {
 	rr, err := s.pkgBinaryRepo.RemoteRepo(repo, arch)
 	if err != nil {
 		return nil, err
 	}
 
-	for _, pkg := range rr.Pkgs {
-		if pkg.PKGINFO().PkgBase == pkgbase {
-			detail := pacmanPackage(pkg.PKGINFO(), pkg.Path())
-			return &detail, nil
-		}
+	pkg := rr.PkgByPkgName(pkgname)
+	if pkg == nil {
+		return nil, fmt.Errorf(
+			"%w: package %q not found in repository %s/%s",
+			domain.ErrNotFound,
+			pkgname,
+			repo,
+			arch,
+		)
 	}
 
-	return nil, errors.NewErr("package not found in the repository")
+	detail := pacmanPackage(pkg.PKGINFO(), pkg.Path())
+	return &detail, nil
 }
 
 func (s *Service) RepoNames() ([]string, error) {
