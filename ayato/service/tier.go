@@ -14,7 +14,6 @@ import (
 	"github.com/Hayao0819/Kamisato/ayato/repository"
 	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
 	"github.com/Hayao0819/Kamisato/ayato/stream"
-	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/alpm"
 )
 
@@ -23,26 +22,32 @@ import (
 // package is published to staging and only reaches testing/stable by an explicit
 // PromotePackage.
 type Promoter interface {
-	PromotePackage(ctx context.Context, repo string, from, to conf.Tier, pkgname, version string) error
+	PromotePackage(ctx context.Context, repo string, from, to domain.Tier, pkgname, version string) error
 }
 
 // PromotePackage moves a package to the next tier of a tiered repo. Promotion is a
 // copy + DB op, never a re-upload: it copies the built package into the target tier
 // and registers it via the CAS commit, so the tier's db gains the package
 // atomically. The source tier keeps or drops it per policy.
-func (s *Service) PromotePackage(ctx context.Context, repo string, from, to conf.Tier, pkgname, version string) error {
-	if s.cfg == nil {
+func (s *Service) PromotePackage(ctx context.Context, repo string, from, to domain.Tier, pkgname, version string) error {
+	if s.catalog == nil {
 		return fmt.Errorf("%w: promotion requires a repository configuration", domain.ErrInvalid)
 	}
-	rc := s.cfg.Repo(repo)
-	if rc == nil || !rc.Tiered {
+	rc, ok := s.catalog.Logical(repo)
+	if !ok || !rc.Tiered() {
 		return fmt.Errorf("%w: %q is not a tiered repository", domain.ErrInvalid, repo)
 	}
-	if !conf.IsTierPromotion(from, to) {
+	if !domain.CanPromote(from, to) {
 		return fmt.Errorf("%w: cannot promote %q from %q to %q (allowed: staging->testing, testing->stable)", domain.ErrInvalid, pkgname, from, to)
 	}
-	src := rc.TierRepo(from)
-	dst := rc.TierRepo(to)
+	src, err := rc.PhysicalName(from)
+	if err != nil {
+		return err
+	}
+	dst, err := rc.PhysicalName(to)
+	if err != nil {
+		return err
+	}
 	releasePublication, err := s.acquirePublicationLease(dst)
 	if err != nil {
 		return err
@@ -88,7 +93,7 @@ func (s *Service) PromotePackage(ctx context.Context, repo string, from, to conf
 		return fmt.Errorf("%w: %s not found in %s", domain.ErrNotFound, pkgname, src)
 	}
 
-	if !rc.PromotionKeepInSource {
+	if !rc.PromotionKeepsSource() {
 		s.dropFromSource(src, pkgname, promotedArches, useSignedDB, gnupgDir)
 	}
 	return nil

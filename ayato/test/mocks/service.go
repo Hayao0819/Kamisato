@@ -17,7 +17,6 @@ import (
 	domain "github.com/Hayao0819/Kamisato/ayato/domain"
 	service "github.com/Hayao0819/Kamisato/ayato/service"
 	stream "github.com/Hayao0819/Kamisato/ayato/stream"
-	conf "github.com/Hayao0819/Kamisato/internal/conf"
 	raiou "github.com/Hayao0819/Kamisato/pkg/raiou"
 	gomock "go.uber.org/mock/gomock"
 )
@@ -853,7 +852,7 @@ func (mr *MockServicerMockRecorder) PresignUploads(repo, filenames any) *gomock.
 }
 
 // PromotePackage mocks base method.
-func (m *MockServicer) PromotePackage(ctx context.Context, repo string, from, to conf.Tier, pkgname, version string) error {
+func (m *MockServicer) PromotePackage(ctx context.Context, repo string, from, to domain.Tier, pkgname, version string) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "PromotePackage", ctx, repo, from, to, pkgname, version)
 	ret0, _ := ret[0].(error)

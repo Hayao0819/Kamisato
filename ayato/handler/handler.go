@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/Hayao0819/Kamisato/ayato/auth"
+	"github.com/Hayao0819/Kamisato/ayato/domain"
 	"github.com/Hayao0819/Kamisato/ayato/handler/bugreport"
 	"github.com/Hayao0819/Kamisato/ayato/handler/recaptcha"
 	"github.com/Hayao0819/Kamisato/ayato/service"
@@ -13,6 +14,7 @@ import (
 
 type Handler struct {
 	cfg       *conf.AyatoConfig
+	catalog   *domain.RepositoryCatalog
 	s         service.Servicer
 	signer    *auth.Signer       // nil when auth is not wired (tests)
 	reporter  bugreport.Reporter // nil when bug reporting is not configured
@@ -45,11 +47,18 @@ type logTokenMinter interface {
 }
 
 func New(service service.Servicer, cfg *conf.AyatoConfig) *Handler {
+	catalog, _ := domain.NewRepositoryCatalog(nil, nil)
 	h := &Handler{
-		s:   service,
-		cfg: cfg,
+		s:       service,
+		cfg:     cfg,
+		catalog: catalog,
 	}
 	if cfg != nil {
+		if configuredCatalog, err := cfg.RepositoryCatalog(); err == nil {
+			h.catalog = configuredCatalog
+		} else {
+			slog.Error("invalid repository catalog", "error", err)
+		}
 		// A bad bug-report config disables the feature rather than failing startup.
 		reporter, err := bugreport.New(bugReportConfig(cfg.BugReport))
 		if err != nil {

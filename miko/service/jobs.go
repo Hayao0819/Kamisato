@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log/slog"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -14,6 +13,7 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/errors"
 	"github.com/Hayao0819/Kamisato/miko/domain"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/builder"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/reponame"
 )
 
 // allowedArches are the architectures a build may target. Arch flows into shell
@@ -22,11 +22,6 @@ var allowedArches = map[string]bool{
 	"x86_64": true, "aarch64": true, "armv7h": true,
 	"i486": true, "i686": true, "pentium4": true,
 }
-
-// repoNamePattern bounds the repo name to a pacman-safe charset. Repo flows into
-// the upload target and, with resolve_aur_deps, into the generated build script's
-// pacman.conf, so a newline or shell metacharacter must be rejected up front.
-var repoNamePattern = regexp.MustCompile(`^[a-zA-Z0-9._-]+$`)
 
 // validateInstallPkgs rejects InstallPkgs outside the staging dir. Each entry is
 // bind-mounted into the untrusted build, so an unchecked host path lets a caller
@@ -66,8 +61,10 @@ func (s *Service) submitWithReason(req *domain.BuildRequest, reason domain.Build
 	if !allowedArches[req.Arch] {
 		return "", fmt.Errorf("%w: unsupported arch %q", ErrInvalidRequest, req.Arch)
 	}
-	if req.Repo != "" && !repoNamePattern.MatchString(req.Repo) {
-		return "", fmt.Errorf("%w: invalid repo name %q", ErrInvalidRequest, req.Repo)
+	if req.Repo != "" {
+		if err := reponame.Validate(req.Repo); err != nil {
+			return "", fmt.Errorf("%w: invalid repo name %q: %v", ErrInvalidRequest, req.Repo, err)
+		}
 	}
 	if req.Microarch != "" {
 		// Feature levels are an x86-64 concept, and an unknown tier must fail loudly

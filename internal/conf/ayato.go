@@ -6,11 +6,11 @@ import (
 	"net/url"
 	"os"
 	"path"
-	"slices"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/Hayao0819/Kamisato/ayato/domain"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/builder"
 	"github.com/spf13/pflag"
 
@@ -338,68 +338,6 @@ type UpstreamRepoConfig struct {
 	FilesURL string `koanf:"files_url,omitempty"`
 }
 
-// Enabled reports whether the repo layers an upstream database.
-func (u UpstreamRepoConfig) Enabled() bool { return u.DBURL != "" }
-
-// DBURLFor resolves the upstream .db URL for one architecture.
-func (u UpstreamRepoConfig) DBURLFor(arch string) string {
-	return strings.ReplaceAll(u.DBURL, "$arch", arch)
-}
-
-// FilesURLFor resolves the upstream .files URL for one architecture, deriving it
-// from the .db URL when not set explicitly.
-func (u UpstreamRepoConfig) FilesURLFor(arch string) string {
-	f := u.FilesURL
-	if f == "" {
-		f = deriveFilesURL(u.DBURL)
-	}
-	return strings.ReplaceAll(f, "$arch", arch)
-}
-
-// deriveFilesURL turns a ".db" URL into its ".files" sibling (extra.db ->
-// extra.files, extra.db.tar.gz -> extra.files.tar.gz).
-func deriveFilesURL(dbURL string) string {
-	i := strings.LastIndex(dbURL, ".db")
-	if i < 0 {
-		return dbURL
-	}
-	return dbURL[:i] + ".files" + dbURL[i+len(".db"):]
-}
-
-// Tier names a stage in a tiered repo's staging -> testing -> stable flow.
-type Tier string
-
-const (
-	TierStaging Tier = "staging"
-	TierTesting Tier = "testing"
-	TierStable  Tier = "stable"
-)
-
-// IsTierPromotion reports whether from -> to is a legal single promotion step
-// (staging->testing or testing->stable). A package advances one tier at a time.
-func IsTierPromotion(from, to Tier) bool {
-	return (from == TierStaging && to == TierTesting) || (from == TierTesting && to == TierStable)
-}
-
-// TierRepo returns the physical pacman repo name serving a tier: stable is the
-// bare name (so a client points at <name> as usual), staging and testing get the
-// matching suffix, mirroring Arch's own core-staging/core-testing naming.
-func (c *BinRepoConfig) TierRepo(t Tier) string {
-	if t == TierStable {
-		return c.Name
-	}
-	return c.Name + "-" + string(t)
-}
-
-// PhysicalRepos returns the pacman repo names this logical repo actually serves:
-// its three tiers when tiered, otherwise just the bare name.
-func (c *BinRepoConfig) PhysicalRepos() []string {
-	if !c.Tiered {
-		return []string{c.Name}
-	}
-	return []string{c.TierRepo(TierStaging), c.TierRepo(TierTesting), c.TierRepo(TierStable)}
-}
-
 func LoadAyatoConfig(flags *pflag.FlagSet, configFile string) (*AyatoConfig, error) {
 	loadDotEnv()
 	return LoadTyped[AyatoConfig](
@@ -443,6 +381,9 @@ func resolvePort(configured int, portEnv string) int {
 func (c *AyatoConfig) Validate() error {
 	if err := c.Store.Validate(); err != nil {
 		return err
+	}
+	if _, err := c.RepositoryCatalog(); err != nil {
+		return fmt.Errorf("repos: %w", err)
 	}
 	if err := c.Store.checkStateless(UnderCloudRun()); err != nil {
 		return err
@@ -541,78 +482,24 @@ func (c *AyatoConfig) DbPath() string {
 	return path.Join(c.Store.BadgerDB, "kv-db")
 }
 
-func (c *AyatoConfig) RepoNames() []string {
-	repoNames := make([]string, len(c.Repos))
-	for i, repo := range c.Repos {
-		repoNames[i] = repo.Name
-	}
-	return repoNames
-}
-
-// PhysicalRepoNames is the servable pacman repo set: every configured repo
-// expanded into the repos it actually serves (a tiered repo becomes its three
-// tiers). Initialization and repo-name validation run over this set.
-func (c *AyatoConfig) PhysicalRepoNames() []string {
-	var out []string
-	for i := range c.Repos {
-		out = append(out, c.Repos[i].PhysicalRepos()...)
-	}
-	return out
-}
-
-func (c *AyatoConfig) Repo(name string) *BinRepoConfig {
+// RepositoryCatalog maps the persistence schema into the validated repository
+// domain. Runtime code consumes the catalog rather than reinterpreting config
+// fields independently.
+func (c *AyatoConfig) RepositoryCatalog() (*domain.RepositoryCatalog, error) {
+	specs := make([]domain.RepositorySpec, 0, len(c.Repos))
 	for _, repo := range c.Repos {
-		if repo.Name == name {
-			return &repo
-		}
+		specs = append(specs, domain.RepositorySpec{
+			Name:                  repo.Name,
+			Arches:                repo.Arches,
+			AllowNewArch:          repo.AllowNewArch,
+			TrustedKeys:           repo.TrustedKeys,
+			Tiered:                repo.Tiered,
+			PromotionKeepInSource: repo.PromotionKeepInSource,
+			Upstream: domain.UpstreamSpec{
+				DBURL:    repo.Upstream.DBURL,
+				FilesURL: repo.Upstream.FilesURL,
+			},
+		})
 	}
-	return nil
-}
-
-// UpstreamRepoNames lists the physical repo names that layer an upstream
-// database, so the repository layer can serve their merged view.
-func (c *AyatoConfig) UpstreamRepoNames() []string {
-	var out []string
-	for i := range c.Repos {
-		if c.Repos[i].Upstream.Enabled() {
-			out = append(out, c.Repos[i].PhysicalRepos()...)
-		}
-	}
-	return out
-}
-
-// ResolveRepo returns the logical BinRepoConfig backing a physical pacman repo
-// name — a tier of a tiered repo maps to its logical config — or nil if unknown.
-func (c *AyatoConfig) ResolveRepo(physical string) *BinRepoConfig {
-	for i := range c.Repos {
-		if slices.Contains(c.Repos[i].PhysicalRepos(), physical) {
-			return &c.Repos[i]
-		}
-	}
-	return nil
-}
-
-// DeclaredArches returns the architectures a physical repo is configured to serve:
-// its own Arches, or DefaultArches when it declares none. "" and "any" are dropped
-// (pacman has no os/any db). This is the intent; the arches actually stored may
-// differ and are unioned in by the service layer.
-func (c *AyatoConfig) DeclaredArches(physical string) []string {
-	raw := c.DefaultArches
-	if rc := c.ResolveRepo(physical); rc != nil && len(rc.Arches) > 0 {
-		raw = rc.Arches
-	}
-	out := make([]string, 0, len(raw))
-	for _, a := range raw {
-		if a != "" && a != "any" {
-			out = append(out, a)
-		}
-	}
-	return out
-}
-
-// AllowsNewArch reports whether a physical repo accepts an upload for an arch
-// outside its declared set (growing the served arch set).
-func (c *AyatoConfig) AllowsNewArch(physical string) bool {
-	rc := c.ResolveRepo(physical)
-	return rc != nil && rc.AllowNewArch
+	return domain.NewRepositoryCatalog(c.DefaultArches, specs)
 }

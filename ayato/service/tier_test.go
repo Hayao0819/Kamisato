@@ -124,7 +124,7 @@ func TestTieredPromotionFlow(t *testing.T) {
 
 	// staging -> testing: appears in testing, gone from staging (move policy), and
 	// exactly one package file remains on disk (moved, not duplicated).
-	if err := svc.PromotePackage(ctx, "myrepo", conf.TierStaging, conf.TierTesting, "foo", "1.0-1"); err != nil {
+	if err := svc.PromotePackage(ctx, "myrepo", domain.TierStaging, domain.TierTesting, "foo", "1.0-1"); err != nil {
 		t.Fatalf("promote staging->testing: %v", err)
 	}
 	if !has(pkgNames(t, svc, "myrepo-testing", "x86_64"), "foo") {
@@ -138,7 +138,7 @@ func TestTieredPromotionFlow(t *testing.T) {
 	}
 
 	// testing -> stable: appears in stable, gone from testing.
-	if err := svc.PromotePackage(ctx, "myrepo", conf.TierTesting, conf.TierStable, "foo", ""); err != nil {
+	if err := svc.PromotePackage(ctx, "myrepo", domain.TierTesting, domain.TierStable, "foo", ""); err != nil {
 		t.Fatalf("promote testing->stable: %v", err)
 	}
 	if !has(pkgNames(t, svc, "myrepo", "x86_64"), "foo") {
@@ -160,7 +160,7 @@ func TestTieredPromotionKeepInSource(t *testing.T) {
 	})
 
 	uploadPkg(t, svc, "myrepo", "foo")
-	if err := svc.PromotePackage(context.Background(), "myrepo", conf.TierStaging, conf.TierTesting, "foo", ""); err != nil {
+	if err := svc.PromotePackage(context.Background(), "myrepo", domain.TierStaging, domain.TierTesting, "foo", ""); err != nil {
 		t.Fatalf("promote: %v", err)
 	}
 	if !has(pkgNames(t, svc, "myrepo-testing", "x86_64"), "foo") {
@@ -184,19 +184,19 @@ func TestPromotionRejectsInvalidRequests(t *testing.T) {
 	uploadPkg(t, svc, "myrepo", "foo")
 
 	// Non-tiered repo.
-	if err := svc.PromotePackage(ctx, "single", conf.TierStaging, conf.TierTesting, "foo", ""); !errors.Is(err, domain.ErrInvalid) {
+	if err := svc.PromotePackage(ctx, "single", domain.TierStaging, domain.TierTesting, "foo", ""); !errors.Is(err, domain.ErrInvalid) {
 		t.Fatalf("promote on non-tiered repo = %v, want ErrInvalid", err)
 	}
 	// Non-adjacent step (staging -> stable).
-	if err := svc.PromotePackage(ctx, "myrepo", conf.TierStaging, conf.TierStable, "foo", ""); !errors.Is(err, domain.ErrInvalid) {
+	if err := svc.PromotePackage(ctx, "myrepo", domain.TierStaging, domain.TierStable, "foo", ""); !errors.Is(err, domain.ErrInvalid) {
 		t.Fatalf("skip-tier promote = %v, want ErrInvalid", err)
 	}
 	// Version mismatch.
-	if err := svc.PromotePackage(ctx, "myrepo", conf.TierStaging, conf.TierTesting, "foo", "9.9-9"); !errors.Is(err, domain.ErrInvalid) {
+	if err := svc.PromotePackage(ctx, "myrepo", domain.TierStaging, domain.TierTesting, "foo", "9.9-9"); !errors.Is(err, domain.ErrInvalid) {
 		t.Fatalf("version-mismatch promote = %v, want ErrInvalid", err)
 	}
 	// Absent package.
-	if err := svc.PromotePackage(ctx, "myrepo", conf.TierStaging, conf.TierTesting, "ghost", ""); !errors.Is(err, domain.ErrNotFound) {
+	if err := svc.PromotePackage(ctx, "myrepo", domain.TierStaging, domain.TierTesting, "ghost", ""); !errors.Is(err, domain.ErrNotFound) {
 		t.Fatalf("absent-package promote = %v, want ErrNotFound", err)
 	}
 	// Every refused promotion left the testing tier empty.
@@ -211,8 +211,12 @@ func TestTieredOffUnchanged(t *testing.T) {
 	svc, cfg, _ := newTieredService(t, []conf.BinRepoConfig{
 		{Name: "single"},
 	})
-	if names := cfg.PhysicalRepoNames(); len(names) != 1 || names[0] != "single" {
-		t.Fatalf("PhysicalRepoNames = %v, want [single] for a non-tiered repo", names)
+	catalog, err := cfg.RepositoryCatalog()
+	if err != nil {
+		t.Fatalf("RepositoryCatalog: %v", err)
+	}
+	if names := catalog.PhysicalNames(); len(names) != 1 || names[0] != "single" {
+		t.Fatalf("PhysicalNames = %v, want [single] for a non-tiered repo", names)
 	}
 	uploadPkg(t, svc, "single", "foo")
 	if !has(pkgNames(t, svc, "single", "x86_64"), "foo") {

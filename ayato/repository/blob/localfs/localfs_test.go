@@ -112,6 +112,13 @@ func TestLocalStoreRejectsTraversalAndUnknownRepo(t *testing.T) {
 			t.Errorf("FetchFile(myrepo, %q, %q) = nil, want error", tc.arch, tc.file)
 		}
 	}
+
+	// Even an invalid name accidentally present in a configured allowlist cannot
+	// turn path.Join(root, repo) into a traversal.
+	unsafeAllowlist := localfs.New(t.TempDir(), []string{".."})
+	if _, err := unsafeAllowlist.FetchFile("..", "x86_64", "p"); err == nil {
+		t.Error("FetchFile allowed an unsafe repository name from its allowlist")
+	}
 }
 
 func TestLocalStoreFilesWithMeta(t *testing.T) {

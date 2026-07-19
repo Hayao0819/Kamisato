@@ -14,7 +14,6 @@ import (
 	"github.com/Hayao0819/Kamisato/ayato/repository"
 	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
 	"github.com/Hayao0819/Kamisato/ayato/stream"
-	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/internal/limits"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/alpm"
 	pkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
@@ -315,7 +314,7 @@ func (s *Service) uploadFiles(repo string, files []*domain.UploadFiles, store bo
 	// recompute each arch=any package's target set so it also lands in the just-added
 	// arch. A repo that does not opt in never grows an arch here (prepareUpload gated
 	// it), so this whole step — and its extra storage listing — is skipped.
-	if s.cfg != nil && s.cfg.AllowsNewArch(repo) {
+	if s.catalog.AllowsNewArch(repo) {
 		preStored := make(map[string]struct{})
 		for _, a := range s.storedArches(repo) {
 			preStored[a] = struct{}{}
@@ -590,10 +589,7 @@ func (s *Service) storedArches(repo string) []string {
 // declaredArches returns the arches the repo is configured to serve (its own, or the
 // server default). Empty when nothing is configured.
 func (s *Service) declaredArches(repo string) []string {
-	if s.cfg == nil {
-		return nil
-	}
-	return s.cfg.DeclaredArches(repo)
+	return s.catalog.DeclaredArches(repo)
 }
 
 // repoArches is the set an arch=any package fans out to and that arch-wide
@@ -621,7 +617,7 @@ func (s *Service) repoArches(repo string) []string {
 // repo already serves (declared or stored), or the repo opts into growing new arches.
 // It stops a mislabeled package from silently adding an arch to an established repo.
 func (s *Service) archAccepted(repo, arch string) bool {
-	if s.cfg != nil && s.cfg.AllowsNewArch(repo) {
+	if s.catalog.AllowsNewArch(repo) {
 		return true
 	}
 	declared := s.declaredArches(repo)
@@ -727,11 +723,8 @@ func (s *Service) signedDB() bool {
 // staging tier, so a build always lands in staging. A non-tiered repo, or a name
 // already addressing a specific tier, is returned unchanged.
 func (s *Service) publishTarget(repo string) string {
-	if s.cfg == nil {
-		return repo
-	}
-	if rc := s.cfg.Repo(repo); rc != nil && rc.Tiered {
-		return rc.TierRepo(conf.TierStaging)
+	if target, ok := s.catalog.PublishTarget(repo); ok {
+		return target
 	}
 	return repo
 }

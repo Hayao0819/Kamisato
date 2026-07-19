@@ -43,17 +43,18 @@ type ArchSyncResult struct {
 // and rebuilds the merged db with the local overlay re-applied. Best-effort: a
 // per-arch failure is recorded and skipped, never breaking the last-good merged db.
 func (s *Service) SyncUpstream(ctx context.Context, repo string) (UpstreamSyncResult, error) {
-	rc := s.cfg.ResolveRepo(repo)
-	if rc == nil || !rc.Upstream.Enabled() {
+	resolved, ok := s.catalog.Resolve(repo)
+	if !ok || !resolved.Repository.Upstream().Enabled() {
 		return UpstreamSyncResult{}, fmt.Errorf("%w: %q has no upstream configured", domain.ErrInvalid, repo)
 	}
+	upstream := resolved.Repository.Upstream()
 	useSignedDB := s.signedDB()
-	res := UpstreamSyncResult{Repo: rc.Name}
-	for _, arch := range s.repoArches(rc.Name) {
+	res := UpstreamSyncResult{Repo: resolved.Physical}
+	for _, arch := range s.repoArches(resolved.Physical) {
 		if err := ctx.Err(); err != nil {
 			return res, err
 		}
-		ar := s.syncUpstreamArch(ctx, rc.Name, arch, rc.Upstream.DBURLFor(arch), rc.Upstream.FilesURLFor(arch), useSignedDB)
+		ar := s.syncUpstreamArch(ctx, resolved.Physical, arch, upstream.DBURLFor(arch), upstream.FilesURLFor(arch), useSignedDB)
 		res.Arches = append(res.Arches, ar)
 	}
 	return res, nil
@@ -136,11 +137,8 @@ func (s *Service) conditionalGet(ctx context.Context, url, etag, lastMod string)
 }
 
 func (s *Service) isUpstreamRepo(repo string) bool {
-	if s.cfg == nil {
-		return false
-	}
-	rc := s.cfg.ResolveRepo(repo)
-	return rc != nil && rc.Upstream.Enabled()
+	resolved, ok := s.catalog.Resolve(repo)
+	return ok && resolved.Repository.Upstream().Enabled()
 }
 
 // overlayRepo reads the LOCAL overlay database, bypassing the merged view. The

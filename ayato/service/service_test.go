@@ -10,6 +10,7 @@ import (
 
 	"go.uber.org/mock/gomock"
 
+	"github.com/Hayao0819/Kamisato/ayato/domain"
 	"github.com/Hayao0819/Kamisato/ayato/repository"
 	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
 	"github.com/Hayao0819/Kamisato/ayato/repository/blob/localfs"
@@ -44,6 +45,23 @@ func TestServiceRepoNames(t *testing.T) {
 	}
 	if len(got) != 2 || got[0] != "core" {
 		t.Errorf("RepoNames = %v, want [core extra]", got)
+	}
+}
+
+func TestValidateRepoNameUsesConfiguredCatalogAsAuthority(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	bin := mocks.NewMockBinaryRepository(ctrl)
+	svc := service.New(nil, bin, nil, nil, &conf.AyatoConfig{
+		Repos: []conf.BinRepoConfig{{Name: "configured"}},
+	})
+
+	// An unconfigured name is rejected before storage is queried. This prevents a
+	// leftover directory/object prefix from becoming servable after config removal.
+	if err := svc.ValidateRepoName("leftover"); !errors.Is(err, domain.ErrNotFound) {
+		t.Fatalf("ValidateRepoName(leftover) = %v, want ErrNotFound", err)
+	}
+	if err := svc.ValidateRepoName(".."); !errors.Is(err, domain.ErrInvalid) {
+		t.Fatalf("ValidateRepoName(..) = %v, want ErrInvalid", err)
 	}
 }
 
@@ -129,7 +147,9 @@ func TestServiceRemovePkg(t *testing.T) {
 	bin.EXPECT().Files("myrepo", "x86_64").Return([]string{"mypkg-1.0-1-x86_64.pkg.tar.zst", "myrepo.db"}, nil)
 	name.EXPECT().DeletePackageFileEntry("myrepo", "x86_64", "mypkg").Return(nil)
 
-	svc := service.New(name, bin, nil, nil, &conf.AyatoConfig{})
+	svc := service.New(name, bin, nil, nil, &conf.AyatoConfig{
+		Repos: []conf.BinRepoConfig{{Name: "myrepo"}},
+	})
 	if err := svc.RemovePkg("myrepo", "x86_64", "mypkg"); err != nil {
 		t.Fatalf("RemovePkg failed: %v", err)
 	}

@@ -7,7 +7,6 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/Hayao0819/Kamisato/ayato/domain"
-	"github.com/Hayao0819/Kamisato/internal/conf"
 )
 
 // promoteRequest promotes one package by name (and optionally a pinned version)
@@ -37,7 +36,17 @@ func (h *Handler) PromoteHandler(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, domain.APIError{Message: "from, to and pkgname are required"})
 		return
 	}
-	if err := h.s.PromotePackage(ctx.Request.Context(), repoName, conf.Tier(req.From), conf.Tier(req.To), req.Pkgname, req.Version); err != nil {
+	from, err := domain.ParseTier(req.From)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, domain.APIError{Message: err.Error()})
+		return
+	}
+	to, err := domain.ParseTier(req.To)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, domain.APIError{Message: err.Error()})
+		return
+	}
+	if err := h.s.PromotePackage(ctx.Request.Context(), repoName, from, to, req.Pkgname, req.Version); err != nil {
 		ctx.JSON(errToStatus(err), domain.APIError{
 			Message: "promote package err",
 			Reason:  err.Error(),

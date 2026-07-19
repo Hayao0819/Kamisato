@@ -15,6 +15,7 @@ import (
 
 	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
 	"github.com/Hayao0819/Kamisato/ayato/stream"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/reponame"
 )
 
 // StoreFile stores the package object only; the repo DB is updated separately by
@@ -150,7 +151,7 @@ func (s *S3) RepoNames() ([]string, error) {
 // safe path element, gated by the allowlist when configured. The S3 keyspace is
 // flat, so this is uniform validation rather than traversal defense.
 func (s *S3) validateListRepo(repo string) error {
-	if err := blob.ValidatePathComponent(repo); err != nil {
+	if err := reponame.Validate(repo); err != nil {
 		return err
 	}
 	if len(s.repoNames) > 0 && !lo.Contains(s.repoNames, repo) {

@@ -28,7 +28,7 @@ func (h *Handler) MirrorlistHandler(c *gin.Context) {
 	repoName := c.Param("repo")
 	// Validate against the servable repo set (tiers included) so the path we echo
 	// into Server lines is one ayato actually serves, never an arbitrary string.
-	if h.cfg == nil || h.cfg.ResolveRepo(repoName) == nil {
+	if _, ok := h.catalog.Resolve(repoName); !ok {
 		c.JSON(http.StatusNotFound, domain.APIError{Message: fmt.Sprintf("unknown repository %q", repoName)})
 		return
 	}

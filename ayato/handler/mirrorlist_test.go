@@ -14,7 +14,7 @@ import (
 
 func mirrorlistHandler(cfg *conf.AyatoConfig) *gin.Engine {
 	gin.SetMode(gin.TestMode)
-	h := &Handler{cfg: cfg}
+	h := New(nil, cfg)
 	r := gin.New()
 	r.GET("/repo/:repo/mirrorlist", h.MirrorlistHandler)
 	return r
@@ -76,6 +76,20 @@ func TestMirrorlistHandler_UnknownRepo(t *testing.T) {
 	w := getMirrorlist(mirrorlistHandler(cfg), "nope")
 	if w.Code != http.StatusNotFound {
 		t.Fatalf("status = %d, want 404", w.Code)
+	}
+}
+
+func TestMirrorlistHandler_TieredPhysicalRepo(t *testing.T) {
+	cfg := &conf.AyatoConfig{
+		Repos:  []conf.BinRepoConfig{{Name: "myrepo", Tiered: true}},
+		Mirror: conf.MirrorConfig{SelfURL: "https://repo.example"},
+	}
+	w := getMirrorlist(mirrorlistHandler(cfg), "myrepo-testing")
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", w.Code)
+	}
+	if want := "Server = https://repo.example/repo/myrepo-testing/$arch"; !strings.Contains(w.Body.String(), want) {
+		t.Fatalf("body missing %q:\n%s", want, w.Body)
 	}
 }
 

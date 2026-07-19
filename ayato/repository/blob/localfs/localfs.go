@@ -11,6 +11,7 @@ import (
 	"github.com/samber/lo"
 
 	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/reponame"
 )
 
 var _ blob.Store = (*LocalStore)(nil)
@@ -28,6 +29,9 @@ func New(repoDir string, repoNames []string) *LocalStore {
 
 func (l *LocalStore) getRepoDir(name string) (string, error) {
 	slog.Debug("get repo dir", "name", name)
+	if err := reponame.Validate(name); err != nil {
+		return "", err
+	}
 	pwd, err := os.Getwd()
 	if err != nil {
 		return "", fmt.Errorf("failed to get current working directory: %w", err)

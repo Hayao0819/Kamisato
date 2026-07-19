@@ -81,15 +81,19 @@ func TestAyatoConfigRepoHelpers(t *testing.T) {
 		},
 	}
 
-	names := cfg.RepoNames()
+	catalog, err := cfg.RepositoryCatalog()
+	if err != nil {
+		t.Fatalf("RepositoryCatalog() error = %v", err)
+	}
+	names := catalog.LogicalNames()
 	if len(names) != 2 || names[0] != "core" || names[1] != "extra" {
-		t.Errorf("RepoNames() = %v, want [core extra]", names)
+		t.Errorf("LogicalNames() = %v, want [core extra]", names)
 	}
 
-	if r := cfg.Repo("extra"); r == nil {
-		t.Errorf("Repo(extra) = %v, want a config", r)
+	if r, ok := catalog.Logical("extra"); !ok || r.Name() != "extra" {
+		t.Errorf("Logical(extra) = %v, %v, want a repository", r, ok)
 	}
-	if r := cfg.Repo("missing"); r != nil {
-		t.Errorf("Repo(missing) = %v, want nil", r)
+	if r, ok := catalog.Logical("missing"); ok || r != nil {
+		t.Errorf("Logical(missing) = %v, %v, want nil, false", r, ok)
 	}
 }

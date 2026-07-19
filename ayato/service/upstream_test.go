@@ -221,6 +221,34 @@ func TestSyncUpstreamRejectsNonUpstream(t *testing.T) {
 	}
 }
 
+func TestSyncUpstreamKeepsAddressedPhysicalTier(t *testing.T) {
+	up := &fakeUpstream{}
+	db, files := buildRepoDB(t, "extra", []pkgSpec{{"foo", "1.0-1"}})
+	up.set(db, files, "v1")
+	srv := httptest.NewServer(up.handler())
+	defer srv.Close()
+
+	svc, _, _ := newTieredService(t, []conf.BinRepoConfig{{
+		Name:     "myrepo",
+		Tiered:   true,
+		Arches:   []string{"x86_64"},
+		Upstream: conf.UpstreamRepoConfig{DBURL: srv.URL + "/extra.db"},
+	}})
+	res, err := svc.SyncUpstream(context.Background(), "myrepo-testing")
+	if err != nil {
+		t.Fatalf("SyncUpstream(testing): %v", err)
+	}
+	if res.Repo != "myrepo-testing" {
+		t.Fatalf("result repo = %q, want addressed physical tier", res.Repo)
+	}
+	if _, ok := versionOf(t, svc, "myrepo-testing", "x86_64", "foo"); !ok {
+		t.Fatal("testing tier did not receive the upstream snapshot")
+	}
+	if _, ok := versionOf(t, svc, "myrepo", "x86_64", "foo"); ok {
+		t.Fatal("syncing testing unexpectedly rewrote the stable tier")
+	}
+}
+
 func TestSyncUpstreamRejectsOversizedResponse(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Length", "536870913")

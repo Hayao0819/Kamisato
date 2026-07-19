@@ -27,6 +27,8 @@ type Service struct {
 	signerRepo    repository.SignerRepository
 	denylistRepo  repository.DenylistRepository // nil when per-token revocation is not wired
 	cfg           *conf.AyatoConfig
+	catalog       *domain.RepositoryCatalog
+	catalogErr    error
 	// upstreamClient fetches upstream repo databases for the overlay/merge sync,
 	// with the shared retry/timeout policy of pkg/httpx.
 	upstreamClient *http.Client
@@ -123,16 +125,23 @@ type Servicer interface {
 }
 
 func New(pkgNameRepo repository.NameStore, pkgBinaryRepo repository.BinaryRepository, authRepo repository.AuthRepository, signerRepo repository.SignerRepository, config *conf.AyatoConfig) *Service {
+	catalog, _ := domain.NewRepositoryCatalog(nil, nil)
 	s := &Service{
 		pkgNameRepo:    pkgNameRepo,
 		pkgBinaryRepo:  pkgBinaryRepo,
 		authRepo:       authRepo,
 		signerRepo:     signerRepo,
 		cfg:            config,
+		catalog:        catalog,
 		upstreamClient: httpx.Default(),
 	}
 	if config == nil {
 		return s
+	}
+	if configuredCatalog, err := config.RepositoryCatalog(); err != nil {
+		s.catalogErr = err
+	} else {
+		s.catalog = configuredCatalog
 	}
 
 	s.trustedFprs = config.Verify.TrustedKeys

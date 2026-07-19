@@ -31,6 +31,36 @@ func TestValidateNoGitHubIsOK(t *testing.T) {
 	}
 }
 
+func TestValidateRejectsInvalidRepositoryTopology(t *testing.T) {
+	tests := []struct {
+		name  string
+		repos []BinRepoConfig
+	}{
+		{
+			name:  "unsafe name",
+			repos: []BinRepoConfig{{Name: ".."}},
+		},
+		{
+			name:  "duplicate name",
+			repos: []BinRepoConfig{{Name: "core"}, {Name: "core"}},
+		},
+		{
+			name: "tier physical collision",
+			repos: []BinRepoConfig{
+				{Name: "core", Tiered: true},
+				{Name: "core-staging"},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := (&AyatoConfig{Repos: tt.repos}).Validate(); err == nil {
+				t.Fatal("Validate() = nil, want repository topology error")
+			}
+		})
+	}
+}
+
 func TestValidateRejectsLegacyBasicConfigExplicitly(t *testing.T) {
 	c := &AyatoConfig{}
 	c.Auth.Username = "legacy"

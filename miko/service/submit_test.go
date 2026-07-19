@@ -24,6 +24,16 @@ func TestSubmitRejectsBadArch(t *testing.T) {
 	}
 }
 
+func TestSubmitRejectsUnsafeRepoName(t *testing.T) {
+	s := New(&conf.MikoConfig{}, nil, nil, nil)
+	for _, repo := range []string{".", "..", "../repo", "repo/testing", "repo\n[evil]"} {
+		req := &domain.BuildRequest{Arch: "x86_64", Repo: repo}
+		if _, err := s.Submit(req); !errors.Is(err, ErrInvalidRequest) {
+			t.Errorf("repo %q: want ErrInvalidRequest, got %v", repo, err)
+		}
+	}
+}
+
 func TestSubmitRejectsInstallPkgsEscape(t *testing.T) {
 	// No staging dir: any install_pkgs entry is rejected.
 	s := New(&conf.MikoConfig{}, nil, nil, nil)

@@ -6,6 +6,7 @@ import (
 
 	"github.com/ProtonMail/go-crypto/openpgp"
 
+	"github.com/Hayao0819/Kamisato/ayato/domain"
 	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
 	"github.com/Hayao0819/Kamisato/ayato/repository/blob/localfs"
 	"github.com/Hayao0819/Kamisato/ayato/repository/blob/s3"
@@ -49,10 +50,8 @@ func secureKV(store kv.Store, cfg *conf.AyatoConfig) (kv.Store, error) {
 }
 
 // initBinaryStore keeps the IO layer conf-free by unpacking conf into the plain values the backends take.
-func initBinaryStore(cfg *conf.AyatoConfig) (blob.Store, error) {
-	// A tiered repo serves three pacman repos (its tiers), so the store must accept
-	// every physical repo name, not just the logical one.
-	repoNames := cfg.PhysicalRepoNames()
+func initBinaryStore(cfg *conf.AyatoConfig, catalog *domain.RepositoryCatalog) (blob.Store, error) {
+	repoNames := catalog.PhysicalNames()
 
 	if cfg.Store.StorageType == "s3" {
 		slog.Warn("Using S3 is still experimental, please use with caution")
@@ -102,6 +101,14 @@ func initKVStore(cfg *conf.AyatoConfig) (kv.Store, error) {
 // (e.g. the AUR backend) can partition their own namespaces instead of opening a
 // second store against the same locked BadgerDB dir; the caller closes it.
 func New(cfg *conf.AyatoConfig) (NameStore, BinaryRepository, AuthRepository, kv.Store, error) {
+	if cfg == nil {
+		return nil, nil, nil, nil, errors.NewErr("ayato config is nil")
+	}
+	catalog, err := cfg.RepositoryCatalog()
+	if err != nil {
+		return nil, nil, nil, nil, errors.WrapErr(err, "invalid repository catalog")
+	}
+
 	kvStore, err := initKVStore(cfg)
 	if err != nil {
 		slog.Error("Failed to create key-value store", "error", err)
@@ -115,7 +122,7 @@ func New(cfg *conf.AyatoConfig) (NameStore, BinaryRepository, AuthRepository, kv
 		}
 	}
 
-	binStore, err := initBinaryStore(cfg)
+	binStore, err := initBinaryStore(cfg, catalog)
 	if err != nil {
 		slog.Error("Failed to create binary store", "error", err)
 		return nil, nil, nil, nil, err
@@ -129,9 +136,7 @@ func New(cfg *conf.AyatoConfig) (NameStore, BinaryRepository, AuthRepository, kv
 		}
 		binOpts = append(binOpts, WithSigningTool(signer))
 	}
-	if cfg != nil {
-		binOpts = append(binOpts, WithUpstreamRepos(cfg.UpstreamRepoNames()))
-	}
+	binOpts = append(binOpts, WithUpstreamRepos(catalog.UpstreamPhysicalNames()))
 
 	// Package files are stored directly under (repo, arch, filename); serializing
 	// keeps per-(repo, arch) writes serialized.
@@ -143,6 +148,13 @@ func New(cfg *conf.AyatoConfig) (NameStore, BinaryRepository, AuthRepository, kv
 // decorators, so migrations reach kv.BulkStore and blob.ObjectMover directly. The
 // caller closes the kv store.
 func NewMigrationStores(cfg *conf.AyatoConfig) (kv.Store, blob.Store, error) {
+	if cfg == nil {
+		return nil, nil, errors.NewErr("ayato config is nil")
+	}
+	catalog, err := cfg.RepositoryCatalog()
+	if err != nil {
+		return nil, nil, errors.WrapErr(err, "invalid repository catalog")
+	}
 	kvStore, err := initKVStore(cfg)
 	if err != nil {
 		return nil, nil, err
@@ -152,7 +164,7 @@ func NewMigrationStores(cfg *conf.AyatoConfig) (kv.Store, blob.Store, error) {
 			return nil, nil, err
 		}
 	}
-	binStore, err := initBinaryStore(cfg)
+	binStore, err := initBinaryStore(cfg, catalog)
 	if err != nil {
 		return nil, nil, err
 	}

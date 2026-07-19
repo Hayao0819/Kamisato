@@ -8,13 +8,16 @@ import (
 )
 
 func (s *Service) InitAll() error {
+	if s.catalogErr != nil {
+		return errors.WrapErr(s.catalogErr, "invalid repository catalog")
+	}
 	// Fail closed if the signature trust root could not be established.
 	if s.verifierErr != nil {
 		return s.verifierErr
 	}
 	// Initialize every physical repo, so each tier of a tiered repo gets its own
 	// database seeded.
-	repos := s.cfg.PhysicalRepoNames()
+	repos := s.catalog.PhysicalNames()
 	if len(repos) == 0 {
 		slog.Warn("no repositories found in config, skipping initialization")
 		return nil

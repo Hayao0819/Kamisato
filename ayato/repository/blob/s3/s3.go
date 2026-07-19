@@ -25,6 +25,7 @@ import (
 
 	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
 	"github.com/Hayao0819/Kamisato/ayato/stream"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/reponame"
 )
 
 var _ blob.Store = (*S3)(nil)
@@ -109,7 +110,7 @@ func key(repo, arch, name string) string {
 // allowlist when one is set. Otherwise the raw repo/arch/name concatenation would
 // let "../" or absolute components write outside the intended prefix.
 func (s *S3) validatedKey(repo, arch, name string) (string, error) {
-	if err := blob.ValidatePathComponent(repo); err != nil {
+	if err := reponame.Validate(repo); err != nil {
 		return "", err
 	}
 	if len(s.repoNames) > 0 && !lo.Contains(s.repoNames, repo) {
