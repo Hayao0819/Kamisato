@@ -15,6 +15,9 @@ func TestLumineValidate(t *testing.T) {
 	if err := (&LumineConfig{AuthMode: "basic"}).Validate(); err == nil {
 		t.Error("expected an error for an unknown auth mode")
 	}
+	if err := (&LumineConfig{AuthMode: "cookie", AyatoURL: "https://user:password@ayato.example"}).Validate(); err == nil {
+		t.Error("credential-bearing ayato_url must be rejected")
+	}
 }
 
 // TestLoadLumineConfigDefaultsAndEnv checks the defaults hook fills addr/auth_mode

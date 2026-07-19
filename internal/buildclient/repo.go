@@ -1,37 +1,11 @@
 package buildclient
 
-import (
-	"context"
-	"io"
-	"net/http"
-	"net/url"
-	"os"
+import "context"
 
-	"github.com/Hayao0819/Kamisato/internal/errors"
-)
-
-// DownloadPackage fetches a built package file from ayato's public repo route
-// (/repo/<repo>/<arch>/<file>) and writes it to dest. An arch=any package is
-// served under any concrete arch via ayato's fallback, so requesting the build
-// arch works regardless of the package's own arch.
-func DownloadPackage(ctx context.Context, base, repo, arch, file, dest string) error {
-	resp, err := get(ctx, streamClient, endpoint(base, "/repo/"+url.PathEscape(repo)+"/"+url.PathEscape(arch)+"/"+url.PathEscape(file)), "")
+func DownloadPackage(ctx context.Context, base, repo, arch, name, destination string) error {
+	c, err := ayato(base, "")
 	if err != nil {
-		return errors.WrapErr(err, "failed to download "+file)
+		return err
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return responseErr(resp, "download "+file)
-	}
-
-	f, err := os.Create(dest)
-	if err != nil {
-		return errors.WrapErr(err, "failed to create "+dest)
-	}
-	if _, err := io.Copy(f, resp.Body); err != nil {
-		_ = f.Close()
-		return errors.WrapErr(err, "failed to write "+dest)
-	}
-	return f.Close()
+	return c.DownloadPackageFile(ctx, repo, arch, name, destination)
 }

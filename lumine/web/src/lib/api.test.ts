@@ -55,6 +55,27 @@ describe("APIEndpoints", () => {
         expect(e.cancelJob("j1")).toBe(`${api}/jobs/j1`);
         expect(e.stats()).toBe(`${api}/stats`);
     });
+
+    it("encodes every dynamic value as one path segment", () => {
+        expect(e.packageDetail("tier/core", "x86 64", "pkg/name")).toBe(
+            `${api}/repos/tier%2Fcore/x86%2064/packages/pkg%2Fname`,
+        );
+        expect(e.jobLogs("job/with space")).toBe(
+            `${api}/jobs/job%2Fwith%20space/logs`,
+        );
+    });
+
+    it("normalizes a prefixed static runtime base with a trailing slash", () => {
+        const apiClient = new APIClient({
+            AYATO_URL: `${BASE}/prefix/`,
+            AUTH_MODE: "bearer",
+            FALLBACK: false,
+        });
+        expect(apiClient.serverUrl).toBe(`${BASE}/prefix`);
+        expect(apiClient.endpoints.apiUnstableUrl).toBe(
+            `${BASE}/prefix/api/unstable`,
+        );
+    });
 });
 
 describe("APIClient runtime config", () => {

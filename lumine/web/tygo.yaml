@@ -12,8 +12,6 @@ packages:
       import type { PKGINFO } from "./raiou";
     type_mappings:
       "raiou.PKGINFO": "PKGINFO"
-  - path: "github.com/Hayao0819/Kamisato/miko/domain"
+  - path: "github.com/Hayao0819/Kamisato/internal/protocol"
     output_path: "src/lib/generated/miko_domain.ts"
-    include_files: ["job.go"]
-    type_mappings:
-      "time.Time": "string"
+    include_files: ["miko.go"]

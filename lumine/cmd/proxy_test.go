@@ -6,6 +6,8 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+
+	"github.com/Hayao0819/Kamisato/internal/client"
 )
 
 // The proxy must replace spoofed forwarding headers from the real connection
@@ -81,5 +83,16 @@ func TestReverseProxyKeepsFlushInterval(t *testing.T) {
 	}
 	if proxy.Director != nil {
 		t.Error("Director must be nil when Rewrite is used")
+	}
+}
+
+func TestBearerEnvironmentUsesNormalizedPrefixedURL(t *testing.T) {
+	target, err := client.ParseBaseURL("https://repo.example/ayato/prefix/")
+	if err != nil {
+		t.Fatal(err)
+	}
+	env := bearerLumineEnv(target)
+	if env.AyatoURL == nil || *env.AyatoURL != "https://repo.example/ayato/prefix" {
+		t.Fatalf("AYATO_URL = %#v", env.AyatoURL)
 	}
 }

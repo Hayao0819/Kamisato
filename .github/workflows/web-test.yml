@@ -4,10 +4,16 @@ on:
   push:
     paths:
       - 'lumine/web/**'
+      - 'internal/protocol/**'
+      - 'ayato/domain/**'
+      - 'pkg/raiou/**'
       - '.github/workflows/web-test.yml'
   pull_request:
     paths:
       - 'lumine/web/**'
+      - 'internal/protocol/**'
+      - 'ayato/domain/**'
+      - 'pkg/raiou/**'
       - '.github/workflows/web-test.yml'
 
 jobs:
@@ -16,6 +22,11 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
 
       - uses: volta-cli/action@v4
         with:
@@ -27,6 +38,12 @@ jobs:
       - name: Install dependencies
         working-directory: ./lumine/web
         run: pnpm install
+
+      - name: Verify generated API types
+        working-directory: ./lumine/web
+        run: |
+          pnpm run gen:types
+          git diff --exit-code -- src/lib/generated
 
       - name: Typecheck (pnpm run typecheck)
         working-directory: ./lumine/web

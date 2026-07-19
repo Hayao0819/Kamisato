@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"encoding/json"
-	"fmt"
 	"log/slog"
 	"net/http"
 	"net/http/httputil"
@@ -12,6 +11,7 @@ import (
 	sloggin "github.com/samber/slog-gin"
 	"github.com/spf13/cobra"
 
+	"github.com/Hayao0819/Kamisato/internal/client"
 	"github.com/Hayao0819/Kamisato/internal/cliutil"
 	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/internal/errors"
@@ -28,6 +28,11 @@ type lumineEnv struct {
 	Fallback    bool    `json:"FALLBACK"`
 	Title       string  `json:"TITLE,omitempty"`
 	Description string  `json:"DESCRIPTION,omitempty"`
+}
+
+func bearerLumineEnv(target *url.URL) lumineEnv {
+	normalized := target.String()
+	return lumineEnv{AyatoURL: &normalized, AuthMode: "bearer"}
 }
 
 // newReverseProxy uses a Rewrite hook, not the default Director: the Director
@@ -80,20 +85,21 @@ func RootCmd() *cobra.Command {
 			engine.Use(gin.Recovery())
 			engine.Use(sloggin.NewWithConfig(slog.Default(), sloggin.Config{DefaultLevel: slog.LevelDebug, HandleGinDebug: true}))
 
-			// Validate has already rejected any auth_mode other than cookie/bearer
-			// and ensured bearer has an ayato_url.
+			var target *url.URL
+			if cfg.AyatoURL != "" {
+				target, err = client.ParseBaseURL(cfg.AyatoURL)
+				if err != nil {
+					return errors.WrapErr(err, "invalid ayato url "+cfg.AyatoURL)
+				}
+			}
 			var env lumineEnv
 			switch cfg.AuthMode {
 			case "bearer":
 				// Bearer mode: no proxy; the SPA calls ayato cross-origin with a token.
-				env = lumineEnv{AyatoURL: &cfg.AyatoURL, AuthMode: "bearer"}
+				env = bearerLumineEnv(target)
 			default:
 				// Cookie mode: proxy ayato same-origin so the session cookie stays first-party.
-				if cfg.AyatoURL != "" {
-					target, err := url.Parse(cfg.AyatoURL)
-					if err != nil {
-						return fmt.Errorf("invalid ayato url %q: %w", cfg.AyatoURL, err)
-					}
+				if target != nil {
 					proxy := newReverseProxy(target)
 					forward := func(c *gin.Context) {
 						proxy.ServeHTTP(c.Writer, c.Request)

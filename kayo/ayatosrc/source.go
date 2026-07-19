@@ -4,19 +4,16 @@
 package ayatosrc
 
 import (
-	"net/http"
-	"strings"
 	"sync"
 	"time"
 
+	"github.com/Hayao0819/Kamisato/internal/client"
 	"github.com/Hayao0819/Kamisato/kayo/pkgindex"
-	"github.com/Hayao0819/Kamisato/pkg/httpx"
 )
 
 const (
-	catalogPath     = "/api/unstable/aur/catalog"
-	pubkeyPath      = "/api/unstable/aur/pubkey"
-	maxCatalogBytes = 32 << 20
+	catalogPath = client.CatalogPath
+	pubkeyPath  = client.CatalogPublicKeyPath
 )
 
 type Options struct {
@@ -36,8 +33,7 @@ type Source struct {
 	*pkgindex.Index
 
 	name            string
-	base            string
-	client          *http.Client
+	catalog         *client.Catalog
 	maxAge          time.Duration
 	insecure        bool
 	trustOnFirstUse bool
@@ -53,11 +49,14 @@ type Source struct {
 // New builds a Source. An explicit PubKey is a hard pin; an empty PubKey requires
 // either TrustOnFirstUse or Insecure.
 func New(o Options) (*Source, error) {
+	catalog, err := client.NewCatalog(o.BaseURL)
+	if err != nil {
+		return nil, err
+	}
 	s := &Source{
 		Index:           pkgindex.New(),
 		name:            o.Name,
-		base:            strings.TrimRight(o.BaseURL, "/"),
-		client:          httpx.New(15*time.Second, 3),
+		catalog:         catalog,
 		maxAge:          o.MaxAge,
 		insecure:        o.Insecure,
 		trustOnFirstUse: o.TrustOnFirstUse,

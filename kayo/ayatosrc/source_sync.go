@@ -3,11 +3,10 @@ package ayatosrc
 import (
 	"context"
 	"encoding/json"
-	"io"
 	"log/slog"
-	"net/http"
 	"time"
 
+	"github.com/Hayao0819/Kamisato/internal/client"
 	"github.com/Hayao0819/Kamisato/internal/errors"
 	"github.com/Hayao0819/Kamisato/internal/kayoproto"
 	"github.com/Hayao0819/Kamisato/pkg/aurweb"
@@ -17,9 +16,9 @@ import (
 // and only then swaps in a fresh index. Any verification error returns before the
 // swap, so the last-good catalog survives (fail-closed).
 func (s *Source) Sync(ctx context.Context) error {
-	body, err := s.fetch(ctx, catalogPath)
+	body, err := s.catalog.Fetch(ctx)
 	if err != nil {
-		return err
+		return errors.WrapErr(err, "ayato catalog: "+s.name)
 	}
 
 	var env kayoproto.CatalogEnvelope
@@ -138,32 +137,15 @@ func (s *Source) resolveVerifier(ctx context.Context) (*Verifier, error) {
 	return v, nil
 }
 
-func (s *Source) fetch(ctx context.Context, path string) ([]byte, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, s.base+path, nil)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Accept", "application/json")
-	resp, err := s.client.Do(req)
-	if err != nil {
-		return nil, errors.WrapErr(err, "ayato request "+path+": "+s.name)
-	}
-	defer func() { _ = resp.Body.Close() }()
-	if resp.StatusCode != http.StatusOK {
-		return nil, errors.NewErrf("ayato %s: %s status %d", s.name, path, resp.StatusCode)
-	}
-	return io.ReadAll(io.LimitReader(resp.Body, maxCatalogBytes))
-}
-
 // FetchPubkey retrieves the catalog-signing public key an ayato base URL advertises,
 // for an operator converting a TOFU pin into a hard config pin. The key is
 // unauthenticated on its own — verify the key_id out of band before trusting it.
 func FetchPubkey(ctx context.Context, baseURL string) (pubkey, keyID string, err error) {
-	s, err := New(Options{Name: "fetch", BaseURL: baseURL, Insecure: true})
+	catalog, err := client.NewCatalog(baseURL)
 	if err != nil {
 		return "", "", err
 	}
-	body, err := s.fetch(ctx, pubkeyPath)
+	body, err := catalog.FetchPublicKey(ctx)
 	if err != nil {
 		return "", "", err
 	}
@@ -178,9 +160,9 @@ func FetchPubkey(ctx context.Context, baseURL string) (pubkey, keyID string, err
 }
 
 func (s *Source) fetchPubkey(ctx context.Context) (string, error) {
-	body, err := s.fetch(ctx, pubkeyPath)
+	body, err := s.catalog.FetchPublicKey(ctx)
 	if err != nil {
-		return "", err
+		return "", errors.WrapErr(err, "ayato catalog public key: "+s.name)
 	}
 	var r struct {
 		Pubkey string `json:"pubkey"`

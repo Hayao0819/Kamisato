@@ -43,7 +43,10 @@ func refreshServer(t *testing.T, refreshHits *int) *httptest.Server {
 
 func protectedOp(base string) func(context.Context, string) error {
 	return func(ctx context.Context, token string) error {
-		return doJSON(ctx, http.MethodGet, endpoint(base, "/api/unstable/protected"), token, nil, nil, http.StatusOK, "protected")
+		if token == "new" {
+			return nil
+		}
+		return errors.WrapErr(ErrAccessTokenExpired, "protected")
 	}
 }
 

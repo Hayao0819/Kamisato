@@ -330,7 +330,11 @@ export class APIClient {
     readonly auth: AuthClient;
 
     constructor(lumineEnv?: LumineEnv) {
-        this.lumineEnv = lumineEnv || fallbackLumineEnv;
+        const configured = lumineEnv || fallbackLumineEnv;
+        this.lumineEnv = {
+            ...configured,
+            AYATO_URL: normalizeBase(configured.AYATO_URL),
+        };
         this.endpoints = new APIEndpoints(this.serverUrl);
         this.auth = createAuthClient(
             this.lumineEnv.AUTH_MODE ?? "cookie",
@@ -379,7 +383,7 @@ export class APIClient {
 class APIEndpoints {
     private readonly base: string | null;
     constructor(base: string | null) {
-        this.base = base;
+        this.base = normalizeBase(base);
     }
     get executable(): boolean {
         return this.base !== null;
@@ -389,7 +393,7 @@ class APIEndpoints {
     }
     get packageDetail() {
         return (repo: string, arch: string, pkgbase: string) =>
-            `${this.apiUnstableUrl}/repos/${repo}/${arch}/packages/${pkgbase}`;
+            `${this.apiUnstableUrl}/repos/${segment(repo)}/${segment(arch)}/packages/${segment(pkgbase)}`;
     }
     get hello() {
         return () => `${this.apiUnstableUrl}/hello`;
@@ -405,21 +409,22 @@ class APIEndpoints {
     }
     get allPkgs() {
         return (repo: string, arch: string) =>
-            `${this.apiUnstableUrl}/repos/${repo}/${arch}/packages`;
+            `${this.apiUnstableUrl}/repos/${segment(repo)}/${segment(arch)}/packages`;
     }
     get repoFile() {
         return (repo: string, arch: string, file: string) =>
-            `${this.base}/repo/${repo}/${arch}/${file}`;
+            `${this.base}/repo/${segment(repo)}/${segment(arch)}/${segment(file)}`;
     }
     get repos() {
         return () => `${this.apiUnstableUrl}/repos`;
     }
     get arches() {
-        return (repo: string) => `${this.apiUnstableUrl}/repos/${repo}`;
+        return (repo: string) =>
+            `${this.apiUnstableUrl}/repos/${segment(repo)}`;
     }
     get uploadPackage() {
         return (repo: string) =>
-            `${this.apiUnstableUrl}/repos/${repo}/packages`;
+            `${this.apiUnstableUrl}/repos/${segment(repo)}/packages`;
     }
     get submitBuild() {
         return () => `${this.apiUnstableUrl}/build`;
@@ -428,15 +433,23 @@ class APIEndpoints {
         return () => `${this.apiUnstableUrl}/jobs`;
     }
     get jobDetail() {
-        return (id: string) => `${this.apiUnstableUrl}/jobs/${id}`;
+        return (id: string) => `${this.apiUnstableUrl}/jobs/${segment(id)}`;
     }
     get jobLogs() {
-        return (id: string) => `${this.apiUnstableUrl}/jobs/${id}/logs`;
+        return (id: string) =>
+            `${this.apiUnstableUrl}/jobs/${segment(id)}/logs`;
     }
     get cancelJob() {
-        return (id: string) => `${this.apiUnstableUrl}/jobs/${id}`;
+        return (id: string) => `${this.apiUnstableUrl}/jobs/${segment(id)}`;
     }
     get stats() {
         return () => `${this.apiUnstableUrl}/stats`;
     }
 }
+
+const normalizeBase = (base: string | null): string | null => {
+    if (base === null || base === "") return base;
+    return base.replace(/\/+$/, "");
+};
+
+const segment = (value: string): string => encodeURIComponent(value);
