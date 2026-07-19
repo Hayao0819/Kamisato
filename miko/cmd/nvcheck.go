@@ -32,10 +32,7 @@ func nvcheckCmd() *cobra.Command {
 				return err
 			}
 
-			s, ok := service.New(cfg, nil, nil, nil, serviceOptions...).(*service.Service)
-			if !ok {
-				return fmt.Errorf("unexpected service type")
-			}
+			s := service.New(cfg, serviceOptions...)
 			results := s.CheckUpstreamVersionsDryRun(cmd.Context())
 
 			w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)

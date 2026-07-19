@@ -50,13 +50,33 @@ type Checker struct {
 	log     *slog.Logger
 }
 
+// CheckerOptions names the collaborators used by a check pass. Enqueuer is
+// optional: leaving it nil makes the checker read-only.
+type CheckerOptions struct {
+	HTTPClient     *http.Client
+	CurrentVersion CurrentFunc
+	Enqueuer       Enqueuer
+	Logger         *slog.Logger
+}
+
 // NewChecker builds a Checker. A nil enqueuer makes the pass a dry run (it
 // reports outdated entries without triggering a rebuild); a nil logger discards.
-func NewChecker(entries []Entry, client *http.Client, current CurrentFunc, enq Enqueuer, log *slog.Logger) *Checker {
-	if log == nil {
-		log = slog.New(slog.DiscardHandler)
+func NewChecker(entries []Entry, options CheckerOptions) *Checker {
+	if options.Logger == nil {
+		options.Logger = slog.New(slog.DiscardHandler)
 	}
-	return &Checker{entries: entries, client: client, current: current, enq: enq, log: log}
+	if options.CurrentVersion == nil {
+		options.CurrentVersion = func(context.Context, Entry) (string, error) {
+			return "", fmt.Errorf("nvcheck: current version resolver is not configured")
+		}
+	}
+	return &Checker{
+		entries: entries,
+		client:  options.HTTPClient,
+		current: options.CurrentVersion,
+		enq:     options.Enqueuer,
+		log:     options.Logger,
+	}
 }
 
 // Check runs one pass over every entry, returning a Result per entry. A per-entry

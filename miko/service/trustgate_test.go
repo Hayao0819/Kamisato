@@ -37,7 +37,7 @@ func (f fakeAURInfo) Info(_ context.Context, names []string) ([]aurweb.Pkg, erro
 
 func newTrustService(t *testing.T, trust conf.AURTrustConfig) *Service {
 	t.Helper()
-	return New(&conf.MikoConfig{AURTrust: trust}, nil, nil, nil).(*Service)
+	return New(&conf.MikoConfig{AURTrust: trust})
 }
 
 func TestCheckDepTrust(t *testing.T) {

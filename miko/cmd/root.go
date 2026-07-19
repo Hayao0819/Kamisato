@@ -164,8 +164,14 @@ func RootCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			serviceOptions = append(
+				serviceOptions,
+				service.WithSigner(pkgSigner),
+				service.WithPersister(persister),
+				service.WithUploader(uploader),
+			)
 
-			s := service.New(cfg, pkgSigner, persister, uploader, serviceOptions...)
+			s := service.New(cfg, serviceOptions...)
 			h := handler.New(s, cfg)
 			verifier := serviceKeyVerifier(cfg)
 			if !verifier.Enabled() && !cfg.AllowUnauthenticated {

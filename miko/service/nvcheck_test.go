@@ -36,7 +36,7 @@ func (f *fakeRepositoryDBReader) Database(
 // A monitored rebuild must enqueue a real job tagged ReasonVersionUpdate so its
 // origin is visible, reusing Submit's validation.
 func TestVersionUpdateEnqueuerTagsReason(t *testing.T) {
-	s := New(&conf.MikoConfig{}, nil, nil, nil).(*Service)
+	s := New(&conf.MikoConfig{})
 	enq := &versionUpdateEnqueuer{s: s}
 
 	entry := nvcheck.Entry{Pkgbase: "foo", Repo: "extra", Arch: "x86_64", Git: "https://aur.archlinux.org/foo.git"}
@@ -86,7 +86,7 @@ func TestRepositoryConsumersShareInjectedReader(t *testing.T) {
 	reader := &fakeRepositoryDBReader{database: database}
 	cfg := &conf.MikoConfig{}
 	cfg.Ayato.URL = "https://ayato.example"
-	s := New(cfg, nil, nil, nil, WithRepositoryDBReader(reader)).(*Service)
+	s := New(cfg, WithRepositoryDBReader(reader))
 
 	version, err := s.publishedVersion()(context.Background(), nvcheck.Entry{
 		Pkgbase: "foo",
@@ -125,7 +125,7 @@ func TestPublishedVersionPreservesRepositoryFailure(t *testing.T) {
 	reader := &fakeRepositoryDBReader{err: wantErr}
 	cfg := &conf.MikoConfig{}
 	cfg.Ayato.URL = "https://ayato.example"
-	s := New(cfg, nil, nil, nil, WithRepositoryDBReader(reader)).(*Service)
+	s := New(cfg, WithRepositoryDBReader(reader))
 
 	_, err := s.publishedVersion()(context.Background(), nvcheck.Entry{
 		Pkgbase: "foo",

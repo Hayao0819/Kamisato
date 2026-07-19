@@ -9,7 +9,7 @@ import (
 
 // A user submission is recorded as a manual build so its origin shows in status.
 func TestSubmitTagsReasonManual(t *testing.T) {
-	s := New(&conf.MikoConfig{}, nil, nil, nil)
+	s := New(&conf.MikoConfig{})
 
 	id, err := s.Submit(&domain.BuildRequest{Arch: "x86_64", Pkgbuild: "pkgname=foo"})
 	if err != nil {

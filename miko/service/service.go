@@ -76,15 +76,11 @@ type Service struct {
 	logs   map[string]*joblog.Buffer
 }
 
-// New builds the service with its collaborators injected: persister durably
-// stores jobs (nil disables persistence) and uploader publishes built packages.
-func New(
-	cfg *conf.MikoConfig,
-	signer sign.Signer,
-	persister Persister,
-	uploader Uploader,
-	options ...ServiceOption,
-) Servicer {
+// New builds a Service from explicitly named optional collaborators.
+func New(cfg *conf.MikoConfig, options ...ServiceOption) *Service {
+	if cfg == nil {
+		cfg = &conf.MikoConfig{}
+	}
 	dependencies := serviceOptions{httpClient: httpx.Default()}
 	for _, option := range options {
 		if option != nil {
@@ -93,10 +89,10 @@ func New(
 	}
 	s := &Service{
 		cfg:          cfg,
-		signer:       signer,
+		signer:       dependencies.signer,
 		queue:        newQueue(),
-		persist:      persister,
-		uploader:     uploader,
+		persist:      dependencies.persister,
+		uploader:     dependencies.uploader,
 		httpClient:   dependencies.httpClient,
 		repositories: dependencies.repositories,
 		store:        make(map[string]*domain.BuildJob),
@@ -104,7 +100,7 @@ func New(
 		logs:         make(map[string]*joblog.Buffer),
 		startedAt:    time.Now(),
 	}
-	if persister != nil {
+	if dependencies.persister != nil {
 		s.restore()
 	}
 	// Soname history is small per-pkgbase state; persist it under the data dir so

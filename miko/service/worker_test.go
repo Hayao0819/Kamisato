@@ -14,7 +14,7 @@ import (
 // A client-signed job's artifact dir must be swept once retention elapses even
 // when no later job runs: the timer, not job completion, drives the sweep.
 func TestSweepLoopReclaimsIdleArtifacts(t *testing.T) {
-	s := New(&conf.MikoConfig{}, nil, nil, nil).(*Service)
+	s := New(&conf.MikoConfig{})
 
 	artDir := filepath.Join(t.TempDir(), "out")
 	if err := os.MkdirAll(artDir, 0o755); err != nil {
@@ -66,7 +66,7 @@ func TestSweepLoopReclaimsIdleArtifacts(t *testing.T) {
 // sweepLoop must exit promptly when its context is cancelled, leaking no
 // goroutine and stopping its ticker.
 func TestSweepLoopStopsOnContextCancel(t *testing.T) {
-	s := New(&conf.MikoConfig{}, nil, nil, nil).(*Service)
+	s := New(&conf.MikoConfig{})
 
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan struct{})

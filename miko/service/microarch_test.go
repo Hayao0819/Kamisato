@@ -10,7 +10,7 @@ import (
 )
 
 func TestSubmitValidatesMicroarch(t *testing.T) {
-	s := New(&conf.MikoConfig{}, nil, nil, nil)
+	s := New(&conf.MikoConfig{})
 
 	// A feature level on a non-x86_64 arch is rejected.
 	if _, err := s.Submit(&domain.BuildRequest{Arch: "aarch64", Microarch: "x86_64_v3"}); !errors.Is(err, ErrInvalidRequest) {

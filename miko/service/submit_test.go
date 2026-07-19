@@ -11,7 +11,7 @@ import (
 )
 
 func TestSubmitRejectsBadArch(t *testing.T) {
-	s := New(&conf.MikoConfig{}, nil, nil, nil)
+	s := New(&conf.MikoConfig{})
 
 	if _, err := s.Submit(&domain.BuildRequest{Arch: "evil; rm -rf"}); !errors.Is(err, ErrInvalidRequest) {
 		t.Errorf("bad arch: want ErrInvalidRequest, got %v", err)
@@ -25,7 +25,7 @@ func TestSubmitRejectsBadArch(t *testing.T) {
 }
 
 func TestSubmitRejectsUnsafeRepoName(t *testing.T) {
-	s := New(&conf.MikoConfig{}, nil, nil, nil)
+	s := New(&conf.MikoConfig{})
 	for _, repo := range []string{".", "..", "../repo", "repo/testing", "repo\n[evil]"} {
 		req := &domain.BuildRequest{Arch: "x86_64", Repo: repo}
 		if _, err := s.Submit(req); !errors.Is(err, ErrInvalidRequest) {
@@ -36,7 +36,7 @@ func TestSubmitRejectsUnsafeRepoName(t *testing.T) {
 
 func TestSubmitRejectsInstallPkgsEscape(t *testing.T) {
 	// No staging dir: any install_pkgs entry is rejected.
-	s := New(&conf.MikoConfig{}, nil, nil, nil)
+	s := New(&conf.MikoConfig{})
 	req := &domain.BuildRequest{Arch: "x86_64", InstallPkgs: []string{"/etc/passwd"}}
 	if _, err := s.Submit(req); !errors.Is(err, ErrInvalidRequest) {
 		t.Errorf("no staging dir: want ErrInvalidRequest, got %v", err)
@@ -44,7 +44,7 @@ func TestSubmitRejectsInstallPkgsEscape(t *testing.T) {
 
 	dataDir := t.TempDir()
 	staging := filepath.Join(dataDir, "staging")
-	s = New(&conf.MikoConfig{DataDir: dataDir}, nil, nil, nil)
+	s = New(&conf.MikoConfig{DataDir: dataDir})
 
 	for _, p := range []string{"/etc/passwd", filepath.Join(staging, "..", "keys", "secret.gpg")} {
 		req := &domain.BuildRequest{Arch: "x86_64", InstallPkgs: []string{p}}

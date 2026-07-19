@@ -35,7 +35,12 @@ func (s *Service) runNvCheck(ctx context.Context, enq nvcheck.Enqueuer) []nvchec
 	if len(entries) == 0 {
 		return nil
 	}
-	checker := nvcheck.NewChecker(entries, s.httpClient, s.publishedVersion(), enq, slog.Default())
+	checker := nvcheck.NewChecker(entries, nvcheck.CheckerOptions{
+		HTTPClient:     s.httpClient,
+		CurrentVersion: s.publishedVersion(),
+		Enqueuer:       enq,
+		Logger:         slog.Default(),
+	})
 
 	results := checker.Check(ctx)
 	for _, r := range results {

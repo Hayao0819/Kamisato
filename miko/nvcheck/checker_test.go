@@ -46,7 +46,11 @@ func TestCheckEnqueuesWhenUpstreamNewer(t *testing.T) {
 	enq := &fakeEnqueuer{}
 	current := func(ctx context.Context, e Entry) (string, error) { return "1.0.0", nil }
 
-	c := NewChecker([]Entry{httpEntry("foo", srv.URL)}, srv.Client(), current, enq, nil)
+	c := NewChecker([]Entry{httpEntry("foo", srv.URL)}, CheckerOptions{
+		HTTPClient:     srv.Client(),
+		CurrentVersion: current,
+		Enqueuer:       enq,
+	})
 	results := c.Check(context.Background())
 
 	if len(results) != 1 || !results[0].Outdated || !results[0].Enqueued {
@@ -63,7 +67,11 @@ func TestCheckNoEnqueueWhenSameOrOlder(t *testing.T) {
 		enq := &fakeEnqueuer{}
 		cur := func(ctx context.Context, e Entry) (string, error) { return current, nil }
 
-		c := NewChecker([]Entry{httpEntry("foo", srv.URL)}, srv.Client(), cur, enq, nil)
+		c := NewChecker([]Entry{httpEntry("foo", srv.URL)}, CheckerOptions{
+			HTTPClient:     srv.Client(),
+			CurrentVersion: cur,
+			Enqueuer:       enq,
+		})
 		results := c.Check(context.Background())
 
 		if results[0].Outdated {
@@ -80,7 +88,11 @@ func TestCheckUnknownCurrentTreatedAsOutdated(t *testing.T) {
 	enq := &fakeEnqueuer{}
 	current := func(ctx context.Context, e Entry) (string, error) { return "", nil }
 
-	c := NewChecker([]Entry{httpEntry("foo", srv.URL)}, srv.Client(), current, enq, nil)
+	c := NewChecker([]Entry{httpEntry("foo", srv.URL)}, CheckerOptions{
+		HTTPClient:     srv.Client(),
+		CurrentVersion: current,
+		Enqueuer:       enq,
+	})
 	results := c.Check(context.Background())
 
 	if !results[0].Enqueued || len(enq.calls) != 1 {
@@ -97,7 +109,11 @@ func TestCheckPerEntryErrorDoesNotAbortPass(t *testing.T) {
 		{Pkgbase: "bad", Source: Spec{Kind: "bogus"}},
 		httpEntry("good", good.URL),
 	}
-	c := NewChecker(entries, good.Client(), current, enq, nil)
+	c := NewChecker(entries, CheckerOptions{
+		HTTPClient:     good.Client(),
+		CurrentVersion: current,
+		Enqueuer:       enq,
+	})
 	results := c.Check(context.Background())
 
 	if len(results) != 2 {
@@ -116,10 +132,20 @@ func TestCheckDryRunReportsWithoutEnqueue(t *testing.T) {
 	current := func(ctx context.Context, e Entry) (string, error) { return "1.0.0", nil }
 
 	// A nil enqueuer makes the pass a dry run.
-	c := NewChecker([]Entry{httpEntry("foo", srv.URL)}, srv.Client(), current, nil, nil)
+	c := NewChecker([]Entry{httpEntry("foo", srv.URL)}, CheckerOptions{
+		HTTPClient:     srv.Client(),
+		CurrentVersion: current,
+	})
 	results := c.Check(context.Background())
 
 	if !results[0].Outdated || results[0].Enqueued {
 		t.Errorf("dry run should report outdated but not enqueue, got %+v", results[0])
+	}
+}
+
+func TestNewCheckerFailsSafelyWithoutCurrentVersionResolver(t *testing.T) {
+	checker := NewChecker(nil, CheckerOptions{})
+	if _, err := checker.current(context.Background(), Entry{}); err == nil {
+		t.Fatal("missing current-version resolver unexpectedly succeeded")
 	}
 }

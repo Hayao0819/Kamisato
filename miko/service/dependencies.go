@@ -6,6 +6,7 @@ import (
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/sign"
 )
 
 // RepositoryDBReader is the repository view Miko needs from Ayato. Keeping the
@@ -18,10 +19,34 @@ type RepositoryDBReader interface {
 type serviceOptions struct {
 	httpClient   *http.Client
 	repositories RepositoryDBReader
+	signer       sign.Signer
+	persister    Persister
+	uploader     Uploader
 }
 
 // ServiceOption configures an optional Miko service dependency.
 type ServiceOption func(*serviceOptions)
+
+// WithSigner enables package signing with signer.
+func WithSigner(signer sign.Signer) ServiceOption {
+	return func(options *serviceOptions) {
+		options.signer = signer
+	}
+}
+
+// WithPersister enables durable job persistence with persister.
+func WithPersister(persister Persister) ServiceOption {
+	return func(options *serviceOptions) {
+		options.persister = persister
+	}
+}
+
+// WithUploader enables publication of successful builds with uploader.
+func WithUploader(uploader Uploader) ServiceOption {
+	return func(options *serviceOptions) {
+		options.uploader = uploader
+	}
+}
 
 // WithOutboundHTTPClient supplies the client used for upstream version checks.
 func WithOutboundHTTPClient(client *http.Client) ServiceOption {
