@@ -18,25 +18,13 @@ func hashSeekFile(file stream.SeekFile) ([sha256.Size]byte, error) {
 	if _, err := file.Seek(0, io.SeekStart); err != nil {
 		return [sha256.Size]byte{}, err
 	}
-	h := sha256.New()
-	if _, err := io.Copy(h, file); err != nil {
+	sum, err := hashReader(file)
+	if err != nil {
 		return [sha256.Size]byte{}, err
 	}
 	if _, err := file.Seek(0, io.SeekStart); err != nil {
 		return [sha256.Size]byte{}, err
 	}
-	var sum [sha256.Size]byte
-	copy(sum[:], h.Sum(nil))
-	return sum, nil
-}
-
-func hashFile(file stream.File) ([sha256.Size]byte, error) {
-	h := sha256.New()
-	if _, err := io.Copy(h, file); err != nil {
-		return [sha256.Size]byte{}, err
-	}
-	var sum [sha256.Size]byte
-	copy(sum[:], h.Sum(nil))
 	return sum, nil
 }
 
@@ -50,7 +38,7 @@ func (r *binaryRepository) StoreFileImmutable(repo, arch string, file stream.See
 	for range 3 {
 		existing, etag, fetchErr := r.Store.FetchFileWithETag(repo, arch, name)
 		if fetchErr == nil {
-			got, hashErr := hashFile(existing)
+			got, hashErr := hashReader(existing)
 			closeErr := existing.Close()
 			if hashErr != nil {
 				return false, errors.WrapErr(hashErr, "hash existing immutable object")

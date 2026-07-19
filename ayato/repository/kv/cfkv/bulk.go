@@ -23,14 +23,15 @@ func (s *Store) BulkSet(ns string, entries []kv.Entry, ttl time.Duration) error 
 		}
 		pairs = append(pairs, p)
 	}
-	for start := 0; start < len(pairs); start += bulkChunk {
-		end := min(start+bulkChunk, len(pairs))
-		if _, err := s.client.WriteWorkersKVEntries(s.ctx, s.accountIdentifier(), cloudflare.WriteWorkersKVEntriesParams{
+	err := forChunks(pairs, func(chunk []*cloudflare.WorkersKVPair) error {
+		_, err := s.client.WriteWorkersKVEntries(s.ctx, s.accountIdentifier(), cloudflare.WriteWorkersKVEntriesParams{
 			NamespaceID: s.namespaceId,
-			KVs:         pairs[start:end],
-		}); err != nil {
-			return fmt.Errorf("cfkv: bulk set: %w", err)
-		}
+			KVs:         chunk,
+		})
+		return err
+	})
+	if err != nil {
+		return fmt.Errorf("cfkv: bulk set: %w", err)
 	}
 	return nil
 }
@@ -40,13 +41,26 @@ func (s *Store) BulkDelete(ns string, keys []string) error {
 	for i, k := range keys {
 		enc[i] = composite(ns, k)
 	}
-	for start := 0; start < len(enc); start += bulkChunk {
-		end := min(start+bulkChunk, len(enc))
-		if _, err := s.client.DeleteWorkersKVEntries(s.ctx, s.accountIdentifier(), cloudflare.DeleteWorkersKVEntriesParams{
+	if err := s.deleteKeys(enc); err != nil {
+		return fmt.Errorf("cfkv: bulk delete: %w", err)
+	}
+	return nil
+}
+
+func (s *Store) deleteKeys(keys []string) error {
+	return forChunks(keys, func(chunk []string) error {
+		_, err := s.client.DeleteWorkersKVEntries(s.ctx, s.accountIdentifier(), cloudflare.DeleteWorkersKVEntriesParams{
 			NamespaceID: s.namespaceId,
-			Keys:        enc[start:end],
-		}); err != nil {
-			return fmt.Errorf("cfkv: bulk delete: %w", err)
+			Keys:        chunk,
+		})
+		return err
+	})
+}
+
+func forChunks[T any](items []T, apply func([]T) error) error {
+	for start := 0; start < len(items); start += bulkChunk {
+		if err := apply(items[start:min(start+bulkChunk, len(items))]); err != nil {
+			return err
 		}
 	}
 	return nil

@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/cloudflare/cloudflare-go"
-
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
 )
 
@@ -34,23 +32,13 @@ func isAppKey(raw string) bool {
 // ForeignKeys lists every key in the namespace and returns those not in composite form.
 func (s *Store) ForeignKeys() ([]string, error) {
 	var foreign []string
-	cursor := ""
-	for {
-		resp, err := s.client.ListWorkersKVKeys(s.ctx, s.accountIdentifier(), cloudflare.ListWorkersKVsParams{
-			NamespaceID: s.namespaceId,
-			Cursor:      cursor,
-		})
-		if err != nil {
-			return nil, fmt.Errorf("cfkv: list keys: %w", err)
-		}
-		for _, k := range resp.Result {
-			if !isAppKey(k.Name) {
-				foreign = append(foreign, k.Name)
-			}
-		}
-		cursor = resp.ResultInfo.Cursor
-		if cursor == "" {
-			break
+	keys, err := s.listRawKeys("")
+	if err != nil {
+		return nil, err
+	}
+	for _, key := range keys {
+		if !isAppKey(key) {
+			foreign = append(foreign, key)
 		}
 	}
 	return foreign, nil
@@ -58,14 +46,8 @@ func (s *Store) ForeignKeys() ([]string, error) {
 
 // DeleteRawKeys deletes by raw key name (bypassing composite), for pruning foreign keys.
 func (s *Store) DeleteRawKeys(keys []string) error {
-	for start := 0; start < len(keys); start += bulkChunk {
-		end := min(start+bulkChunk, len(keys))
-		if _, err := s.client.DeleteWorkersKVEntries(s.ctx, s.accountIdentifier(), cloudflare.DeleteWorkersKVEntriesParams{
-			NamespaceID: s.namespaceId,
-			Keys:        keys[start:end],
-		}); err != nil {
-			return fmt.Errorf("cfkv: delete raw keys: %w", err)
-		}
+	if err := s.deleteKeys(keys); err != nil {
+		return fmt.Errorf("cfkv: delete raw keys: %w", err)
 	}
 	return nil
 }

@@ -17,6 +17,13 @@ type apiKeyEntry struct {
 	scopes map[string]bool
 }
 
+type apiKeyGrant uint8
+
+const (
+	repositoryGrant apiKeyGrant = iota
+	serviceGrant
+)
+
 func newAPIKeyAuth(cfg []conf.CIAPIKey) *apiKeyAuth {
 	a := &apiKeyAuth{}
 	for _, k := range cfg {
@@ -33,15 +40,7 @@ func newAPIKeyAuth(cfg []conf.CIAPIKey) *apiKeyAuth {
 }
 
 func (a *apiKeyAuth) authorizeScope(presented, scope string) (*CIPrincipal, bool) {
-	e, ok := a.match(presented)
-	if !ok {
-		return nil, false
-	}
-	principal := &CIPrincipal{Via: "apikey", ID: e.name}
-	if !e.scopes[scope] && !e.scopes["*"] {
-		return principal, false
-	}
-	return principal, true
+	return a.authorizeGrant(presented, scope, serviceGrant)
 }
 
 func (a *apiKeyAuth) match(presented string) (apiKeyEntry, bool) {
@@ -60,12 +59,24 @@ func (a *apiKeyAuth) match(presented string) (apiKeyEntry, bool) {
 
 // authorize checks the key and repository scope without early secret-dependent exits.
 func (a *apiKeyAuth) authorize(presented, repo string) (*CIPrincipal, bool) {
-	e, ok := a.match(presented)
+	return a.authorizeGrant(presented, repo, repositoryGrant)
+}
+
+func (a *apiKeyAuth) authorizeGrant(
+	presented string,
+	target string,
+	grant apiKeyGrant,
+) (*CIPrincipal, bool) {
+	entry, ok := a.match(presented)
 	if !ok {
 		return nil, false
 	}
-	principal := &CIPrincipal{Via: "apikey", ID: e.name}
-	if !e.repos[repo] && !e.repos["*"] {
+	principal := &CIPrincipal{Via: "apikey", ID: entry.name}
+	allowed := entry.repos
+	if grant == serviceGrant {
+		allowed = entry.scopes
+	}
+	if !allowed[target] && !allowed["*"] {
 		return principal, false
 	}
 	return principal, true

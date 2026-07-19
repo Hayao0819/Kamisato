@@ -121,6 +121,33 @@ func (s *Store) Delete(ns, key string) error {
 func (s *Store) List(ns string) ([]kv.Entry, error) {
 	prefix := nsPrefix(ns)
 	var out []kv.Entry
+	keys, err := s.listRawKeys(prefix)
+	if err != nil {
+		return nil, err
+	}
+	for _, rawKey := range keys {
+		v, getErr := s.client.GetWorkersKV(s.ctx, s.accountIdentifier(), cloudflare.GetWorkersKVParams{
+			NamespaceID: s.namespaceId,
+			Key:         rawKey,
+		})
+		if getErr != nil {
+			var notFound *cloudflare.NotFoundError
+			if errors.As(getErr, &notFound) {
+				continue
+			}
+			return nil, fmt.Errorf("cfkv: list get value: %w", getErr)
+		}
+		key, decodeErr := base64.RawURLEncoding.DecodeString(strings.TrimPrefix(rawKey, prefix))
+		if decodeErr != nil {
+			continue
+		}
+		out = append(out, kv.Entry{Key: string(key), Value: v})
+	}
+	return out, nil
+}
+
+func (s *Store) listRawKeys(prefix string) ([]string, error) {
+	var keys []string
 	cursor := ""
 	for {
 		resp, err := s.client.ListWorkersKVKeys(s.ctx, s.accountIdentifier(), cloudflare.ListWorkersKVsParams{
@@ -131,33 +158,18 @@ func (s *Store) List(ns string) ([]kv.Entry, error) {
 		if err != nil {
 			return nil, fmt.Errorf("cfkv: list keys: %w", err)
 		}
-		for _, k := range resp.Result {
-			if !strings.HasPrefix(k.Name, prefix) {
+		for _, key := range resp.Result {
+			if prefix != "" && !strings.HasPrefix(key.Name, prefix) {
 				continue
 			}
-			v, gerr := s.client.GetWorkersKV(s.ctx, s.accountIdentifier(), cloudflare.GetWorkersKVParams{
-				NamespaceID: s.namespaceId,
-				Key:         k.Name,
-			})
-			if gerr != nil {
-				var notFound *cloudflare.NotFoundError
-				if errors.As(gerr, &notFound) {
-					continue
-				}
-				return nil, fmt.Errorf("cfkv: list get value: %w", gerr)
-			}
-			key, derr := base64.RawURLEncoding.DecodeString(strings.TrimPrefix(k.Name, prefix))
-			if derr != nil {
-				continue
-			}
-			out = append(out, kv.Entry{Key: string(key), Value: v})
+			keys = append(keys, key.Name)
 		}
-		cursor = resp.ResultInfo.Cursor
+		cursor = resp.Cursor
 		if cursor == "" {
 			break
 		}
 	}
-	return out, nil
+	return keys, nil
 }
 
 // Close is a no-op: the Cloudflare client holds no long-lived resources.

@@ -1,7 +1,6 @@
 package repository
 
 import (
-	"crypto/sha256"
 	stderrors "errors"
 	"fmt"
 	"io"
@@ -712,16 +711,6 @@ func (r *binaryRepository) liveObjectMatchesFile(repo, arch, name, localPath str
 		return false, err
 	}
 	return localHash == liveHash, nil
-}
-
-func hashReader(r io.Reader) ([sha256.Size]byte, error) {
-	h := sha256.New()
-	if _, err := io.Copy(h, r); err != nil {
-		return [sha256.Size]byte{}, err
-	}
-	var sum [sha256.Size]byte
-	copy(sum[:], h.Sum(nil))
-	return sum, nil
 }
 
 // clearDBArtifacts removes the DB artifacts a previous attempt seeded, so the next
