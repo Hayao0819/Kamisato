@@ -65,15 +65,26 @@ func TestSameOrigin(t *testing.T) {
 }
 
 func TestOrigin(t *testing.T) {
-	for raw, want := range map[string]string{
-		"https://example.com/path?q=1": "https://example.com",
-		"http://example.com:8080/":     "http://example.com:8080",
-		"/relative":                    "",
-		"://bad":                       "",
-		"":                             "",
-	} {
-		if got := Origin(raw); got != want {
-			t.Errorf("Origin(%q) = %q, want %q", raw, got, want)
+	tests := []struct {
+		raw, scheme, origin string
+		ok                  bool
+	}{
+		{raw: "https://example.com/path?q=1", scheme: "https", origin: "https://example.com", ok: true},
+		{raw: "http://example.com:8080/", scheme: "http", origin: "http://example.com:8080", ok: true},
+		{raw: "/relative"},
+		{raw: "://bad"},
+		{},
+	}
+	for _, test := range tests {
+		if got := Origin(test.raw); got != test.origin {
+			t.Errorf("Origin(%q) = %q, want %q", test.raw, got, test.origin)
+		}
+		scheme, origin, ok := ParseOrigin(test.raw)
+		if scheme != test.scheme || origin != test.origin || ok != test.ok {
+			t.Errorf(
+				"ParseOrigin(%q) = (%q, %q, %v), want (%q, %q, %v)",
+				test.raw, scheme, origin, ok, test.scheme, test.origin, test.ok,
+			)
 		}
 	}
 }

@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+
+	"github.com/Hayao0819/Kamisato/ayato/httpsecurity"
 )
 
 // mirrorEntry is one Server line plus the comments rendered above it.
@@ -61,7 +63,7 @@ func (h *RepositoryHandler) selfMirror(base, repoName string) mirrorEntry {
 // the spoofable request Host. X-Forwarded-* is not trusted (see externalBase).
 func (h *RepositoryHandler) mirrorBase(c *gin.Context) (base string, configured bool) {
 	if h.cfg != nil {
-		if _, b, ok := originOf(h.cfg.Mirror.SelfURL); ok {
+		if _, b, ok := httpsecurity.ParseOrigin(h.cfg.Mirror.SelfURL); ok {
 			return b, true
 		}
 	}
@@ -75,10 +77,10 @@ func (h *RepositoryHandler) hasConfiguredOrigin() bool {
 	if h.cfg == nil {
 		return false
 	}
-	if _, _, ok := originOf(h.cfg.Auth.SelfOrigin); ok {
+	if _, _, ok := httpsecurity.ParseOrigin(h.cfg.Auth.SelfOrigin); ok {
 		return true
 	}
-	_, _, ok := originOf(h.cfg.Auth.PublicOrigin)
+	_, _, ok := httpsecurity.ParseOrigin(h.cfg.Auth.PublicOrigin)
 	return ok
 }
 

@@ -40,12 +40,21 @@ func SameOrigin(request *http.Request, allowedOrigins ...string) bool {
 // Origin normalizes an absolute URL to scheme://host, or returns an empty string
 // for an invalid or relative URL.
 func Origin(raw string) string {
-	if raw == "" {
+	_, origin, ok := ParseOrigin(raw)
+	if !ok {
 		return ""
+	}
+	return origin
+}
+
+// ParseOrigin normalizes an absolute URL and also returns its scheme.
+func ParseOrigin(raw string) (scheme, origin string, ok bool) {
+	if raw == "" {
+		return "", "", false
 	}
 	parsed, err := url.Parse(raw)
 	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
-		return ""
+		return "", "", false
 	}
-	return parsed.Scheme + "://" + parsed.Host
+	return parsed.Scheme, parsed.Scheme + "://" + parsed.Host, true
 }

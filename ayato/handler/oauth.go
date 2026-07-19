@@ -5,13 +5,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/url"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"golang.org/x/oauth2"
 	githuboauth "golang.org/x/oauth2/github"
 
+	"github.com/Hayao0819/Kamisato/ayato/httpsecurity"
 	"github.com/Hayao0819/Kamisato/internal/conf"
 )
 
@@ -60,10 +60,10 @@ func (h *AuthHandler) externalBase(c *gin.Context) (scheme, base string) {
 
 func externalBase(cfg *conf.AyatoConfig, c *gin.Context) (scheme, base string) {
 	if cfg != nil {
-		if s, b, ok := originOf(cfg.Auth.SelfOrigin); ok {
+		if s, b, ok := httpsecurity.ParseOrigin(cfg.Auth.SelfOrigin); ok {
 			return s, b
 		}
-		if s, b, ok := originOf(cfg.Auth.PublicOrigin); ok {
+		if s, b, ok := httpsecurity.ParseOrigin(cfg.Auth.PublicOrigin); ok {
 			return s, b
 		}
 	}
@@ -77,22 +77,11 @@ func externalBase(cfg *conf.AyatoConfig, c *gin.Context) (scheme, base string) {
 // SPA origin (PublicOrigin) used as the exact postMessage target; empty when unset.
 func (h *AuthHandler) spaOrigin() string {
 	if h.cfg != nil {
-		if _, b, ok := originOf(h.cfg.Auth.PublicOrigin); ok {
+		if _, b, ok := httpsecurity.ParseOrigin(h.cfg.Auth.PublicOrigin); ok {
 			return b
 		}
 	}
 	return ""
-}
-
-func originOf(raw string) (scheme, base string, ok bool) {
-	if raw == "" {
-		return "", "", false
-	}
-	u, err := url.Parse(raw)
-	if err != nil || u.Scheme == "" || u.Host == "" {
-		return "", "", false
-	}
-	return u.Scheme, u.Scheme + "://" + u.Host, true
 }
 
 func (h *AuthHandler) oauthConfig(c *gin.Context) *oauth2.Config {
