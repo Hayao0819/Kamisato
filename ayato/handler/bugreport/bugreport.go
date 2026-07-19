@@ -54,33 +54,31 @@ type WebhookConfig struct {
 	URL string
 }
 
+type reporterFactory func() (Reporter, error)
+
+func reporterFactories(cfg Config) map[string]reporterFactory {
+	return map[string]reporterFactory{
+		"github":  func() (Reporter, error) { return newGitHub(cfg.GitHub) },
+		"smtp":    func() (Reporter, error) { return newSMTP(cfg.SMTP) },
+		"webhook": func() (Reporter, error) { return newWebhook(cfg.Webhook) },
+	}
+}
+
 // New builds a Reporter from cfg.Backends (github/smtp/webhook). With no backends
 // it returns (nil, nil), so callers treat reporting as off; unknown names error.
 func New(cfg Config) (Reporter, error) {
+	factories := reporterFactories(cfg)
 	var reporters []Reporter
 	for _, name := range cfg.Backends {
-		switch name {
-		case "github":
-			r, err := newGitHub(cfg.GitHub)
-			if err != nil {
-				return nil, err
-			}
-			reporters = append(reporters, r)
-		case "smtp":
-			r, err := newSMTP(cfg.SMTP)
-			if err != nil {
-				return nil, err
-			}
-			reporters = append(reporters, r)
-		case "webhook":
-			r, err := newWebhook(cfg.Webhook)
-			if err != nil {
-				return nil, err
-			}
-			reporters = append(reporters, r)
-		default:
+		factory, exists := factories[name]
+		if !exists {
 			return nil, fmt.Errorf("bugreport: unknown backend %q", name)
 		}
+		reporter, err := factory()
+		if err != nil {
+			return nil, err
+		}
+		reporters = append(reporters, reporter)
 	}
 	switch len(reporters) {
 	case 0:
