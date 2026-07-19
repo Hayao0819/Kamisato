@@ -31,15 +31,11 @@ type credentialState struct {
 }
 
 func credentialStatePath() (string, error) {
-	dir, err := serverDataDirectory()
+	dir, err := blinkyutils.DataDirectory()
 	if err != nil {
 		return "", err
 	}
 	return filepath.Join(dir, "credential-state.json"), nil
-}
-
-func serverDataDirectory() (string, error) {
-	return blinkyutils.DataDirectory()
 }
 
 var credentialMutationMu sync.Mutex
@@ -48,7 +44,7 @@ var credentialMutationMu sync.Mutex
 func withCredentialMutation(operation func() error) error {
 	credentialMutationMu.Lock()
 	defer credentialMutationMu.Unlock()
-	dir, err := serverDataDirectory()
+	dir, err := blinkyutils.DataDirectory()
 	if err != nil {
 		return err
 	}

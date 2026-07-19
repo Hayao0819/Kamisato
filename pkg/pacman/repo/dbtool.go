@@ -122,17 +122,8 @@ func (t NativeTool) RebuildDerived(dbPath string, pkgFilePaths []string, useSign
 	if err != nil {
 		return err
 	}
-	for _, pkgFilePath := range pkgFilePaths {
-		if pkgFilePath == "" {
-			continue
-		}
-		meta, err := pkg.ReadBinaryPackageMeta(pkgFilePath)
-		if err != nil {
-			return fmt.Errorf("failed to read package for files rebuild: %w", err)
-		}
-		if err := b.AttachFiles(meta); err != nil {
-			return err
-		}
+	if err := attachPackageFiles(b, pkgFilePaths); err != nil {
+		return err
 	}
 	missing, err := b.missingFileObjects()
 	if err != nil {
@@ -145,6 +136,22 @@ func (t NativeTool) RebuildDerived(dbPath string, pkgFilePaths []string, useSign
 		return err
 	}
 	return t.maybeSign(paths, useSignedDB)
+}
+
+func attachPackageFiles(b *dbBuilder, pkgFilePaths []string) error {
+	for _, pkgFilePath := range pkgFilePaths {
+		if pkgFilePath == "" {
+			continue
+		}
+		meta, err := pkg.ReadBinaryPackageMeta(pkgFilePath)
+		if err != nil {
+			return fmt.Errorf("failed to read package for files rebuild: %w", err)
+		}
+		if err := b.AttachFiles(meta); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // maxPackageSigSize caps an embedded detached signature at repo-add's 16 KiB

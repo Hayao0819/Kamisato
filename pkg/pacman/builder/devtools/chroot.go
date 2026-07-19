@@ -3,7 +3,6 @@ package devtools
 import (
 	"context"
 	"errors"
-	"fmt"
 	"io"
 	"log/slog"
 	"os"
@@ -71,15 +70,7 @@ func (b *Backend) Build(ctx context.Context, spec builder.Spec) (*builder.Result
 		}
 	}
 
-	built, err := artifact.Collect(spec.SrcDir, baseline)
-	if err != nil {
-		return nil, err
-	}
-	if len(built) == 0 {
-		return nil, fmt.Errorf("%w: no package files (*.pkg.tar.*) were produced", builder.ErrBuildFailed)
-	}
-
-	packages, err := artifact.MoveToDir(built, spec.SrcDir, spec.OutDir)
+	packages, err := artifact.CollectToDir(spec.SrcDir, baseline, spec.OutDir)
 	if err != nil {
 		return nil, err
 	}

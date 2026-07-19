@@ -79,42 +79,40 @@ func Run(ctx context.Context, s *Stores, migrations []Migration, o RunOptions) (
 
 func runOne(ctx context.Context, s *Stores, m Migration, o RunOptions, res *Result) (bool, error) {
 	v := m.Version()
+	var (
+		marker string
+		apply  func(context.Context, *Stores) error
+	)
 	switch o.Phase {
 	case PhaseExpand:
-		if done, err := hasMarker(s.KV, "expanded", v); err != nil || done {
-			res.Skipped = appendIf(res.Skipped, v, done)
-			return false, err
-		}
-		slog.Info("migrate expand", "version", v, "name", m.Name(), "dryRun", o.DryRun)
-		if o.DryRun {
-			return true, nil
-		}
-		if err := m.Expand(ctx, s); err != nil {
-			return false, errors.WrapErr(err, fmt.Sprintf("expand %d", v))
-		}
-		return true, setMarker(s.KV, "expanded", v)
+		marker, apply = "expanded", m.Expand
 	case PhaseContract:
 		if exp, err := hasMarker(s.KV, "expanded", v); err != nil || !exp {
 			return false, err // never contract a layout that was not expanded
 		}
-		if done, err := hasMarker(s.KV, "contracted", v); err != nil || done {
-			res.Skipped = appendIf(res.Skipped, v, done)
-			return false, err
-		}
-		slog.Info("migrate contract", "version", v, "name", m.Name(), "dryRun", o.DryRun)
-		if o.DryRun {
-			return true, nil
-		}
-		if err := m.Contract(ctx, s); err != nil {
-			return false, errors.WrapErr(err, fmt.Sprintf("contract %d", v))
-		}
-		if err := setMarker(s.KV, "contracted", v); err != nil {
-			return false, err
-		}
-		return true, WriteLayout(s.KV, v)
+		marker, apply = "contracted", m.Contract
 	default:
 		return false, fmt.Errorf("unknown migration phase %q", o.Phase)
 	}
+
+	if done, err := hasMarker(s.KV, marker, v); err != nil || done {
+		res.Skipped = appendIf(res.Skipped, v, done)
+		return false, err
+	}
+	slog.Info("migrate "+string(o.Phase), "version", v, "name", m.Name(), "dryRun", o.DryRun)
+	if o.DryRun {
+		return true, nil
+	}
+	if err := apply(ctx, s); err != nil {
+		return false, errors.WrapErr(err, fmt.Sprintf("%s %d", o.Phase, v))
+	}
+	if err := setMarker(s.KV, marker, v); err != nil {
+		return false, err
+	}
+	if o.Phase == PhaseContract {
+		return true, WriteLayout(s.KV, v)
+	}
+	return true, nil
 }
 
 func appendIf(s []int, v int, cond bool) []int {

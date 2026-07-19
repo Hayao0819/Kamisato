@@ -172,35 +172,33 @@ func (s *Store) IsWhitelisted(pkgbase string) bool {
 func (s *Store) WhitelistEntries() []WhitelistEntry {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	out := make([]WhitelistEntry, 0, len(s.data.Whitelist))
-	for _, w := range s.data.Whitelist {
-		out = append(out, w)
-	}
-	slices.SortFunc(out, func(a, b WhitelistEntry) int { return cmp.Compare(a.Pkgbase, b.Pkgbase) })
-	return out
+	return sortedValues(s.data.Whitelist, func(a, b WhitelistEntry) int {
+		return cmp.Compare(a.Pkgbase, b.Pkgbase)
+	})
 }
 
 func (s *Store) Maintainers() []TrustedMaintainer {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	out := make([]TrustedMaintainer, 0, len(s.data.Maintainers))
-	for _, m := range s.data.Maintainers {
-		out = append(out, m)
-	}
-	slices.SortFunc(out, func(a, b TrustedMaintainer) int {
+	return sortedValues(s.data.Maintainers, func(a, b TrustedMaintainer) int {
 		return cmp.Or(cmp.Compare(a.Source, b.Source), cmp.Compare(a.Account, b.Account))
 	})
-	return out
 }
 
 func (s *Store) Approvals() []Approval {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	out := make([]Approval, 0, len(s.data.Approvals))
-	for _, a := range s.data.Approvals {
-		out = append(out, a)
+	return sortedValues(s.data.Approvals, func(a, b Approval) int {
+		return cmp.Compare(a.Pkgbase, b.Pkgbase)
+	})
+}
+
+func sortedValues[T any](entries map[string]T, compare func(T, T) int) []T {
+	out := make([]T, 0, len(entries))
+	for _, entry := range entries {
+		out = append(out, entry)
 	}
-	slices.SortFunc(out, func(a, b Approval) int { return cmp.Compare(a.Pkgbase, b.Pkgbase) })
+	slices.SortFunc(out, compare)
 	return out
 }
 

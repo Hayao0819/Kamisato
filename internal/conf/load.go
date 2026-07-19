@@ -4,8 +4,6 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
-
-	"github.com/spf13/pflag"
 )
 
 func commonConfigDirs() []string {
@@ -21,10 +19,6 @@ func commonConfigDirs() []string {
 		dirs = append(dirs, filepath.Join(cfgdir, "kamisato"), cfgdir)
 	}
 	return dirs
-}
-
-func loadConfig[T any](dirs []string, files []string, flags *pflag.FlagSet, envPrefix string) (*T, error) {
-	return Load[T](dirs, files, flags, envPrefix)
 }
 
 // configFileNames returns the explicit config file when one is given, else the

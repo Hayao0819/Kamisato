@@ -76,19 +76,14 @@ func TestLayoutVersion(t *testing.T) {
 	}
 }
 
-// TestBulkFallback covers the per-key path a backend without kv.BulkStore takes.
-func TestBulkFallback(t *testing.T) {
+// TestBulkDeleteFallback covers the per-key path a backend without kv.BulkStore takes.
+func TestBulkDeleteFallback(t *testing.T) {
 	s := newStore(t)
-	entries := []kv.Entry{{Key: "a", Value: []byte("1")}, {Key: "b", Value: []byte("2")}}
-
-	if err := migrate.BulkSet(s, "ns", entries, 0); err != nil {
-		t.Fatalf("BulkSet: %v", err)
+	for _, key := range []string{"a", "b"} {
+		if err := s.Set("ns", key, []byte(key), 0); err != nil {
+			t.Fatal(err)
+		}
 	}
-	got, err := s.List("ns")
-	if err != nil || len(got) != 2 {
-		t.Fatalf("List after BulkSet = (%v, %v), want 2 entries", got, err)
-	}
-
 	if err := migrate.BulkDelete(s, "ns", []string{"a", "b"}); err != nil {
 		t.Fatalf("BulkDelete: %v", err)
 	}

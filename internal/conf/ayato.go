@@ -375,6 +375,17 @@ func resolvePort(configured int, portEnv string) int {
 	return DefaultPort
 }
 
+func validateHTTPOrigin(name, raw string) error {
+	u, err := url.Parse(raw)
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+		return fmt.Errorf("%s must be an absolute http(s) URL with a host: %q", name, raw)
+	}
+	if u.Path != "" && u.Path != "/" {
+		return fmt.Errorf("%s must be an origin without a path: %q", name, raw)
+	}
+	return nil
+}
+
 // Validate rejects an OAuth config whose redirect_uri or session-cookie Secure flag
 // could be derived from spoofable request headers: with GitHub login on,
 // PublicOrigin is mandatory and must be an absolute http(s) origin without a path.
@@ -427,20 +438,12 @@ func (c *AyatoConfig) Validate() error {
 	if c.Auth.PublicOrigin == "" {
 		return fmt.Errorf("auth.public_origin is required when GitHub login is enabled (e.g. https://repo.example.com)")
 	}
-	u, err := url.Parse(c.Auth.PublicOrigin)
-	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
-		return fmt.Errorf("auth.public_origin must be an absolute http(s) URL with a host: %q", c.Auth.PublicOrigin)
-	}
-	if u.Path != "" && u.Path != "/" {
-		return fmt.Errorf("auth.public_origin must be an origin without a path: %q", c.Auth.PublicOrigin)
+	if err := validateHTTPOrigin("auth.public_origin", c.Auth.PublicOrigin); err != nil {
+		return err
 	}
 	if c.Auth.SelfOrigin != "" {
-		su, serr := url.Parse(c.Auth.SelfOrigin)
-		if serr != nil || (su.Scheme != "http" && su.Scheme != "https") || su.Host == "" {
-			return fmt.Errorf("auth.self_origin must be an absolute http(s) URL with a host: %q", c.Auth.SelfOrigin)
-		}
-		if su.Path != "" && su.Path != "/" {
-			return fmt.Errorf("auth.self_origin must be an origin without a path: %q", c.Auth.SelfOrigin)
+		if err := validateHTTPOrigin("auth.self_origin", c.Auth.SelfOrigin); err != nil {
+			return err
 		}
 	}
 	// The stateless signer is mandatory: no secret means no sessions/tokens.

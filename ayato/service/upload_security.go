@@ -3,12 +3,12 @@ package service
 import (
 	"fmt"
 	"log/slog"
-	"strings"
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
 
 	"github.com/Hayao0819/Kamisato/ayato/domain"
 	"github.com/Hayao0819/Kamisato/ayato/platform"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/depend"
 	pacmanpkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
 	"github.com/Hayao0819/Kamisato/pkg/raiou"
 )
@@ -94,10 +94,10 @@ func (v *uploadValidator) checkProtectedNames(info *raiou.PKGINFO) error {
 	candidates := make([]string, 0, 1+len(info.Provides)+len(info.Replaces)+len(info.Group))
 	candidates = append(candidates, info.PkgName)
 	for _, provided := range info.Provides {
-		candidates = append(candidates, dependencyName(provided))
+		candidates = append(candidates, depend.Parse(provided).Name)
 	}
 	for _, replaced := range info.Replaces {
-		candidates = append(candidates, dependencyName(replaced))
+		candidates = append(candidates, depend.Parse(replaced).Name)
 	}
 	candidates = append(candidates, info.Group...)
 	for _, candidate := range candidates {
@@ -111,11 +111,4 @@ func (v *uploadValidator) checkProtectedNames(info *raiou.PKGINFO) error {
 		}
 	}
 	return nil
-}
-
-func dependencyName(entry string) string {
-	if index := strings.IndexAny(entry, "=<>"); index >= 0 {
-		return entry[:index]
-	}
-	return entry
 }

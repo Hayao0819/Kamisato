@@ -242,16 +242,16 @@ func repoDepGraph(rr *repo.RemoteRepo) *depend.DepGraph {
 	for _, p := range rr.Pkgs {
 		base := baseOf(p)
 		bases[base] = struct{}{}
-		provider[depName(p.Name())] = base
+		provider[depend.Parse(p.Name()).Name] = base
 		for _, pr := range p.PKGINFO().Provides {
-			provider[depName(pr)] = base
+			provider[depend.Parse(pr).Name] = base
 		}
 	}
 	deps := map[string][]string{}
 	for _, p := range rr.Pkgs {
 		base := baseOf(p)
 		for _, d := range p.PKGINFO().Depend {
-			if prov, ok := provider[depName(d)]; ok && prov != base {
+			if prov, ok := provider[depend.Parse(d).Name]; ok && prov != base {
 				deps[base] = append(deps[base], prov)
 			}
 		}
@@ -266,15 +266,6 @@ func repoDepGraph(rr *repo.RemoteRepo) *depend.DepGraph {
 // ppkgBinary is the concrete binary-package type; aliased so repoDepGraph reads
 // cleanly without importing the name into the whole file.
 type ppkgBinary = ppkg.BinaryPackage
-
-// depName strips a dependency/provides version constraint, so "libfoo.so=1-64"
-// and "bar>=2.0" reduce to the bare name used to match a provider.
-func depName(s string) string {
-	if i := strings.IndexAny(s, "<>="); i >= 0 {
-		return s[:i]
-	}
-	return s
-}
 
 // sonamesByPkgbase reads each built package's pkgbase and the sonames it ships,
 // merging the sonames of every subpackage under one pkgbase.

@@ -67,15 +67,7 @@ func (s *PinStore) Put(name string, p pin) error {
 		p.LastIssued = old.LastIssued
 	}
 	s.data[name] = p
-	if err := s.saveLocked(); err != nil {
-		if existed {
-			s.data[name] = old
-		} else {
-			delete(s.data, name)
-		}
-		return err
-	}
-	return nil
+	return s.saveOrRestore(name, old, existed)
 }
 
 // SetLastIssued advances the anti-rollback watermark (monotonic).
@@ -90,6 +82,10 @@ func (s *PinStore) SetLastIssued(name string, t time.Time) error {
 	p.LastIssued = t
 	p.LastSeen = time.Now()
 	s.data[name] = p
+	return s.saveOrRestore(name, old, existed)
+}
+
+func (s *PinStore) saveOrRestore(name string, old pin, existed bool) error {
 	if err := s.saveLocked(); err != nil {
 		if existed {
 			s.data[name] = old

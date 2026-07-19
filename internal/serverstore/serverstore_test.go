@@ -93,6 +93,9 @@ func TestFailedCredentialDeletionCannotReactivateStaleSecrets(t *testing.T) {
 	fake := newFakeKeyring()
 	useKeyring(t, fake)
 	server := "https://ayato.example"
+	if err := SaveEndpoint(server, ""); err != nil {
+		t.Fatal(err)
+	}
 	if _, err := storeAccessToken(server, "old-keyring-token"); err != nil {
 		t.Fatal(err)
 	}
@@ -100,7 +103,7 @@ func TestFailedCredentialDeletionCannotReactivateStaleSecrets(t *testing.T) {
 		t.Fatal(err)
 	}
 	fake.unavailable = true
-	if err := ForgetTokens(server); err != nil {
+	if err := ClearCredentials(server, false); err != nil {
 		t.Fatalf("explicit inactive marker must make keyring cleanup best-effort: %v", err)
 	}
 	if got := loadAccessTokenValue(server, "new-file-token"); got != "" {

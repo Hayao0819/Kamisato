@@ -53,6 +53,12 @@ func dedupeNonEmpty(in []string) []string {
 	return out
 }
 
+func sortedNonEmpty(lists ...[]string) []string {
+	out := dedupeNonEmpty(slices.Concat(lists...))
+	slices.Sort(out)
+	return out
+}
+
 func parseVersion(seg string) int {
 	return atoiSafe(strings.TrimPrefix(seg, "v"))
 }

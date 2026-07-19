@@ -49,10 +49,6 @@ func LoadAyakaConfigFrom(configFile string, flags *pflag.FlagSet) (*AyakaConfig,
 	)
 }
 
-func LoadAyakaConfig(flags *pflag.FlagSet) (*AyakaConfig, error) {
-	return LoadAyakaConfigFrom("", flags)
-}
-
 // migrateLegacy folds the deprecated top-level repodir/destdir into the repos
 // list so the rest of the CLI only ever deals with the current shape.
 func (c *AyakaConfig) migrateLegacy() {

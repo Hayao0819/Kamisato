@@ -148,14 +148,7 @@ func (b *Backend) Build(ctx context.Context, spec builder.Spec) (*builder.Result
 		return nil, errutil.BuildFailure(ctx, err, "bwrap build phase failed")
 	}
 
-	built, err := artifact.Collect(srcAbs, baseline)
-	if err != nil {
-		return nil, err
-	}
-	if len(built) == 0 {
-		return nil, fmt.Errorf("%w: no package files (*.pkg.tar.*) were produced", builder.ErrBuildFailed)
-	}
-	packages, err := artifact.MoveToDir(built, srcAbs, spec.OutDir)
+	packages, err := artifact.CollectToDir(srcAbs, baseline, spec.OutDir)
 	if err != nil {
 		return nil, err
 	}

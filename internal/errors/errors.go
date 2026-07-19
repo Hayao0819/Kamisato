@@ -12,13 +12,12 @@ import (
 	"github.com/cockroachdb/errors/errbase"
 )
 
-// New, Is, As, Join, Unwrap, and ErrUnsupported mirror the standard library's
+// New, Is, As, Join, and ErrUnsupported mirror the standard library's
 // errors package so callers never import "errors" directly.
 func New(text string) error         { return stderrors.New(text) }
 func Is(err, target error) bool     { return stderrors.Is(err, target) }
 func As(err error, target any) bool { return stderrors.As(err, target) }
 func Join(errs ...error) error      { return stderrors.Join(errs...) }
-func Unwrap(err error) error        { return stderrors.Unwrap(err) }
 
 // ErrUnsupported mirrors errors.ErrUnsupported.
 var ErrUnsupported = stderrors.ErrUnsupported

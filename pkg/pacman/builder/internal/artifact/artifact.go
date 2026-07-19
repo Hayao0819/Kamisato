@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 
 	"github.com/Hayao0819/Kamisato/pkg/atomicfile"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/builder"
 	pacmanpkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
 )
 
@@ -69,6 +70,19 @@ func Collect(dir string, baseline Baseline) ([]string, error) {
 		packages = append(packages, abs)
 	}
 	return packages, nil
+}
+
+// CollectToDir applies the shared build-output contract: a successful backend
+// must produce at least one new package, then publish it to outDir.
+func CollectToDir(dir string, baseline Baseline, outDir string) ([]string, error) {
+	built, err := Collect(dir, baseline)
+	if err != nil {
+		return nil, err
+	}
+	if len(built) == 0 {
+		return nil, fmt.Errorf("%w: no package files (*.pkg.tar.*) were produced", builder.ErrBuildFailed)
+	}
+	return MoveToDir(built, dir, outDir)
 }
 
 func MoveToDir(built []string, srcDir, outDir string) ([]string, error) {

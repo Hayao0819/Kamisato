@@ -253,18 +253,7 @@ func (b *Backend) Build(ctx context.Context, spec builder.Spec) (*builder.Result
 }
 
 func collectStagedPackages(stagingOut, outDir string) ([]string, error) {
-	packages, err := artifact.Collect(stagingOut, nil)
-	if err != nil {
-		return nil, errutil.Wrap(err, "failed to collect built packages")
-	}
-	if len(packages) == 0 {
-		return nil, fmt.Errorf("%w: no package files (*.pkg.tar.*) were produced", builder.ErrBuildFailed)
-	}
-	moved, err := artifact.MoveToDir(packages, stagingOut, outDir)
-	if err != nil {
-		return nil, errutil.Wrap(err, "failed to move built packages")
-	}
-	return moved, nil
+	return artifact.CollectToDir(stagingOut, nil, outDir)
 }
 
 func (b *Backend) cacheMounts() ([]mount.Mount, error) {

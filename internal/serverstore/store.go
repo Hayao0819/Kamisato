@@ -72,20 +72,6 @@ func saveDB(db blinkyutils.Registry) error {
 	return errors.WrapErr(atomicfile.WriteFile(path, raw, 0o600), "save server database")
 }
 
-func ResolveName(name string) (string, error) {
-	db, err := readDB()
-	if err != nil {
-		return "", err
-	}
-	if name == "" {
-		name = db.Default
-	}
-	if name == "" {
-		return "", ErrNoServerSpecified
-	}
-	return name, nil
-}
-
 func Resolve(name string) (*Endpoint, error) {
 	db, err := readDB()
 	if err != nil {
@@ -360,16 +346,6 @@ func saveTokens(server, username, access, refresh string) error {
 		accessSource = credentialSourceKeyring
 	}
 	return saveCredentialMode(server, credentialMode{Access: accessSource, Refresh: credentialSourceKeyring})
-}
-
-func ForgetTokens(server string) error {
-	return withCredentialMutation(func() error {
-		if err := saveCredentialMode(server, credentialMode{Access: credentialSourceNone, Refresh: credentialSourceNone}); err != nil {
-			return err
-		}
-		forgetKeyringTokensBestEffort(server)
-		return nil
-	})
 }
 
 // ClearCredentials disables and removes stored credentials.

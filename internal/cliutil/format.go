@@ -80,17 +80,16 @@ func RenderList[T any](out io.Writer, format string, header T, rows []T) error {
 		if _, err := w.Write([]byte("\n")); err != nil {
 			return err
 		}
-		for _, row := range rows {
-			if err := tmpl.Execute(w, row); err != nil {
-				return errors.WrapErr(err, "failed to render row")
-			}
-			if _, err := w.Write([]byte("\n")); err != nil {
-				return err
-			}
+		if err := renderRows(w, tmpl, rows); err != nil {
+			return err
 		}
 		return w.Flush()
 	}
 
+	return renderRows(out, tmpl, rows)
+}
+
+func renderRows[T any](out io.Writer, tmpl *template.Template, rows []T) error {
 	for _, row := range rows {
 		if err := tmpl.Execute(out, row); err != nil {
 			return errors.WrapErr(err, "failed to render row")

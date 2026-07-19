@@ -29,9 +29,9 @@ func TestLoadThomaConfigEnvParsesTimeout(t *testing.T) {
 	t.Setenv("THOMA_MODE", ThomaModeDirect)
 	t.Setenv("THOMA_API_KEY", "secret")
 
-	cfg, err := loadConfig[ThomaConfig](nil, nil, nil, "THOMA")
+	cfg, err := Load[ThomaConfig](nil, nil, nil, "THOMA")
 	if err != nil {
-		t.Fatalf("loadConfig: %v", err)
+		t.Fatalf("Load: %v", err)
 	}
 	if cfg.Repo != "aur" || cfg.Timeout != 15 || cfg.Mode != ThomaModeDirect || cfg.ApiKey != "secret" {
 		t.Fatalf("unexpected config: %+v", cfg)
@@ -42,7 +42,7 @@ func TestLoadThomaConfigEnvParsesTimeout(t *testing.T) {
 // old strconv.Atoi(_, _) did.
 func TestLoadThomaConfigRejectsBadTimeout(t *testing.T) {
 	t.Setenv("THOMA_TIMEOUT", "soon")
-	if _, err := loadConfig[ThomaConfig](nil, nil, nil, "THOMA"); err == nil {
+	if _, err := Load[ThomaConfig](nil, nil, nil, "THOMA"); err == nil {
 		t.Error("expected a parse error for a non-numeric timeout")
 	}
 }

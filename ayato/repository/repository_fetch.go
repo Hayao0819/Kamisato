@@ -14,26 +14,11 @@ import (
 func (r *binaryRepository) FetchFile(
 	repo, arch, file string,
 ) (platform.File, error) {
-	object, err := r.Store.FetchFile(repo, arch, file)
-	if err == nil {
-		return object, nil
-	}
-	for _, target := range r.dbAliasTargets(repo, file) {
-		alias, aliasErr := r.Store.FetchFile(repo, arch, target)
-		if aliasErr == nil {
-			return aliasFile{File: alias, name: file}, nil
-		}
-		if !errors.Is(aliasErr, blob.ErrNotFound) {
-			return nil, aliasErr
-		}
-	}
-	if arch == "any" || !pacmanpkg.IsAny(file) {
-		return object, err
-	}
-	if shared, sharedErr := r.Store.FetchFile(repo, "any", file); sharedErr == nil {
-		return shared, nil
-	}
-	return object, err
+	result, err := r.resolveFile(repo, arch, file, func(repo, arch, file string) (fileResult, error) {
+		object, err := r.Store.FetchFile(repo, arch, file)
+		return fileResult{file: object}, err
+	})
+	return result.file, err
 }
 
 // FetchFileWithMeta applies the same resolution as FetchFile and carries the
@@ -46,31 +31,44 @@ func (r *binaryRepository) FetchFileWithMeta(
 		object, err := r.FetchFile(repo, arch, file)
 		return object, blob.FileMeta{}, err
 	}
-	object, meta, err := fetcher.FetchFileWithMeta(repo, arch, file)
+	result, err := r.resolveFile(repo, arch, file, func(repo, arch, file string) (fileResult, error) {
+		object, meta, err := fetcher.FetchFileWithMeta(repo, arch, file)
+		return fileResult{file: object, meta: meta}, err
+	})
+	return result.file, result.meta, err
+}
+
+type fileResult struct {
+	file platform.File
+	meta blob.FileMeta
+}
+
+func (r *binaryRepository) resolveFile(
+	repo, arch, file string,
+	fetch func(repo, arch, file string) (fileResult, error),
+) (fileResult, error) {
+	object, err := fetch(repo, arch, file)
 	if err == nil {
-		return object, meta, nil
+		return object, nil
 	}
 	for _, target := range r.dbAliasTargets(repo, file) {
-		alias, aliasMeta, aliasErr := fetcher.FetchFileWithMeta(repo, arch, target)
+		alias, aliasErr := fetch(repo, arch, target)
 		if aliasErr == nil {
-			return aliasFile{File: alias, name: file}, aliasMeta, nil
+			alias.file = aliasFile{File: alias.file, name: file}
+			return alias, nil
 		}
 		if !errors.Is(aliasErr, blob.ErrNotFound) {
-			return nil, blob.FileMeta{}, aliasErr
+			return fileResult{}, aliasErr
 		}
 	}
 	if arch == "any" || !pacmanpkg.IsAny(file) {
-		return object, meta, err
+		return object, err
 	}
-	shared, sharedMeta, sharedErr := fetcher.FetchFileWithMeta(
-		repo,
-		"any",
-		file,
-	)
+	shared, sharedErr := fetch(repo, "any", file)
 	if sharedErr == nil {
-		return shared, sharedMeta, nil
+		return shared, nil
 	}
-	return object, meta, err
+	return object, err
 }
 
 func dbAliasArchive(

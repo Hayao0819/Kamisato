@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-
-	pkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
 )
 
 // CLITool mutates the database by shelling out to repo-add/repo-remove. It needs
@@ -56,17 +54,8 @@ func (t CLITool) RebuildDerived(dbPath string, pkgFilePaths []string, useSignedD
 	if err != nil {
 		return err
 	}
-	for _, pkgFilePath := range pkgFilePaths {
-		if pkgFilePath == "" {
-			continue
-		}
-		meta, err := pkg.ReadBinaryPackageMeta(pkgFilePath)
-		if err != nil {
-			return fmt.Errorf("failed to read package for files rebuild: %w", err)
-		}
-		if err := b.AttachFiles(meta); err != nil {
-			return err
-		}
+	if err := attachPackageFiles(b, pkgFilePaths); err != nil {
+		return err
 	}
 	missing, err := b.missingFileObjects()
 	if err != nil {

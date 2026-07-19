@@ -52,54 +52,16 @@ func (s *Service) ReconcileOrphans(repo string, olderThan time.Duration, dryRun 
 				anyReferenced[name] = struct{}{}
 			}
 		}
-
-		infos, err := s.pkgBinaryRepo.FilesWithMeta(repo, arch)
+		found, err := s.reconcileDir(repo, arch, referenced, olderThan, dryRun, now, cutoff)
 		if err != nil {
-			if errors.Is(err, blob.ErrNotFound) {
-				continue
-			}
-			return nil, errors.WrapErr(err, "list objects for reconcile")
+			return nil, err
 		}
-
-		for _, info := range infos {
-			if _, ok := referenced[info.Name]; ok {
-				continue
-			}
-			if !pacmanpkg.IsArtifact(info.Name) {
-				continue
-			}
-			if info.LastModified.IsZero() {
-				slog.Warn("skip orphan with unknown modification time", "repo", repo, "arch", arch, "name", info.Name)
-				continue
-			}
-			age := now.Sub(info.LastModified)
-			if age < olderThan {
-				continue
-			}
-			orphan := OrphanObject{Arch: arch, Name: info.Name, Age: age}
-			orphans = append(orphans, orphan)
-			if dryRun {
-				slog.Info("orphan object (dry-run)", "repo", repo, "arch", arch, "name", info.Name, "age", age)
-				continue
-			}
-			deleted, err := s.pkgBinaryRepo.DeleteOrphanIfUnchanged(repo, arch, info, cutoff)
-			if errors.Is(err, blob.ErrSafeDeleteUnsupported) {
-				slog.Warn("safe online orphan deletion unsupported; object only reported", "repo", repo, "arch", arch, "name", info.Name)
-				continue
-			}
-			if err != nil {
-				slog.Warn("failed to delete orphan object", "repo", repo, "arch", arch, "name", info.Name, "err", err)
-				continue
-			}
-			if !deleted {
-				slog.Info("kept orphan object renewed or changed concurrently", "repo", repo, "arch", arch, "name", info.Name)
-				continue
-			}
-			slog.Info("deleted orphan object", "repo", repo, "arch", arch, "name", info.Name, "age", age)
-		}
+		orphans = append(orphans, found...)
 	}
 
-	anyOrphans, err := s.reconcileAnyDir(repo, anyReferenced, olderThan, dryRun, now, cutoff)
+	// Scan the shared directory last, after collecting every arch=any filename
+	// referenced by a concrete repository database.
+	anyOrphans, err := s.reconcileDir(repo, "any", anyReferenced, olderThan, dryRun, now, cutoff)
 	if err != nil {
 		return nil, err
 	}
@@ -107,53 +69,55 @@ func (s *Service) ReconcileOrphans(repo string, olderThan time.Duration, dryRun 
 	return orphans, nil
 }
 
-// reconcileAnyDir GCs orphans in the shared "any/" directory. It runs after the
-// concrete arches so anyReferenced holds every registered arch=any filename; an
-// object there that no concrete db references is residue from an interrupted
-// or superseded publication.
-func (s *Service) reconcileAnyDir(repo string, anyReferenced map[string]struct{}, olderThan time.Duration, dryRun bool, now, cutoff time.Time) ([]OrphanObject, error) {
-	infos, err := s.pkgBinaryRepo.FilesWithMeta(repo, "any")
+func (s *Service) reconcileDir(
+	repo, arch string,
+	referenced map[string]struct{},
+	olderThan time.Duration,
+	dryRun bool,
+	now, cutoff time.Time,
+) ([]OrphanObject, error) {
+	infos, err := s.pkgBinaryRepo.FilesWithMeta(repo, arch)
 	if err != nil {
 		if errors.Is(err, blob.ErrNotFound) {
 			return nil, nil
 		}
-		return nil, errors.WrapErr(err, "list any objects for reconcile")
+		return nil, errors.WrapErr(err, "list objects for reconcile")
 	}
 	var orphans []OrphanObject
 	for _, info := range infos {
-		if _, ok := anyReferenced[info.Name]; ok {
+		if _, ok := referenced[info.Name]; ok {
 			continue
 		}
 		if !pacmanpkg.IsArtifact(info.Name) {
 			continue
 		}
 		if info.LastModified.IsZero() {
-			slog.Warn("skip orphan with unknown modification time", "repo", repo, "arch", "any", "name", info.Name)
+			slog.Warn("skip orphan with unknown modification time", "repo", repo, "arch", arch, "name", info.Name)
 			continue
 		}
 		age := now.Sub(info.LastModified)
 		if age < olderThan {
 			continue
 		}
-		orphans = append(orphans, OrphanObject{Arch: "any", Name: info.Name, Age: age})
+		orphans = append(orphans, OrphanObject{Arch: arch, Name: info.Name, Age: age})
 		if dryRun {
-			slog.Info("orphan object (dry-run)", "repo", repo, "arch", "any", "name", info.Name, "age", age)
+			slog.Info("orphan object (dry-run)", "repo", repo, "arch", arch, "name", info.Name, "age", age)
 			continue
 		}
-		deleted, err := s.pkgBinaryRepo.DeleteOrphanIfUnchanged(repo, "any", info, cutoff)
+		deleted, err := s.pkgBinaryRepo.DeleteOrphanIfUnchanged(repo, arch, info, cutoff)
 		if errors.Is(err, blob.ErrSafeDeleteUnsupported) {
-			slog.Warn("safe online orphan deletion unsupported; object only reported", "repo", repo, "arch", "any", "name", info.Name)
+			slog.Warn("safe online orphan deletion unsupported; object only reported", "repo", repo, "arch", arch, "name", info.Name)
 			continue
 		}
 		if err != nil {
-			slog.Warn("failed to delete orphan object", "repo", repo, "arch", "any", "name", info.Name, "err", err)
+			slog.Warn("failed to delete orphan object", "repo", repo, "arch", arch, "name", info.Name, "err", err)
 			continue
 		}
 		if !deleted {
-			slog.Info("kept orphan object renewed or changed concurrently", "repo", repo, "arch", "any", "name", info.Name)
+			slog.Info("kept orphan object renewed or changed concurrently", "repo", repo, "arch", arch, "name", info.Name)
 			continue
 		}
-		slog.Info("deleted orphan object", "repo", repo, "arch", "any", "name", info.Name, "age", age)
+		slog.Info("deleted orphan object", "repo", repo, "arch", arch, "name", info.Name, "age", age)
 	}
 	return orphans, nil
 }

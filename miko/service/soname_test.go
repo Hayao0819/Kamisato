@@ -132,17 +132,3 @@ func TestFileSonameStoreRejectsUnsafePkgbase(t *testing.T) {
 		}
 	}
 }
-
-func TestDepName(t *testing.T) {
-	cases := map[string]string{
-		"libfoo.so=1-64": "libfoo.so",
-		"bar>=2.0":       "bar",
-		"baz<3":          "baz",
-		"plain":          "plain",
-	}
-	for in, want := range cases {
-		if got := depName(in); got != want {
-			t.Errorf("depName(%q) = %q, want %q", in, got, want)
-		}
-	}
-}

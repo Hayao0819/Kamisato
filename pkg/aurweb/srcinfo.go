@@ -3,7 +3,6 @@ package aurweb
 import (
 	"cmp"
 	"hash/fnv"
-	"slices"
 
 	"github.com/Hayao0819/Kamisato/pkg/raiou"
 )
@@ -65,8 +64,8 @@ func FromSrcinfo(si *raiou.SRCINFO, meta SrcinfoMeta) []Pkg {
 			Replaces:     mergeArch(global.Replaces, p.Replaces),
 			MakeDepends:  mergeArch(base.MakeDepends, nil),
 			CheckDepends: mergeArch(base.CheckDepends, nil),
-			Groups:       mergeList(global.Groups, p.Groups),
-			License:      mergeList(global.License, p.License),
+			Groups:       sortedNonEmpty(global.Groups, p.Groups),
+			License:      sortedNonEmpty(global.License, p.License),
 		})
 	}
 	return out
@@ -74,37 +73,13 @@ func FromSrcinfo(si *raiou.SRCINFO, meta SrcinfoMeta) []Pkg {
 
 // mergeArch unions two per-arch maps across all architectures, sorted.
 func mergeArch(global, pkg raiou.ArchStrings) []string {
-	seen := map[string]bool{}
-	var out []string
+	var lists [][]string
 	for _, m := range []raiou.ArchStrings{global, pkg} {
 		for _, vals := range m {
-			for _, v := range vals {
-				if v == "" || seen[v] {
-					continue
-				}
-				seen[v] = true
-				out = append(out, v)
-			}
+			lists = append(lists, vals)
 		}
 	}
-	slices.Sort(out)
-	return out
-}
-
-func mergeList(a, b []string) []string {
-	seen := map[string]bool{}
-	var out []string
-	for _, list := range [][]string{a, b} {
-		for _, v := range list {
-			if v == "" || seen[v] {
-				continue
-			}
-			seen[v] = true
-			out = append(out, v)
-		}
-	}
-	slices.Sort(out)
-	return out
+	return sortedNonEmpty(lists...)
 }
 
 // stableID derives a deterministic positive int from a name; aurweb IDs are

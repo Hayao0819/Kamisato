@@ -7,9 +7,9 @@ func TestLoadConfigEnvResolvesTagPaths(t *testing.T) {
 	t.Setenv("AYATO_MIKO_URL", "http://miko:8081")
 	t.Setenv("AYATO_REQUIRE_SIGN", "true")
 
-	cfg, err := loadConfig[AyatoConfig](nil, nil, nil, "AYATO")
+	cfg, err := Load[AyatoConfig](nil, nil, nil, "AYATO")
 	if err != nil {
-		t.Fatalf("loadConfig: %v", err)
+		t.Fatalf("Load: %v", err)
 	}
 
 	if got := cfg.Auth.SessionSecret; len(got) != 1 || got[0] != testSessionSecret {

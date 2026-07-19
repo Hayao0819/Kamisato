@@ -28,19 +28,13 @@ type ThomaConfig struct {
 
 func LoadThomaConfig(flags *pflag.FlagSet) (*ThomaConfig, error) {
 	loadDotEnv()
-	cfg, err := loadConfig[ThomaConfig](
+	return LoadTyped[ThomaConfig](
 		commonConfigDirs(),
 		[]string{".thomarc.json", ".thomarc.toml", ".thomarc.yaml"},
 		flags,
 		"THOMA",
+		nil,
 	)
-	if err != nil {
-		return nil, err
-	}
-	if err := cfg.Validate(); err != nil {
-		return nil, err
-	}
-	return cfg, nil
 }
 
 // Direct reports whether the config selects the direct-to-miko build mode.
