@@ -8,6 +8,23 @@ import (
 	"testing"
 )
 
+func TestRewind(t *testing.T) {
+	reader := bytes.NewReader([]byte("content"))
+	if _, err := reader.Seek(4, io.SeekStart); err != nil {
+		t.Fatal(err)
+	}
+	if err := Rewind(reader); err != nil {
+		t.Fatalf("Rewind: %v", err)
+	}
+	content, err := io.ReadAll(reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(content) != "content" {
+		t.Fatalf("content after Rewind = %q", content)
+	}
+}
+
 func TestOpenFileWithType(t *testing.T) {
 	cases := []struct {
 		name   string

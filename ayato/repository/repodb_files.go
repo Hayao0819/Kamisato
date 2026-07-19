@@ -45,7 +45,7 @@ func writeSeekFileToPath(dst string, file stream.SeekFile) error {
 			return nil
 		}
 	}
-	if _, err := file.Seek(0, io.SeekStart); err != nil {
+	if err := stream.Rewind(file); err != nil {
 		return errors.WrapErr(err, "failed to seek stream")
 	}
 	return writeReaderToPath(dst, file)

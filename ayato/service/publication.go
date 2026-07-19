@@ -90,7 +90,7 @@ func (s *Service) spoolRepositoryFile(
 		cleanup()
 		return nil, nil, errors.WrapErr(err, "spool repository file")
 	}
-	if _, err := tmp.Seek(0, io.SeekStart); err != nil {
+	if err := stream.Rewind(tmp); err != nil {
 		cleanup()
 		return nil, nil, err
 	}

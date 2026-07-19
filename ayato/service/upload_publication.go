@@ -2,7 +2,6 @@ package service
 
 import (
 	"fmt"
-	"io"
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
 
@@ -14,7 +13,7 @@ import (
 func (p *uploadPublication) storeObjects() error {
 	for i := range p.uploads {
 		upload := &p.uploads[i]
-		if _, err := upload.pkgStream.Seek(0, io.SeekStart); err != nil {
+		if err := stream.Rewind(upload.pkgStream); err != nil {
 			return errors.WrapErr(err, "failed to seek package file")
 		}
 		if _, err := p.service.pkgBinaryRepo.StoreFileImmutable(
@@ -42,7 +41,7 @@ func (p *uploadPublication) storeSignature(upload *preparedUpload) error {
 	if upload.sigStream == nil {
 		return nil
 	}
-	if _, err := upload.sigStream.Seek(0, io.SeekStart); err != nil {
+	if err := stream.Rewind(upload.sigStream); err != nil {
 		return errors.WrapErr(err, "failed to seek signature file")
 	}
 	named := stream.NewFileStream(

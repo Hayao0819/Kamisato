@@ -1,12 +1,12 @@
 package service
 
 import (
-	"io"
 	"log/slog"
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
 
 	"github.com/Hayao0819/Kamisato/ayato/repository"
+	"github.com/Hayao0819/Kamisato/ayato/stream"
 )
 
 type publicationRollback struct {
@@ -108,7 +108,7 @@ func (r *publicationRollback) restorePackage(
 		)
 	}
 	artifact := r.oldArtifacts[archKey{arch: old.storeArch, key: old.fileName}]
-	if _, err := artifact.pkg.Seek(0, io.SeekStart); err != nil {
+	if err := stream.Rewind(artifact.pkg); err != nil {
 		return err
 	}
 	if _, err := r.publication.service.pkgBinaryRepo.StoreFileImmutable(
@@ -119,7 +119,7 @@ func (r *publicationRollback) restorePackage(
 		return err
 	}
 	if artifact.sig != nil {
-		if _, err := artifact.sig.Seek(0, io.SeekStart); err != nil {
+		if err := stream.Rewind(artifact.sig); err != nil {
 			return err
 		}
 		if _, err := r.publication.service.pkgBinaryRepo.StoreFileImmutable(

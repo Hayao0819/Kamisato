@@ -49,7 +49,7 @@ func (l *LocalStore) FetchFileWithETag(
 		_ = file.Close()
 		return nil, "", errors.WrapErr(err, "hash local object")
 	}
-	if _, err := seekable.Seek(0, io.SeekStart); err != nil {
+	if err := stream.Rewind(seekable); err != nil {
 		_ = file.Close()
 		return nil, "", errors.WrapErr(err, "rewind local object")
 	}

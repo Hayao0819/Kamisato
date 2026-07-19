@@ -2,7 +2,6 @@ package service
 
 import (
 	"fmt"
-	"io"
 	"log/slog"
 	"strings"
 
@@ -40,10 +39,10 @@ func (v *uploadValidator) verifySignature(
 			"package signature present but no trust root is configured to validate it",
 		)
 	}
-	if _, err := pkgFile.Seek(0, io.SeekStart); err != nil {
+	if err := stream.Rewind(pkgFile); err != nil {
 		return errors.WrapErr(err, "failed to seek package file for verification")
 	}
-	if _, err := sigFile.Seek(0, io.SeekStart); err != nil {
+	if err := stream.Rewind(sigFile); err != nil {
 		return errors.WrapErr(err, "failed to seek signature file for verification")
 	}
 	fingerprint, err := v.keyring.VerifyDetached(pkgFile, sigFile)
@@ -62,7 +61,7 @@ func (v *uploadValidator) checkBuildinfoProvenance(pkgFile stream.SeekFile) erro
 	if v.service.cfg == nil || !v.service.cfg.RequireBuildinfoProvenance {
 		return nil
 	}
-	if _, err := pkgFile.Seek(0, io.SeekStart); err != nil {
+	if err := stream.Rewind(pkgFile); err != nil {
 		return errors.WrapErr(err, "failed to seek package file for buildinfo check")
 	}
 	buildInfo, err := pacmanpkg.ReadBuildInfo(pkgFile)

@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"fmt"
-	"io"
 	"log/slog"
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
@@ -11,6 +10,7 @@ import (
 	"github.com/Hayao0819/Kamisato/ayato/domain"
 	"github.com/Hayao0819/Kamisato/ayato/repository"
 	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
+	"github.com/Hayao0819/Kamisato/ayato/stream"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/alpm"
 )
 
@@ -128,7 +128,7 @@ func (s *Service) promoteOneArch(src, dst, arch, storeArch, filename, pkgname, v
 		}
 	}
 
-	if _, err := artifact.pkg.Seek(0, io.SeekStart); err != nil {
+	if err := stream.Rewind(artifact.pkg); err != nil {
 		return errors.WrapErr(err, "rewind package for registration")
 	}
 	item := repository.RepoAddItem{

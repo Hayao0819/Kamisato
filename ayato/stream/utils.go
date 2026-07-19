@@ -1,10 +1,16 @@
 package stream
 
 import (
+	"io"
 	"os"
 
 	"github.com/gabriel-vasile/mimetype"
 )
+
+func Rewind(seeker io.Seeker) error {
+	_, err := seeker.Seek(0, io.SeekStart)
+	return err
+}
 
 func OpenFileWithType(filePath string) (*FileStream, error) {
 	mt, err := mimetype.DetectFile(filePath)

@@ -2,7 +2,6 @@ package s3
 
 import (
 	"fmt"
-	"io"
 	"log/slog"
 	"path"
 	"time"
@@ -91,7 +90,7 @@ func (s *S3) FetchFileWithMeta(repo, arch, name string) (stream.File, blob.FileM
 // StoreFileIfMatch stores an object with compare-and-swap on its version, mapping
 // a conflict to blob.ErrPreconditionFailed.
 func (s *S3) StoreFileIfMatch(repo, arch string, file stream.SeekFile, etag string) error {
-	if _, err := file.Seek(0, io.SeekStart); err != nil {
+	if err := stream.Rewind(file); err != nil {
 		return err
 	}
 	k, err := s.validatedKey(repo, arch, file.FileName())

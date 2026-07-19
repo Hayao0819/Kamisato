@@ -117,7 +117,7 @@ func (l *LocalStore) LockPublication(repo string) (func(), error) {
 }
 
 func writeAtomicFile(dst string, file stream.SeekFile) error {
-	if _, err := file.Seek(0, io.SeekStart); err != nil {
+	if err := stream.Rewind(file); err != nil {
 		return errors.WrapErr(err, "seek source file")
 	}
 	err := atomicfile.Replace(dst, 0o644, func(out io.Writer) error { //nolint:gosec // published file

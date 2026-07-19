@@ -3,7 +3,6 @@ package repository
 import (
 	"crypto/sha256"
 	"fmt"
-	"io"
 	"time"
 
 	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
@@ -15,14 +14,14 @@ import (
 var ErrImmutableObjectConflict = errors.New("repository: immutable object content conflict")
 
 func hashSeekFile(file stream.SeekFile) ([sha256.Size]byte, error) {
-	if _, err := file.Seek(0, io.SeekStart); err != nil {
+	if err := stream.Rewind(file); err != nil {
 		return [sha256.Size]byte{}, err
 	}
 	sum, err := hashReader(file)
 	if err != nil {
 		return [sha256.Size]byte{}, err
 	}
-	if _, err := file.Seek(0, io.SeekStart); err != nil {
+	if err := stream.Rewind(file); err != nil {
 		return [sha256.Size]byte{}, err
 	}
 	return sum, nil
@@ -47,7 +46,7 @@ func (r *binaryRepository) StoreFileImmutable(repo, arch string, file stream.See
 				return false, errors.WrapErr(closeErr, "close existing immutable object")
 			}
 			if got == want {
-				if _, err := file.Seek(0, io.SeekStart); err != nil {
+				if err := stream.Rewind(file); err != nil {
 					return false, err
 				}
 				if err := r.Store.StoreFileIfMatch(repo, arch, file, etag); err == nil {
@@ -63,7 +62,7 @@ func (r *binaryRepository) StoreFileImmutable(repo, arch string, file stream.See
 		if !errors.Is(fetchErr, blob.ErrNotFound) {
 			return false, errors.WrapErr(fetchErr, "probe immutable object")
 		}
-		if _, err := file.Seek(0, io.SeekStart); err != nil {
+		if err := stream.Rewind(file); err != nil {
 			return false, err
 		}
 		if err := r.Store.StoreFileIfMatch(repo, arch, file, ""); err == nil {
