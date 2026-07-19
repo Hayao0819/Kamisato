@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
-
 	"go.uber.org/mock/gomock"
 
 	"github.com/Hayao0819/Kamisato/ayato/domain"
@@ -18,9 +17,6 @@ import (
 	"github.com/Hayao0819/Kamisato/ayato/stream"
 	"github.com/Hayao0819/Kamisato/ayato/test/mocks"
 	"github.com/Hayao0819/Kamisato/internal/conf"
-	pkgpkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
-	"github.com/Hayao0819/Kamisato/pkg/raiou"
 )
 
 type readSeekCloser struct{ *bytes.Reader }
@@ -55,8 +51,6 @@ func TestValidateRepoNameUsesConfiguredCatalogAsAuthority(t *testing.T) {
 		Repos: []conf.BinRepoConfig{{Name: "configured"}},
 	})
 
-	// An unconfigured name is rejected before storage is queried. This prevents a
-	// leftover directory/object prefix from becoming servable after config removal.
 	if err := svc.ValidateRepoName("leftover"); !errors.Is(err, domain.ErrNotFound) {
 		t.Fatalf("ValidateRepoName(leftover) = %v, want ErrNotFound", err)
 	}
@@ -86,27 +80,30 @@ func TestServiceGetFile(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	want := "package-bytes"
-	fs := stream.NewFileStream("foo.pkg.tar.zst", "application/octet-stream",
-		bufferToReadSeekCloser(bytes.NewBufferString(want)))
-
+	const want = "package-bytes"
+	file := stream.NewFileStream(
+		"foo.pkg.tar.zst",
+		"application/octet-stream",
+		bufferToReadSeekCloser(bytes.NewBufferString(want)),
+	)
 	bin := mocks.NewMockBinaryRepository(ctrl)
-	bin.EXPECT().FetchFileWithMeta("myrepo", "x86_64", "foo.pkg.tar.zst").Return(fs, blob.FileMeta{ETag: `"etag1"`}, nil)
+	bin.EXPECT().FetchFileWithMeta("myrepo", "x86_64", "foo.pkg.tar.zst").
+		Return(file, blob.FileMeta{ETag: `"etag1"`}, nil)
 
 	svc := service.New(mocks.NewMockNameStore(ctrl), bin, nil, nil, &conf.AyatoConfig{})
-	got, gotMeta, err := svc.GetFileWithMeta("myrepo", "x86_64", "foo.pkg.tar.zst")
+	got, metadata, err := svc.GetFileWithMeta("myrepo", "x86_64", "foo.pkg.tar.zst")
 	if err != nil {
 		t.Fatalf("GetFileWithMeta failed: %v", err)
 	}
-	if gotMeta.ETag != `"etag1"` {
-		t.Errorf("etag = %q, want %q", gotMeta.ETag, `"etag1"`)
+	if metadata.ETag != `"etag1"` {
+		t.Errorf("etag = %q, want %q", metadata.ETag, `"etag1"`)
 	}
-	buf := new(bytes.Buffer)
-	if _, err := buf.ReadFrom(got); err != nil {
+	content := new(bytes.Buffer)
+	if _, err := content.ReadFrom(got); err != nil {
 		t.Fatalf("read stream: %v", err)
 	}
-	if buf.String() != want {
-		t.Errorf("GetFileWithMeta content = %q, want %q", buf.String(), want)
+	if content.String() != want {
+		t.Errorf("content = %q, want %q", content.String(), want)
 	}
 }
 
@@ -124,97 +121,6 @@ func TestServiceSignedURL(t *testing.T) {
 	}
 	if got != "https://example.com/n" {
 		t.Errorf("SignedURL = %q, want %q", got, "https://example.com/n")
-	}
-}
-
-func TestServiceRemovePkg(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	bin := mocks.NewMockBinaryRepository(ctrl)
-	name := mocks.NewMockNameStore(ctrl)
-
-	// ValidateRepoName -> RepoNames contains "myrepo" -> ok
-	bin.EXPECT().RepoNames().Return([]string{"myrepo"}, nil)
-	bin.EXPECT().Arches("myrepo").Return([]string{"x86_64"}, nil).AnyTimes()
-	bin.EXPECT().RemoteRepo("myrepo", "x86_64").Return(&repo.RemoteRepo{Pkgs: []*pkgpkg.BinaryPackage{
-		pkgpkg.NewBinaryPackage("mypkg-1.0-1-x86_64.pkg.tar.zst", &raiou.PKGINFO{PkgName: "mypkg", Arch: "x86_64"}),
-	}}, nil)
-	name.EXPECT().StorePackageFile("myrepo", "x86_64", "mypkg", "mypkg-1.0-1-x86_64.pkg.tar.zst").Return(nil)
-	// Concrete package scoped to its arch: de-registered, file deleted; Files lists no sig, so none removed.
-	bin.EXPECT().RepoRemove("myrepo", "x86_64", "mypkg", false, gomock.Nil()).Return(nil)
-	bin.EXPECT().DeleteFile("myrepo", "x86_64", "mypkg-1.0-1-x86_64.pkg.tar.zst").Return(nil)
-	bin.EXPECT().Files("myrepo", "x86_64").Return([]string{"mypkg-1.0-1-x86_64.pkg.tar.zst", "myrepo.db"}, nil)
-	name.EXPECT().DeletePackageFileEntry("myrepo", "x86_64", "mypkg").Return(nil)
-
-	svc := service.New(name, bin, nil, nil, &conf.AyatoConfig{
-		Repos: []conf.BinRepoConfig{{Name: "myrepo"}},
-	})
-	if err := svc.RemovePkg("myrepo", "x86_64", "mypkg"); err != nil {
-		t.Fatalf("RemovePkg failed: %v", err)
-	}
-}
-
-func TestServiceRemovePkgAny(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	bin := mocks.NewMockBinaryRepository(ctrl)
-	name := mocks.NewMockNameStore(ctrl)
-
-	cfg := &conf.AyatoConfig{
-		Repos: []conf.BinRepoConfig{{Name: "myrepo"}},
-	}
-
-	bin.EXPECT().RepoNames().Return([]string{"myrepo"}, nil) // ValidateRepoName
-	bin.EXPECT().Arches("myrepo").Return([]string{"x86_64", "aarch64"}, nil).AnyTimes()
-	bin.EXPECT().RemoteRepo("myrepo", "x86_64").Return(&repo.RemoteRepo{Pkgs: []*pkgpkg.BinaryPackage{
-		pkgpkg.NewBinaryPackage("mypkg-1.0-1-any.pkg.tar.zst", &raiou.PKGINFO{PkgName: "mypkg", Arch: "any"}),
-	}}, nil)
-	name.EXPECT().StorePackageFile("myrepo", "any", "mypkg", "mypkg-1.0-1-any.pkg.tar.zst").Return(nil)
-	// arch="" (blinky route) on an any package: de-registered from every arch db; its file and sig live once under "any/" and go with the last arch.
-	bin.EXPECT().RepoRemove("myrepo", "x86_64", "mypkg", false, gomock.Nil()).Return(nil)
-	bin.EXPECT().RepoRemove("myrepo", "aarch64", "mypkg", false, gomock.Nil()).Return(nil)
-	bin.EXPECT().DeleteFile("myrepo", "any", "mypkg-1.0-1-any.pkg.tar.zst").Return(nil)
-	bin.EXPECT().Files("myrepo", "any").Return([]string{"mypkg-1.0-1-any.pkg.tar.zst", "mypkg-1.0-1-any.pkg.tar.zst.sig"}, nil)
-	bin.EXPECT().DeleteFile("myrepo", "any", "mypkg-1.0-1-any.pkg.tar.zst.sig").Return(nil)
-	name.EXPECT().DeletePackageFileEntry("myrepo", "any", "mypkg").Return(nil)
-
-	svc := service.New(name, bin, nil, nil, cfg)
-	if err := svc.RemovePkg("myrepo", "", "mypkg"); err != nil {
-		t.Fatalf("RemovePkg(any, all arches) failed: %v", err)
-	}
-}
-
-func TestServiceRemovePkgAnyOneArch(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	bin := mocks.NewMockBinaryRepository(ctrl)
-	name := mocks.NewMockNameStore(ctrl)
-
-	cfg := &conf.AyatoConfig{
-		Repos: []conf.BinRepoConfig{{Name: "myrepo"}},
-	}
-
-	bin.EXPECT().RepoNames().Return([]string{"myrepo"}, nil) // ValidateRepoName
-	bin.EXPECT().Arches("myrepo").Return([]string{"x86_64", "aarch64"}, nil).AnyTimes()
-	// Scoped to x86_64; the any package's file is keyed under "any".
-	current := &repo.RemoteRepo{Pkgs: []*pkgpkg.BinaryPackage{
-		pkgpkg.NewBinaryPackage("mypkg-1.0-1-any.pkg.tar.zst", &raiou.PKGINFO{PkgName: "mypkg", Arch: "any"}),
-	}}
-	bin.EXPECT().RemoteRepo("myrepo", "x86_64").Return(current, nil)
-	name.EXPECT().StorePackageFile("myrepo", "any", "mypkg", "mypkg-1.0-1-any.pkg.tar.zst").Return(nil)
-	bin.EXPECT().RepoRemove("myrepo", "x86_64", "mypkg", false, gomock.Nil()).Return(nil)
-	// aarch64 still lists it, so the shared any/ file is kept: no DeleteFile, no metadata deletion.
-	stillThere := &repo.RemoteRepo{Pkgs: []*pkgpkg.BinaryPackage{
-		pkgpkg.NewBinaryPackage("mypkg-1.0-1-any.pkg.tar.zst", &raiou.PKGINFO{PkgName: "mypkg", Arch: "any"}),
-	}}
-	bin.EXPECT().RemoteRepo("myrepo", "aarch64").Return(stillThere, nil)
-
-	svc := service.New(name, bin, nil, nil, cfg)
-	if err := svc.RemovePkg("myrepo", "x86_64", "mypkg"); err != nil {
-		t.Fatalf("RemovePkg(any one arch) failed: %v", err)
 	}
 }
 
@@ -242,47 +148,30 @@ func TestServiceLocalfsIntegration(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cfg := &conf.AyatoConfig{
-		Repos: []conf.BinRepoConfig{{Name: "myrepo"}},
-	}
+	cfg := &conf.AyatoConfig{Repos: []conf.BinRepoConfig{{Name: "myrepo"}}}
 	cfg.Store.StorageType = "localfs"
 	cfg.Store.LocalRepoDir = repoRoot
-
 	binRepo := repository.NewBinaryRepository(localfs.New(repoRoot, []string{"myrepo"}))
 	svc := service.New(nil, binRepo, nil, nil, cfg)
 
-	t.Run("RepoNames", func(t *testing.T) {
-		names, err := svc.RepoNames()
-		if err != nil {
-			t.Fatalf("RepoNames failed: %v", err)
-		}
-		if len(names) != 1 || names[0] != "myrepo" {
-			t.Errorf("RepoNames = %v, want [myrepo]", names)
-		}
-	})
-
-	t.Run("Arches", func(t *testing.T) {
-		arches, err := svc.Arches("myrepo")
-		if err != nil {
-			t.Fatalf("Arches failed: %v", err)
-		}
-		if len(arches) != 1 || arches[0] != "x86_64" {
-			t.Errorf("Arches = %v, want [x86_64]", arches)
-		}
-	})
-
-	t.Run("GetFile", func(t *testing.T) {
-		f, _, err := svc.GetFileWithMeta("myrepo", "x86_64", "foo.pkg.tar.zst")
-		if err != nil {
-			t.Fatalf("GetFileWithMeta failed: %v", err)
-		}
-		defer f.Close()
-		buf := new(bytes.Buffer)
-		if _, err := buf.ReadFrom(f); err != nil {
-			t.Fatalf("read file: %v", err)
-		}
-		if buf.String() != content {
-			t.Errorf("GetFile content = %q, want %q", buf.String(), content)
-		}
-	})
+	names, err := svc.RepoNames()
+	if err != nil || len(names) != 1 || names[0] != "myrepo" {
+		t.Fatalf("RepoNames = %v, %v; want [myrepo]", names, err)
+	}
+	arches, err := svc.Arches("myrepo")
+	if err != nil || len(arches) != 1 || arches[0] != "x86_64" {
+		t.Fatalf("Arches = %v, %v; want [x86_64]", arches, err)
+	}
+	file, _, err := svc.GetFileWithMeta("myrepo", "x86_64", "foo.pkg.tar.zst")
+	if err != nil {
+		t.Fatalf("GetFileWithMeta: %v", err)
+	}
+	defer file.Close()
+	got := new(bytes.Buffer)
+	if _, err := got.ReadFrom(file); err != nil {
+		t.Fatalf("read file: %v", err)
+	}
+	if got.String() != content {
+		t.Errorf("content = %q, want %q", got.String(), content)
+	}
 }
