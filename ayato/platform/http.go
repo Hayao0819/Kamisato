@@ -1,9 +1,10 @@
 // Package platform contains Ayato's layer-neutral technical building blocks:
-// HTTP representations and security, process lifecycle, and shared rate limits.
+// HTTP representations and security, process lifecycle, shared rate limits, and
+// portable file streams.
 //
-// Domain and service packages deliberately do not depend on these types. They
-// report semantic errors through domain sentinels; handlers choose the HTTP
-// status and serialize this stable public envelope.
+// It does not depend on Ayato's domain, service, repository, or transport layers.
+// Higher layers can therefore share its capabilities without reversing their
+// dependency direction.
 package platform
 
 import (
