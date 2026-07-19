@@ -1,10 +1,7 @@
 package router
 
 import (
-	"time"
-
 	"github.com/gin-gonic/gin"
-	"golang.org/x/time/rate"
 
 	"github.com/Hayao0819/Kamisato/ayato/handler"
 	"github.com/Hayao0819/Kamisato/ayato/middleware"
@@ -32,7 +29,7 @@ func setMikoRoutes(
 
 	authed := api.Group("")
 	authed.Use(
-		middlewares.RateLimit(rate.Every(time.Second/10), 30),
+		standardAPILimit(middlewares),
 		middlewares.RequireAdmin(),
 	)
 	jobHandler := proxy.HandlerFunc(func(c *gin.Context) []string {

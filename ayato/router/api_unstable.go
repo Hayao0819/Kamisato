@@ -48,6 +48,10 @@ func SetRoute(
 	return nil
 }
 
+func standardAPILimit(middlewares *middleware.Middleware) gin.HandlerFunc {
+	return middlewares.RateLimit(rate.Every(time.Second/10), 30)
+}
+
 func setPublicRoutes(
 	api *gin.RouterGroup,
 	handlers *handler.Set,

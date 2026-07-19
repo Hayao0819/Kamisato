@@ -1,10 +1,7 @@
 package router
 
 import (
-	"time"
-
 	"github.com/gin-gonic/gin"
-	"golang.org/x/time/rate"
 
 	"github.com/Hayao0819/Kamisato/ayato/handler"
 	"github.com/Hayao0819/Kamisato/ayato/middleware"
@@ -18,7 +15,7 @@ func setPublicationRoutes(
 ) {
 	upload := api.Group("")
 	upload.Use(
-		middlewares.RateLimit(rate.Every(time.Second/10), 30),
+		standardAPILimit(middlewares),
 		middlewares.RequireCI(),
 	)
 	upload.POST("/repos/:repo/packages", publications.BatchUploadHandler)
@@ -27,7 +24,7 @@ func setPublicationRoutes(
 
 	remove := api.Group("")
 	remove.Use(
-		middlewares.RateLimit(rate.Every(time.Second/10), 30),
+		standardAPILimit(middlewares),
 		middlewares.RequireCI(),
 	)
 	remove.DELETE("/repos/:repo/:arch/packages/:name", publications.BlinkyRemoveHandler)
@@ -35,7 +32,7 @@ func setPublicationRoutes(
 
 	management := api.Group("")
 	management.Use(
-		middlewares.RateLimit(rate.Every(time.Second/10), 30),
+		standardAPILimit(middlewares),
 		middlewares.RequireAdmin(),
 	)
 	management.POST("/repos/:repo/promote", publications.PromoteHandler)
@@ -49,7 +46,7 @@ func setAdministrationRoutes(
 ) {
 	admins := api.Group("/auth/admins")
 	admins.Use(
-		middlewares.RateLimit(rate.Every(time.Second/10), 30),
+		standardAPILimit(middlewares),
 		middlewares.RequireAdmin(),
 	)
 	admins.GET("", handlers.Admins.AdminsListHandler)
@@ -57,7 +54,7 @@ func setAdministrationRoutes(
 	admins.DELETE("/:id", handlers.Admins.AdminsRemoveHandler)
 
 	signers := api.Group("/auth/signers")
-	signers.Use(middlewares.RateLimit(rate.Every(time.Second/10), 30))
+	signers.Use(standardAPILimit(middlewares))
 	signers.GET("", middlewares.RequireAdmin(), handlers.Signers.ListSignersHandler)
 	signers.POST("", middlewares.RequireSignerRegistration(), handlers.Signers.RegisterSignerHandler)
 	signers.DELETE("/:fingerprint", middlewares.RequireAdmin(), handlers.Signers.UnregisterSignerHandler)
@@ -70,7 +67,7 @@ func setBlinkyRoutes(
 ) {
 	blinky := engine.Group("/blinky/api/unstable")
 	blinky.Use(
-		middlewares.RateLimit(rate.Every(time.Second/10), 30),
+		standardAPILimit(middlewares),
 		middlewares.RequireBlinkyAdmin(),
 	)
 	blinky.PUT("/:repo/package", publications.BlinkyUploadHandler)
