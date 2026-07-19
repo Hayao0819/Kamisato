@@ -1,15 +1,22 @@
 {
   "debug": true,
   "port": 8081,
-  "executor": "container",
+  "builder": {
+    "backend": "container",
+    "timeout": "30m",
+    "docker": {
+      "image": "archlinux:latest"
+    }
+  },
   "concurrency": 2,
   "max_size": 1000000000,
   "signing": {
     "mode": "disabled"
   },
   "build": {
-    "image": "archlinux:latest",
-    "timeout": 30
+    "gnupg_home": "",
+    "resolve_aur_deps": false,
+    "aur_rpc_url": ""
   },
   "api_keys": ["example-build-key"],
   "ayato": {

@@ -36,13 +36,16 @@ in
       description = "Primary group of the service user.";
     };
     settings = mkOption {
-      type = json.type;
+      inherit (json) type;
       default = { };
       example = {
         port = 8081;
-        executor = "container";
+        builder = {
+          backend = "container";
+          timeout = "30m";
+          docker.image = "archlinux:latest";
+        };
         concurrency = 2;
-        build.image = "archlinux:latest";
         ayato = {
           url = "https://repo.example.com";
           username = "miko";
@@ -50,8 +53,8 @@ in
       };
       description = ''
         miko_config.json contents (schema: internal/conf/miko.go). The default
-        executor "container" talks to the Docker daemon. Secrets (e.g. the ayato
-        password via MIKO_AYATO_PASSWORD) belong in environmentFile.
+        builder backend "container" talks to the Docker daemon. Secrets (e.g.
+        the ayato password via MIKO_AYATO_PASSWORD) belong in environmentFile.
       '';
     };
     environmentFile = mkOption {
@@ -69,14 +72,15 @@ in
   config = mkIf cfg.enable (
     let
       configFile = json.generate "miko_config.json" cfg.settings;
-      needsDocker = (cfg.settings.executor or "container") == "container";
+      backend = cfg.settings.builder.backend or (cfg.settings.executor or "container");
+      needsDocker = backend == "container";
     in
     {
       users.users = mkIf (cfg.user == "miko") {
         miko = {
           isSystemUser = true;
-          group = cfg.group;
-          extraGroups = optional needsDocker "docker"; # container executor needs the socket
+          inherit (cfg) group;
+          extraGroups = optional needsDocker "docker";
         };
       };
       users.groups = mkIf (cfg.group == "miko") { miko = { }; };

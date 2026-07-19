@@ -44,7 +44,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
       MIKO_PORT: "8081"
-      MIKO_EXECUTOR: "container"
+      MIKO_BUILDER_BACKEND: "container"
       KAMISATO_BUILD_API_KEY: "${KAMISATO_BUILD_API_KEY:?set KAMISATO_BUILD_API_KEY}"
       KAMISATO_MAX_PACKAGE_SIZE: "${KAMISATO_MAX_PACKAGE_SIZE:-536870912}"
     entrypoint:
