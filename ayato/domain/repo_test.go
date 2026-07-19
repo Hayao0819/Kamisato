@@ -4,15 +4,13 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
-
-	"github.com/Hayao0819/Kamisato/pkg/raiou"
 )
 
 func TestPacmanPackageJSONFlattensMetadata(t *testing.T) {
 	t.Parallel()
 	data, err := json.Marshal(PacmanPackage{
-		PKGINFO:  raiou.PKGINFO{PkgName: "demo", PkgVer: "1.0-1"},
-		Filename: "demo-1.0-1-x86_64.pkg.tar.xz",
+		PackageMetadata: PackageMetadata{PkgName: "demo", PkgVer: "1.0-1"},
+		Filename:        "demo-1.0-1-x86_64.pkg.tar.xz",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -27,7 +25,7 @@ func TestPacmanPackageJSONFlattensMetadata(t *testing.T) {
 			t.Errorf("JSON %s does not contain %s", body, want)
 		}
 	}
-	if strings.Contains(body, `"PKGINFO"`) {
-		t.Errorf("embedded PKGINFO unexpectedly nested in JSON: %s", body)
+	if strings.Contains(body, `"PackageMetadata"`) {
+		t.Errorf("embedded metadata unexpectedly nested in JSON: %s", body)
 	}
 }

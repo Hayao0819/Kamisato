@@ -3,11 +3,13 @@ package service
 import (
 	"fmt"
 	"log/slog"
+	"maps"
 	"slices"
 
 	"github.com/Hayao0819/Kamisato/ayato/domain"
 	"github.com/Hayao0819/Kamisato/internal/errors"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/reponame"
+	"github.com/Hayao0819/Kamisato/pkg/raiou"
 )
 
 func (s *Service) RepoFileList(repo, arch string) ([]string, error) {
@@ -49,11 +51,7 @@ func (s *Service) Pkgs(repo, arch string) (*domain.PacmanPkgs, error) {
 
 	infos := make([]domain.PacmanPackage, 0, len(rr.Pkgs))
 	for _, pkg := range rr.Pkgs {
-		pi := pkg.PKGINFO()
-		infos = append(infos, domain.PacmanPackage{
-			PKGINFO:  *pi,
-			Filename: pkg.Path(),
-		})
+		infos = append(infos, pacmanPackage(pkg.PKGINFO(), pkg.Path()))
 	}
 
 	rt := domain.PacmanPkgs{
@@ -73,10 +71,8 @@ func (s *Service) PkgDetail(repo, arch, pkgbase string) (*domain.PacmanPackage, 
 
 	for _, pkg := range rr.Pkgs {
 		if pkg.PKGINFO().PkgBase == pkgbase {
-			return &domain.PacmanPackage{
-				PKGINFO:  *pkg.PKGINFO(),
-				Filename: pkg.Path(),
-			}, nil
+			detail := pacmanPackage(pkg.PKGINFO(), pkg.Path())
+			return &detail, nil
 		}
 	}
 
@@ -107,4 +103,43 @@ func (s *Service) ValidateRepoName(repo string) error {
 	}
 	slog.Warn("repository found but failed to initialize", "repo", repo)
 	return errors.NewErr(repo + " found but failed to initialize")
+}
+
+func pacmanPackage(info *raiou.PKGINFO, filename string) domain.PacmanPackage {
+	return domain.PacmanPackage{
+		PackageMetadata: packageMetadata(info),
+		Filename:        filename,
+	}
+}
+
+// packageMetadata converts parser-owned metadata into an immutable API
+// snapshot. In particular, slices and maps must not alias repository cache
+// entries that can outlive this request.
+func packageMetadata(info *raiou.PKGINFO) domain.PackageMetadata {
+	if info == nil {
+		return domain.PackageMetadata{}
+	}
+	return domain.PackageMetadata{
+		PkgName:     info.PkgName,
+		PkgBase:     info.PkgBase,
+		PkgVer:      info.PkgVer,
+		PkgDesc:     info.PkgDesc,
+		URL:         info.URL,
+		BuildDate:   info.BuildDate,
+		Packager:    info.Packager,
+		Size:        info.Size,
+		Arch:        info.Arch,
+		License:     slices.Clone(info.License),
+		Replaces:    slices.Clone(info.Replaces),
+		Group:       slices.Clone(info.Group),
+		Conflict:    slices.Clone(info.Conflict),
+		Provides:    slices.Clone(info.Provides),
+		Backup:      slices.Clone(info.Backup),
+		Depend:      slices.Clone(info.Depend),
+		OptDepend:   slices.Clone(info.OptDepend),
+		MakeDepend:  slices.Clone(info.MakeDepend),
+		CheckDepend: slices.Clone(info.CheckDepend),
+		XData:       maps.Clone(info.XData),
+		PkgType:     info.PkgType,
+	}
 }

@@ -15,7 +15,6 @@ import (
 	"github.com/Hayao0819/Kamisato/ayato/domain"
 	"github.com/Hayao0819/Kamisato/ayato/handler/bugreport"
 	"github.com/Hayao0819/Kamisato/ayato/test/mocks"
-	"github.com/Hayao0819/Kamisato/pkg/raiou"
 )
 
 type fakeReporter struct {
@@ -85,7 +84,7 @@ func TestSubmitBugReportResolvesMaintainer(t *testing.T) {
 	defer ctrl.Finish()
 	mockSvc := mocks.NewMockServicer(ctrl)
 	mockSvc.EXPECT().PkgDetail("core", "x86_64", "foo").
-		Return(&domain.PacmanPackage{PKGINFO: raiou.PKGINFO{Packager: "Maintainer Name <maint@example.com>"}}, nil)
+		Return(&domain.PacmanPackage{PackageMetadata: domain.PackageMetadata{Packager: "Maintainer Name <maint@example.com>"}}, nil)
 
 	fr := &fakeReporter{}
 	h := &Handler{s: mockSvc, reporter: fr}

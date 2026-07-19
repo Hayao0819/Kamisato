@@ -2,16 +2,9 @@
 # Regenerate from lumine/web with: pnpm gen:types
 # (or: go run github.com/gzuidhof/tygo@latest generate)
 packages:
-  - path: "github.com/Hayao0819/Kamisato/pkg/raiou"
-    output_path: "src/lib/generated/raiou.ts"
-    include_files: ["pkginfo.go"]
   - path: "github.com/Hayao0819/Kamisato/ayato/domain"
     output_path: "src/lib/generated/ayato_domain.ts"
     include_files: ["repo.go", "features.go"]
-    frontmatter: |
-      import type { PKGINFO } from "./raiou";
-    type_mappings:
-      "raiou.PKGINFO": "PKGINFO"
   - path: "github.com/Hayao0819/Kamisato/internal/protocol"
     output_path: "src/lib/generated/miko_domain.ts"
     include_files: ["miko.go"]
