@@ -67,16 +67,16 @@ func (h *AuthHandler) DeviceCodeHandler(c *gin.Context) {
 	}
 	deviceCode, err := auth.NewDeviceCode()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "device code"})
+		respondAuthError(c, http.StatusInternalServerError, "device code")
 		return
 	}
 	userCode, err := auth.NewUserCode()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "user code"})
+		respondAuthError(c, http.StatusInternalServerError, "user code")
 		return
 	}
 	if err := h.device.CreateDevice(deviceCode, userCode, deviceCodeTTL); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "device store"})
+		respondAuthError(c, http.StatusInternalServerError, "device store")
 		return
 	}
 	_, base := h.externalBase(c)
@@ -105,7 +105,7 @@ func (h *AuthHandler) DeviceApproveHandler(c *gin.Context) {
 	userCode := normalizeUserCode(c.Query("user_code"))
 	status, ok, err := h.device.LookupByUserCode(userCode)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "device store"})
+		respondAuthError(c, http.StatusInternalServerError, "device store")
 		return
 	}
 	if !ok {
@@ -118,7 +118,7 @@ func (h *AuthHandler) DeviceApproveHandler(c *gin.Context) {
 	}
 	nonce, err := auth.NewState()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "state"})
+		respondAuthError(c, http.StatusInternalServerError, "state")
 		return
 	}
 	state, err := h.signer.Sign(auth.Claims{
@@ -129,7 +129,7 @@ func (h *AuthHandler) DeviceApproveHandler(c *gin.Context) {
 		Exp:      time.Now().Add(stateTTL),
 	})
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "state"})
+		respondAuthError(c, http.StatusInternalServerError, "state")
 		return
 	}
 	scheme, _ := h.externalBase(c)
@@ -139,12 +139,12 @@ func (h *AuthHandler) DeviceApproveHandler(c *gin.Context) {
 
 func (h *AuthHandler) finishDeviceLogin(c *gin.Context, st *auth.Claims, user githubUser) {
 	if h.device == nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "device login not configured"})
+		respondAuthError(c, http.StatusServiceUnavailable, "device login not configured")
 		return
 	}
 	ok, err := h.device.ApproveDevice(st.UserCode, user.ID, user.Login)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "device store"})
+		respondAuthError(c, http.StatusInternalServerError, "device store")
 		return
 	}
 	if !ok {

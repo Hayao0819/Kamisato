@@ -21,7 +21,7 @@ func (h *AuthHandler) GitHubLoginHandler(c *gin.Context) {
 	// (RFC 6749 §10.12).
 	nonce, err := auth.NewState()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "state"})
+		respondAuthError(c, http.StatusInternalServerError, "state")
 		return
 	}
 	state, err := h.signer.Sign(auth.Claims{
@@ -31,7 +31,7 @@ func (h *AuthHandler) GitHubLoginHandler(c *gin.Context) {
 		Exp:     time.Now().Add(stateTTL),
 	})
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "state"})
+		respondAuthError(c, http.StatusInternalServerError, "state")
 		return
 	}
 	scheme, _ := h.externalBase(c)
@@ -48,7 +48,7 @@ func (h *AuthHandler) CLIStartHandler(c *gin.Context) {
 	portStr := c.Query("port")
 	port, err := strconv.Atoi(portStr)
 	if err != nil || port < 1 || port > 65535 || strconv.Itoa(port) != portStr {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid port"})
+		respondAuthError(c, http.StatusBadRequest, "invalid port")
 		return
 	}
 	challenge, cliState, ok := parseChallengeAndState(c)
@@ -64,7 +64,7 @@ func (h *AuthHandler) CLIStartHandler(c *gin.Context) {
 		Exp:       time.Now().Add(stateTTL),
 	})
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "state"})
+		respondAuthError(c, http.StatusInternalServerError, "state")
 		return
 	}
 	c.Redirect(http.StatusFound, h.oauthConfig(c).AuthCodeURL(state))
@@ -76,18 +76,18 @@ func (h *AuthHandler) CLIStartHandler(c *gin.Context) {
 func parseChallengeAndState(c *gin.Context) (challenge, cliState string, ok bool) {
 	challenge = c.Query("challenge")
 	if challenge == "" || len(challenge) > 256 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "missing or oversized challenge"})
+		respondAuthError(c, http.StatusBadRequest, "missing or oversized challenge")
 		return "", "", false
 	}
 	cliState = c.Query("state")
 	if len(cliState) > 256 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "oversized state"})
+		respondAuthError(c, http.StatusBadRequest, "oversized state")
 		return "", "", false
 	}
 	if cliState == "" {
 		var err error
 		if cliState, err = auth.NewState(); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "state"})
+			respondAuthError(c, http.StatusInternalServerError, "state")
 			return "", "", false
 		}
 	}
@@ -112,7 +112,7 @@ func (h *AuthHandler) WebStartHandler(c *gin.Context) {
 		Exp:       time.Now().Add(stateTTL),
 	})
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "state"})
+		respondAuthError(c, http.StatusInternalServerError, "state")
 		return
 	}
 	c.Redirect(http.StatusFound, h.oauthConfig(c).AuthCodeURL(state))

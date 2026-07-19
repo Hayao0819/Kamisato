@@ -54,7 +54,7 @@ func (h *AuthHandler) requireOAuth(c *gin.Context) bool {
 	if h.oauthConfigured() {
 		return true
 	}
-	c.JSON(http.StatusServiceUnavailable, gin.H{"error": "github login not configured"})
+	respondAuthError(c, http.StatusServiceUnavailable, "github login not configured")
 	return false
 }
 
@@ -62,7 +62,7 @@ func (h *AuthHandler) requireDeviceAuthorization(c *gin.Context) bool {
 	if h.oauthConfigured() && h.device != nil {
 		return true
 	}
-	c.JSON(http.StatusServiceUnavailable, gin.H{"error": "device login not configured"})
+	respondAuthError(c, http.StatusServiceUnavailable, "device login not configured")
 	return false
 }
 
@@ -170,7 +170,7 @@ const webAuthBridgeTmpl = `<!doctype html><meta charset="utf-8"><title>Signing i
 func (h *AuthHandler) renderWebAuthBridge(c *gin.Context, code, state string) {
 	origin := h.spaOrigin()
 	if origin == "" {
-		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "public_origin not configured"})
+		respondAuthError(c, http.StatusServiceUnavailable, "public_origin not configured")
 		return
 	}
 	payload, err := json.Marshal(struct {
@@ -178,7 +178,7 @@ func (h *AuthHandler) renderWebAuthBridge(c *gin.Context, code, state string) {
 		State string `json:"state"`
 	}{Code: code, State: state})
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "encode"})
+		respondAuthError(c, http.StatusInternalServerError, "encode")
 		return
 	}
 	b64 := base64.StdEncoding.EncodeToString(payload)

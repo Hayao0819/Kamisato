@@ -36,6 +36,17 @@ func respondError(ctx *gin.Context, status int, message string) {
 	ctx.JSON(status, platform.NewHTTPError(status, message))
 }
 
+// authErrorResponse preserves the compact error shape used by OAuth, device
+// authorization, and the existing authentication-management endpoints. Other
+// Ayato APIs use platform.HTTPErrorResponse through respondError.
+type authErrorResponse struct {
+	Error string `json:"error"`
+}
+
+func respondAuthError(ctx *gin.Context, status int, message string) {
+	ctx.JSON(status, authErrorResponse{Error: message})
+}
+
 // respondServiceError converts errors deliberately classified by the domain
 // into their client status. Unexpected failures are logged and get only the
 // caller-supplied safe message.

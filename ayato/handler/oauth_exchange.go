@@ -40,26 +40,26 @@ func respondTokenPair(
 
 func (h *AuthHandler) redeemCode(c *gin.Context, tokenType string) (*auth.Claims, bool) {
 	if h.signer == nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "auth not configured"})
+		respondAuthError(c, http.StatusServiceUnavailable, "auth not configured")
 		return nil, false
 	}
 	var request codeExchangeRequest
 	if err := c.ShouldBindJSON(&request); err != nil ||
 		request.Code == "" || request.CodeVerifier == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+		respondAuthError(c, http.StatusBadRequest, "invalid request")
 		return nil, false
 	}
 	claims, err := h.signer.VerifyTyp(request.Code, tokenType)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid or used code"})
+		respondAuthError(c, http.StatusBadRequest, "invalid or used code")
 		return nil, false
 	}
 	if !auth.VerifyPKCE(request.CodeVerifier, claims.Challenge) {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "pkce verification failed"})
+		respondAuthError(c, http.StatusBadRequest, "pkce verification failed")
 		return nil, false
 	}
 	if !h.admins.IsAdmin(claims.GitHubID) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "not allowed"})
+		respondAuthError(c, http.StatusForbidden, "not allowed")
 		return nil, false
 	}
 	if !h.consumeCode(c, request.Code, claims) {
@@ -74,11 +74,11 @@ func (h *AuthHandler) consumeCode(c *gin.Context, code string, claims *auth.Clai
 	}
 	firstUse, err := h.replay.Consume(auth.HashHex(code), time.Until(claims.Exp))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "token"})
+		respondAuthError(c, http.StatusInternalServerError, "token")
 		return false
 	}
 	if !firstUse {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid or used code"})
+		respondAuthError(c, http.StatusBadRequest, "invalid or used code")
 		return false
 	}
 	return true
@@ -95,7 +95,7 @@ func (h *AuthHandler) CLIExchangeHandler(c *gin.Context) {
 		"cli",
 	)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "token"})
+		respondAuthError(c, http.StatusInternalServerError, "token")
 		return
 	}
 	respondTokenPair(
@@ -115,7 +115,7 @@ func (h *AuthHandler) WebExchangeHandler(c *gin.Context) {
 	}
 	jti, err := auth.NewJTI()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "token"})
+		respondAuthError(c, http.StatusInternalServerError, "token")
 		return
 	}
 	token, err := h.signer.Sign(auth.Claims{
@@ -127,7 +127,7 @@ func (h *AuthHandler) WebExchangeHandler(c *gin.Context) {
 		Exp:      time.Now().Add(bearerTTL),
 	})
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "token"})
+		respondAuthError(c, http.StatusInternalServerError, "token")
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{

@@ -26,7 +26,7 @@ func sessionFamilyID(claims *auth.Claims) string {
 // token alone suffices once the access token has expired.
 func (h *AuthHandler) RevokeCLIHandler(c *gin.Context) {
 	if h.signer == nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "revocation not configured"})
+		respondAuthError(c, http.StatusServiceUnavailable, "revocation not configured")
 		return
 	}
 	var body struct {
@@ -48,13 +48,13 @@ func (h *AuthHandler) RevokeCLIHandler(c *gin.Context) {
 
 	// No validly-signed token presented at all: unauthenticated.
 	if access == nil && refresh == nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid token"})
+		respondAuthError(c, http.StatusUnauthorized, "invalid token")
 		return
 	}
 	// A revocable token must carry a jti; a pre-jti access token with no refresh
 	// fallback cannot be individually revoked.
 	if (access == nil || access.JTI == "") && (refresh == nil || refresh.JTI == "") {
-		c.JSON(http.StatusConflict, gin.H{"error": "token has no jti; re-login to mint a revocable token"})
+		respondAuthError(c, http.StatusConflict, "token has no jti; re-login to mint a revocable token")
 		return
 	}
 
@@ -65,7 +65,7 @@ func (h *AuthHandler) RevokeCLIHandler(c *gin.Context) {
 		}
 		if claims.JTI != "" {
 			if err := h.revoker.Revoke(claims.JTI, time.Until(claims.Exp)); err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "revoke failed"})
+				respondAuthError(c, http.StatusInternalServerError, "revoke failed")
 				return
 			}
 		}
@@ -83,7 +83,7 @@ func (h *AuthHandler) RevokeCLIHandler(c *gin.Context) {
 	}
 	for family, ttl := range families {
 		if err := h.revoker.RevokeSession(family, ttl); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "revoke failed"})
+			respondAuthError(c, http.StatusInternalServerError, "revoke failed")
 			return
 		}
 	}

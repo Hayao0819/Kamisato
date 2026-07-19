@@ -76,64 +76,64 @@ func (h *AuthHandler) issueAccessRefreshForSession(githubID int64, login, name, 
 // reused (RFC 6749 §10.4). The signature is the authorization, so no admin middleware guards it.
 func (h *AuthHandler) RefreshHandler(c *gin.Context) {
 	if h.signer == nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "auth not configured"})
+		respondAuthError(c, http.StatusServiceUnavailable, "auth not configured")
 		return
 	}
 	var body struct {
 		RefreshToken string `json:"refresh_token"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil || body.RefreshToken == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+		respondAuthError(c, http.StatusBadRequest, "invalid request")
 		return
 	}
 
 	// An expired or wrong-type token fails here; the client must re-login.
 	rec, err := h.signer.VerifyTyp(body.RefreshToken, auth.TypRefresh)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid_grant"})
+		respondAuthError(c, http.StatusUnauthorized, "invalid_grant")
 		return
 	}
 	if rec.JTI == "" {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid_grant"})
+		respondAuthError(c, http.StatusUnauthorized, "invalid_grant")
 		return
 	}
 	sessionID := sessionFamilyID(rec)
 	sessionRevoked, err := h.revoker.IsSessionRevoked(sessionID)
 	if err != nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "refresh unavailable"})
+		respondAuthError(c, http.StatusServiceUnavailable, "refresh unavailable")
 		return
 	}
 	if sessionRevoked {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid_grant"})
+		respondAuthError(c, http.StatusUnauthorized, "invalid_grant")
 		return
 	}
 	// Re-check the allowlist so a de-allowlisted id cannot refresh (fail-closed).
 	if !h.admins.IsAdmin(rec.GitHubID) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "not allowed"})
+		respondAuthError(c, http.StatusForbidden, "not allowed")
 		return
 	}
 
 	access, refresh, expiresIn, err := h.issueAccessRefreshForSession(rec.GitHubID, rec.Login, "cli", sessionID, rec.Exp)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "token"})
+		respondAuthError(c, http.StatusInternalServerError, "token")
 		return
 	}
 	consumed, err := h.revoker.ConsumeRefreshToken(rec.JTI, time.Until(rec.Exp))
 	if err != nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "refresh unavailable"})
+		respondAuthError(c, http.StatusServiceUnavailable, "refresh unavailable")
 		return
 	}
 	if !consumed {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid_grant"})
+		respondAuthError(c, http.StatusUnauthorized, "invalid_grant")
 		return
 	}
 	sessionRevoked, err = h.revoker.IsSessionRevoked(sessionID)
 	if err != nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "refresh unavailable"})
+		respondAuthError(c, http.StatusServiceUnavailable, "refresh unavailable")
 		return
 	}
 	if sessionRevoked {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid_grant"})
+		respondAuthError(c, http.StatusUnauthorized, "invalid_grant")
 		return
 	}
 	respondTokenPair(c, access, refresh, expiresIn, rec.Login, rec.GitHubID)

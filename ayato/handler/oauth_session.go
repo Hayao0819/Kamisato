@@ -75,13 +75,13 @@ func (h *AuthHandler) revokePresentedAccess(c *gin.Context) {
 		}
 		if err := h.revoker.Revoke(claims.JTI, time.Until(claims.Exp)); err != nil {
 			c.Abort()
-			c.JSON(http.StatusServiceUnavailable, gin.H{"error": "revocation store"})
+			respondAuthError(c, http.StatusServiceUnavailable, "revocation store")
 			return
 		}
 		if tokenType == auth.TypCLI && claims.SessionID != "" {
 			if err := h.revoker.RevokeSession(claims.SessionID, h.refreshTTL()); err != nil {
 				c.Abort()
-				c.JSON(http.StatusServiceUnavailable, gin.H{"error": "revocation store"})
+				respondAuthError(c, http.StatusServiceUnavailable, "revocation store")
 			}
 		}
 		return

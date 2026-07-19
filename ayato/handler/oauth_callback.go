@@ -22,7 +22,7 @@ func (h *AuthHandler) GitHubCallbackHandler(c *gin.Context) {
 	}
 	st, err := h.signer.VerifyTyp(c.Query("state"), auth.TypState)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid state"})
+		respondAuthError(c, http.StatusBadRequest, "invalid state")
 		return
 	}
 
@@ -34,20 +34,20 @@ func (h *AuthHandler) GitHubCallbackHandler(c *gin.Context) {
 		h.clearOAuthStateCookie(c, scheme == "https")
 		if cerr != nil || st.Binding == "" ||
 			subtle.ConstantTimeCompare([]byte(auth.HashHex(nonce)), []byte(st.Binding)) != 1 {
-			c.JSON(http.StatusForbidden, gin.H{"error": "state binding mismatch"})
+			respondAuthError(c, http.StatusForbidden, "state binding mismatch")
 			return
 		}
 	}
 
 	code := c.Query("code")
 	if code == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "missing code"})
+		respondAuthError(c, http.StatusBadRequest, "missing code")
 		return
 	}
 
 	user, ok := h.resolveGitHubUser(c, code)
 	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "github identity check failed"})
+		respondAuthError(c, http.StatusUnauthorized, "github identity check failed")
 		return
 	}
 
@@ -60,7 +60,7 @@ func (h *AuthHandler) GitHubCallbackHandler(c *gin.Context) {
 			h.denyDeviceLogin(c, st)
 			return
 		}
-		c.JSON(http.StatusForbidden, gin.H{"error": "not allowed"})
+		respondAuthError(c, http.StatusForbidden, "not allowed")
 		return
 	}
 
@@ -125,7 +125,7 @@ func (h *AuthHandler) finishWebLogin(c *gin.Context, user githubUser) {
 		Exp:      time.Now().Add(sessionTTL),
 	})
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "session"})
+		respondAuthError(c, http.StatusInternalServerError, "session")
 		return
 	}
 	scheme, _ := h.externalBase(c)
@@ -152,7 +152,7 @@ func (h *AuthHandler) issueAuthorizationCode(
 func (h *AuthHandler) finishCLILogin(c *gin.Context, st *auth.Claims, user githubUser) {
 	oneTime, err := h.issueAuthorizationCode(auth.TypCodeCLI, st, user)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "code"})
+		respondAuthError(c, http.StatusInternalServerError, "code")
 		return
 	}
 	// Build the loopback from the integer port only, never a caller-supplied URL.
@@ -170,7 +170,7 @@ func (h *AuthHandler) finishCLILogin(c *gin.Context, st *auth.Claims, user githu
 func (h *AuthHandler) finishWebBearerLogin(c *gin.Context, st *auth.Claims, user githubUser) {
 	oneTime, err := h.issueAuthorizationCode(auth.TypCodeWeb, st, user)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "code"})
+		respondAuthError(c, http.StatusInternalServerError, "code")
 		return
 	}
 	h.renderWebAuthBridge(c, oneTime, st.CLIState)

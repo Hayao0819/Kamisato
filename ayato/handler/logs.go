@@ -16,12 +16,12 @@ const logTokenTTL = 60 * time.Second
 // bearer; it is spent on first use so a leaked stream URL cannot be replayed.
 func (h *MikoHandler) MintLogTokenHandler(c *gin.Context) {
 	if h.logTokens == nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "log tokens not configured"})
+		respondAuthError(c, http.StatusServiceUnavailable, "log tokens not configured")
 		return
 	}
 	token, err := h.logTokens.Mint(c.Param("id"), logTokenTTL)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "token"})
+		respondAuthError(c, http.StatusInternalServerError, "token")
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"token": token, "expires_in": int(logTokenTTL / time.Second)})

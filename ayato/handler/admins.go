@@ -12,7 +12,7 @@ import (
 func (h *AdminHandler) AdminsListHandler(c *gin.Context) {
 	admins, err := h.admins.ListAdmins()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "list"})
+		respondAuthError(c, http.StatusInternalServerError, "list")
 		return
 	}
 	if admins == nil {
@@ -28,24 +28,24 @@ func (h *AdminHandler) AdminsAddHandler(c *gin.Context) {
 		Login string `json:"login"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+		respondAuthError(c, http.StatusBadRequest, "invalid request")
 		return
 	}
 	id, login := body.ID, body.Login
 	if id <= 0 {
 		if login == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "id or login required"})
+			respondAuthError(c, http.StatusBadRequest, "id or login required")
 			return
 		}
 		resolvedID, resolvedLogin, rerr := h.admins.ResolveGitHubLogin(c.Request.Context(), login)
 		if rerr != nil {
-			c.JSON(http.StatusBadGateway, gin.H{"error": "could not resolve login"})
+			respondAuthError(c, http.StatusBadGateway, "could not resolve login")
 			return
 		}
 		id, login = resolvedID, resolvedLogin
 	}
 	if err := h.admins.AddAdmin(id, login); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "add"})
+		respondAuthError(c, http.StatusInternalServerError, "add")
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"id": id, "login": login})
@@ -54,7 +54,7 @@ func (h *AdminHandler) AdminsAddHandler(c *gin.Context) {
 func (h *AdminHandler) AdminsRemoveHandler(c *gin.Context) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil || id <= 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		respondAuthError(c, http.StatusBadRequest, "invalid id")
 		return
 	}
 	// Refuse to empty the allowlist (including self-removal): auth fails closed on
@@ -62,15 +62,15 @@ func (h *AdminHandler) AdminsRemoveHandler(c *gin.Context) {
 	// would lock everyone out until a restart.
 	admins, err := h.admins.ListAdmins()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "list"})
+		respondAuthError(c, http.StatusInternalServerError, "list")
 		return
 	}
 	if len(admins) == 1 && admins[0].ID == id {
-		c.JSON(http.StatusConflict, gin.H{"error": "cannot remove the last admin"})
+		respondAuthError(c, http.StatusConflict, "cannot remove the last admin")
 		return
 	}
 	if err := h.admins.RemoveAdmin(id); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "remove"})
+		respondAuthError(c, http.StatusInternalServerError, "remove")
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"ok": true})
