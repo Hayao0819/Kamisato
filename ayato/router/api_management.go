@@ -18,8 +18,8 @@ func setPublicationRoutes(
 		middlewares.RequireCI(),
 	)
 	upload.POST("/repos/:repo/packages", publications.BatchUploadHandler)
-	upload.POST("/repos/:repo/packages/presign", publications.PresignUploadHandler)
-	upload.POST("/repos/:repo/packages/finalize", publications.FinalizeUploadHandler)
+	upload.POST("/repos/:repo/packages/presign", publications.StagedUploadUnavailableHandler)
+	upload.POST("/repos/:repo/packages/finalize", publications.StagedUploadUnavailableHandler)
 
 	remove := api.Group("")
 	remove.Use(

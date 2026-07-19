@@ -20,15 +20,15 @@ func TestUnsafePresignProtocolIsDisabled(t *testing.T) {
 	h := &PublicationHandler{}
 
 	for _, tc := range []struct {
-		name, path string
-		handler    gin.HandlerFunc
+		name string
+		path string
 	}{
-		{name: "presign", path: "/api/unstable/repos/core/packages/presign", handler: h.PresignUploadHandler},
-		{name: "finalize", path: "/api/unstable/repos/core/packages/finalize", handler: h.FinalizeUploadHandler},
+		{name: "presign", path: "/api/unstable/repos/core/packages/presign"},
+		{name: "finalize", path: "/api/unstable/repos/core/packages/finalize"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			router := gin.New()
-			router.POST(tc.path, tc.handler)
+			router.POST(tc.path, h.StagedUploadUnavailableHandler)
 			response := httptest.NewRecorder()
 			request := httptest.NewRequest(http.MethodPost, tc.path, nil)
 			router.ServeHTTP(response, request)
