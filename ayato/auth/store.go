@@ -23,9 +23,9 @@ func NewOpaqueToken(byteLength int) (string, error) {
 	if byteLength <= 0 {
 		return "", errors.NewErr("auth: token length must be positive")
 	}
-	b := make([]byte, byteLength)
-	if _, err := rand.Read(b); err != nil {
-		return "", errors.WrapErr(err, "auth: read random")
+	b, err := randomBytes(byteLength)
+	if err != nil {
+		return "", err
 	}
 	return base64.RawURLEncoding.EncodeToString(b), nil
 }
@@ -51,9 +51,9 @@ const userCodeAlphabet = "BCDFGHJKLMNPQRSTVWXZ"
 // (e.g. "BCDF-GHJK").
 func NewUserCode() (string, error) {
 	const groups, per = 2, 4
-	b := make([]byte, groups*per)
-	if _, err := rand.Read(b); err != nil {
-		return "", errors.WrapErr(err, "auth: read random")
+	b, err := randomBytes(groups * per)
+	if err != nil {
+		return "", err
 	}
 	out := make([]byte, 0, groups*per+groups-1)
 	for i, v := range b {
@@ -63,6 +63,14 @@ func NewUserCode() (string, error) {
 		out = append(out, userCodeAlphabet[int(v)%len(userCodeAlphabet)])
 	}
 	return string(out), nil
+}
+
+func randomBytes(length int) ([]byte, error) {
+	value := make([]byte, length)
+	if _, err := rand.Read(value); err != nil {
+		return nil, errors.WrapErr(err, "auth: read random")
+	}
+	return value, nil
 }
 
 // Device authorization outcomes (RFC 8628 polling states) shared by the device
