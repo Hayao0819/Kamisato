@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
-	"github.com/Hayao0819/Kamisato/ayato/repository/kv/schema"
 	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
@@ -30,11 +29,11 @@ type revocationPolicy struct {
 
 var (
 	tokenRevocations = revocationPolicy{
-		namespace: schema.TokenDenylist,
+		namespace: kv.TokenDenylist,
 		field:     "jti",
 	}
 	sessionRevocations = revocationPolicy{
-		namespace: schema.SessionDenylist,
+		namespace: kv.SessionDenylist,
 		field:     "session id",
 	}
 	tokenConsumption = consumptionPolicy{

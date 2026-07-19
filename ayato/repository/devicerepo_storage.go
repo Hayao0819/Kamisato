@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/Hayao0819/Kamisato/ayato/repository/kv/schema"
+	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
 	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
@@ -17,7 +17,7 @@ func (r *deviceRepository) putByCode(
 	if err != nil {
 		return errors.WrapErr(err, "device: marshal record")
 	}
-	if err := r.kv.Set(schema.Devices, deviceCode, raw, ttl); err != nil {
+	if err := r.kv.Set(kv.Devices, deviceCode, raw, ttl); err != nil {
 		return errors.WrapErr(err, "device: store record")
 	}
 	return nil
@@ -27,7 +27,7 @@ func (r *deviceRepository) getByCode(deviceCode string) (deviceRecord, bool, err
 	if deviceCode == "" {
 		return deviceRecord{}, false, nil
 	}
-	raw, ok, err := getOptional(r.kv, schema.Devices, deviceCode, "device: get record")
+	raw, ok, err := getOptional(r.kv, kv.Devices, deviceCode, "device: get record")
 	if err != nil || !ok {
 		return deviceRecord{}, ok, err
 	}
@@ -48,7 +48,7 @@ func (r *deviceRepository) getByUserCode(userCode string) (deviceRecord, bool, e
 	}
 	code, ok, err := getOptional(
 		r.kv,
-		schema.DeviceUserIndex,
+		kv.DeviceUserIndex,
 		userCode,
 		"device: get user index",
 	)

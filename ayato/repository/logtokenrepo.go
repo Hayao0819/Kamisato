@@ -6,7 +6,6 @@ import (
 
 	"github.com/Hayao0819/Kamisato/ayato/auth"
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
-	"github.com/Hayao0819/Kamisato/ayato/repository/kv/schema"
 	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
@@ -16,7 +15,7 @@ type logTokenRecord struct {
 }
 
 var spentLogTokenConsumption = consumptionPolicy{
-	namespace:    schema.SpentLogTokens,
+	namespace:    kv.SpentLogTokens,
 	emptyError:   "logtoken: empty token",
 	errorContext: "logtoken: consume",
 }
@@ -53,7 +52,7 @@ func (r *logTokenRepository) Mint(jobID string, ttl time.Duration) (string, erro
 	if err != nil {
 		return "", errors.WrapErr(err, "logtoken: marshal")
 	}
-	if err := r.kv.Set(schema.LogTokens, tok, record, ttl); err != nil {
+	if err := r.kv.Set(kv.LogTokens, tok, record, ttl); err != nil {
 		return "", errors.WrapErr(err, "logtoken: store")
 	}
 	return tok, nil
@@ -63,7 +62,7 @@ func (r *logTokenRepository) ConsumeLogToken(token string) (string, bool, error)
 	if token == "" {
 		return "", false, nil
 	}
-	v, ok, err := getOptional(r.kv, schema.LogTokens, token, "logtoken: get")
+	v, ok, err := getOptional(r.kv, kv.LogTokens, token, "logtoken: get")
 	if err != nil {
 		return "", false, err
 	}
@@ -86,6 +85,6 @@ func (r *logTokenRepository) ConsumeLogToken(token string) (string, bool, error)
 	if !created {
 		return "", false, nil
 	}
-	_ = r.kv.Delete(schema.LogTokens, token)
+	_ = r.kv.Delete(kv.LogTokens, token)
 	return record.JobID, true, nil
 }

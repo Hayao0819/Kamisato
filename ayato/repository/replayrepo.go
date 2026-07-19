@@ -6,7 +6,6 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/errors"
 
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
-	"github.com/Hayao0819/Kamisato/ayato/repository/kv/schema"
 )
 
 // ReplayGuard records a one-time code id at redemption so a second exchange of the
@@ -37,7 +36,7 @@ type consumptionPolicy struct {
 }
 
 var replayConsumption = consumptionPolicy{
-	namespace:    schema.ReplayCodes,
+	namespace:    kv.ReplayCodes,
 	emptyError:   "replay: empty id",
 	errorContext: "replay: consume",
 }

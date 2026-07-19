@@ -9,7 +9,6 @@ import (
 
 	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
-	"github.com/Hayao0819/Kamisato/ayato/repository/kv/schema"
 	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
@@ -162,7 +161,7 @@ func Statuses(s kv.Store, migrations []Migration) (Status, error) {
 func markerKey(kind string, v int) string { return kind + "/" + strconv.Itoa(v) }
 
 func hasMarker(s kv.Store, kind string, v int) (bool, error) {
-	_, err := s.Get(schema.MigrationMetadata, markerKey(kind, v))
+	_, err := s.Get(kv.MigrationMetadata, markerKey(kind, v))
 	if errors.Is(err, kv.ErrNotFound) {
 		return false, nil
 	}
@@ -173,5 +172,5 @@ func hasMarker(s kv.Store, kind string, v int) (bool, error) {
 }
 
 func setMarker(s kv.Store, kind string, v int) error {
-	return s.Set(schema.MigrationMetadata, markerKey(kind, v), []byte("1"), 0)
+	return s.Set(kv.MigrationMetadata, markerKey(kind, v), []byte("1"), 0)
 }

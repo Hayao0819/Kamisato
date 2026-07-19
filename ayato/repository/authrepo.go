@@ -5,7 +5,6 @@ import (
 
 	"github.com/Hayao0819/Kamisato/ayato/domain"
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
-	"github.com/Hayao0819/Kamisato/ayato/repository/kv/schema"
 	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
@@ -36,26 +35,26 @@ func (r *authRepository) AddAdmin(id int64, login string) error {
 	if id <= 0 {
 		return errors.NewErr("auth: invalid github id")
 	}
-	return r.kv.Set(schema.AdminAllowlist, strconv.FormatInt(id, 10), []byte(login), 0)
+	return r.kv.Set(kv.AdminAllowlist, strconv.FormatInt(id, 10), []byte(login), 0)
 }
 
 func (r *authRepository) RemoveAdmin(id int64) error {
 	if id <= 0 {
 		return errors.NewErr("auth: invalid github id")
 	}
-	return r.kv.Delete(schema.AdminAllowlist, strconv.FormatInt(id, 10))
+	return r.kv.Delete(kv.AdminAllowlist, strconv.FormatInt(id, 10))
 }
 
 func (r *authRepository) IsAdmin(id int64) bool {
 	if id <= 0 {
 		return false
 	}
-	_, err := r.kv.Get(schema.AdminAllowlist, strconv.FormatInt(id, 10))
+	_, err := r.kv.Get(kv.AdminAllowlist, strconv.FormatInt(id, 10))
 	return err == nil
 }
 
 func (r *authRepository) ListAdmins() ([]AllowedAdmin, error) {
-	entries, err := r.kv.List(schema.AdminAllowlist)
+	entries, err := r.kv.List(kv.AdminAllowlist)
 	if err != nil {
 		return nil, errors.WrapErr(err, "auth: list allowlist")
 	}

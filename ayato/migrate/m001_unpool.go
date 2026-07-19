@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/Hayao0819/Kamisato/ayato/repository/kv/schema"
+	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
 	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
@@ -29,7 +29,7 @@ func (unpool) Expand(ctx context.Context, s *Stores) error {
 	if err != nil {
 		return err
 	}
-	ptrs, err := s.KV.List(schema.LegacyPoolPointers)
+	ptrs, err := s.KV.List(kv.LegacyPoolPointers)
 	if err != nil {
 		return errors.WrapErr(err, "list pool pointers")
 	}
@@ -67,7 +67,7 @@ func (unpool) Contract(ctx context.Context, s *Stores) error {
 			return errors.WrapErr(err, "delete pool object")
 		}
 	}
-	for _, ns := range []string{schema.LegacyPoolPointers, schema.LegacyPoolObjects, schema.PackageFiles} {
+	for _, ns := range []string{kv.LegacyPoolPointers, kv.LegacyPoolObjects, kv.PackageFiles} {
 		entries, err := s.KV.List(ns)
 		if err != nil {
 			return errors.WrapErr(err, "list "+ns)

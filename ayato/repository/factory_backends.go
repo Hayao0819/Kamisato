@@ -11,7 +11,6 @@ import (
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv/badgerkv"
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv/cfkv"
-	"github.com/Hayao0819/Kamisato/ayato/repository/kv/schema"
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv/securekv"
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv/sqlkv"
 	"github.com/Hayao0819/Kamisato/internal/auth/secretbox"
@@ -19,7 +18,7 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
-var defaultEncryptedNamespaces = []string{schema.AdminAllowlist}
+var defaultEncryptedNamespaces = []string{kv.AdminAllowlist}
 
 type initializedStores struct {
 	catalog *domain.RepositoryCatalog

@@ -7,7 +7,6 @@ import (
 
 	"github.com/Hayao0819/Kamisato/ayato/auth"
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
-	"github.com/Hayao0819/Kamisato/ayato/repository/kv/schema"
 )
 
 // deviceRecord is the kv-persisted device authorization. ExpiresAt is stored because
@@ -23,7 +22,7 @@ type deviceRecord struct {
 }
 
 var spentDeviceConsumption = consumptionPolicy{
-	namespace:    schema.SpentDevices,
+	namespace:    kv.SpentDevices,
 	emptyError:   "device: empty device code",
 	errorContext: "device: consume",
 }
@@ -71,7 +70,7 @@ func (r *deviceRepository) CreateDevice(deviceCode, userCode string, ttl time.Du
 	if err := r.putByCode(deviceCode, rec, ttl); err != nil {
 		return err
 	}
-	if err := r.kv.Set(schema.DeviceUserIndex, userCode, []byte(deviceCode), ttl); err != nil {
+	if err := r.kv.Set(kv.DeviceUserIndex, userCode, []byte(deviceCode), ttl); err != nil {
 		return errors.WrapErr(err, "device: index user code")
 	}
 	return nil
@@ -124,8 +123,8 @@ func (r *deviceRepository) ConsumeDevice(deviceCode string) (bool, error) {
 	if !created {
 		return false, nil
 	}
-	_ = r.kv.Delete(schema.DeviceUserIndex, rec.UserCode)
-	_ = r.kv.Delete(schema.Devices, deviceCode)
+	_ = r.kv.Delete(kv.DeviceUserIndex, rec.UserCode)
+	_ = r.kv.Delete(kv.Devices, deviceCode)
 	return true, nil
 }
 

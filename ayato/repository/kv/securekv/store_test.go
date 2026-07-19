@@ -8,7 +8,6 @@ import (
 	"filippo.io/age"
 
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
-	"github.com/Hayao0819/Kamisato/ayato/repository/kv/schema"
 	"github.com/Hayao0819/Kamisato/internal/auth/secretbox"
 )
 
@@ -104,4 +103,4 @@ func newBox(t *testing.T) secretbox.SecretBox {
 	return box
 }
 
-const allowNS = schema.AdminAllowlist
+const allowNS = kv.AdminAllowlist
