@@ -1,11 +1,10 @@
 package repository
 
 import (
-	"crypto/rand"
-	"encoding/base64"
 	"encoding/json"
 	"time"
 
+	"github.com/Hayao0819/Kamisato/ayato/auth"
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv/schema"
 	"github.com/Hayao0819/Kamisato/internal/errors"
@@ -40,11 +39,10 @@ func (r *logTokenRepository) Mint(jobID string, ttl time.Duration) (string, erro
 	if jobID == "" {
 		return "", errors.NewErr("logtoken: empty job id")
 	}
-	b := make([]byte, 32)
-	if _, err := rand.Read(b); err != nil {
-		return "", errors.WrapErr(err, "logtoken: read random")
+	tok, err := auth.NewOpaqueToken(32)
+	if err != nil {
+		return "", errors.WrapErr(err, "logtoken: mint")
 	}
-	tok := base64.RawURLEncoding.EncodeToString(b)
 	record, err := json.Marshal(logTokenRecord{JobID: jobID, ExpiresAt: time.Now().Add(ttl).Unix()})
 	if err != nil {
 		return "", errors.WrapErr(err, "logtoken: marshal")

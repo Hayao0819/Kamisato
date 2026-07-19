@@ -17,8 +17,13 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
-func randToken(n int) (string, error) {
-	b := make([]byte, n)
+// NewOpaqueToken returns a URL-safe token with byteLength bytes of
+// cryptographically secure entropy.
+func NewOpaqueToken(byteLength int) (string, error) {
+	if byteLength <= 0 {
+		return "", errors.NewErr("auth: token length must be positive")
+	}
+	b := make([]byte, byteLength)
 	if _, err := rand.Read(b); err != nil {
 		return "", errors.WrapErr(err, "auth: read random")
 	}
@@ -27,15 +32,15 @@ func randToken(n int) (string, error) {
 
 // NewState returns a fresh crypto-random nonce: the web OAuth binding nonce (only
 // its hash is signed into the state token) and the CLI loopback fallback state.
-func NewState() (string, error) { return randToken(32) }
+func NewState() (string, error) { return NewOpaqueToken(32) }
 
 // NewJTI returns a fresh 128-bit token id that makes a minted token individually
 // revocable via the denylist.
-func NewJTI() (string, error) { return randToken(16) }
+func NewJTI() (string, error) { return NewOpaqueToken(16) }
 
 // NewDeviceCode returns the opaque high-entropy device_code the polling client
 // presents at the device token endpoint (RFC 8628).
-func NewDeviceCode() (string, error) { return randToken(32) }
+func NewDeviceCode() (string, error) { return NewOpaqueToken(32) }
 
 // userCodeAlphabet is the RFC 8628 §6.1 recommended user-code charset: 20
 // unambiguous uppercase consonants (no vowels, so no accidental words, and none of
