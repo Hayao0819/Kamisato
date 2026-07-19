@@ -177,9 +177,13 @@ func closeAll(closers []io.Closer) {
 // PresignUploadHandler is a compatibility tombstone for clients released while
 // the unsafe final-key direct-upload protocol existed.
 func (h *PublicationHandler) PresignUploadHandler(ctx *gin.Context) {
-	respondError(ctx, http.StatusNotImplemented, "presigned upload is disabled until the staging-intent protocol is available")
+	respondStagedUploadUnavailable(ctx)
 }
 
 func (h *PublicationHandler) FinalizeUploadHandler(ctx *gin.Context) {
+	respondStagedUploadUnavailable(ctx)
+}
+
+func respondStagedUploadUnavailable(ctx *gin.Context) {
 	respondError(ctx, http.StatusNotImplemented, "presigned upload is disabled until the staging-intent protocol is available")
 }
