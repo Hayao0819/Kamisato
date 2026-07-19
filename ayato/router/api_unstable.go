@@ -12,15 +12,18 @@ import (
 	"golang.org/x/time/rate"
 )
 
-func SetRoute(e *gin.Engine, h *handler.Handler, m *middleware.Middleware) error {
+func SetRoute(e *gin.Engine, h *handler.Handler, m *middleware.Middleware, options ...RouteOption) error {
+	config := routeConfig{}
+	for _, option := range options {
+		option(&config)
+	}
 	if err := view.Set(e); err != nil {
 		return errors.WrapErr(err, "failed to configure templates")
 	}
 
 	// Health/readiness probes carry no auth and sit outside /api/unstable so
 	// orchestrators (Cloud Run, Kubernetes) can reach them without credentials.
-	e.GET("/health", func(c *gin.Context) { c.String(200, "ok") })
-	e.GET("/ready", func(c *gin.Context) { c.JSON(200, gin.H{"ready": true}) })
+	setHealthRoutes(e, config.readiness)
 
 	// Reverse proxy to miko. miko holds builds/jobs as the single source of truth,
 	// and ayato just passes through with an API key (clients never reach miko directly).
