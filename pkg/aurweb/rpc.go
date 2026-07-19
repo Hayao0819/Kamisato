@@ -26,9 +26,12 @@ func (s *Server) RPC(w http.ResponseWriter, r *http.Request) {
 
 	// aurweb checks the rate limit before anything else, so an over-limit request
 	// always gets 429 even with a bad callback.
-	if s.limiter != nil && !s.limiter.Allow(s.limiterFn(r)) {
-		s.writeRateLimited(w, q.version)
-		return
+	if s.limiter != nil {
+		decision := s.limiter.Allow(rpcRateScope, s.limiterFn(r), s.policy)
+		if !decision.Allowed {
+			s.writeRateLimited(w, q.version, decision.RetryAfter)
+			return
+		}
 	}
 	if q.callback != "" && !callbackRe.MatchString(q.callback) {
 		s.writeError(w, r, "", q.version, "Invalid callback name.")

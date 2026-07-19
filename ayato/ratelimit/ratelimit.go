@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
+	sharedlimit "github.com/Hayao0819/Kamisato/pkg/ratelimit"
 
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
 )
@@ -34,29 +35,26 @@ func New(store kv.Store) *Limiter {
 	return &Limiter{store: store, now: time.Now}
 }
 
-// Allow records one request for (scope, client) in the current window and reports
-// whether it stays within limit, plus a retry hint (time until the window rolls
-// over) when it does not. scope separates independent limiters sharing the one kv;
-// client is the caller identity (a trusted-proxy-aware IP). A non-positive limit or
-// window disables limiting. On a kv error it fails OPEN so a limiter outage does
-// not turn every request into a 500; logging is left to the caller.
-func (l *Limiter) Allow(scope, client string, limit int, window time.Duration) (bool, time.Duration) {
-	if limit <= 0 || window <= 0 {
-		return true, 0
+// Allow records one request for (scope, client) in the current window. Scope
+// separates independent consumers sharing the store; client is the caller
+// identity. On a kv error it fails open so a limiter outage does not turn every
+// request into a server outage.
+func (l *Limiter) Allow(scope, client string, policy sharedlimit.Policy) sharedlimit.Decision {
+	if !policy.Enabled() {
+		return sharedlimit.Decision{Allowed: true}
 	}
 	now := l.now()
-	winNanos := window.Nanoseconds()
-	idx := now.UnixNano() / winNanos
+	idx, retry := sharedlimit.WindowAt(now, policy.Window)
 	key := scope + ":" + client + ":" + strconv.FormatInt(idx, 10)
 
-	count, err := l.bump(key, limit, ttlFor(window))
+	count, err := l.bump(key, policy.Limit, ttlFor(policy.Window))
 	if err != nil {
-		return true, 0
+		return sharedlimit.Decision{Allowed: true}
 	}
-	if count > limit {
-		return false, time.Duration((idx+1)*winNanos - now.UnixNano())
+	if count > policy.Limit {
+		return sharedlimit.Decision{RetryAfter: retry}
 	}
-	return true, 0
+	return sharedlimit.Decision{Allowed: true}
 }
 
 // bump increments the window counter and returns the resulting count. The first

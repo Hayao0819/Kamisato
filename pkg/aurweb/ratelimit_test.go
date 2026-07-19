@@ -55,11 +55,18 @@ func TestRateLimit(t *testing.T) {
 	if c := do(); c != http.StatusTooManyRequests {
 		t.Fatalf("req 3 = %d, want 429", c)
 	}
+	req := httptest.NewRequest(http.MethodGet, "/rpc?v=5&type=search&arg=x", nil)
+	req.RemoteAddr = "10.0.0.1:1234"
+	rec := httptest.NewRecorder()
+	s.RPC(rec, req)
+	if rec.Header().Get("Retry-After") == "" {
+		t.Error("429 response is missing Retry-After")
+	}
 
 	// A different client has its own bucket.
-	req := httptest.NewRequest(http.MethodGet, "/rpc?v=5&type=search&arg=x", nil)
+	req = httptest.NewRequest(http.MethodGet, "/rpc?v=5&type=search&arg=x", nil)
 	req.RemoteAddr = "10.0.0.2:1234"
-	rec := httptest.NewRecorder()
+	rec = httptest.NewRecorder()
 	s.RPC(rec, req)
 	if rec.Code != http.StatusOK {
 		t.Errorf("second client = %d, want 200 (independent bucket)", rec.Code)
@@ -68,16 +75,23 @@ func TestRateLimit(t *testing.T) {
 
 func TestRateLimitWindowReset(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
-		l := newRateLimiter(1, 50*time.Millisecond)
-		if !l.Allow("k") {
-			t.Fatal("first request should pass")
+		be := &stubBackend{pkgs: map[string]Pkg{"x": {Name: "x", PackageBase: "x", Version: "1"}}}
+		s := New(be, WithRateLimit(1, 50*time.Millisecond, nil))
+		do := func() int {
+			req := httptest.NewRequest(http.MethodGet, "/rpc?v=5&type=search&arg=x", nil)
+			rec := httptest.NewRecorder()
+			s.RPC(rec, req)
+			return rec.Code
 		}
-		if l.Allow("k") {
-			t.Fatal("second request in-window should be denied")
+		if status := do(); status != http.StatusOK {
+			t.Fatalf("first request = %d, want 200", status)
+		}
+		if status := do(); status != http.StatusTooManyRequests {
+			t.Fatalf("second request = %d, want 429", status)
 		}
 		time.Sleep(70 * time.Millisecond)
-		if !l.Allow("k") {
-			t.Error("request after the window should pass again")
+		if status := do(); status != http.StatusOK {
+			t.Errorf("request after window = %d, want 200", status)
 		}
 	})
 }

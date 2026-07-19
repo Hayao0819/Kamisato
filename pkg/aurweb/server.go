@@ -4,6 +4,8 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+
+	"github.com/Hayao0819/Kamisato/pkg/ratelimit"
 )
 
 // Server turns a Backend (and optional Upstream) into the aurweb HTTP surface; safe for concurrent use.
@@ -12,14 +14,9 @@ type Server struct {
 	upstream  Upstream
 	log       *slog.Logger
 	dumps     dumpCache
-	limiter   Limiter                    // nil unless a limiter option is set
+	limiter   ratelimit.Limiter          // nil unless a limiter option is set
+	policy    ratelimit.Policy           // fixed-window budget for RPC requests
 	limiterFn func(*http.Request) string // client key for the limiter (defaults to remoteIP)
-}
-
-// Limiter throttles per-client /rpc requests; the interface allows injecting a shared kv-backed cross-replica limiter.
-type Limiter interface {
-	// Allow records one request for client and reports whether it is within limit.
-	Allow(client string) bool
 }
 
 type Option func(*Server)
@@ -37,14 +34,20 @@ func WithLogger(l *slog.Logger) Option {
 	}
 }
 
-// WithLimiter injects a rate limiter and client key function; nil keyFn keys on remote IP.
-func WithLimiter(l Limiter, keyFn func(*http.Request) string) Option {
+// WithLimiter injects a rate limiter and fixed-window policy. A nil key function
+// keys requests on the remote IP.
+func WithLimiter(
+	limiter ratelimit.Limiter,
+	policy ratelimit.Policy,
+	keyFn func(*http.Request) string,
+) Option {
 	return func(s *Server) {
-		if l != nil {
+		if limiter != nil && policy.Enabled() {
 			if keyFn == nil {
 				keyFn = remoteIP
 			}
-			s.limiter = l
+			s.limiter = limiter
+			s.policy = policy
 			s.limiterFn = keyFn
 		}
 	}

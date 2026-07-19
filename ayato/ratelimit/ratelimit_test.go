@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv/badgerkv"
+	sharedlimit "github.com/Hayao0819/Kamisato/pkg/ratelimit"
 )
 
 func newBadger(t *testing.T) *badgerkv.Store {
@@ -19,36 +20,36 @@ func newBadger(t *testing.T) *badgerkv.Store {
 
 func TestAllowUnderLimitThenReject(t *testing.T) {
 	l := New(newBadger(t))
-	const limit = 3
-	window := time.Hour
+	policy := sharedlimit.Policy{Limit: 3, Window: time.Hour}
 
-	for i := 1; i <= limit; i++ {
-		if ok, _ := l.Allow("s", "10.0.0.1", limit, window); !ok {
+	for i := 1; i <= policy.Limit; i++ {
+		if decision := l.Allow("s", "10.0.0.1", policy); !decision.Allowed {
 			t.Fatalf("request %d: rejected, want allowed", i)
 		}
 	}
-	ok, retry := l.Allow("s", "10.0.0.1", limit, window)
-	if ok {
+	decision := l.Allow("s", "10.0.0.1", policy)
+	if decision.Allowed {
 		t.Fatal("over-limit request: allowed, want rejected")
 	}
-	if retry <= 0 || retry > window {
-		t.Fatalf("retry hint = %v, want within (0, %v]", retry, window)
+	if decision.RetryAfter <= 0 || decision.RetryAfter > policy.Window {
+		t.Fatalf("retry hint = %v, want within (0, %v]", decision.RetryAfter, policy.Window)
 	}
 }
 
 func TestScopeAndClientIsolated(t *testing.T) {
 	l := New(newBadger(t))
-	if ok, _ := l.Allow("a", "1.1.1.1", 1, time.Hour); !ok {
+	policy := sharedlimit.Policy{Limit: 1, Window: time.Hour}
+	if decision := l.Allow("a", "1.1.1.1", policy); !decision.Allowed {
 		t.Fatal("scope a, ip1: first rejected")
 	}
-	if ok, _ := l.Allow("a", "1.1.1.1", 1, time.Hour); ok {
+	if decision := l.Allow("a", "1.1.1.1", policy); decision.Allowed {
 		t.Fatal("scope a, ip1: second allowed, want rejected")
 	}
 	// A different scope and a different client each keep an independent budget.
-	if ok, _ := l.Allow("b", "1.1.1.1", 1, time.Hour); !ok {
+	if decision := l.Allow("b", "1.1.1.1", policy); !decision.Allowed {
 		t.Fatal("scope b, ip1: first rejected (independent counter)")
 	}
-	if ok, _ := l.Allow("a", "2.2.2.2", 1, time.Hour); !ok {
+	if decision := l.Allow("a", "2.2.2.2", policy); !decision.Allowed {
 		t.Fatal("scope a, ip2: first rejected (independent counter)")
 	}
 }
@@ -58,16 +59,16 @@ func TestWindowResets(t *testing.T) {
 	l := New(newBadger(t))
 	l.now = func() time.Time { return clock }
 
-	window := time.Minute
-	if ok, _ := l.Allow("s", "ip", 1, window); !ok {
+	policy := sharedlimit.Policy{Limit: 1, Window: time.Minute}
+	if decision := l.Allow("s", "ip", policy); !decision.Allowed {
 		t.Fatal("first request rejected")
 	}
-	if ok, _ := l.Allow("s", "ip", 1, window); ok {
+	if decision := l.Allow("s", "ip", policy); decision.Allowed {
 		t.Fatal("second request in same window allowed, want rejected")
 	}
 	// Advance past the window: a fresh counter key starts the budget over.
-	clock = clock.Add(window + time.Second)
-	if ok, _ := l.Allow("s", "ip", 1, window); !ok {
+	clock = clock.Add(policy.Window + time.Second)
+	if decision := l.Allow("s", "ip", policy); !decision.Allowed {
 		t.Fatal("request after window reset rejected, want allowed")
 	}
 }
@@ -79,29 +80,28 @@ func TestSharedAcrossInstances(t *testing.T) {
 	a := New(store)
 	b := New(store)
 
-	const limit = 4
-	window := time.Hour
+	policy := sharedlimit.Policy{Limit: 4, Window: time.Hour}
 	allowed := 0
 	for i := 0; i < 10; i++ {
 		l := a
 		if i%2 == 1 {
 			l = b
 		}
-		if ok, _ := l.Allow("s", "ip", limit, window); ok {
+		if decision := l.Allow("s", "ip", policy); decision.Allowed {
 			allowed++
 		}
 	}
-	if allowed != limit {
-		t.Fatalf("shared limit: %d requests allowed across both instances, want %d", allowed, limit)
+	if allowed != policy.Limit {
+		t.Fatalf("shared limit: %d requests allowed across both instances, want %d", allowed, policy.Limit)
 	}
 }
 
 func TestDisabledWhenNonPositive(t *testing.T) {
 	l := New(newBadger(t))
-	if ok, _ := l.Allow("s", "ip", 0, time.Hour); !ok {
+	if decision := l.Allow("s", "ip", sharedlimit.Policy{Window: time.Hour}); !decision.Allowed {
 		t.Fatal("limit 0 should disable limiting")
 	}
-	if ok, _ := l.Allow("s", "ip", 5, 0); !ok {
+	if decision := l.Allow("s", "ip", sharedlimit.Policy{Limit: 5}); !decision.Allowed {
 		t.Fatal("window 0 should disable limiting")
 	}
 }

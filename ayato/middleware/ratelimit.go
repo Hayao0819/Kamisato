@@ -1,13 +1,14 @@
 package middleware
 
 import (
-	"math"
 	"net/http"
 	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"golang.org/x/time/rate"
+
+	sharedlimit "github.com/Hayao0819/Kamisato/pkg/ratelimit"
 )
 
 // RateLimit returns a per-client-IP middleware that answers excess requests with
@@ -17,7 +18,7 @@ import (
 // equivalent fixed window (see fixedWindow), and each call site gets a distinct
 // scope so independent route limiters keep independent counters.
 func (m *Middleware) RateLimit(r rate.Limit, burst int) gin.HandlerFunc {
-	limit, window := fixedWindow(r, burst)
+	policy := fixedWindow(r, burst)
 	scope := "mw" + strconv.FormatInt(m.rlScope.Add(1), 10)
 
 	return func(c *gin.Context) {
@@ -25,16 +26,12 @@ func (m *Middleware) RateLimit(r rate.Limit, burst int) gin.HandlerFunc {
 			c.Next()
 			return
 		}
-		ok, retry := m.limiter.Allow(scope, c.ClientIP(), limit, window)
-		if ok {
+		decision := m.limiter.Allow(scope, c.ClientIP(), policy)
+		if decision.Allowed {
 			c.Next()
 			return
 		}
-		secs := int(math.Ceil(retry.Seconds()))
-		if secs < 1 {
-			secs = 1
-		}
-		c.Header("Retry-After", strconv.Itoa(secs))
+		c.Header("Retry-After", sharedlimit.RetryAfterValue(decision.RetryAfter))
 		c.AbortWithStatus(http.StatusTooManyRequests)
 	}
 }
@@ -42,13 +39,13 @@ func (m *Middleware) RateLimit(r rate.Limit, burst int) gin.HandlerFunc {
 // fixedWindow maps a token-bucket (rate r tokens/sec, burst) to a fixed window of
 // `burst` requests per burst/r seconds. A non-positive or infinite rate means no
 // limit.
-func fixedWindow(r rate.Limit, burst int) (int, time.Duration) {
+func fixedWindow(r rate.Limit, burst int) sharedlimit.Policy {
 	if burst <= 0 || r <= 0 || r >= rate.Inf {
-		return 0, 0
+		return sharedlimit.Policy{}
 	}
 	window := time.Duration(float64(burst) / float64(r) * float64(time.Second))
 	if window <= 0 {
 		window = time.Second
 	}
-	return burst, window
+	return sharedlimit.Policy{Limit: burst, Window: window}
 }
