@@ -5,7 +5,6 @@ import (
 
 	"github.com/Hayao0819/Kamisato/ayato/handler"
 	"github.com/Hayao0819/Kamisato/ayato/middleware"
-	"github.com/Hayao0819/Kamisato/ayato/router/view"
 )
 
 func setPublicationRoutes(
@@ -76,7 +75,7 @@ func setBlinkyRoutes(
 
 func setRepositoryRoutes(engine *gin.Engine, repositories *handler.RepositoryHandler) error {
 	repo := engine.Group("/repo")
-	if err := view.SetRepoAssets(repo); err != nil {
+	if err := setRepoAssets(repo); err != nil {
 		return err
 	}
 	repo.GET("/:repo/mirrorlist", repositories.MirrorlistHandler)

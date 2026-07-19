@@ -1,6 +1,9 @@
 package router
 
 import (
+	"embed"
+	"html/template"
+	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -8,9 +11,14 @@ import (
 
 	"github.com/Hayao0819/Kamisato/ayato/handler"
 	"github.com/Hayao0819/Kamisato/ayato/middleware"
-	"github.com/Hayao0819/Kamisato/ayato/router/view"
 	"github.com/Hayao0819/Kamisato/internal/errors"
 )
+
+//go:embed templates/*.tmpl
+var templatesFS embed.FS
+
+//go:embed static/index.css static/index.js
+var staticFS embed.FS
 
 func SetRoute(
 	engine *gin.Engine,
@@ -22,7 +30,7 @@ func SetRoute(
 	for _, option := range options {
 		option(&config)
 	}
-	if err := view.Set(engine); err != nil {
+	if err := setViews(engine); err != nil {
 		return errors.WrapErr(err, "failed to configure templates")
 	}
 
@@ -44,6 +52,41 @@ func SetRoute(
 	setBlinkyRoutes(engine, handlers.Publications, middlewares)
 	if err := setRepositoryRoutes(engine, handlers.Repositories); err != nil {
 		return errors.WrapErr(err, "failed to register repo index assets")
+	}
+	return nil
+}
+
+func setViews(engine *gin.Engine) error {
+	templates, err := template.ParseFS(templatesFS, "templates/*")
+	if err != nil {
+		return errors.WrapErr(err, "failed to compile templates")
+	}
+	engine.SetHTMLTemplate(templates)
+	return nil
+}
+
+// setRepoAssets registers the repository index's embedded CSS and JavaScript.
+// They are served same-origin so the strict CSP needs no unsafe-inline rule.
+func setRepoAssets(group *gin.RouterGroup) error {
+	assets := []struct {
+		route       string
+		file        string
+		contentType string
+	}{
+		{"/_assets/index.css", "static/index.css", "text/css; charset=utf-8"},
+		{"/_assets/index.js", "static/index.js", "text/javascript; charset=utf-8"},
+	}
+	for _, asset := range assets {
+		body, err := staticFS.ReadFile(asset.file)
+		if err != nil {
+			return errors.WrapErr(err, "failed to read embedded asset "+asset.file)
+		}
+		contentType := asset.contentType
+		group.GET(asset.route, func(ctx *gin.Context) {
+			// Assets are fixed per binary, so immutable caching is safe.
+			ctx.Header("Cache-Control", "public, max-age=31536000, immutable")
+			ctx.Data(http.StatusOK, contentType, body)
+		})
 	}
 	return nil
 }
