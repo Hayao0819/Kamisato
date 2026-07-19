@@ -3,12 +3,10 @@ package repository
 import (
 	"bytes"
 	"encoding/json"
-	"io"
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
 
 	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
-	"github.com/Hayao0819/Kamisato/ayato/stream"
 	pacmanrepo "github.com/Hayao0819/Kamisato/pkg/pacman/repo"
 )
 
@@ -17,11 +15,11 @@ import (
 // refetch. The overlay stays the canonical <repo>.db.tar.gz that RepoAddBatch's
 // compare-and-swap owns; the served <repo>.db is aliased to the merged archive.
 func upstreamArtifacts(name string) pacmanrepo.DatabaseArtifacts {
-	return pacmanrepo.Artifacts(name).WithArchivePrefix(name + ".upstream")
+	return scopedArtifacts(name, "upstream")
 }
 
 func mergedArtifacts(name string) pacmanrepo.DatabaseArtifacts {
-	return pacmanrepo.Artifacts(name).WithArchivePrefix(name + ".merged")
+	return scopedArtifacts(name, "merged")
 }
 
 func upstreamMetaName(name string) string { return name + ".upstream.meta.json" }
@@ -66,13 +64,12 @@ func (r *binaryRepository) ApplyUpstreamSnapshot(name, arch string, dbGz, filesG
 		diff = pacmanrepo.DBDiff{}
 	}
 
-	if err := r.storeBytes(name, arch, upstream.DatabaseArchive(), dbGz); err != nil {
-		return diff, errors.WrapErr(err, "store upstream db snapshot")
-	}
-	if filesGz != nil {
-		if err := r.storeBytes(name, arch, upstream.FilesArchive(), filesGz); err != nil {
-			return diff, errors.WrapErr(err, "store upstream files snapshot")
-		}
+	if err := r.storeArtifactSet(name, arch, databaseArtifactSet{
+		names:    upstream,
+		database: dbGz,
+		files:    filesGz,
+	}, true, "upstream snapshot"); err != nil {
+		return diff, err
 	}
 	meta, _ := json.Marshal(upstreamMeta{ETag: etag, LastModified: lastModified})
 	if err := r.storeBytes(name, arch, upstreamMetaName(name), meta); err != nil {
@@ -121,57 +118,18 @@ func (r *binaryRepository) rebuildMergedLocked(name, arch string, useSignedDB bo
 	if err := pacmanrepo.Merge(bytesReaderOrNil(upDB), bytesReaderOrNil(upFiles), bytesReaderOrNil(overlayDB), bytesReaderOrNil(overlayFiles), &mergedDB, &mergedFiles); err != nil {
 		return errors.WrapErr(err, "merge upstream and overlay databases")
 	}
-	if err := r.storeBytes(name, arch, merged.DatabaseArchive(), mergedDB.Bytes()); err != nil {
-		return errors.WrapErr(err, "store merged db")
+	set := databaseArtifactSet{
+		names:    merged,
+		database: mergedDB.Bytes(),
+		files:    mergedFiles.Bytes(),
 	}
-	if err := r.storeBytes(name, arch, merged.FilesArchive(), mergedFiles.Bytes()); err != nil {
-		return errors.WrapErr(err, "store merged files db")
+	if err := r.storeArtifactSet(name, arch, set, false, "merged"); err != nil {
+		return err
 	}
 	if useSignedDB && r.dbSigner != nil {
-		if err := r.signMerged(name, arch, merged.DatabaseArchive(), mergedDB.Bytes()); err != nil {
-			return err
-		}
-		if err := r.signMerged(name, arch, merged.FilesArchive(), mergedFiles.Bytes()); err != nil {
+		if err := r.signArtifactSet(name, arch, set); err != nil {
 			return err
 		}
 	}
 	return nil
 }
-
-func (r *binaryRepository) signMerged(name, arch, archiveName string, data []byte) error {
-	var sig bytes.Buffer
-	if err := pacmanrepo.SignDetached(r.dbSigner, bytes.NewReader(data), &sig); err != nil {
-		return errors.WrapErr(err, "sign merged db")
-	}
-	return r.storeBytes(name, arch, archiveName+".sig", sig.Bytes())
-}
-
-// fetchBytes reads a stored object fully; a missing object is (nil, nil) so the
-// merge treats it as empty.
-func (r *binaryRepository) fetchBytes(name, arch, file string) ([]byte, error) {
-	f, err := r.Store.FetchFile(name, arch, file)
-	if errors.Is(err, blob.ErrNotFound) {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-	return io.ReadAll(f)
-}
-
-func (r *binaryRepository) storeBytes(name, arch, file string, data []byte) error {
-	fs := stream.NewFileStream(file, "application/gzip", byteSeeker{bytes.NewReader(data)})
-	return r.Store.StoreFile(name, arch, fs)
-}
-
-func bytesReaderOrNil(b []byte) io.Reader {
-	if b == nil {
-		return nil
-	}
-	return bytes.NewReader(b)
-}
-
-type byteSeeker struct{ *bytes.Reader }
-
-func (byteSeeker) Close() error { return nil }
