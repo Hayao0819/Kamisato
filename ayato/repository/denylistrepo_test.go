@@ -4,18 +4,11 @@ import (
 	"sync"
 	"testing"
 	"time"
-
-	"github.com/Hayao0819/Kamisato/ayato/repository/kv/badgerkv"
 )
 
 func newTestDenylistRepo(t *testing.T) DenylistRepository {
 	t.Helper()
-	store, err := badgerkv.New(t.TempDir())
-	if err != nil {
-		t.Fatalf("badgerkv.New: %v", err)
-	}
-	t.Cleanup(func() { _ = store.Close() })
-	return NewDenylistRepository(store)
+	return NewDenylistRepository(newTestKV(t))
 }
 
 func TestDenylistConsumeIsAtomic(t *testing.T) {
@@ -48,16 +41,7 @@ func TestDenylistConsumeIsAtomic(t *testing.T) {
 }
 
 func TestReplayGuardRejectsNonPositiveTTL(t *testing.T) {
-	store, err := badgerkv.New(t.TempDir())
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() {
-		if err := store.Close(); err != nil {
-			t.Errorf("close replay store: %v", err)
-		}
-	}()
-	guard := NewReplayGuard(store)
+	guard := NewReplayGuard(newTestKV(t))
 	for _, ttl := range []time.Duration{0, -time.Nanosecond} {
 		if first, err := guard.Consume("expired", ttl); err != nil || first {
 			t.Fatalf("Consume ttl=%v = (%v, %v), want false, nil", ttl, first, err)

@@ -1,19 +1,10 @@
 package repository
 
-import (
-	"testing"
-
-	"github.com/Hayao0819/Kamisato/ayato/repository/kv/badgerkv"
-)
+import "testing"
 
 func newTestAuthRepo(t *testing.T) AuthRepository {
 	t.Helper()
-	store, err := badgerkv.New(t.TempDir())
-	if err != nil {
-		t.Fatalf("badgerkv.New: %v", err)
-	}
-	t.Cleanup(func() { _ = store.Close() })
-	return NewAuthRepository(store)
+	return NewAuthRepository(newTestKV(t))
 }
 
 func TestAuthRepoFailClosed(t *testing.T) {

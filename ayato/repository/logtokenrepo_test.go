@@ -4,17 +4,10 @@ import (
 	"sync"
 	"testing"
 	"time"
-
-	"github.com/Hayao0819/Kamisato/ayato/repository/kv/badgerkv"
 )
 
 func TestLogTokenConsumeIsAtomic(t *testing.T) {
-	store, err := badgerkv.New(t.TempDir())
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = store.Close() })
-	repository := NewLogTokenRepository(store)
+	repository := NewLogTokenRepository(newTestKV(t))
 	token, err := repository.Mint("job-1", time.Minute)
 	if err != nil {
 		t.Fatal(err)

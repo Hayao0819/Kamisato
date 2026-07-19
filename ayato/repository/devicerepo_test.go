@@ -6,17 +6,11 @@ import (
 	"time"
 
 	"github.com/Hayao0819/Kamisato/ayato/auth"
-	"github.com/Hayao0819/Kamisato/ayato/repository/kv/badgerkv"
 )
 
 func newTestDeviceRepo(t *testing.T) DeviceRepository {
 	t.Helper()
-	store, err := badgerkv.New(t.TempDir())
-	if err != nil {
-		t.Fatalf("badgerkv.New: %v", err)
-	}
-	t.Cleanup(func() { _ = store.Close() })
-	return NewDeviceRepository(store)
+	return NewDeviceRepository(newTestKV(t))
 }
 
 func TestDeviceCreateApproveConsume(t *testing.T) {
