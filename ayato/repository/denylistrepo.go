@@ -4,14 +4,8 @@ import (
 	"time"
 
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
+	"github.com/Hayao0819/Kamisato/ayato/repository/kv/schema"
 	"github.com/Hayao0819/Kamisato/internal/errors"
-)
-
-// denyNS holds revoked token ids (jti); entries carry a TTL of the token's remaining
-// lifetime so they self-evict once the token expires.
-const (
-	denyNS        = "deny"
-	denySessionNS = "deny-session"
 )
 
 type DenylistRepository interface {
@@ -36,7 +30,7 @@ func (r *denylistRepository) Consume(jti string, ttl time.Duration) (bool, error
 	if !ok {
 		return false, errors.NewErr("deny: atomic token consumption is not supported by this store")
 	}
-	created, err := adder.Add(denyNS, jti, []byte{1}, ttl)
+	created, err := adder.Add(schema.TokenDenylist, jti, []byte{1}, ttl)
 	if err != nil {
 		return false, errors.WrapErr(err, "deny: consume jti")
 	}
@@ -52,19 +46,19 @@ func NewDenylistRepository(store kv.Store) DenylistRepository {
 }
 
 func (r *denylistRepository) Revoke(jti string, ttl time.Duration) error {
-	return r.revoke(denyNS, "jti", jti, ttl)
+	return r.revoke(schema.TokenDenylist, "jti", jti, ttl)
 }
 
 func (r *denylistRepository) IsRevoked(jti string) (bool, error) {
-	return r.isRevoked(denyNS, jti)
+	return r.isRevoked(schema.TokenDenylist, jti)
 }
 
 func (r *denylistRepository) RevokeSession(sessionID string, ttl time.Duration) error {
-	return r.revoke(denySessionNS, "session id", sessionID, ttl)
+	return r.revoke(schema.SessionDenylist, "session id", sessionID, ttl)
 }
 
 func (r *denylistRepository) IsSessionRevoked(sessionID string) (bool, error) {
-	return r.isRevoked(denySessionNS, sessionID)
+	return r.isRevoked(schema.SessionDenylist, sessionID)
 }
 
 func (r *denylistRepository) revoke(namespace, field, id string, ttl time.Duration) error {

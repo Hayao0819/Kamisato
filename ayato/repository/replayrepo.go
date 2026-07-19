@@ -6,12 +6,8 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/errors"
 
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
+	"github.com/Hayao0819/Kamisato/ayato/repository/kv/schema"
 )
-
-// replayNS holds redeemed one-time code ids; an entry means the code was already
-// exchanged. Its TTL equals the code's remaining lifetime so it self-evicts once the
-// code can no longer be replayed.
-const replayNS = "replay"
 
 // ReplayGuard records a one-time code id at redemption so a second exchange of the
 // same code is rejected. It keeps ayato stateless: the "used" set lives in the
@@ -41,5 +37,5 @@ func (r *replayGuard) Consume(id string, ttl time.Duration) (bool, error) {
 	if !ok {
 		return false, errors.NewErr("replay: atomic consumption is not supported by this store")
 	}
-	return adder.Add(replayNS, id, []byte{1}, ttl)
+	return adder.Add(schema.ReplayCodes, id, []byte{1}, ttl)
 }

@@ -13,6 +13,7 @@ import (
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv/badgerkv"
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv/cfkv"
+	"github.com/Hayao0819/Kamisato/ayato/repository/kv/schema"
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv/securekv"
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv/sqlkv"
 	"github.com/Hayao0819/Kamisato/internal/auth/secretbox"
@@ -24,7 +25,7 @@ import (
 // defaultEncryptedNamespaces is the kv namespace set at-rest encryption seals when
 // enabled; only the durable admin allowlist qualifies (sessions, tokens, replay and
 // rate-limit state are stateless-signed or ephemeral).
-var defaultEncryptedNamespaces = []string{allowNS}
+var defaultEncryptedNamespaces = []string{schema.AdminAllowlist}
 
 // secureKV wraps store with at-rest encryption when an age identity is configured,
 // else returns it unchanged. The key is read from the environment
@@ -97,10 +98,25 @@ func initKVStore(cfg *conf.AyatoConfig) (kv.Store, error) {
 	}
 }
 
+func closeKVOnFailure(store kv.Store, err *error) {
+	if store == nil || err == nil || *err == nil {
+		return
+	}
+	if closeErr := store.Close(); closeErr != nil {
+		*err = errors.Join(*err, errors.WrapErr(closeErr, "failed to close key-value store after initialization failure"))
+	}
+}
+
 // New returns the shared kv.Store alongside the repositories so other consumers
 // (e.g. the AUR backend) can partition their own namespaces instead of opening a
 // second store against the same locked BadgerDB dir; the caller closes it.
-func New(cfg *conf.AyatoConfig) (NameStore, BinaryRepository, AuthRepository, kv.Store, error) {
+func New(cfg *conf.AyatoConfig) (
+	nameStore NameStore,
+	binaryRepo BinaryRepository,
+	authRepo AuthRepository,
+	returnedStore kv.Store,
+	err error,
+) {
 	if cfg == nil {
 		return nil, nil, nil, nil, errors.NewErr("ayato config is nil")
 	}
@@ -114,13 +130,14 @@ func New(cfg *conf.AyatoConfig) (NameStore, BinaryRepository, AuthRepository, kv
 		slog.Error("Failed to create key-value store", "error", err)
 		return nil, nil, nil, nil, err
 	}
-	if cfg != nil {
-		kvStore, err = secureKV(kvStore, cfg)
-		if err != nil {
-			slog.Error("Failed to enable at-rest secret encryption", "error", err)
-			return nil, nil, nil, nil, err
-		}
+	defer func() { closeKVOnFailure(kvStore, &err) }()
+
+	securedStore, secureErr := secureKV(kvStore, cfg)
+	if secureErr != nil {
+		slog.Error("Failed to enable at-rest secret encryption", "error", secureErr)
+		return nil, nil, nil, nil, secureErr
 	}
+	kvStore = securedStore
 
 	binStore, err := initBinaryStore(cfg, catalog)
 	if err != nil {
@@ -144,10 +161,11 @@ func New(cfg *conf.AyatoConfig) (NameStore, BinaryRepository, AuthRepository, kv
 	return NewPackageMetadataRepo(kvStore), binRepo, NewAuthRepository(kvStore), kvStore, nil
 }
 
-// NewMigrationStores returns the raw kv and blob stores without the serving-path
-// decorators, so migrations reach kv.BulkStore and blob.ObjectMover directly. The
-// caller closes the kv store.
-func NewMigrationStores(cfg *conf.AyatoConfig) (kv.Store, blob.Store, error) {
+// NewMigrationStores returns migration-facing stores. The blob store is raw so
+// ObjectMover remains available. The KV store retains securekv because migrations
+// operate on logical plaintext values; securekv preserves BulkStore while sealing
+// sensitive namespaces before the backend receives a batch. The caller closes it.
+func NewMigrationStores(cfg *conf.AyatoConfig) (returnedKV kv.Store, returnedBlob blob.Store, err error) {
 	if cfg == nil {
 		return nil, nil, errors.NewErr("ayato config is nil")
 	}
@@ -159,11 +177,13 @@ func NewMigrationStores(cfg *conf.AyatoConfig) (kv.Store, blob.Store, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	if cfg != nil {
-		if kvStore, err = secureKV(kvStore, cfg); err != nil {
-			return nil, nil, err
-		}
+	defer func() { closeKVOnFailure(kvStore, &err) }()
+
+	securedStore, secureErr := secureKV(kvStore, cfg)
+	if secureErr != nil {
+		return nil, nil, secureErr
 	}
+	kvStore = securedStore
 	binStore, err := initBinaryStore(cfg, catalog)
 	if err != nil {
 		return nil, nil, err

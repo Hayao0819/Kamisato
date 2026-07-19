@@ -9,6 +9,7 @@ import (
 	"filippo.io/age"
 
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
+	"github.com/Hayao0819/Kamisato/ayato/repository/kv/schema"
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv/securekv"
 	"github.com/Hayao0819/Kamisato/internal/auth/secretbox"
 )
@@ -94,7 +95,7 @@ func newBox(t *testing.T) secretbox.SecretBox {
 	return box
 }
 
-const allowNS = "allow"
+const allowNS = schema.AdminAllowlist
 
 // An entry in an encrypted namespace persists as ciphertext and reads back as the
 // original plaintext.
@@ -210,5 +211,137 @@ func TestAdderPreservedAndSeals(t *testing.T) {
 	got, err := s.Get(allowNS, "9")
 	if err != nil || string(got) != "mona" {
 		t.Fatalf("Get after encrypted Add = (%q, %v)", got, err)
+	}
+}
+
+type bulkAuditStore struct {
+	kv.Store
+	bulkSets    int
+	bulkDeletes int
+	foreignKeys []string
+	rawDeletes  []string
+}
+
+func (s *bulkAuditStore) BulkSet(ns string, entries []kv.Entry, ttl time.Duration) error {
+	s.bulkSets++
+	for _, entry := range entries {
+		if err := s.Store.Set(ns, entry.Key, entry.Value, ttl); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *bulkAuditStore) BulkDelete(ns string, keys []string) error {
+	s.bulkDeletes++
+	for _, key := range keys {
+		if err := s.Store.Delete(ns, key); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *bulkAuditStore) ForeignKeys() ([]string, error) {
+	return append([]string(nil), s.foreignKeys...), nil
+}
+
+func (s *bulkAuditStore) DeleteRawKeys(keys []string) error {
+	s.rawDeletes = append(s.rawDeletes, keys...)
+	return nil
+}
+
+type allCapabilitiesStore struct {
+	*bulkAuditStore
+	adder kv.Adder
+}
+
+func (s *allCapabilitiesStore) Add(ns, key string, value []byte, ttl time.Duration) (bool, error) {
+	return s.adder.Add(ns, key, value, ttl)
+}
+
+func TestBulkAndAuditCapabilitiesPreserved(t *testing.T) {
+	mem := newMem()
+	backend := &bulkAuditStore{
+		Store:       mem,
+		foreignKeys: []string{"foreign/raw"},
+	}
+	s := securekv.New(backend, newBox(t), []string{allowNS})
+
+	bulk, ok := s.(kv.BulkStore)
+	if !ok {
+		t.Fatal("wrapper must expose kv.BulkStore when the backend does")
+	}
+	auditor, ok := s.(kv.KeyAuditor)
+	if !ok {
+		t.Fatal("wrapper must expose kv.KeyAuditor when the backend does")
+	}
+	if _, ok := s.(kv.Adder); ok {
+		t.Fatal("wrapper advertised kv.Adder although the backend does not")
+	}
+
+	entries := []kv.Entry{{Key: "42", Value: []byte("octocat")}}
+	if err := bulk.BulkSet(allowNS, entries, time.Hour); err != nil {
+		t.Fatalf("BulkSet: %v", err)
+	}
+	if backend.bulkSets != 1 {
+		t.Fatalf("backend BulkSet calls = %d, want 1", backend.bulkSets)
+	}
+	if string(entries[0].Value) != "octocat" {
+		t.Fatal("BulkSet mutated the caller's entry")
+	}
+	if raw := mem.raw(allowNS, "42"); !secretbox.IsSealed(raw) || bytes.Contains(raw, []byte("octocat")) {
+		t.Fatal("BulkSet did not encrypt the sensitive value at rest")
+	}
+	if got, err := s.Get(allowNS, "42"); err != nil || string(got) != "octocat" {
+		t.Fatalf("Get after BulkSet = (%q, %v)", got, err)
+	}
+
+	if err := bulk.BulkDelete(allowNS, []string{"42"}); err != nil {
+		t.Fatalf("BulkDelete: %v", err)
+	}
+	if backend.bulkDeletes != 1 {
+		t.Fatalf("backend BulkDelete calls = %d, want 1", backend.bulkDeletes)
+	}
+	if keys, err := auditor.ForeignKeys(); err != nil || len(keys) != 1 || keys[0] != "foreign/raw" {
+		t.Fatalf("ForeignKeys = (%v, %v)", keys, err)
+	}
+	if err := auditor.DeleteRawKeys([]string{"foreign/raw"}); err != nil {
+		t.Fatalf("DeleteRawKeys: %v", err)
+	}
+	if len(backend.rawDeletes) != 1 || backend.rawDeletes[0] != "foreign/raw" {
+		t.Fatalf("raw deletes = %v", backend.rawDeletes)
+	}
+}
+
+func TestWrapperAdvertisesExactlyBackendCapabilities(t *testing.T) {
+	mem := newMem()
+	box := newBox(t)
+
+	plain := securekv.New(struct{ kv.Store }{Store: mem}, box, []string{allowNS})
+	if _, ok := plain.(kv.Adder); ok {
+		t.Error("plain backend gained Adder")
+	}
+	if _, ok := plain.(kv.BulkStore); ok {
+		t.Error("plain backend gained BulkStore")
+	}
+	if _, ok := plain.(kv.KeyAuditor); ok {
+		t.Error("plain backend gained KeyAuditor")
+	}
+
+	backend := &bulkAuditStore{Store: mem}
+	full := securekv.New(
+		&allCapabilitiesStore{bulkAuditStore: backend, adder: mem},
+		box,
+		[]string{allowNS},
+	)
+	if _, ok := full.(kv.Adder); !ok {
+		t.Error("full backend lost Adder")
+	}
+	if _, ok := full.(kv.BulkStore); !ok {
+		t.Error("full backend lost BulkStore")
+	}
+	if _, ok := full.(kv.KeyAuditor); !ok {
+		t.Error("full backend lost KeyAuditor")
 	}
 }

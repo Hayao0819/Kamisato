@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"slices"
 
+	"github.com/Hayao0819/Kamisato/ayato/repository/kv/schema"
 	"github.com/Hayao0819/Kamisato/internal/errors"
 	"github.com/Hayao0819/Kamisato/internal/gitcmd"
 	"github.com/Hayao0819/Kamisato/pkg/aurweb"
@@ -56,7 +57,7 @@ func (b *Backend) ingest(ctx context.Context, dir, source, maintainer string) (p
 		if mErr != nil {
 			return "", nil, errors.WrapErr(mErr, "failed to encode package")
 		}
-		if sErr := b.kv.Set(nsPkg, p.Name, raw, 0); sErr != nil {
+		if sErr := b.kv.Set(schema.AURPackages, p.Name, raw, 0); sErr != nil {
 			return "", nil, errors.WrapErr(sErr, "failed to store package")
 		}
 		names = append(names, p.Name)
@@ -66,7 +67,7 @@ func (b *Backend) ingest(ctx context.Context, dir, source, maintainer string) (p
 	if mErr != nil {
 		return "", nil, errors.WrapErr(mErr, "failed to encode pkgbase record")
 	}
-	if err := b.kv.Set(nsBase, pkgbase, rec, 0); err != nil {
+	if err := b.kv.Set(schema.AURBases, pkgbase, rec, 0); err != nil {
 		return "", nil, errors.WrapErr(err, "failed to store pkgbase")
 	}
 	return pkgbase, names, nil
@@ -79,15 +80,15 @@ func (b *Backend) Remove(_ context.Context, pkgbase string) error {
 		return err
 	}
 	for _, n := range rec.Names {
-		if dErr := b.kv.Delete(nsPkg, n); dErr != nil {
+		if dErr := b.kv.Delete(schema.AURPackages, n); dErr != nil {
 			return errors.WrapErr(dErr, "failed to delete package "+n)
 		}
 	}
-	return b.kv.Delete(nsBase, pkgbase)
+	return b.kv.Delete(schema.AURBases, pkgbase)
 }
 
 func (b *Backend) List(_ context.Context) ([]string, error) {
-	entries, err := b.kv.List(nsBase)
+	entries, err := b.kv.List(schema.AURBases)
 	if err != nil {
 		return nil, err
 	}

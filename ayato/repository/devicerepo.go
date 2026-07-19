@@ -8,15 +8,7 @@ import (
 
 	"github.com/Hayao0819/Kamisato/ayato/auth"
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
-)
-
-// deviceNS maps a device_code to its record; deviceUserNS indexes the user_code to
-// its device_code so the approval page can find the pending record. Both carry the
-// authorization-window TTL (RFC 8628) so unredeemed requests self-evict.
-const (
-	deviceNS      = "device"
-	deviceUserNS  = "deviceuc"
-	deviceSpentNS = "devicespent"
+	"github.com/Hayao0819/Kamisato/ayato/repository/kv/schema"
 )
 
 // deviceRecord is the kv-persisted device authorization. ExpiresAt is stored because
@@ -74,7 +66,7 @@ func (r *deviceRepository) CreateDevice(deviceCode, userCode string, ttl time.Du
 	if err := r.putByCode(deviceCode, rec, ttl); err != nil {
 		return err
 	}
-	if err := r.kv.Set(deviceUserNS, userCode, []byte(deviceCode), ttl); err != nil {
+	if err := r.kv.Set(schema.DeviceUserIndex, userCode, []byte(deviceCode), ttl); err != nil {
 		return errors.WrapErr(err, "device: index user code")
 	}
 	return nil
@@ -124,15 +116,15 @@ func (r *deviceRepository) ConsumeDevice(deviceCode string) (bool, error) {
 	if !ok {
 		return false, errors.NewErr("device: atomic consumption is not supported by this store")
 	}
-	created, err := adder.Add(deviceSpentNS, deviceCode, []byte{1}, ttl)
+	created, err := adder.Add(schema.SpentDevices, deviceCode, []byte{1}, ttl)
 	if err != nil {
 		return false, errors.WrapErr(err, "device: consume")
 	}
 	if !created {
 		return false, nil
 	}
-	_ = r.kv.Delete(deviceUserNS, rec.UserCode)
-	_ = r.kv.Delete(deviceNS, deviceCode)
+	_ = r.kv.Delete(schema.DeviceUserIndex, rec.UserCode)
+	_ = r.kv.Delete(schema.Devices, deviceCode)
 	return true, nil
 }
 
@@ -159,7 +151,7 @@ func (r *deviceRepository) putByCode(deviceCode string, rec deviceRecord, ttl ti
 	if err != nil {
 		return errors.WrapErr(err, "device: marshal record")
 	}
-	if err := r.kv.Set(deviceNS, deviceCode, raw, ttl); err != nil {
+	if err := r.kv.Set(schema.Devices, deviceCode, raw, ttl); err != nil {
 		return errors.WrapErr(err, "device: store record")
 	}
 	return nil
@@ -169,7 +161,7 @@ func (r *deviceRepository) getByCode(deviceCode string) (deviceRecord, bool, err
 	if deviceCode == "" {
 		return deviceRecord{}, false, nil
 	}
-	raw, err := r.kv.Get(deviceNS, deviceCode)
+	raw, err := r.kv.Get(schema.Devices, deviceCode)
 	if err != nil {
 		if errors.Is(err, kv.ErrNotFound) {
 			return deviceRecord{}, false, nil
@@ -192,7 +184,7 @@ func (r *deviceRepository) getByUserCode(userCode string) (deviceRecord, bool, e
 	if userCode == "" {
 		return deviceRecord{}, false, nil
 	}
-	code, err := r.kv.Get(deviceUserNS, userCode)
+	code, err := r.kv.Get(schema.DeviceUserIndex, userCode)
 	if err != nil {
 		if errors.Is(err, kv.ErrNotFound) {
 			return deviceRecord{}, false, nil

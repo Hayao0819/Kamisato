@@ -6,12 +6,8 @@ import (
 	"strconv"
 
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
+	"github.com/Hayao0819/Kamisato/ayato/repository/kv/schema"
 	"github.com/Hayao0819/Kamisato/internal/errors"
-)
-
-const (
-	metaNS    = "_meta_"
-	layoutKey = "layout_version"
 )
 
 // SupportedMin/Max are the layout versions this binary can read. 0 is fresh or
@@ -24,7 +20,7 @@ const (
 
 // ReadLayout returns the stored layout version; unset is the 0 baseline.
 func ReadLayout(s kv.Store) (int, error) {
-	v, err := s.Get(metaNS, layoutKey)
+	v, err := s.Get(schema.MigrationMetadata, schema.LayoutVersionKey)
 	if errors.Is(err, kv.ErrNotFound) {
 		return 0, nil
 	}
@@ -39,7 +35,7 @@ func ReadLayout(s kv.Store) (int, error) {
 }
 
 func WriteLayout(s kv.Store, version int) error {
-	return s.Set(metaNS, layoutKey, []byte(strconv.Itoa(version)), 0)
+	return s.Set(schema.MigrationMetadata, schema.LayoutVersionKey, []byte(strconv.Itoa(version)), 0)
 }
 
 // Guard reports the stored version and whether a binary reading layouts [min, max]

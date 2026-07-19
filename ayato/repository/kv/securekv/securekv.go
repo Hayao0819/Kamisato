@@ -6,6 +6,7 @@
 package securekv
 
 import (
+	"slices"
 	"time"
 
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
@@ -31,14 +32,41 @@ func New(inner kv.Store, box secretbox.SecretBox, encryptedNamespaces []string) 
 		enc[ns] = struct{}{}
 	}
 	s := &store{inner: inner, box: box, encrypted: enc}
-	// Preserve the atomic set-if-absent capability when the backend offers it, so
-	// the replay and rate-limit guards keep their race-free path. Those namespaces
-	// are never encrypted, so Add just delegates.
+	capabilities := 0
 	if _, ok := inner.(kv.Adder); ok {
-		return &adderStore{store: s}
+		capabilities |= capabilityAdder
 	}
-	return s
+	if _, ok := inner.(kv.BulkStore); ok {
+		capabilities |= capabilityBulk
+	}
+	if _, ok := inner.(kv.KeyAuditor); ok {
+		capabilities |= capabilityAuditor
+	}
+	switch capabilities {
+	case capabilityAdder:
+		return &adderStore{store: s}
+	case capabilityBulk:
+		return &bulkStore{store: s}
+	case capabilityAuditor:
+		return &auditorStore{store: s}
+	case capabilityAdder | capabilityBulk:
+		return &adderBulkStore{store: s}
+	case capabilityAdder | capabilityAuditor:
+		return &adderAuditorStore{store: s}
+	case capabilityBulk | capabilityAuditor:
+		return &bulkAuditorStore{store: s}
+	case capabilityAdder | capabilityBulk | capabilityAuditor:
+		return &fullStore{store: s}
+	default:
+		return s
+	}
 }
+
+const (
+	capabilityAdder = 1 << iota
+	capabilityBulk
+	capabilityAuditor
+)
 
 func (s *store) encrypts(ns string) bool {
 	_, ok := s.encrypted[ns]
@@ -57,12 +85,9 @@ func (s *store) Get(ns, key string) ([]byte, error) {
 }
 
 func (s *store) Set(ns, key string, value []byte, ttl time.Duration) error {
-	if s.encrypts(ns) {
-		sealed, err := s.box.Seal(value)
-		if err != nil {
-			return errors.WrapErr(err, "securekv: seal")
-		}
-		value = sealed
+	value, err := s.seal(ns, value)
+	if err != nil {
+		return err
 	}
 	return s.inner.Set(ns, key, value, ttl)
 }
@@ -86,6 +111,17 @@ func (s *store) List(ns string) ([]kv.Entry, error) {
 
 func (s *store) Close() error { return s.inner.Close() }
 
+func (s *store) seal(ns string, value []byte) ([]byte, error) {
+	if !s.encrypts(ns) {
+		return value, nil
+	}
+	sealed, err := s.box.Seal(value)
+	if err != nil {
+		return nil, errors.WrapErr(err, "securekv: seal")
+	}
+	return sealed, nil
+}
+
 // open decrypts a sealed value, but returns a pre-encryption plaintext value
 // unchanged — the transparent migration path when encryption is turned on over an
 // existing store.
@@ -100,8 +136,44 @@ func (s *store) open(v []byte) ([]byte, error) {
 	return plain, nil
 }
 
-// adderStore re-exposes the backend's atomic Add for callers that type-assert
-// kv.Adder. An encrypted namespace seals the value before delegating.
+func (s *store) add(ns, key string, value []byte, ttl time.Duration) (bool, error) {
+	value, err := s.seal(ns, value)
+	if err != nil {
+		return false, err
+	}
+	return s.inner.(kv.Adder).Add(ns, key, value, ttl)
+}
+
+func (s *store) bulkSet(ns string, entries []kv.Entry, ttl time.Duration) error {
+	if !s.encrypts(ns) {
+		return s.inner.(kv.BulkStore).BulkSet(ns, entries, ttl)
+	}
+	sealedEntries := slices.Clone(entries)
+	for i := range sealedEntries {
+		sealed, err := s.seal(ns, entries[i].Value)
+		if err != nil {
+			return err
+		}
+		sealedEntries[i].Value = sealed
+	}
+	return s.inner.(kv.BulkStore).BulkSet(ns, sealedEntries, ttl)
+}
+
+func (s *store) bulkDelete(ns string, keys []string) error {
+	return s.inner.(kv.BulkStore).BulkDelete(ns, keys)
+}
+
+func (s *store) foreignKeys() ([]string, error) {
+	return s.inner.(kv.KeyAuditor).ForeignKeys()
+}
+
+func (s *store) deleteRawKeys(keys []string) error {
+	return s.inner.(kv.KeyAuditor).DeleteRawKeys(keys)
+}
+
+// Each wrapper below advertises exactly the optional interfaces implemented by
+// the backend. Returning one universal wrapper would make an unsupported
+// capability appear available to callers that select behavior by type assertion.
 type adderStore struct {
 	*store
 }
@@ -109,12 +181,130 @@ type adderStore struct {
 var _ kv.Adder = (*adderStore)(nil)
 
 func (s *adderStore) Add(ns, key string, value []byte, ttl time.Duration) (bool, error) {
-	if s.encrypts(ns) {
-		sealed, err := s.box.Seal(value)
-		if err != nil {
-			return false, errors.WrapErr(err, "securekv: seal")
-		}
-		value = sealed
-	}
-	return s.inner.(kv.Adder).Add(ns, key, value, ttl)
+	return s.add(ns, key, value, ttl)
+}
+
+type bulkStore struct {
+	*store
+}
+
+var _ kv.BulkStore = (*bulkStore)(nil)
+
+func (s *bulkStore) BulkSet(ns string, entries []kv.Entry, ttl time.Duration) error {
+	return s.bulkSet(ns, entries, ttl)
+}
+
+func (s *bulkStore) BulkDelete(ns string, keys []string) error {
+	return s.bulkDelete(ns, keys)
+}
+
+type auditorStore struct {
+	*store
+}
+
+var _ kv.KeyAuditor = (*auditorStore)(nil)
+
+func (s *auditorStore) ForeignKeys() ([]string, error) {
+	return s.foreignKeys()
+}
+
+func (s *auditorStore) DeleteRawKeys(keys []string) error {
+	return s.deleteRawKeys(keys)
+}
+
+type adderBulkStore struct {
+	*store
+}
+
+var (
+	_ kv.Adder     = (*adderBulkStore)(nil)
+	_ kv.BulkStore = (*adderBulkStore)(nil)
+)
+
+func (s *adderBulkStore) Add(ns, key string, value []byte, ttl time.Duration) (bool, error) {
+	return s.add(ns, key, value, ttl)
+}
+
+func (s *adderBulkStore) BulkSet(ns string, entries []kv.Entry, ttl time.Duration) error {
+	return s.bulkSet(ns, entries, ttl)
+}
+
+func (s *adderBulkStore) BulkDelete(ns string, keys []string) error {
+	return s.bulkDelete(ns, keys)
+}
+
+type adderAuditorStore struct {
+	*store
+}
+
+var (
+	_ kv.Adder      = (*adderAuditorStore)(nil)
+	_ kv.KeyAuditor = (*adderAuditorStore)(nil)
+)
+
+func (s *adderAuditorStore) Add(ns, key string, value []byte, ttl time.Duration) (bool, error) {
+	return s.add(ns, key, value, ttl)
+}
+
+func (s *adderAuditorStore) ForeignKeys() ([]string, error) {
+	return s.foreignKeys()
+}
+
+func (s *adderAuditorStore) DeleteRawKeys(keys []string) error {
+	return s.deleteRawKeys(keys)
+}
+
+type bulkAuditorStore struct {
+	*store
+}
+
+var (
+	_ kv.BulkStore  = (*bulkAuditorStore)(nil)
+	_ kv.KeyAuditor = (*bulkAuditorStore)(nil)
+)
+
+func (s *bulkAuditorStore) BulkSet(ns string, entries []kv.Entry, ttl time.Duration) error {
+	return s.bulkSet(ns, entries, ttl)
+}
+
+func (s *bulkAuditorStore) BulkDelete(ns string, keys []string) error {
+	return s.bulkDelete(ns, keys)
+}
+
+func (s *bulkAuditorStore) ForeignKeys() ([]string, error) {
+	return s.foreignKeys()
+}
+
+func (s *bulkAuditorStore) DeleteRawKeys(keys []string) error {
+	return s.deleteRawKeys(keys)
+}
+
+type fullStore struct {
+	*store
+}
+
+var (
+	_ kv.Adder      = (*fullStore)(nil)
+	_ kv.BulkStore  = (*fullStore)(nil)
+	_ kv.KeyAuditor = (*fullStore)(nil)
+)
+
+func (s *fullStore) Add(ns, key string, value []byte, ttl time.Duration) (bool, error) {
+	return s.add(ns, key, value, ttl)
+}
+
+func (s *fullStore) BulkSet(ns string, entries []kv.Entry, ttl time.Duration) error {
+	return s.bulkSet(ns, entries, ttl)
+}
+
+func (s *fullStore) BulkDelete(ns string, keys []string) error {
+	return s.bulkDelete(ns, keys)
+}
+
+func (s *fullStore) ForeignKeys() ([]string, error) {
+	return s.foreignKeys()
+}
+
+func (s *fullStore) DeleteRawKeys(keys []string) error {
+	return s.deleteRawKeys(keys)
 }

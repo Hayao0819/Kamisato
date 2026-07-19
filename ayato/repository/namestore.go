@@ -2,6 +2,7 @@ package repository
 
 import (
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
+	"github.com/Hayao0819/Kamisato/ayato/repository/kv/schema"
 	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
@@ -27,9 +28,6 @@ type PackageFileEntry struct {
 	Arch, Name, FileName string
 }
 
-// pkgMetadataNamespace isolates package-name -> file-name entries from other consumers (e.g. auth) on the shared kv.Store.
-const pkgMetadataNamespace = "pkgfile"
-
 type packageMetadataRepo struct {
 	kv kv.Store
 }
@@ -45,7 +43,7 @@ func nameKey(repo, arch, name string) string {
 // PackageFile reports a miss as ("", nil), not an error, so callers keep their
 // read-through-on-miss behaviour.
 func (r *packageMetadataRepo) PackageFile(repo, arch, name string) (string, error) {
-	v, err := r.kv.Get(pkgMetadataNamespace, nameKey(repo, arch, name))
+	v, err := r.kv.Get(schema.PackageFiles, nameKey(repo, arch, name))
 	if errors.Is(err, kv.ErrNotFound) {
 		return "", nil
 	}
@@ -57,7 +55,7 @@ func (r *packageMetadataRepo) PackageFile(repo, arch, name string) (string, erro
 
 // The entry never expires (ttl 0): it is durable metadata, not a cache line.
 func (r *packageMetadataRepo) StorePackageFile(repo, arch, packageName, filePath string) error {
-	return r.kv.Set(pkgMetadataNamespace, nameKey(repo, arch, packageName), []byte(filePath), 0)
+	return r.kv.Set(schema.PackageFiles, nameKey(repo, arch, packageName), []byte(filePath), 0)
 }
 
 // StorePackageFiles uses the backend's BulkStore path when available (cfkv sends
@@ -72,10 +70,10 @@ func (r *packageMetadataRepo) StorePackageFiles(repo string, items []PackageFile
 		entries[i] = kv.Entry{Key: nameKey(repo, it.Arch, it.Name), Value: []byte(it.FileName)}
 	}
 	if b, ok := r.kv.(kv.BulkStore); ok {
-		return b.BulkSet(pkgMetadataNamespace, entries, 0)
+		return b.BulkSet(schema.PackageFiles, entries, 0)
 	}
 	for _, e := range entries {
-		if err := r.kv.Set(pkgMetadataNamespace, e.Key, e.Value, 0); err != nil {
+		if err := r.kv.Set(schema.PackageFiles, e.Key, e.Value, 0); err != nil {
 			return err
 		}
 	}
@@ -83,5 +81,5 @@ func (r *packageMetadataRepo) StorePackageFiles(repo string, items []PackageFile
 }
 
 func (r *packageMetadataRepo) DeletePackageFileEntry(repo, arch, packageName string) error {
-	return r.kv.Delete(pkgMetadataNamespace, nameKey(repo, arch, packageName))
+	return r.kv.Delete(schema.PackageFiles, nameKey(repo, arch, packageName))
 }

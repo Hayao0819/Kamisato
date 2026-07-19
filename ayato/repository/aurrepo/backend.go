@@ -14,13 +14,9 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/errors"
 
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
+	"github.com/Hayao0819/Kamisato/ayato/repository/kv/schema"
 	"github.com/Hayao0819/Kamisato/internal/kayoproto"
 	"github.com/Hayao0819/Kamisato/pkg/aurweb"
-)
-
-const (
-	nsPkg  = "aurpkg"  // pkgname -> JSON(aurweb.Pkg)
-	nsBase = "aurbase" // pkgbase -> JSON(baseRecord)
 )
 
 // baseRecord stores a registered pkgbase's clone URL and the pkgnames it produced,
@@ -42,7 +38,7 @@ func NewBackend(store kv.Store, defaultMaintainer string) *Backend {
 func (b *Backend) Info(_ context.Context, names []string) ([]aurweb.Pkg, error) {
 	var out []aurweb.Pkg
 	for _, n := range names {
-		raw, err := b.kv.Get(nsPkg, n)
+		raw, err := b.kv.Get(schema.AURPackages, n)
 		if errors.Is(err, kv.ErrNotFound) {
 			continue
 		}
@@ -101,7 +97,7 @@ func (b *Backend) Catalog(_ context.Context) (kayoproto.Catalog, error) {
 	if err != nil {
 		return kayoproto.Catalog{}, err
 	}
-	entries, err := b.kv.List(nsBase)
+	entries, err := b.kv.List(schema.AURBases)
 	if err != nil {
 		return kayoproto.Catalog{}, err
 	}
@@ -127,7 +123,7 @@ func (b *Backend) SourceURL(_ context.Context, pkgbase string) (string, bool, er
 }
 
 func (b *Backend) base(pkgbase string) (baseRecord, error) {
-	raw, err := b.kv.Get(nsBase, pkgbase)
+	raw, err := b.kv.Get(schema.AURBases, pkgbase)
 	if err != nil {
 		return baseRecord{}, err
 	}
@@ -139,7 +135,7 @@ func (b *Backend) base(pkgbase string) (baseRecord, error) {
 }
 
 func (b *Backend) all() ([]aurweb.Pkg, error) {
-	entries, err := b.kv.List(nsPkg)
+	entries, err := b.kv.List(schema.AURPackages)
 	if err != nil {
 		return nil, err
 	}

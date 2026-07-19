@@ -2,13 +2,9 @@ package repository
 
 import (
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
+	"github.com/Hayao0819/Kamisato/ayato/repository/kv/schema"
 	"github.com/Hayao0819/Kamisato/internal/errors"
 )
-
-// signerNS holds registered worker signing keys (armored public key by uppercase
-// hex fingerprint). A key lands here only after its master-certification chain is
-// verified, so the verify path can trust any entity it lists.
-const signerNS = "signers"
 
 type SignerRepository interface {
 	AddSigner(fingerprint string, armoredPub []byte) error
@@ -28,18 +24,18 @@ func (r *signerRepository) AddSigner(fingerprint string, armoredPub []byte) erro
 	if fingerprint == "" {
 		return errors.NewErr("signer: empty fingerprint")
 	}
-	return r.kv.Set(signerNS, fingerprint, armoredPub, 0)
+	return r.kv.Set(schema.Signers, fingerprint, armoredPub, 0)
 }
 
 func (r *signerRepository) DeleteSigner(fingerprint string) error {
 	if fingerprint == "" {
 		return errors.NewErr("signer: empty fingerprint")
 	}
-	return r.kv.Delete(signerNS, fingerprint)
+	return r.kv.Delete(schema.Signers, fingerprint)
 }
 
 func (r *signerRepository) ListSigners() ([][]byte, error) {
-	entries, err := r.kv.List(signerNS)
+	entries, err := r.kv.List(schema.Signers)
 	if err != nil {
 		return nil, errors.WrapErr(err, "signer: list")
 	}

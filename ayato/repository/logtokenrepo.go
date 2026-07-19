@@ -7,14 +7,8 @@ import (
 	"time"
 
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
+	"github.com/Hayao0819/Kamisato/ayato/repository/kv/schema"
 	"github.com/Hayao0819/Kamisato/internal/errors"
-)
-
-// logTokenNS holds one-time SSE log-stream tokens mapping a random token to the job
-// id it grants, with a short TTL so an unused token self-evicts.
-const (
-	logTokenNS      = "logtoken"
-	logTokenSpentNS = "logtokenspent"
 )
 
 type logTokenRecord struct {
@@ -55,7 +49,7 @@ func (r *logTokenRepository) Mint(jobID string, ttl time.Duration) (string, erro
 	if err != nil {
 		return "", errors.WrapErr(err, "logtoken: marshal")
 	}
-	if err := r.kv.Set(logTokenNS, tok, record, ttl); err != nil {
+	if err := r.kv.Set(schema.LogTokens, tok, record, ttl); err != nil {
 		return "", errors.WrapErr(err, "logtoken: store")
 	}
 	return tok, nil
@@ -65,7 +59,7 @@ func (r *logTokenRepository) ConsumeLogToken(token string) (string, bool, error)
 	if token == "" {
 		return "", false, nil
 	}
-	v, err := r.kv.Get(logTokenNS, token)
+	v, err := r.kv.Get(schema.LogTokens, token)
 	if err != nil {
 		if errors.Is(err, kv.ErrNotFound) {
 			return "", false, nil
@@ -85,13 +79,13 @@ func (r *logTokenRepository) ConsumeLogToken(token string) (string, bool, error)
 	if !ok {
 		return "", false, errors.NewErr("logtoken: atomic consumption is not supported by this store")
 	}
-	created, err := adder.Add(logTokenSpentNS, token, []byte{1}, ttl)
+	created, err := adder.Add(schema.SpentLogTokens, token, []byte{1}, ttl)
 	if err != nil {
 		return "", false, errors.WrapErr(err, "logtoken: consume")
 	}
 	if !created {
 		return "", false, nil
 	}
-	_ = r.kv.Delete(logTokenNS, token)
+	_ = r.kv.Delete(schema.LogTokens, token)
 	return record.JobID, true, nil
 }

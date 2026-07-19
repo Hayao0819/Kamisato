@@ -4,11 +4,9 @@ import (
 	"strconv"
 
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
+	"github.com/Hayao0819/Kamisato/ayato/repository/kv/schema"
 	"github.com/Hayao0819/Kamisato/internal/errors"
 )
-
-// allowNS namespaces the admin allowlist, the only persisted auth state; sessions, tokens, and OAuth state are all stateless-signed.
-const allowNS = "allow"
 
 type AllowedAdmin struct {
 	ID    int64  `json:"id"`
@@ -38,26 +36,26 @@ func (r *authRepository) AddAdmin(id int64, login string) error {
 	if id <= 0 {
 		return errors.NewErr("auth: invalid github id")
 	}
-	return r.kv.Set(allowNS, strconv.FormatInt(id, 10), []byte(login), 0)
+	return r.kv.Set(schema.AdminAllowlist, strconv.FormatInt(id, 10), []byte(login), 0)
 }
 
 func (r *authRepository) RemoveAdmin(id int64) error {
 	if id <= 0 {
 		return errors.NewErr("auth: invalid github id")
 	}
-	return r.kv.Delete(allowNS, strconv.FormatInt(id, 10))
+	return r.kv.Delete(schema.AdminAllowlist, strconv.FormatInt(id, 10))
 }
 
 func (r *authRepository) IsAdmin(id int64) bool {
 	if id <= 0 {
 		return false
 	}
-	_, err := r.kv.Get(allowNS, strconv.FormatInt(id, 10))
+	_, err := r.kv.Get(schema.AdminAllowlist, strconv.FormatInt(id, 10))
 	return err == nil
 }
 
 func (r *authRepository) ListAdmins() ([]AllowedAdmin, error) {
-	entries, err := r.kv.List(allowNS)
+	entries, err := r.kv.List(schema.AdminAllowlist)
 	if err != nil {
 		return nil, errors.WrapErr(err, "auth: list allowlist")
 	}
