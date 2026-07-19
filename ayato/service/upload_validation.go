@@ -9,7 +9,7 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/errors"
 
 	"github.com/Hayao0819/Kamisato/ayato/domain"
-	"github.com/Hayao0819/Kamisato/ayato/stream"
+	"github.com/Hayao0819/Kamisato/ayato/platform"
 	"github.com/Hayao0819/Kamisato/internal/limits"
 	pacmanpkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/sign"
@@ -125,7 +125,7 @@ func (v *uploadValidator) validate(files *domain.UploadFiles) (preparedUpload, e
 	return upload, nil
 }
 
-func (v *uploadValidator) checkSize(file stream.SeekFile) error {
+func (v *uploadValidator) checkSize(file platform.SeekFile) error {
 	current, err := file.Seek(0, io.SeekCurrent)
 	if err != nil {
 		return errors.WrapErr(err, "failed to inspect package size")

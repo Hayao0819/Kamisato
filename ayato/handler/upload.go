@@ -11,7 +11,7 @@ import (
 	"github.com/samber/lo"
 
 	"github.com/Hayao0819/Kamisato/ayato/domain"
-	"github.com/Hayao0819/Kamisato/ayato/stream"
+	"github.com/Hayao0819/Kamisato/ayato/platform"
 	"github.com/Hayao0819/Kamisato/internal/limits"
 )
 
@@ -136,8 +136,8 @@ func (h *PublicationHandler) BlinkyUploadHandler(ctx *gin.Context) {
 		respondLoggedError(ctx, http.StatusInternalServerError, "open uploaded package", "failed to read uploaded package", err)
 		return
 	}
-	defer pkgStream.Close()
-	var sigStream *stream.FileStream
+	defer func() { _ = pkgStream.Close() }()
+	var sigStream *platform.FileStream
 	if sigHeader != nil {
 		sigStream, err = formFileStream(sigHeader)
 		if err != nil {
@@ -150,7 +150,7 @@ func (h *PublicationHandler) BlinkyUploadHandler(ctx *gin.Context) {
 		}
 	}
 	if sigStream != nil {
-		defer sigStream.Close()
+		defer func() { _ = sigStream.Close() }()
 	}
 
 	files := domain.UploadFiles{PkgFile: pkgStream}

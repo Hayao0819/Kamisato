@@ -11,13 +11,13 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awss3 "github.com/aws/aws-sdk-go-v2/service/s3"
 
+	"github.com/Hayao0819/Kamisato/ayato/platform"
 	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
-	"github.com/Hayao0819/Kamisato/ayato/stream"
 )
 
 // StoreFile stores the package object only; the repo DB is updated separately by
 // RepoAdd, so an arch=any file lands under "any/" without creating an "any" DB.
-func (s *S3) StoreFile(repo string, arch string, file stream.SeekFile) error {
+func (s *S3) StoreFile(repo string, arch string, file platform.SeekFile) error {
 	k, err := s.validatedKey(repo, arch, file.FileName())
 	if err != nil {
 		return err
@@ -47,7 +47,7 @@ func (s *S3) StoreFileWithSignedURL(repo string, arch string, name string) (stri
 // FetchFile fetches an object by its exact name, with no pacman naming logic: the
 // repo-DB artifacts are real objects written by the repository layer, so a bare
 // <repo>.db is served directly.
-func (s *S3) FetchFile(repo string, arch string, name string) (stream.File, error) {
+func (s *S3) FetchFile(repo string, arch string, name string) (platform.File, error) {
 	k, err := s.validatedKey(repo, arch, name)
 	if err != nil {
 		return nil, err
@@ -63,7 +63,7 @@ func (s *S3) FetchFile(repo string, arch string, name string) (stream.File, erro
 }
 
 // FetchFileWithETag fetches an object together with its version token (ETag).
-func (s *S3) FetchFileWithETag(repo, arch, name string) (stream.File, string, error) {
+func (s *S3) FetchFileWithETag(repo, arch, name string) (platform.File, string, error) {
 	k, err := s.validatedKey(repo, arch, name)
 	if err != nil {
 		return nil, "", err
@@ -73,7 +73,7 @@ func (s *S3) FetchFileWithETag(repo, arch, name string) (stream.File, string, er
 
 // FetchFileWithMeta fetches an object with its ETag and last-modified time, so the
 // HTTP layer can answer both If-None-Match and (for pacman) If-Modified-Since.
-func (s *S3) FetchFileWithMeta(repo, arch, name string) (stream.File, blob.FileMeta, error) {
+func (s *S3) FetchFileWithMeta(repo, arch, name string) (platform.File, blob.FileMeta, error) {
 	k, err := s.validatedKey(repo, arch, name)
 	if err != nil {
 		return nil, blob.FileMeta{}, err
@@ -83,8 +83,8 @@ func (s *S3) FetchFileWithMeta(repo, arch, name string) (stream.File, blob.FileM
 
 // StoreFileIfMatch stores an object with compare-and-swap on its version, mapping
 // a conflict to blob.ErrPreconditionFailed.
-func (s *S3) StoreFileIfMatch(repo, arch string, file stream.SeekFile, etag string) error {
-	if err := stream.Rewind(file); err != nil {
+func (s *S3) StoreFileIfMatch(repo, arch string, file platform.SeekFile, etag string) error {
+	if err := platform.Rewind(file); err != nil {
 		return err
 	}
 	k, err := s.validatedKey(repo, arch, file.FileName())

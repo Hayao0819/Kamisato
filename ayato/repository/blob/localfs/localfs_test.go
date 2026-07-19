@@ -8,17 +8,17 @@ import (
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
 
+	"github.com/Hayao0819/Kamisato/ayato/platform"
 	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
 	"github.com/Hayao0819/Kamisato/ayato/repository/blob/localfs"
-	"github.com/Hayao0819/Kamisato/ayato/stream"
 )
 
 type nopSeekCloser struct{ *bytes.Reader }
 
 func (nopSeekCloser) Close() error { return nil }
 
-func seekFile(name string, data []byte) stream.SeekFile {
-	return stream.NewFileStream(
+func seekFile(name string, data []byte) platform.SeekFile {
+	return platform.NewFileStream(
 		name,
 		"application/octet-stream",
 		nopSeekCloser{bytes.NewReader(data)},

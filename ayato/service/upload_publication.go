@@ -6,8 +6,8 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/errors"
 
 	"github.com/Hayao0819/Kamisato/ayato/domain"
+	"github.com/Hayao0819/Kamisato/ayato/platform"
 	"github.com/Hayao0819/Kamisato/ayato/repository"
-	"github.com/Hayao0819/Kamisato/ayato/stream"
 )
 
 func (p *uploadPublication) storeObjects() error {
@@ -35,13 +35,13 @@ func (p *uploadPublication) storeObjects() error {
 
 func (p *uploadPublication) storeObject(
 	arch, kind, name string,
-	file stream.SeekFile,
+	file platform.SeekFile,
 ) error {
 	if file == nil {
 		return nil
 	}
 	if file.FileName() != name {
-		file = stream.NewFileStream(name, file.ContentType(), file)
+		file = platform.NewFileStream(name, file.ContentType(), file)
 	}
 	if err := p.service.storeImmutableFile(p.repo, arch, file); err != nil {
 		if errors.Is(err, repository.ErrImmutableObjectConflict) {

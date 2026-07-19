@@ -6,8 +6,8 @@ import (
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
 
+	"github.com/Hayao0819/Kamisato/ayato/platform"
 	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
-	"github.com/Hayao0819/Kamisato/ayato/stream"
 	pacmanrepo "github.com/Hayao0819/Kamisato/pkg/pacman/repo"
 )
 
@@ -15,11 +15,11 @@ import (
 func (r *binaryRepository) storeIfMatch(
 	repo, arch, dir, name, etag string,
 ) error {
-	object, err := stream.OpenFileWithType(path.Join(dir, name))
+	object, err := platform.OpenFileWithType(path.Join(dir, name))
 	if err != nil {
 		return errors.WrapErr(err, "failed to open artifact "+name)
 	}
-	named := stream.NewFileStream(name, object.ContentType(), object)
+	named := platform.NewFileStream(name, object.ContentType(), object)
 	storeErr := r.Store.StoreFileIfMatch(repo, arch, named, etag)
 	_ = object.Close()
 	return storeErr

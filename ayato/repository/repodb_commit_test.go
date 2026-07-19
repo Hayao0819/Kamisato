@@ -8,15 +8,15 @@ import (
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
 
-	"github.com/Hayao0819/Kamisato/ayato/stream"
+	"github.com/Hayao0819/Kamisato/ayato/platform"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
 )
 
 func TestStoreFileImmutableReusesOnlyByteIdenticalObject(t *testing.T) {
 	mem := newMemStore()
 	repository := &binaryRepository{Store: mem}
-	file := func(body string) stream.SeekFile {
-		return stream.NewFileStream(
+	file := func(body string) platform.SeekFile {
+		return platform.NewFileStream(
 			"foo-1.0-1-x86_64.pkg.tar.zst",
 			"application/octet-stream",
 			nopSeekCloser{bytes.NewReader([]byte(body))},
@@ -77,7 +77,7 @@ func TestRepoAddConditionalRejectsConcurrentDowngrade(t *testing.T) {
 	); err != nil {
 		t.Fatal(err)
 	}
-	conditional := func(pkg stream.SeekFile) error {
+	conditional := func(pkg platform.SeekFile) error {
 		return repository.RepoAddBatch("r", "x86_64", []RepoAddItem{{
 			Pkg:                    pkg,
 			CheckCurrent:           true,

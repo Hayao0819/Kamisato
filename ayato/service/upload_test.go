@@ -8,10 +8,10 @@ import (
 	"go.uber.org/mock/gomock"
 
 	"github.com/Hayao0819/Kamisato/ayato/domain"
+	"github.com/Hayao0819/Kamisato/ayato/platform"
 	"github.com/Hayao0819/Kamisato/ayato/repository"
 	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
 	"github.com/Hayao0819/Kamisato/ayato/service"
-	"github.com/Hayao0819/Kamisato/ayato/stream"
 	"github.com/Hayao0819/Kamisato/ayato/test/mocks"
 	"github.com/Hayao0819/Kamisato/internal/conf"
 	pkgpkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
@@ -28,8 +28,8 @@ func remoteWith(pkgname, version string) *repo.RemoteRepo {
 	}}
 }
 
-func pkgStream(name string, data []byte) *stream.FileStream {
-	return stream.NewFileStream(
+func pkgStream(name string, data []byte) *platform.FileStream {
+	return platform.NewFileStream(
 		name,
 		"application/octet-stream",
 		bufferToReadSeekCloser(bytes.NewBuffer(data)),

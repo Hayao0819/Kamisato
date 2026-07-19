@@ -8,13 +8,13 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/errors"
 
 	"github.com/Hayao0819/Kamisato/ayato/domain"
-	"github.com/Hayao0819/Kamisato/ayato/stream"
+	"github.com/Hayao0819/Kamisato/ayato/platform"
 	pacmanpkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
 	"github.com/Hayao0819/Kamisato/pkg/raiou"
 )
 
 func (v *uploadValidator) verifySignature(
-	pkgFile, sigFile stream.SeekFile,
+	pkgFile, sigFile platform.SeekFile,
 	storedName string,
 ) error {
 	if sigFile == nil {
@@ -39,10 +39,10 @@ func (v *uploadValidator) verifySignature(
 			"package signature present but no trust root is configured to validate it",
 		)
 	}
-	if err := stream.Rewind(pkgFile); err != nil {
+	if err := platform.Rewind(pkgFile); err != nil {
 		return errors.WrapErr(err, "failed to seek package file for verification")
 	}
-	if err := stream.Rewind(sigFile); err != nil {
+	if err := platform.Rewind(sigFile); err != nil {
 		return errors.WrapErr(err, "failed to seek signature file for verification")
 	}
 	fingerprint, err := v.keyring.VerifyDetached(pkgFile, sigFile)
@@ -57,11 +57,11 @@ func (v *uploadValidator) verifySignature(
 	return nil
 }
 
-func (v *uploadValidator) checkBuildinfoProvenance(pkgFile stream.SeekFile) error {
+func (v *uploadValidator) checkBuildinfoProvenance(pkgFile platform.SeekFile) error {
 	if v.service.cfg == nil || !v.service.cfg.RequireBuildinfoProvenance {
 		return nil
 	}
-	if err := stream.Rewind(pkgFile); err != nil {
+	if err := platform.Rewind(pkgFile); err != nil {
 		return errors.WrapErr(err, "failed to seek package file for buildinfo check")
 	}
 	buildInfo, err := pacmanpkg.ReadBuildInfo(pkgFile)

@@ -7,8 +7,8 @@ import (
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
 
+	"github.com/Hayao0819/Kamisato/ayato/platform"
 	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
-	"github.com/Hayao0819/Kamisato/ayato/stream"
 )
 
 func (s *Service) acquirePublicationLease(repo string) (func(), error) {
@@ -28,8 +28,8 @@ func (s *Service) acquirePublicationLease(repo string) (func(), error) {
 // spooledPackage owns re-seekable package bytes and its optional signature.
 // Publication, promotion, arch backfill, and rollback all need this same pair.
 type spooledPackage struct {
-	pkg      stream.SeekFile
-	sig      stream.SeekFile
+	pkg      platform.SeekFile
+	sig      platform.SeekFile
 	cleanups []func()
 }
 
@@ -65,12 +65,12 @@ func (a *spooledPackage) close() {
 
 func (s *Service) storeImmutableFile(
 	repo, arch string,
-	file stream.SeekFile,
+	file platform.SeekFile,
 ) error {
 	if file == nil {
 		return nil
 	}
-	if err := stream.Rewind(file); err != nil {
+	if err := platform.Rewind(file); err != nil {
 		return errors.WrapErr(err, "rewind immutable object")
 	}
 	_, err := s.pkgBinaryRepo.StoreFileImmutable(repo, arch, file)
@@ -81,7 +81,7 @@ func (s *Service) storeSpooledPackage(
 	repo, arch string,
 	artifact *spooledPackage,
 ) error {
-	for _, file := range []stream.SeekFile{artifact.pkg, artifact.sig} {
+	for _, file := range []platform.SeekFile{artifact.pkg, artifact.sig} {
 		if file == nil {
 			continue
 		}
@@ -100,7 +100,7 @@ func closeSpooledPackages(artifacts []*spooledPackage) {
 
 func (s *Service) spoolRepositoryFile(
 	repo, arch, filename string,
-) (stream.SeekFile, func(), error) {
+) (platform.SeekFile, func(), error) {
 	source, err := s.pkgBinaryRepo.FetchFile(repo, arch, filename)
 	if err != nil {
 		return nil, nil, err
@@ -119,11 +119,11 @@ func (s *Service) spoolRepositoryFile(
 		cleanup()
 		return nil, nil, errors.WrapErr(err, "spool repository file")
 	}
-	if err := stream.Rewind(tmp); err != nil {
+	if err := platform.Rewind(tmp); err != nil {
 		cleanup()
 		return nil, nil, err
 	}
-	file := stream.NewFileStream(
+	file := platform.NewFileStream(
 		path.Base(filename),
 		source.ContentType(),
 		noRemoveClose{tmp},

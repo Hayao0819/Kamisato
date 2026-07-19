@@ -6,8 +6,8 @@ import (
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
 
+	"github.com/Hayao0819/Kamisato/ayato/platform"
 	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
-	"github.com/Hayao0819/Kamisato/ayato/stream"
 )
 
 // transientAliasStore returns a transient (non-NotFound) error for one object name
@@ -19,7 +19,7 @@ type transientAliasStore struct {
 	err      error
 }
 
-func (t *transientAliasStore) FetchFile(repo, arch, name string) (stream.File, error) {
+func (t *transientAliasStore) FetchFile(repo, arch, name string) (platform.File, error) {
 	if name == t.failName {
 		return nil, t.err
 	}

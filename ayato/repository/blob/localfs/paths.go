@@ -17,8 +17,8 @@ import (
 	"github.com/Hayao0819/nahi/futils"
 	"github.com/samber/lo"
 
+	"github.com/Hayao0819/Kamisato/ayato/platform"
 	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
-	"github.com/Hayao0819/Kamisato/ayato/stream"
 )
 
 var _ blob.Store = (*LocalStore)(nil)
@@ -116,8 +116,8 @@ func (l *LocalStore) LockPublication(repo string) (func(), error) {
 	return func() { _ = lock.Release() }, nil
 }
 
-func writeAtomicFile(dst string, file stream.SeekFile) error {
-	if err := stream.Rewind(file); err != nil {
+func writeAtomicFile(dst string, file platform.SeekFile) error {
+	if err := platform.Rewind(file); err != nil {
 		return errors.WrapErr(err, "seek source file")
 	}
 	return errors.WrapErr(replaceObject(dst, file), "store object")

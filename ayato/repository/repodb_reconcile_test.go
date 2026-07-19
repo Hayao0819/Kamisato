@@ -5,7 +5,7 @@ import (
 	"io"
 	"testing"
 
-	"github.com/Hayao0819/Kamisato/ayato/stream"
+	"github.com/Hayao0819/Kamisato/ayato/platform"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
 )
 
@@ -102,7 +102,7 @@ func TestReconcileDBDiscardsCorruptDerivedFiles(t *testing.T) {
 	}
 
 	beforeVersion := canonicalVersion(t, mem)
-	corrupt := stream.NewFileStream(
+	corrupt := platform.NewFileStream(
 		"r.files.tar.gz",
 		"application/octet-stream",
 		nopSeekCloser{bytes.NewReader([]byte{0x1f, 0x8b, 0x08, 0x00})},
@@ -139,7 +139,7 @@ func canonicalVersion(t *testing.T, mem *memStore) string {
 
 func storeStaleFiles(t *testing.T, mem *memStore, body []byte) {
 	t.Helper()
-	file := stream.NewFileStream(
+	file := platform.NewFileStream(
 		"r.files.tar.gz",
 		"application/octet-stream",
 		nopSeekCloser{bytes.NewReader(body)},

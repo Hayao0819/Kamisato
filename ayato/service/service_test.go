@@ -10,11 +10,11 @@ import (
 	"go.uber.org/mock/gomock"
 
 	"github.com/Hayao0819/Kamisato/ayato/domain"
+	"github.com/Hayao0819/Kamisato/ayato/platform"
 	"github.com/Hayao0819/Kamisato/ayato/repository"
 	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
 	"github.com/Hayao0819/Kamisato/ayato/repository/blob/localfs"
 	"github.com/Hayao0819/Kamisato/ayato/service"
-	"github.com/Hayao0819/Kamisato/ayato/stream"
 	"github.com/Hayao0819/Kamisato/ayato/test/mocks"
 	"github.com/Hayao0819/Kamisato/internal/conf"
 )
@@ -81,7 +81,7 @@ func TestServiceGetFile(t *testing.T) {
 	defer ctrl.Finish()
 
 	const want = "package-bytes"
-	file := stream.NewFileStream(
+	file := platform.NewFileStream(
 		"foo.pkg.tar.zst",
 		"application/octet-stream",
 		bufferToReadSeekCloser(bytes.NewBufferString(want)),

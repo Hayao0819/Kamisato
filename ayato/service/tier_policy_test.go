@@ -9,9 +9,9 @@ import (
 	"go.uber.org/mock/gomock"
 
 	"github.com/Hayao0819/Kamisato/ayato/domain"
+	"github.com/Hayao0819/Kamisato/ayato/platform"
 	"github.com/Hayao0819/Kamisato/ayato/repository"
 	"github.com/Hayao0819/Kamisato/ayato/service"
-	"github.com/Hayao0819/Kamisato/ayato/stream"
 	"github.com/Hayao0819/Kamisato/ayato/test/mocks"
 	"github.com/Hayao0819/Kamisato/internal/conf"
 	pacmanpkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
@@ -119,7 +119,7 @@ func TestPromotionRegistersCarriedPackageSignature(t *testing.T) {
 	bin.EXPECT().FetchFile("myrepo-staging", "x86_64", sourceName).
 		Return(pkgStream(sourceName, []byte("package")), nil)
 	bin.EXPECT().FetchFile("myrepo-staging", "x86_64", sourceName+".sig").
-		Return(stream.NewFileStream(
+		Return(platform.NewFileStream(
 			sourceName+".sig",
 			"application/pgp-signature",
 			bufferToReadSeekCloser(bytes.NewBufferString("signature")),

@@ -6,7 +6,7 @@ import (
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
 
-	"github.com/Hayao0819/Kamisato/ayato/stream"
+	"github.com/Hayao0819/Kamisato/ayato/platform"
 	pacmanrepo "github.com/Hayao0819/Kamisato/pkg/pacman/repo"
 )
 
@@ -56,8 +56,8 @@ func derivedArtifacts(repoName string, useSignedDB bool) []string {
 // Conditional fields protect a publish from replacing a concurrently changed
 // package while still allowing an idempotent retry of the intended version.
 type RepoAddItem struct {
-	Pkg                    stream.SeekFile
-	Sig                    stream.SeekFile
+	Pkg                    platform.SeekFile
+	Sig                    platform.SeekFile
 	CheckCurrent           bool
 	ExpectedName           string
 	ExpectedCurrentVersion string

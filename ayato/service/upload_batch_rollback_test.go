@@ -7,10 +7,10 @@ import (
 	"go.uber.org/mock/gomock"
 
 	"github.com/Hayao0819/Kamisato/ayato/domain"
+	"github.com/Hayao0819/Kamisato/ayato/platform"
 	"github.com/Hayao0819/Kamisato/ayato/repository"
 	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
 	"github.com/Hayao0819/Kamisato/ayato/service"
-	"github.com/Hayao0819/Kamisato/ayato/stream"
 	"github.com/Hayao0819/Kamisato/ayato/test/mocks"
 	"github.com/Hayao0819/Kamisato/internal/conf"
 	pkgpkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
@@ -44,7 +44,7 @@ func TestUploadFiles_SecondArchFailureRestoresFirstArch(t *testing.T) {
 
 	storeCalls := 0
 	bin.EXPECT().StoreFileImmutable("myrepo", "any", gomock.Any()).DoAndReturn(
-		func(_ string, _ string, file stream.SeekFile) (bool, error) {
+		func(_ string, _ string, file platform.SeekFile) (bool, error) {
 			storeCalls++
 			want := "foo-1.0-1-any.pkg.tar.zst"
 			if storeCalls == 2 {

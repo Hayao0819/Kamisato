@@ -11,11 +11,11 @@ import (
 
 	"github.com/Hayao0819/nahi/futils"
 
+	"github.com/Hayao0819/Kamisato/ayato/platform"
 	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
-	"github.com/Hayao0819/Kamisato/ayato/stream"
 )
 
-func (l *LocalStore) FetchFile(repo, arch, name string) (stream.File, error) {
+func (l *LocalStore) FetchFile(repo, arch, name string) (platform.File, error) {
 	_, objectPath, err := l.objectPath(repo, arch, name)
 	if err != nil {
 		return nil, err
@@ -24,7 +24,7 @@ func (l *LocalStore) FetchFile(repo, arch, name string) (stream.File, error) {
 		return nil, blob.ErrNotFound
 	}
 	slog.Info("fetch pkg file", "file", objectPath)
-	file, err := stream.OpenFileWithType(objectPath)
+	file, err := platform.OpenFileWithType(objectPath)
 	if err != nil {
 		return nil, err
 	}
@@ -34,12 +34,12 @@ func (l *LocalStore) FetchFile(repo, arch, name string) (stream.File, error) {
 // FetchFileWithETag returns a seekable file and its content-addressed version.
 func (l *LocalStore) FetchFileWithETag(
 	repo, arch, name string,
-) (stream.File, string, error) {
+) (platform.File, string, error) {
 	file, err := l.FetchFile(repo, arch, name)
 	if err != nil {
 		return nil, "", err
 	}
-	seekable, ok := file.(stream.SeekFile)
+	seekable, ok := file.(platform.SeekFile)
 	if !ok {
 		_ = file.Close()
 		return nil, "", errors.New("local object stream is not seekable")
@@ -49,7 +49,7 @@ func (l *LocalStore) FetchFileWithETag(
 		_ = file.Close()
 		return nil, "", errors.WrapErr(err, "hash local object")
 	}
-	if err := stream.Rewind(seekable); err != nil {
+	if err := platform.Rewind(seekable); err != nil {
 		_ = file.Close()
 		return nil, "", errors.WrapErr(err, "rewind local object")
 	}
@@ -58,7 +58,7 @@ func (l *LocalStore) FetchFileWithETag(
 
 func (l *LocalStore) FetchFileWithMeta(
 	repo, arch, name string,
-) (stream.File, blob.FileMeta, error) {
+) (platform.File, blob.FileMeta, error) {
 	file, err := l.FetchFile(repo, arch, name)
 	if err != nil {
 		return nil, blob.FileMeta{}, err

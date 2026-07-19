@@ -6,8 +6,8 @@ import (
 	"github.com/ProtonMail/go-crypto/openpgp"
 	"github.com/samber/lo"
 
+	"github.com/Hayao0819/Kamisato/ayato/platform"
 	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
-	"github.com/Hayao0819/Kamisato/ayato/stream"
 	pacmanrepo "github.com/Hayao0819/Kamisato/pkg/pacman/repo"
 )
 
@@ -19,7 +19,7 @@ type BinaryRepository interface {
 	blob.Store
 	StoreFileImmutable(
 		name, arch string,
-		file stream.SeekFile,
+		file platform.SeekFile,
 	) (created bool, err error)
 	DeleteOrphanIfUnchanged(
 		name, arch string,
@@ -28,7 +28,7 @@ type BinaryRepository interface {
 	) (deleted bool, err error)
 	RepoAdd(
 		name, arch string,
-		pkg, sig stream.SeekFile,
+		pkg, sig platform.SeekFile,
 		useSignedDB bool,
 		gnupgDir *string,
 	) error
@@ -59,10 +59,10 @@ type BinaryRepository interface {
 		useSignedDB bool,
 	) (pacmanrepo.DBDiff, error)
 	UpstreamValidators(name, arch string) (etag, lastModified string, err error)
-	FetchDB(repoName, archName string) (stream.File, error)
+	FetchDB(repoName, archName string) (platform.File, error)
 	FetchFileWithMeta(
 		repo, arch, file string,
-	) (stream.File, blob.FileMeta, error)
+	) (platform.File, blob.FileMeta, error)
 	PkgNames(repoName, archName string) ([]string, error)
 	RemoteRepo(name, arch string) (*pacmanrepo.RemoteRepo, error)
 	PkgFiles(repoName, archName, pkgName string) ([]string, error)

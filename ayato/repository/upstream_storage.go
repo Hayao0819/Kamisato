@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"io"
 
+	"github.com/Hayao0819/Kamisato/ayato/platform"
 	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
-	"github.com/Hayao0819/Kamisato/ayato/stream"
 	"github.com/Hayao0819/Kamisato/internal/errors"
 	pacmanrepo "github.com/Hayao0819/Kamisato/pkg/pacman/repo"
 )
@@ -91,7 +91,7 @@ func (r *binaryRepository) fetchBytes(repo, arch, file string) ([]byte, error) {
 }
 
 func (r *binaryRepository) storeBytes(repo, arch, file string, data []byte) error {
-	value := stream.NewFileStream(
+	value := platform.NewFileStream(
 		file,
 		"application/gzip",
 		byteSeeker{bytes.NewReader(data)},

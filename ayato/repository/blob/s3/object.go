@@ -16,8 +16,8 @@ import (
 	"github.com/aws/smithy-go"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 
+	"github.com/Hayao0819/Kamisato/ayato/platform"
 	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
-	"github.com/Hayao0819/Kamisato/ayato/stream"
 )
 
 func (s *S3) putObject(objectKey string, body io.ReadCloser) error {
@@ -51,21 +51,21 @@ func (s *S3) deleteObject(objectKey string) error {
 	return err
 }
 
-func (s *S3) getObject(objectKey string) (stream.File, error) {
+func (s *S3) getObject(objectKey string) (platform.File, error) {
 	file, _, err := s.getObjectWithMeta(objectKey)
 	return file, err
 }
 
 func (s *S3) getObjectWithETag(
 	objectKey string,
-) (stream.File, string, error) {
+) (platform.File, string, error) {
 	file, meta, err := s.getObjectWithMeta(objectKey)
 	return file, meta.ETag, err
 }
 
 func (s *S3) getObjectWithMeta(
 	objectKey string,
-) (stream.File, blob.FileMeta, error) {
+) (platform.File, blob.FileMeta, error) {
 	output, err := s.storage.GetObject(s.ctx, s.getObjectInput(objectKey))
 	if err != nil {
 		if isNotFound(err) {

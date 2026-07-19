@@ -3,8 +3,8 @@ package repository
 import (
 	"github.com/Hayao0819/Kamisato/internal/errors"
 
+	"github.com/Hayao0819/Kamisato/ayato/platform"
 	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
-	"github.com/Hayao0819/Kamisato/ayato/stream"
 	pacmanpkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
 	pacmanrepo "github.com/Hayao0819/Kamisato/pkg/pacman/repo"
 )
@@ -13,7 +13,7 @@ import (
 // directory while keeping the blob.Store free of pacman naming knowledge.
 func (r *binaryRepository) FetchFile(
 	repo, arch, file string,
-) (stream.File, error) {
+) (platform.File, error) {
 	object, err := r.Store.FetchFile(repo, arch, file)
 	if err == nil {
 		return object, nil
@@ -40,7 +40,7 @@ func (r *binaryRepository) FetchFile(
 // selected physical object's validators to the HTTP layer.
 func (r *binaryRepository) FetchFileWithMeta(
 	repo, arch, file string,
-) (stream.File, blob.FileMeta, error) {
+) (platform.File, blob.FileMeta, error) {
 	fetcher, ok := r.Store.(blob.MetaFetcher)
 	if !ok {
 		object, err := r.FetchFile(repo, arch, file)
@@ -105,7 +105,7 @@ func (r *binaryRepository) dbAliasTargets(repo, file string) []string {
 }
 
 type aliasFile struct {
-	stream.File
+	platform.File
 	name string
 }
 

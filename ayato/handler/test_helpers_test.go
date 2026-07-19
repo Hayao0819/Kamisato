@@ -11,7 +11,7 @@ import (
 	"go.uber.org/mock/gomock"
 
 	"github.com/Hayao0819/Kamisato/ayato/domain"
-	"github.com/Hayao0819/Kamisato/ayato/stream"
+	"github.com/Hayao0819/Kamisato/ayato/platform"
 	"github.com/Hayao0819/Kamisato/ayato/test/mocks"
 )
 
@@ -46,8 +46,8 @@ func expectRepositoryFile(
 ) {
 	service.EXPECT().SignedURL(repo, arch, name).Return("", nil).Times(times)
 	service.EXPECT().GetFileWithMeta(repo, arch, name).DoAndReturn(
-		func(_, _, _ string) (stream.File, domain.FileMeta, error) {
-			file := stream.NewFileStream(
+		func(_, _, _ string) (platform.File, domain.FileMeta, error) {
+			file := platform.NewFileStream(
 				name,
 				"application/octet-stream",
 				bufferToReadSeekCloser(bytes.NewBufferString(body)),

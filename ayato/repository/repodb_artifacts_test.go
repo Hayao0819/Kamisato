@@ -11,7 +11,7 @@ import (
 
 	"github.com/klauspost/compress/zstd"
 
-	"github.com/Hayao0819/Kamisato/ayato/stream"
+	"github.com/Hayao0819/Kamisato/ayato/platform"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
 )
 
@@ -53,9 +53,9 @@ func makePkg(t *testing.T, dir, name, version, arch string) string {
 	return output
 }
 
-func openSeek(t *testing.T, path string) stream.SeekFile {
+func openSeek(t *testing.T, path string) platform.SeekFile {
 	t.Helper()
-	file, err := stream.OpenFileWithType(path)
+	file, err := platform.OpenFileWithType(path)
 	if err != nil {
 		t.Fatal(err)
 	}

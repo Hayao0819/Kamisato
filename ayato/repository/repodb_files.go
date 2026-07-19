@@ -8,8 +8,8 @@ import (
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
 
+	"github.com/Hayao0819/Kamisato/ayato/platform"
 	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
-	"github.com/Hayao0819/Kamisato/ayato/stream"
 	pacmanrepo "github.com/Hayao0819/Kamisato/pkg/pacman/repo"
 )
 
@@ -24,7 +24,7 @@ func withRepoDBTempDir(pattern string, run func(dir string) error) error {
 
 // writeSeekFileTo materializes a stream under its base name. A nil stream is a
 // supported no-op because signatures are optional.
-func writeSeekFileTo(dir string, file stream.SeekFile) (string, error) {
+func writeSeekFileTo(dir string, file platform.SeekFile) (string, error) {
 	if file == nil {
 		return "", nil
 	}
@@ -35,17 +35,17 @@ func writeSeekFileTo(dir string, file stream.SeekFile) (string, error) {
 	return dst, nil
 }
 
-func writeSeekFileToPath(dst string, file stream.SeekFile) error {
+func writeSeekFileToPath(dst string, file platform.SeekFile) error {
 	if file == nil {
 		return nil
 	}
 	// Reuse an already materialized file when both paths are on one filesystem.
-	if diskFile, ok := file.(stream.OnDiskFile); ok {
+	if diskFile, ok := file.(platform.OnDiskFile); ok {
 		if err := os.Link(diskFile.OnDiskPath(), dst); err == nil {
 			return nil
 		}
 	}
-	if err := stream.Rewind(file); err != nil {
+	if err := platform.Rewind(file); err != nil {
 		return errors.WrapErr(err, "failed to seek stream")
 	}
 	return writeReaderToPath(dst, file)

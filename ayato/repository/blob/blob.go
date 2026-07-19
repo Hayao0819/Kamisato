@@ -11,7 +11,7 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/errors"
 
 	"github.com/Hayao0819/Kamisato/ayato/domain"
-	"github.com/Hayao0819/Kamisato/ayato/stream"
+	"github.com/Hayao0819/Kamisato/ayato/platform"
 )
 
 //go:generate mockgen -source=blob.go -destination=../../test/mocks/blob.go -package=mocks -mock_names Store=MockBlobStore
@@ -66,13 +66,13 @@ type FileMeta = domain.FileMeta
 // conditional-GET metadata in a single fetch; a store without it is served full
 // bodies (no validators).
 type MetaFetcher interface {
-	FetchFileWithMeta(repo, arch, file string) (stream.File, FileMeta, error)
+	FetchFileWithMeta(repo, arch, file string) (platform.File, FileMeta, error)
 }
 
 func FetchFileWithMeta(
 	store Store,
 	repo, arch, file string,
-) (stream.File, FileMeta, error) {
+) (platform.File, FileMeta, error) {
 	if fetcher, ok := store.(MetaFetcher); ok {
 		return fetcher.FetchFileWithMeta(repo, arch, file)
 	}
@@ -117,19 +117,19 @@ type ObjectMover interface {
 // repo-DB read-modify-write lives in the domain layer (ayato/repository) that
 // composes it.
 type Store interface {
-	StoreFile(repo, arch string, file stream.SeekFile) error
+	StoreFile(repo, arch string, file platform.SeekFile) error
 	StoreFileWithSignedURL(repo, arch, name string) (string, error)
 	DeleteFile(repo, arch, file string) error
-	FetchFile(repo, arch, file string) (stream.File, error)
+	FetchFile(repo, arch, file string) (platform.File, error)
 	// FetchFileWithETag fetches a file together with an opaque version token (its
 	// ETag) for an optimistic-concurrency write. The token is "" for a backend
 	// without object versioning. Absence is reported like FetchFile.
-	FetchFileWithETag(repo, arch, file string) (stream.File, string, error)
+	FetchFileWithETag(repo, arch, file string) (platform.File, string, error)
 	// StoreFileIfMatch stores a file with compare-and-swap on its version: it
 	// writes only when the live object's version still equals etag, or — when etag
 	// is "" — only when the object does not yet exist (create-only). On a version
 	// conflict it returns ErrPreconditionFailed.
-	StoreFileIfMatch(repo, arch string, file stream.SeekFile, etag string) error
+	StoreFileIfMatch(repo, arch string, file platform.SeekFile, etag string) error
 	RepoNames() ([]string, error)
 	Files(repo, arch string) ([]string, error)
 	// FilesWithMeta lists (repo, arch) objects with each object's last-modified

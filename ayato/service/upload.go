@@ -2,14 +2,14 @@ package service
 
 import (
 	"github.com/Hayao0819/Kamisato/ayato/domain"
-	"github.com/Hayao0819/Kamisato/ayato/stream"
+	"github.com/Hayao0819/Kamisato/ayato/platform"
 )
 
 // preparedUpload is one validated package ready for publication. An arch=any
 // package is stored once in any/ and registered in every concrete dbArch.
 type preparedUpload struct {
-	pkgStream  stream.SeekFile
-	sigStream  stream.SeekFile
+	pkgStream  platform.SeekFile
+	sigStream  platform.SeekFile
 	pkgName    string
 	pkgVersion string
 	storeArch  string

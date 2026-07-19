@@ -11,7 +11,7 @@ import (
 	"go.uber.org/mock/gomock"
 
 	"github.com/Hayao0819/Kamisato/ayato/domain"
-	"github.com/Hayao0819/Kamisato/ayato/stream"
+	"github.com/Hayao0819/Kamisato/ayato/platform"
 	"github.com/Hayao0819/Kamisato/ayato/test/mocks"
 	"github.com/Hayao0819/Kamisato/internal/conf"
 )
@@ -49,7 +49,7 @@ func TestRepoFileHandlerStreamsWhenPresignUnavailable(t *testing.T) {
 	defer controller.Finish()
 
 	const body = "package-bytes"
-	file := stream.NewFileStream(
+	file := platform.NewFileStream(
 		"foo.pkg.tar.zst",
 		"application/octet-stream",
 		bufferToReadSeekCloser(bytes.NewBufferString(body)),
@@ -166,7 +166,7 @@ func TestRepoFileHandlerStreamsWhenRedirectDisabled(t *testing.T) {
 	service := mocks.NewMockServicer(controller)
 
 	const body = "package-bytes"
-	file := stream.NewFileStream(
+	file := platform.NewFileStream(
 		"foo.pkg.tar.zst",
 		"application/octet-stream",
 		bufferToReadSeekCloser(bytes.NewBufferString(body)),

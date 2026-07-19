@@ -4,8 +4,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Hayao0819/Kamisato/ayato/platform"
 	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
-	"github.com/Hayao0819/Kamisato/ayato/stream"
 )
 
 type keyedMutex struct {
@@ -48,7 +48,7 @@ func newSerializingStore(s blob.Store) blob.Store {
 	return &serializingStore{Store: s}
 }
 
-func (s *serializingStore) StoreFile(repo, arch string, file stream.SeekFile) error {
+func (s *serializingStore) StoreFile(repo, arch string, file platform.SeekFile) error {
 	defer s.mu.lock(repo + "/" + arch)()
 	return s.Store.StoreFile(repo, arch, file)
 }
@@ -72,6 +72,6 @@ func (s *serializingStore) LockPublication(repo string) (func(), error) {
 // this the type assertion in binaryRepository misses and conditional-GET
 // validators silently degrade to a full body on every request. Reads are not
 // serialized against writes (same as the embedded FetchFile).
-func (s *serializingStore) FetchFileWithMeta(repo, arch, file string) (stream.File, blob.FileMeta, error) {
+func (s *serializingStore) FetchFileWithMeta(repo, arch, file string) (platform.File, blob.FileMeta, error) {
 	return blob.FetchFileWithMeta(s.Store, repo, arch, file)
 }

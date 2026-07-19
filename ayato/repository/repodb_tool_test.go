@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Hayao0819/Kamisato/ayato/stream"
+	"github.com/Hayao0819/Kamisato/ayato/platform"
 )
 
 type fakeTool struct{}
@@ -65,7 +65,7 @@ func TestRepoDBToolPort(t *testing.T) {
 	assertSuperset(t, mem.names("r", "x86_64"), want, "InitArch")
 	assertAliases(t, repository, mem, "InitArch")
 
-	pkg := stream.NewFileStream(
+	pkg := platform.NewFileStream(
 		"foo-1.0-1-x86_64.pkg.tar.zst",
 		"application/octet-stream",
 		nopSeekCloser{bytes.NewReader([]byte("pkg"))},

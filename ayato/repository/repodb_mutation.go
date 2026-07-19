@@ -5,14 +5,14 @@ import (
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
 
-	"github.com/Hayao0819/Kamisato/ayato/stream"
+	"github.com/Hayao0819/Kamisato/ayato/platform"
 	pacmanrepo "github.com/Hayao0819/Kamisato/pkg/pacman/repo"
 )
 
 // RepoAdd is the one-item shorthand for RepoAddBatch.
 func (r *binaryRepository) RepoAdd(
 	repo, arch string,
-	pkg, sig stream.SeekFile,
+	pkg, sig platform.SeekFile,
 	useSignedDB bool,
 	gnupgDir *string,
 ) error {

@@ -9,11 +9,11 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/errors"
 	"github.com/Hayao0819/Kamisato/pkg/atomicfile"
 
+	"github.com/Hayao0819/Kamisato/ayato/platform"
 	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
-	"github.com/Hayao0819/Kamisato/ayato/stream"
 )
 
-func (l *LocalStore) StoreFile(repo, arch string, file stream.SeekFile) error {
+func (l *LocalStore) StoreFile(repo, arch string, file platform.SeekFile) error {
 	name := path.Base(file.FileName())
 	repoPath, objectPath, err := l.prepareObjectPath(repo, arch, name)
 	if err != nil {
@@ -34,7 +34,7 @@ func (l *LocalStore) StoreFileWithSignedURL(
 // SHA-256 ETag.
 func (l *LocalStore) StoreFileIfMatch(
 	repo, arch string,
-	file stream.SeekFile,
+	file platform.SeekFile,
 	etag string,
 ) error {
 	name := path.Base(file.FileName())

@@ -13,9 +13,9 @@ import (
 	reflect "reflect"
 	time "time"
 
+	platform "github.com/Hayao0819/Kamisato/ayato/platform"
 	repository "github.com/Hayao0819/Kamisato/ayato/repository"
 	blob "github.com/Hayao0819/Kamisato/ayato/repository/blob"
-	stream "github.com/Hayao0819/Kamisato/ayato/stream"
 	repo "github.com/Hayao0819/Kamisato/pkg/pacman/repo"
 	gomock "go.uber.org/mock/gomock"
 )
@@ -118,10 +118,10 @@ func (mr *MockBinaryRepositoryMockRecorder) DeleteOrphanIfUnchanged(name, arch, 
 }
 
 // FetchDB mocks base method.
-func (m *MockBinaryRepository) FetchDB(repoName, archName string) (stream.File, error) {
+func (m *MockBinaryRepository) FetchDB(repoName, archName string) (platform.File, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "FetchDB", repoName, archName)
-	ret0, _ := ret[0].(stream.File)
+	ret0, _ := ret[0].(platform.File)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -133,10 +133,10 @@ func (mr *MockBinaryRepositoryMockRecorder) FetchDB(repoName, archName any) *gom
 }
 
 // FetchFile mocks base method.
-func (m *MockBinaryRepository) FetchFile(arg0, arch, file string) (stream.File, error) {
+func (m *MockBinaryRepository) FetchFile(arg0, arch, file string) (platform.File, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "FetchFile", arg0, arch, file)
-	ret0, _ := ret[0].(stream.File)
+	ret0, _ := ret[0].(platform.File)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -148,10 +148,10 @@ func (mr *MockBinaryRepositoryMockRecorder) FetchFile(arg0, arch, file any) *gom
 }
 
 // FetchFileWithETag mocks base method.
-func (m *MockBinaryRepository) FetchFileWithETag(arg0, arch, file string) (stream.File, string, error) {
+func (m *MockBinaryRepository) FetchFileWithETag(arg0, arch, file string) (platform.File, string, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "FetchFileWithETag", arg0, arch, file)
-	ret0, _ := ret[0].(stream.File)
+	ret0, _ := ret[0].(platform.File)
 	ret1, _ := ret[1].(string)
 	ret2, _ := ret[2].(error)
 	return ret0, ret1, ret2
@@ -164,10 +164,10 @@ func (mr *MockBinaryRepositoryMockRecorder) FetchFileWithETag(arg0, arch, file a
 }
 
 // FetchFileWithMeta mocks base method.
-func (m *MockBinaryRepository) FetchFileWithMeta(arg0, arch, file string) (stream.File, blob.FileMeta, error) {
+func (m *MockBinaryRepository) FetchFileWithMeta(arg0, arch, file string) (platform.File, blob.FileMeta, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "FetchFileWithMeta", arg0, arch, file)
-	ret0, _ := ret[0].(stream.File)
+	ret0, _ := ret[0].(platform.File)
 	ret1, _ := ret[1].(blob.FileMeta)
 	ret2, _ := ret[2].(error)
 	return ret0, ret1, ret2
@@ -297,7 +297,7 @@ func (mr *MockBinaryRepositoryMockRecorder) RemoteRepo(name, arch any) *gomock.C
 }
 
 // RepoAdd mocks base method.
-func (m *MockBinaryRepository) RepoAdd(name, arch string, pkg, sig stream.SeekFile, useSignedDB bool, gnupgDir *string) error {
+func (m *MockBinaryRepository) RepoAdd(name, arch string, pkg, sig platform.SeekFile, useSignedDB bool, gnupgDir *string) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "RepoAdd", name, arch, pkg, sig, useSignedDB, gnupgDir)
 	ret0, _ := ret[0].(error)
@@ -368,7 +368,7 @@ func (mr *MockBinaryRepositoryMockRecorder) RepoRemoveIfMatch(name, arch, pkg, e
 }
 
 // StoreFile mocks base method.
-func (m *MockBinaryRepository) StoreFile(arg0, arch string, file stream.SeekFile) error {
+func (m *MockBinaryRepository) StoreFile(arg0, arch string, file platform.SeekFile) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "StoreFile", arg0, arch, file)
 	ret0, _ := ret[0].(error)
@@ -382,7 +382,7 @@ func (mr *MockBinaryRepositoryMockRecorder) StoreFile(arg0, arch, file any) *gom
 }
 
 // StoreFileIfMatch mocks base method.
-func (m *MockBinaryRepository) StoreFileIfMatch(arg0, arch string, file stream.SeekFile, etag string) error {
+func (m *MockBinaryRepository) StoreFileIfMatch(arg0, arch string, file platform.SeekFile, etag string) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "StoreFileIfMatch", arg0, arch, file, etag)
 	ret0, _ := ret[0].(error)
@@ -396,7 +396,7 @@ func (mr *MockBinaryRepositoryMockRecorder) StoreFileIfMatch(arg0, arch, file, e
 }
 
 // StoreFileImmutable mocks base method.
-func (m *MockBinaryRepository) StoreFileImmutable(name, arch string, file stream.SeekFile) (bool, error) {
+func (m *MockBinaryRepository) StoreFileImmutable(name, arch string, file platform.SeekFile) (bool, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "StoreFileImmutable", name, arch, file)
 	ret0, _ := ret[0].(bool)

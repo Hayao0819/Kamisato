@@ -10,8 +10,8 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/errors"
 
 	"github.com/Hayao0819/Kamisato/ayato/domain"
+	"github.com/Hayao0819/Kamisato/ayato/platform"
 	"github.com/Hayao0819/Kamisato/ayato/repository"
-	"github.com/Hayao0819/Kamisato/ayato/stream"
 	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/pkg/httpx"
 )
@@ -42,7 +42,7 @@ type RepoReader interface {
 	PkgDetail(repo, arch, pkgname string) (*domain.PacmanPackage, error)
 	PkgFiles(repo, arch, pkg string) ([]string, error)
 	RepoFileList(repo, arch string) ([]string, error)
-	GetFileWithMeta(repoName, archName, name string) (stream.File, domain.FileMeta, error)
+	GetFileWithMeta(repoName, archName, name string) (platform.File, domain.FileMeta, error)
 	SignedURL(repo string, arch string, name string) (string, error)
 }
 

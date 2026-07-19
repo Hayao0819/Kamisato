@@ -5,30 +5,30 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/Hayao0819/Kamisato/ayato/platform"
 	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
-	"github.com/Hayao0819/Kamisato/ayato/stream"
 	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
 // ErrImmutableObjectConflict means an immutable key contains different bytes.
 var ErrImmutableObjectConflict = errors.New("repository: immutable object content conflict")
 
-func hashSeekFile(file stream.SeekFile) ([sha256.Size]byte, error) {
-	if err := stream.Rewind(file); err != nil {
+func hashSeekFile(file platform.SeekFile) ([sha256.Size]byte, error) {
+	if err := platform.Rewind(file); err != nil {
 		return [sha256.Size]byte{}, err
 	}
 	sum, err := hashReader(file)
 	if err != nil {
 		return [sha256.Size]byte{}, err
 	}
-	if err := stream.Rewind(file); err != nil {
+	if err := platform.Rewind(file); err != nil {
 		return [sha256.Size]byte{}, err
 	}
 	return sum, nil
 }
 
 // StoreFileImmutable creates or renews a byte-identical object.
-func (r *binaryRepository) StoreFileImmutable(repo, arch string, file stream.SeekFile) (bool, error) {
+func (r *binaryRepository) StoreFileImmutable(repo, arch string, file platform.SeekFile) (bool, error) {
 	want, err := hashSeekFile(file)
 	if err != nil {
 		return false, errors.WrapErr(err, "hash immutable object")
@@ -46,7 +46,7 @@ func (r *binaryRepository) StoreFileImmutable(repo, arch string, file stream.See
 				return false, errors.WrapErr(closeErr, "close existing immutable object")
 			}
 			if got == want {
-				if err := stream.Rewind(file); err != nil {
+				if err := platform.Rewind(file); err != nil {
 					return false, err
 				}
 				if err := r.Store.StoreFileIfMatch(repo, arch, file, etag); err == nil {
@@ -62,7 +62,7 @@ func (r *binaryRepository) StoreFileImmutable(repo, arch string, file stream.See
 		if !errors.Is(fetchErr, blob.ErrNotFound) {
 			return false, errors.WrapErr(fetchErr, "probe immutable object")
 		}
-		if err := stream.Rewind(file); err != nil {
+		if err := platform.Rewind(file); err != nil {
 			return false, err
 		}
 		if err := r.Store.StoreFileIfMatch(repo, arch, file, ""); err == nil {
