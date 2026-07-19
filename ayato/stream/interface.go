@@ -9,9 +9,8 @@ type File interface {
 }
 
 type SeekFile interface {
-	io.ReadSeekCloser
-	FileName() string
-	ContentType() string
+	File
+	io.Seeker
 }
 
 // OnDiskFile is an optional SeekFile capability: the bytes already live in a real
