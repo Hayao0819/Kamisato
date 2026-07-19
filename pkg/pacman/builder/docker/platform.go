@@ -1,16 +1,15 @@
-package builder
+package docker
 
 import (
 	"fmt"
-	"strings"
-	"time"
 
+	"github.com/Hayao0819/Kamisato/pkg/pacman/builder"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 const (
-	defaultContainerImage = "archlinux:latest"
-	defaultBuildTimeout   = 30 * time.Minute
+	defaultContainerImage = builder.DefaultDockerImage
+	defaultBuildTimeout   = builder.DefaultDockerTimeout
 )
 
 func archToPlatform(arch string) (*ocispec.Platform, error) {
@@ -48,9 +47,4 @@ func platformString(p *ocispec.Platform) string {
 		s += "/" + p.Variant
 	}
 	return s
-}
-
-// shellQuote single-quotes s for safe embedding in `sh -c`, escaping any embedded single quotes.
-func shellQuote(s string) string {
-	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
 }

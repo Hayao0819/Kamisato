@@ -1,4 +1,4 @@
-package builder
+package devtools
 
 import (
 	"errors"
@@ -6,14 +6,15 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/Hayao0819/Kamisato/pkg/pacman/builder"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/builder/internal/buildenv"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/builder/internal/errutil"
 )
 
-// devtoolsDataDir is the devtools config dir; a var so tests can substitute a fixture dir.
 var devtoolsDataDir = "/usr/share/devtools"
 
-// renderChrootPacmanConf returns the devtools pacman.conf for repoName (falling back to extra.conf) with
-// per-build repo stanzas appended for -C. The base is kept complete: arch-nspawn copies it verbatim.
-func renderChrootPacmanConf(repoName string, repos []RepoSpec) (string, error) {
+func renderChrootPacmanConf(repoName string, repos []builder.PacmanRepository) (string, error) {
 	dir := filepath.Join(devtoolsDataDir, "pacman.conf.d")
 	base := filepath.Join(dir, repoName+".conf")
 	data, err := os.ReadFile(base) //nolint:gosec // path derived from a config repo name, not request input
@@ -25,23 +26,26 @@ func renderChrootPacmanConf(repoName string, repos []RepoSpec) (string, error) {
 		}
 	}
 	if err != nil {
-		return "", wrapErr(err, "failed to read devtools pacman.conf")
+		return "", errutil.Wrap(err, "failed to read devtools pacman.conf")
 	}
-	return string(data) + pacmanRepoStanzas(repos), nil
+	stanzas, err := buildenv.PacmanRepoStanzas(repos)
+	if err != nil {
+		return "", err
+	}
+	return string(data) + stanzas, nil
 }
 
-// renderChrootMakepkgConf returns the devtools makepkg.conf for arch with override lines appended.
-// No `source` directive is added: arch-nspawn copies this verbatim into /etc/makepkg.conf, so a source would self-recurse.
-func renderChrootMakepkgConf(arch string, mk MakepkgSettings) (string, error) {
+// The base must remain complete because arch-nspawn copies it over /etc/makepkg.conf.
+func renderChrootMakepkgConf(arch string, mk builder.MakepkgConfig) (string, error) {
 	base := filepath.Join(devtoolsDataDir, "makepkg.conf.d", arch+".conf")
 	data, err := os.ReadFile(base) //nolint:gosec // path derived from the target arch, not request input
 	if errors.Is(err, os.ErrNotExist) {
 		return "", fmt.Errorf("devtools makepkg.conf not found (%s); the 'devtools' package is required", base)
 	}
 	if err != nil {
-		return "", wrapErr(err, "failed to read devtools makepkg.conf")
+		return "", errutil.Wrap(err, "failed to read devtools makepkg.conf")
 	}
-	overrides, err := makepkgOverrideLines(mk)
+	overrides, err := buildenv.MakepkgOverrideLines(mk)
 	if err != nil {
 		return "", err
 	}
@@ -54,7 +58,6 @@ func renderChrootMakepkgConf(arch string, mk MakepkgSettings) (string, error) {
 	return conf + overrides, nil
 }
 
-// repoFromArchBuild strips "-build" then takes everything before the last '-', e.g. "alterlinux-x86_64-build" -> "alterlinux".
 func repoFromArchBuild(archBuild string) string {
 	tag := strings.TrimSuffix(filepath.Base(archBuild), "-build")
 	if i := strings.LastIndex(tag, "-"); i >= 0 {
@@ -63,7 +66,6 @@ func repoFromArchBuild(archBuild string) string {
 	return tag
 }
 
-// mkarchrootArgs assembles 'setarch <arch> mkarchroot -C <pac> -M <mk> <chrootRoot> base-devel'.
 func mkarchrootArgs(arch, pacConf, mkConf, chrootRoot string) []string {
 	return []string{
 		"setarch", arch,
@@ -74,7 +76,6 @@ func mkarchrootArgs(arch, pacConf, mkConf, chrootRoot string) []string {
 	}
 }
 
-// makechrootpkgArgs assembles 'makechrootpkg -c -r <chrootDir> [-I pkg]... -- --syncdeps --noconfirm --log --holdver'.
 func makechrootpkgArgs(chrootDir string, installPkgs []string) []string {
 	args := []string{"makechrootpkg", "-c", "-r", chrootDir}
 	for _, pkg := range installPkgs {

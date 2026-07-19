@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/Hayao0819/Kamisato/pkg/pacman/builder"
 	"github.com/spf13/pflag"
 )
 
@@ -16,10 +17,11 @@ type RepoEntry struct {
 }
 
 type AyakaConfig struct {
-	LegacyRepoDir string      `koanf:"repodir" json:"repodir"`
-	LegacyDestDir string      `koanf:"destdir" json:"destdir"`
-	Repos         []RepoEntry `koanf:"repos" json:"repos"`
-	Debug         bool        `koanf:"debug" json:"debug"`
+	LegacyRepoDir string             `koanf:"repodir" json:"repodir"`
+	LegacyDestDir string             `koanf:"destdir" json:"destdir"`
+	Repos         []RepoEntry        `koanf:"repos" json:"repos"`
+	Builder       builder.HostConfig `koanf:"builder" json:"builder,omitempty"`
+	Debug         bool               `koanf:"debug" json:"debug"`
 }
 
 func (c *AyakaConfig) Marshal() ([]byte, error) {
@@ -37,12 +39,13 @@ func LoadAyakaConfigFrom(configFile string, flags *pflag.FlagSet) (*AyakaConfig,
 	} else {
 		files = configFileNames("", ".ayakarc")
 	}
-	return LoadTyped[AyakaConfig](
+	return loadTypedWithSourceTransforms[AyakaConfig](
 		commonConfigDirs(),
 		files,
 		flags,
 		"AYAKA",
 		(*AyakaConfig).migrateLegacy,
+		validateBuilderSource,
 	)
 }
 
@@ -63,6 +66,9 @@ func (c *AyakaConfig) migrateLegacy() {
 // Validate rejects a repos entry without a source directory, which would
 // otherwise surface later as a confusing load failure.
 func (c *AyakaConfig) Validate() error {
+	if err := c.Builder.Validate(); err != nil {
+		return fmt.Errorf("builder: %w", err)
+	}
 	for i, r := range c.Repos {
 		if r.Dir == "" {
 			return fmt.Errorf("repos[%d]: dir is required", i)
@@ -71,41 +77,19 @@ func (c *AyakaConfig) Validate() error {
 	return nil
 }
 
-type BuildRepo struct {
-	Name     string `koanf:"name" json:"name"`
-	Server   string `koanf:"server" json:"server"`
-	SigLevel string `koanf:"siglevel" json:"siglevel,omitempty"`
-}
-
-type MakepkgConfig struct {
-	Packager     string   `koanf:"packager" json:"packager,omitempty"`
-	Microarch    string   `koanf:"microarch" json:"microarch,omitempty"`
-	CFlagsAppend string   `koanf:"cflags_append" json:"cflags_append,omitempty"`
-	Options      []string `koanf:"options" json:"options,omitempty"`
-}
-
-type SrcBuildConfig struct {
-	Repos     []BuildRepo   `koanf:"repos" json:"repos,omitempty"`
-	Makepkg   MakepkgConfig `koanf:"makepkg" json:"makepkg,omitempty"`
-	Arches    []string      `koanf:"arches" json:"arches,omitempty"`
-	Image     string        `koanf:"image" json:"image,omitempty"`
-	ArchBuild string        `koanf:"archbuild" json:"archbuild,omitempty"`
-	Timeout   string        `koanf:"timeout" json:"timeout,omitempty"`
-}
-
 type InstallPkgsConfig struct {
 	Files []string `koanf:"files" json:"files"`
 	Names []string `koanf:"names" json:"names"`
 }
 
 type SrcRepoConfig struct {
-	Name        string            `koanf:"name" json:"name"`
-	Maintainer  string            `koanf:"maintainer" json:"maintainer"`
-	URL         string            `koanf:"url" json:"url,omitempty"`
-	Build       SrcBuildConfig    `koanf:"build" json:"build,omitempty"`
-	InstallPkgs InstallPkgsConfig `koanf:"installpkgs" json:"installpkgs"`
+	Name        string                `koanf:"name" json:"name"`
+	Maintainer  string                `koanf:"maintainer" json:"maintainer"`
+	URL         string                `koanf:"url" json:"url,omitempty"`
+	Build       builder.ProjectConfig `koanf:"build" json:"build,omitempty"`
+	InstallPkgs InstallPkgsConfig     `koanf:"installpkgs" json:"installpkgs"`
 
-	// Deprecated top-level aliases, folded into URL / Build.ArchBuild by migrateLegacy.
+	// ArchBuild is retained only to report that repository-owned commands are ignored.
 	LegacyServer    string `koanf:"server" json:"server,omitempty"`
 	LegacyArchBuild string `koanf:"archbuild" json:"archbuild,omitempty"`
 }
@@ -124,8 +108,6 @@ func LoadSrcRepoConfig(repodir string) (*SrcRepoConfig, error) {
 	)
 }
 
-// migrateLegacy folds the deprecated top-level server/archbuild into the current
-// url / build.archbuild shape so the rest of the CLI only sees the new fields.
 func (c *SrcRepoConfig) migrateLegacy() {
 	if c.LegacyServer != "" {
 		slog.Warn("repo.json: top-level 'server' is deprecated; use 'url'")
@@ -135,7 +117,7 @@ func (c *SrcRepoConfig) migrateLegacy() {
 		c.LegacyServer = ""
 	}
 	if c.LegacyArchBuild != "" {
-		slog.Warn("repo.json: top-level 'archbuild' is deprecated; use 'build.archbuild'")
+		slog.Warn("repo.json: archbuild is ignored for host safety; configure .ayakarc builder.devtools.archbuild")
 		if c.Build.ArchBuild == "" {
 			c.Build.ArchBuild = c.LegacyArchBuild
 		}
@@ -150,8 +132,8 @@ var archSuffixes = []string{"x86_64_v2", "x86_64_v3", "x86_64_v4", "x86_64", "aa
 func stripArchSuffix(server string) string {
 	s := strings.TrimRight(server, "/")
 	for _, a := range archSuffixes {
-		if strings.HasSuffix(s, "/"+a) {
-			return strings.TrimSuffix(s, "/"+a)
+		if before, ok := strings.CutSuffix(s, "/"+a); ok {
+			return before
 		}
 	}
 	return s

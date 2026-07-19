@@ -2,9 +2,14 @@ package conf
 
 import (
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/Hayao0819/Kamisato/pkg/pacman/builder"
 )
 
 func TestAyakaValidate(t *testing.T) {
@@ -16,6 +21,30 @@ func TestAyakaValidate(t *testing.T) {
 	}
 	if err := (&AyakaConfig{Repos: []RepoEntry{{DestDir: "out"}}}).Validate(); err == nil {
 		t.Error("expected an error for a repo entry with no dir")
+	}
+}
+
+func TestAyakaBuilderTimeoutJSON(t *testing.T) {
+	config := &AyakaConfig{
+		Builder: builder.HostConfig{
+			Backend: builder.KindContainer,
+			Timeout: 30 * time.Minute,
+		},
+	}
+	data, err := config.Marshal()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), `"timeout": "30m0s"`) {
+		t.Fatalf("timeout was not marshalled with units:\n%s", data)
+	}
+
+	path := filepath.Join(t.TempDir(), ".ayakarc.json")
+	if err := os.WriteFile(path, []byte(`{"builder":{"backend":"container","timeout":30}}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := LoadAyakaConfigFrom(path, nil); err == nil {
+		t.Fatal("unitless builder.timeout: want error")
 	}
 }
 
@@ -48,7 +77,7 @@ func TestSrcRepoMigrateLegacy(t *testing.T) {
 	// Explicit new-shape fields take precedence over the legacy aliases.
 	c2 := &SrcRepoConfig{
 		URL:          "https://new/url",
-		Build:        SrcBuildConfig{ArchBuild: "custom-build"},
+		Build:        builder.ProjectConfig{ArchBuild: "custom-build"},
 		LegacyServer: "https://host/repo/alterlinux/aarch64",
 	}
 	c2.LegacyArchBuild = "extra-x86_64-build"
@@ -78,9 +107,9 @@ func TestSrcRepoConfigRoundTrip(t *testing.T) {
 		Name:       "alterlinux",
 		Maintainer: "Hayao",
 		URL:        "https://host/repo/alterlinux",
-		Build: SrcBuildConfig{
-			Repos:     []BuildRepo{{Name: "ayato", Server: "https://host/repo/$repo/$arch", SigLevel: "Optional TrustAll"}},
-			Makepkg:   MakepkgConfig{Packager: "Hayao", Microarch: "x86_64_v3", CFlagsAppend: "-O3", Options: []string{"!strip"}},
+		Build: builder.ProjectConfig{
+			Repos:     []builder.PacmanRepository{{Name: "ayato", Server: "https://host/repo/$repo/$arch", SigLevel: "Optional TrustAll"}},
+			Makepkg:   builder.MakepkgConfig{Packager: "Hayao", Microarch: "x86_64_v3", CFlagsAppend: "-O3", Options: []string{"!strip"}},
 			ArchBuild: "extra-x86_64-build",
 		},
 		InstallPkgs: InstallPkgsConfig{Names: []string{"foo"}},

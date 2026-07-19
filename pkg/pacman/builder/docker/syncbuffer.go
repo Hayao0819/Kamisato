@@ -1,4 +1,4 @@
-package builder
+package docker
 
 import (
 	"bytes"
@@ -8,7 +8,7 @@ import (
 	"sync"
 )
 
-// drainPullStream consumes the image-pull progress stream; errors come as JSON body messages (ImagePull only reports the initial request error).
+// ImagePull reports later failures inside its JSON stream.
 func drainPullStream(r io.ReadCloser) error {
 	defer r.Close()
 	dec := json.NewDecoder(r)
@@ -28,7 +28,6 @@ func drainPullStream(r io.ReadCloser) error {
 	}
 }
 
-// syncBuffer is a concurrency-safe bytes.Buffer for the log capture goroutine.
 type syncBuffer struct {
 	mu  sync.Mutex
 	buf bytes.Buffer

@@ -2,15 +2,14 @@ package service
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"strings"
 	"time"
 
-	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/internal/errors"
 	"github.com/Hayao0819/Kamisato/miko/domain"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/builder"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/builder/factory"
 )
 
 // On success it returns the output directory holding the built packages; the
@@ -35,34 +34,31 @@ func (s *Service) runBuild(ctx context.Context, job *domain.BuildJob) (*builder.
 		return nil, "", errors.WrapErr(err, "failed to create output dir")
 	}
 
-	// Per-request timeout (minutes) overrides the server default.
-	timeoutMin := s.cfg.Build.Timeout
+	// Per-request timeout (minutes) overrides the trusted server default.
+	var timeout time.Duration
 	if req.Timeout > 0 {
-		timeoutMin = req.Timeout
+		timeout = time.Duration(req.Timeout) * time.Minute
 	}
-	timeout := time.Duration(timeoutMin) * time.Minute
 
-	buildRepos := extraRepos(s.cfg.Build.ExtraRepos)
+	overrides := builder.BuildOverrides{
+		Timeout: timeout,
+		Makepkg: builder.MakepkgConfig{Microarch: req.Microarch},
+	}
 	if s.cfg.Build.ResolveAURDeps && req.Repo != "" && s.cfg.Ayato.URL != "" {
 		// Expose the target repo so dependencies published during this run resolve.
-		buildRepos = append(buildRepos, builder.RepoSpec{
+		overrides.Repositories = append(overrides.Repositories, builder.PacmanRepository{
 			Name:     req.Repo,
 			Server:   strings.TrimRight(s.cfg.Ayato.URL, "/") + "/repo/$repo/$arch",
 			SigLevel: "Optional TrustAll",
 		})
 	}
 
-	opts := builder.Options{
-		Image:      s.cfg.Build.Image,
-		Timeout:    timeout,
-		DockerHost: s.cfg.DockerHost,
-		ExtraRepos: buildRepos,
+	config, err := builder.Resolve(s.cfg.BuilderHostConfig(), overrides, req.Arch)
+	if err != nil {
+		_ = os.RemoveAll(outDir)
+		return nil, "", errors.WrapErr(err, "failed to resolve build configuration")
 	}
-	if s.cfg.Cache.Enabled {
-		opts.PacmanCacheDir = s.cfg.Cache.PacmanCacheDir
-		opts.CcacheDir = s.cfg.Cache.CcacheDir
-	}
-	backend, err := builder.New(builder.Kind(s.cfg.Executor), opts)
+	backend, err := factory.New(config)
 	if err != nil {
 		_ = os.RemoveAll(outDir)
 		return nil, "", errors.WrapErr(err, "failed to create build backend")
@@ -79,8 +75,6 @@ func (s *Service) runBuild(ctx context.Context, job *domain.BuildJob) (*builder.
 		SrcDir:      srcDir,
 		OutDir:      outDir,
 		Arch:        req.Arch,
-		Makepkg:     builder.MakepkgSettings{Microarch: req.Microarch},
-		ArchBuild:   s.archBuildFor(req.Arch),
 		InstallPkgs: req.InstallPkgs,
 		LogWriter:   s.LogBuffer(job.ID),
 	}
@@ -91,28 +85,4 @@ func (s *Service) runBuild(ctx context.Context, job *domain.BuildJob) (*builder.
 		return nil, "", errors.WrapErr(err, "build failed")
 	}
 	return res, outDir, nil
-}
-
-func extraRepos(repos []conf.ExtraRepo) []builder.RepoSpec {
-	if len(repos) == 0 {
-		return nil
-	}
-	out := make([]builder.RepoSpec, 0, len(repos))
-	for _, r := range repos {
-		out = append(out, builder.RepoSpec{Name: r.Name, Server: r.Server, SigLevel: r.SigLevel})
-	}
-	return out
-}
-
-// archBuildFor maps a CARCH to the devtools wrapper used by the chroot backend,
-// using the configured ArchBuildTemplate (default "extra-%s-build").
-func (s *Service) archBuildFor(arch string) string {
-	if arch == "" {
-		return ""
-	}
-	tmpl := s.cfg.ArchBuildTemplate
-	if tmpl == "" {
-		tmpl = "extra-%s-build"
-	}
-	return fmt.Sprintf(tmpl, arch)
 }

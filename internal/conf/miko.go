@@ -4,21 +4,22 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"time"
 
+	"github.com/Hayao0819/Kamisato/pkg/pacman/builder"
 	"github.com/spf13/pflag"
 )
 
 type MikoConfig struct {
-	Debug    bool        `koanf:"debug"`
-	Port     int         `koanf:"port"`
-	Build    BuildConfig `koanf:"build"`
-	Executor string      `koanf:"executor"` // build backend kind: "container" | "chroot" (default: "container")
-	// ArchBuildTemplate is the devtools wrapper name template for the chroot
-	// executor, formatted with the target CARCH (default "extra-%s-build").
-	ArchBuildTemplate string `koanf:"archbuild_template"`
-	Concurrency       int    `koanf:"concurrency"`   // build workers (default 1)
-	MaxRetries        int    `koanf:"max_retries"`   // retry attempts on failure (default 0)
-	RetryBackoff      int    `koanf:"retry_backoff"` // seconds between retries (default 5)
+	Debug             bool               `koanf:"debug"`
+	Port              int                `koanf:"port"`
+	Build             BuildServiceConfig `koanf:"build"`
+	Builder           builder.HostConfig `koanf:"builder"`
+	Executor          string             `koanf:"executor"` // deprecated: use builder.backend
+	ArchBuildTemplate string             `koanf:"archbuild_template"`
+	Concurrency       int                `koanf:"concurrency"`   // build workers (default 1)
+	MaxRetries        int                `koanf:"max_retries"`   // retry attempts on failure (default 0)
+	RetryBackoff      int                `koanf:"retry_backoff"` // seconds between retries (default 5)
 	// MaxLogBytes caps a single job's in-memory log buffer (default 16 MiB).
 	// Excess output is dropped after a truncation marker to bound memory.
 	MaxLogBytes int `koanf:"max_log_bytes"`
@@ -28,7 +29,8 @@ type MikoConfig struct {
 	// MaxSize is the maximum package size in bytes. It uses the same name and
 	// semantics as ayato.max_size; zero selects the shared secure default.
 	MaxSize int `koanf:"max_size"`
-	Cache   struct {
+	// Cache preserves the legacy Miko schema.
+	Cache struct {
 		Enabled        bool   `koanf:"enabled"`
 		PacmanCacheDir string `koanf:"pacman_cache_dir"`
 		CcacheDir      string `koanf:"ccache_dir"`
@@ -42,9 +44,7 @@ type MikoConfig struct {
 	// DataDir persists build jobs so they survive a restart. Empty disables
 	// persistence (in-memory only).
 	DataDir string `koanf:"data_dir"`
-	// DockerHost overrides the Docker daemon for the container executor. Empty
-	// falls back to DOCKER_HOST, then the active docker context, then the
-	// default socket.
+	// DockerHost preserves the legacy Miko schema.
 	DockerHost string `koanf:"docker_host"`
 	Ayato      struct {
 		URL      string `koanf:"url"`
@@ -169,12 +169,13 @@ func (c AURTrustConfig) Decide(pkgbase, maintainer string) AURTrustDecision {
 
 func LoadMikoConfig(flags *pflag.FlagSet, configFile string) (*MikoConfig, error) {
 	loadDotEnv()
-	return LoadTyped[MikoConfig](
+	return loadTypedWithSourceTransforms[MikoConfig](
 		commonConfigDirs(),
 		configFileNames(configFile, "miko_config"),
 		flags,
 		"MIKO",
 		(*MikoConfig).applyDefaults,
+		migrateMikoBuilderSource,
 	)
 }
 
@@ -182,9 +183,7 @@ func LoadMikoConfig(flags *pflag.FlagSet, configFile string) (*MikoConfig, error
 // consumer reads a normalized config instead of re-deriving these at each use
 // site. Run once, right after loading and before Validate.
 func (c *MikoConfig) applyDefaults() {
-	if c.Executor == "" {
-		c.Executor = "container"
-	}
+	c.applyBuilderDefaults()
 	if c.Port == 0 {
 		c.Port = 8081
 	}
@@ -208,11 +207,62 @@ func (c *MikoConfig) applyDefaults() {
 	}
 }
 
-// Validate rejects an unknown build executor so a typo fails loudly instead of
-// silently falling back to the default backend.
+// applyBuilderDefaults migrates legacy fields without overriding builder.*.
+func (c *MikoConfig) applyBuilderDefaults() {
+	if c.Builder.Backend == "" {
+		if c.Executor != "" {
+			c.Builder.Backend = builder.Kind(c.Executor)
+		} else {
+			c.Builder.Backend = builder.KindContainer
+		}
+	}
+	if c.Builder.Timeout == 0 && c.Build.Timeout > 0 {
+		c.Builder.Timeout = time.Duration(c.Build.Timeout) * time.Minute
+	}
+	if c.Builder.Docker.Image == "" {
+		c.Builder.Docker.Image = c.Build.Image
+	}
+	if len(c.Builder.Repositories) == 0 {
+		c.Builder.Repositories = append([]builder.PacmanRepository(nil), c.Build.ExtraRepos...)
+	}
+	if c.Builder.Docker.Host == "" {
+		c.Builder.Docker.Host = c.DockerHost
+	}
+	if c.Cache.Enabled {
+		if c.Builder.Docker.PacmanCacheDir == "" {
+			c.Builder.Docker.PacmanCacheDir = c.Cache.PacmanCacheDir
+		}
+		if c.Builder.Docker.CcacheDir == "" {
+			c.Builder.Docker.CcacheDir = c.Cache.CcacheDir
+		}
+		if c.Builder.Bwrap.PacmanCacheDir == "" {
+			c.Builder.Bwrap.PacmanCacheDir = c.Cache.PacmanCacheDir
+		}
+	}
+	if c.Builder.Devtools.ArchBuildTemplate == "" {
+		if c.ArchBuildTemplate != "" {
+			c.Builder.Devtools.ArchBuildTemplate = c.ArchBuildTemplate
+		} else {
+			c.Builder.Devtools.ArchBuildTemplate = "extra-%s-build"
+		}
+	}
+	// Keep the legacy field consistent for callers that still inspect it.
+	c.Executor = string(c.Builder.Backend)
+}
+
+// BuilderHostConfig also normalizes directly constructed MikoConfig values.
+func (c *MikoConfig) BuilderHostConfig() builder.HostConfig {
+	if c == nil {
+		return builder.HostConfig{Backend: builder.KindContainer}
+	}
+	copyConfig := *c
+	copyConfig.applyBuilderDefaults()
+	return copyConfig.Builder
+}
+
 func (c *MikoConfig) Validate() error {
-	if !slices.Contains([]string{"", "container", "chroot", "bwrap"}, c.Executor) {
-		return fmt.Errorf("executor: unknown value %q (want container, chroot or bwrap)", c.Executor)
+	if err := c.BuilderHostConfig().Validate(); err != nil {
+		return fmt.Errorf("builder: %w", err)
 	}
 	if !slices.Contains([]string{"", "disabled", "local", "remote"}, c.Signing.Mode) {
 		return fmt.Errorf("signing.mode: unknown value %q (want disabled, local or remote)", c.Signing.Mode)

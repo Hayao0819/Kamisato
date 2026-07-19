@@ -133,52 +133,45 @@ func Cmd() *cobra.Command {
 				}
 			}
 
-			mk := srcrepo.Config.Build.Makepkg
-			if mk.Microarch != "" && !builder.ValidMicroarch(mk.Microarch) {
-				return errors.NewErr("build.makepkg.microarch " + mk.Microarch + " is not a known x86-64 feature level (x86_64_v2/v3/v4)")
-			}
-
 			pkgs, cleanup, err := alpm.GetCleanPkgBinary(srcrepo.Config.InstallPkgs.Names...)
 			if err != nil {
 				return errors.WrapErr(err, "failed to get clean package binaries")
 			}
 			defer func() { _ = cleanup.Close() }()
 
-			slog.Info("Creating build target", "archbuild", srcrepo.Config.Build.ArchBuild, "installpkgs", pkgs)
-
 			var signKey string
 			if sign {
 				signKey = gpgkey
 			}
-			if a := srcrepo.Config.Build.Arches; len(a) > 0 && !slices.Contains(a, arch) {
-				return errors.NewErr("arch " + arch + " is not in " + srcrepo.Config.Name + " build.arches (" + strings.Join(a, ",") + ")")
+			overrides, err := srcrepo.Config.Build.Overrides(arch)
+			if err != nil {
+				return errors.WrapErr(err, srcrepo.Config.Name)
 			}
-
-			// --timeout wins, else repo.json build.timeout, else the backend default.
-			resolvedTimeout := buildTimeout
-			if resolvedTimeout == 0 && srcrepo.Config.Build.Timeout != "" {
-				d, err := time.ParseDuration(srcrepo.Config.Build.Timeout)
-				if err != nil {
-					return errors.NewErr("build.timeout " + srcrepo.Config.Build.Timeout + " is not a valid duration: " + err.Error())
-				}
-				resolvedTimeout = d
+			if buildTimeout > 0 {
+				overrides.Timeout = buildTimeout
 			}
+			var host builder.HostConfig
+			if app.Config != nil {
+				host = app.Config.Builder
+			}
+			if srcrepo.Config.Build.ArchBuild != "" {
+				slog.Warn("Ignoring repository-owned build.archbuild; host executable selection belongs in .ayakarc builder.devtools",
+					"archbuild", srcrepo.Config.Build.ArchBuild)
+			}
+			if executor != "" {
+				host.Backend = builder.Kind(executor)
+			}
+			resolved, err := builder.Resolve(host, overrides, arch)
+			if err != nil {
+				return errors.WrapErr(err, "failed to resolve build configuration")
+			}
+			slog.Info("Creating build target", "backend", resolved.Backend, "archbuild", resolved.Devtools.ArchBuild, "installpkgs", pkgs)
 
-			buildTarget := builder.Target{
+			buildTarget := build.Target{
+				Config:      resolved,
 				Arch:        arch,
-				ArchBuild:   srcrepo.Config.Build.ArchBuild,
 				SignKey:     signKey,
 				InstallPkgs: append(srcrepo.Config.InstallPkgs.Files, pkgs...),
-				Repos:       repoSpecsFromConfig(srcrepo.Config.Build.Repos),
-				Makepkg: builder.MakepkgSettings{
-					Packager:     mk.Packager,
-					Microarch:    mk.Microarch,
-					CFlagsAppend: mk.CFlagsAppend,
-					Options:      mk.Options,
-				},
-				Image:    strings.ReplaceAll(srcrepo.Config.Build.Image, "$arch", arch),
-				Executor: builder.Kind(executor),
-				Timeout:  resolvedTimeout,
 			}
 
 			outDir := path.Join(destDir, srcrepo.Config.Name)
@@ -216,24 +209,11 @@ func Cmd() *cobra.Command {
 	shared.AddServerFlag(&cmd)
 	_ = cmd.Flags().MarkDeprecated("server", "use --diff-url to point diff builds at the remote repo db dir")
 	cmd.Flags().StringVar(&diffURL, "diff-url", "", "Remote repo db dir for diff builds (.../repo/<repo>/<arch>); overrides repo.json url")
-	cmd.Flags().StringVar(&executor, "executor", "chroot", "Local build backend: chroot or container")
+	cmd.Flags().StringVar(&executor, "executor", "", "Local build backend: chroot, container or bwrap (default: builder.backend or chroot)")
 	cmd.Flags().StringVar(&arch, "arch", "x86_64", "Target architecture for the build")
 	cmd.Flags().BoolVar(&updateSrcinfo, "update-srcinfo", true, "Regenerate .SRCINFO from PKGBUILD before building (requires makepkg; skipped when absent)")
 	cmd.Flags().DurationVar(&buildTimeout, "timeout", 0, "Build timeout per package (e.g. 3h); 0 uses repo.json build.timeout or the backend default")
 	return &cmd
-}
-
-// repoSpecsFromConfig maps the repo.json build.repos entries to the builder's
-// RepoSpec so per-build repositories reach the container/bwrap backends.
-func repoSpecsFromConfig(repos []pacmanrepo.BuildRepo) []builder.RepoSpec {
-	if len(repos) == 0 {
-		return nil
-	}
-	out := make([]builder.RepoSpec, 0, len(repos))
-	for _, r := range repos {
-		out = append(out, builder.RepoSpec{Name: r.Name, Server: r.Server, SigLevel: r.SigLevel})
-	}
-	return out
 }
 
 // resolveDiffServer picks the remote repo db dir for a diff build: the explicit

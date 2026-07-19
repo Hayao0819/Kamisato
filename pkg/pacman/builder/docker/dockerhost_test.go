@@ -1,4 +1,4 @@
-package builder
+package docker
 
 import (
 	"crypto/sha256"
@@ -37,12 +37,10 @@ func TestDockerHostFromContextDefault(t *testing.T) {
 	t.Setenv("DOCKER_CONFIG", dir)
 	t.Setenv("DOCKER_CONTEXT", "")
 
-	// No config.json -> empty (fall back to default socket).
 	if got := dockerHostFromContext(); got != "" {
 		t.Errorf("want empty for missing config, got %q", got)
 	}
 
-	// currentContext "default" -> empty.
 	if err := os.WriteFile(filepath.Join(dir, "config.json"), []byte(`{"currentContext":"default"}`), 0o644); err != nil {
 		t.Fatal(err)
 	}

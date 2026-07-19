@@ -1,6 +1,10 @@
 package conf
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/Hayao0819/Kamisato/pkg/pacman/builder"
+)
 
 func TestStoreValidate(t *testing.T) {
 	if err := (StoreConfig{DBType: "badgerdb", StorageType: "s3"}).Validate(); err != nil {
@@ -45,10 +49,19 @@ func TestStoreCheckStateless(t *testing.T) {
 }
 
 func TestMikoValidate(t *testing.T) {
-	for _, ok := range []string{"", "container", "chroot", "bwrap"} {
+	for _, ok := range []string{"", "container", "chroot"} {
 		if err := (&MikoConfig{Executor: ok}).Validate(); err != nil {
 			t.Errorf("executor %q should be valid: %v", ok, err)
 		}
+	}
+	if err := (&MikoConfig{Builder: builder.HostConfig{
+		Backend: builder.KindBwrap,
+		Bwrap:   builder.BwrapConfig{Rootfs: "/srv/arch-rootfs"},
+	}}).Validate(); err != nil {
+		t.Errorf("configured bwrap executor should be valid: %v", err)
+	}
+	if err := (&MikoConfig{Executor: "bwrap"}).Validate(); err == nil {
+		t.Error("bwrap without builder.bwrap.rootfs should be rejected")
 	}
 	if err := (&MikoConfig{Executor: "docker"}).Validate(); err == nil {
 		t.Error("expected an error for an unknown executor")

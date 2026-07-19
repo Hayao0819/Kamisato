@@ -8,6 +8,7 @@ package build
 import (
 	"context"
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 	"path"
@@ -19,13 +20,23 @@ import (
 
 	"github.com/Hayao0819/Kamisato/pkg/pacman/alpm"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/builder"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/builder/factory"
 	pkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/sign"
 )
 
+// Target keeps signing outside backend configuration.
+type Target struct {
+	Config      builder.ResolvedConfig
+	Arch        string
+	SignKey     string
+	InstallPkgs []string
+	Output      io.Writer
+}
+
 // Package copies the SourcePackage to a temp directory, builds it, and signs it if needed.
-func Package(p *pkg.SourcePackage, target *builder.Target, dest string) error {
+func Package(p *pkg.SourcePackage, target *Target, dest string) error {
 	tmpdir, err := os.MkdirTemp("", "ayaka-build-*")
 	if err != nil {
 		return err
@@ -37,11 +48,7 @@ func Package(p *pkg.SourcePackage, target *builder.Target, dest string) error {
 	// The output is moved to OutDir(=dest), so discard tmpdir holding the source copy.
 	defer func() { _ = os.RemoveAll(tmpdir) }()
 
-	kind := target.Executor
-	if kind == "" {
-		kind = builder.KindChroot
-	}
-	backend, err := builder.New(kind, builder.Options{Image: target.Image, Timeout: target.Timeout})
+	backend, err := factory.New(target.Config)
 	if err != nil {
 		return errors.WrapErr(err, "failed to create build backend")
 	}
@@ -50,9 +57,6 @@ func Package(p *pkg.SourcePackage, target *builder.Target, dest string) error {
 		SrcDir:      tmpdir,
 		OutDir:      dest,
 		Arch:        target.Arch,
-		ArchBuild:   target.ArchBuild,
-		Repos:       target.Repos,
-		Makepkg:     target.Makepkg,
 		InstallPkgs: target.InstallPkgs,
 		LogWriter:   target.Output,
 	})
@@ -128,10 +132,10 @@ func diffPackages(src []*pkg.SourcePackage, rr *repo.RemoteRepo) ([]*pkg.SourceP
 }
 
 // Repo builds the named packages in r (all of them when none are named).
-func Repo(r *repo.SourceRepo, t *builder.Target, dest string, pkgs ...string) error {
+func Repo(r *repo.SourceRepo, t *Target, dest string, pkgs ...string) error {
 	fulldstdir := path.Join(dest, t.Arch)
 	var errs []error
-	if err := os.MkdirAll(fulldstdir, 0755); err != nil { //nolint:gosec // published pacman repo output dir is world-readable by design
+	if err := os.MkdirAll(fulldstdir, 0o755); err != nil { //nolint:gosec // published pacman repo output dir is world-readable by design
 		return err
 	}
 
@@ -156,7 +160,7 @@ func Repo(r *repo.SourceRepo, t *builder.Target, dest string, pkgs ...string) er
 }
 
 // Diff builds only the packages in s that are newer than (or missing from) the remote repo rr.
-func Diff(s *repo.SourceRepo, t *builder.Target, rr *repo.RemoteRepo, dest string, pkgs ...string) error {
+func Diff(s *repo.SourceRepo, t *Target, rr *repo.RemoteRepo, dest string, pkgs ...string) error {
 	toBuild, err := diffPackages(s.Pkgs, rr)
 	if err != nil {
 		return err

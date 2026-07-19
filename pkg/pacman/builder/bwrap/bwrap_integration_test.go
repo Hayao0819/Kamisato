@@ -1,21 +1,19 @@
 //go:build linux
 
-package builder
+package bwrap
 
 import (
-	"context"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/Hayao0819/Kamisato/pkg/pacman/builder"
 )
 
-// TestBwrapBuildIntegration drives the bwrap 2-phase backend against a real Arch
-// host: phase 1 (uid 0 in a userns) installs base-devel into the overlay, phase 2
-// (uid 1000) runs makepkg. It needs bwrap >= 0.11 with unprivileged user
-// namespaces and overlay support, plus a pristine Arch rootfs pointed to by
-// BWRAP_ROOTFS. It skips when that is unset so the off-host suite stays green.
+// TestBwrapBuildIntegration requires bwrap 0.11+, unprivileged overlayfs, and an
+// Arch rootfs selected by BWRAP_ROOTFS.
 func TestBwrapBuildIntegration(t *testing.T) {
 	rootfs := os.Getenv("BWRAP_ROOTFS")
 	if rootfs == "" {
@@ -40,18 +38,15 @@ func TestBwrapBuildIntegration(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// BWRAP_PKG_CACHE (optional) is a persistent pacman cache bind-mounted into
-	// the sandbox so base-devel downloads resume across runs on a flaky mirror.
-	b, err := New(KindBwrap, Options{
-		BwrapRootfs:    rootfs,
-		PacmanCacheDir: os.Getenv("BWRAP_PKG_CACHE"),
-		Timeout:        15 * time.Minute,
+	b := New(builder.ResolvedConfig{
+		Timeout: 15 * time.Minute,
+		Bwrap: builder.BwrapConfig{
+			Rootfs:         rootfs,
+			PacmanCacheDir: os.Getenv("BWRAP_PKG_CACHE"),
+		},
 	})
-	if err != nil {
-		t.Fatalf("New(KindBwrap): %v", err)
-	}
 
-	res, err := b.Build(context.Background(), Spec{
+	res, err := b.Build(t.Context(), builder.Spec{
 		SrcDir:    src,
 		OutDir:    src,
 		Arch:      "x86_64",

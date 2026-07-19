@@ -6,10 +6,12 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/Hayao0819/Kamisato/pkg/pacman/builder"
 	"github.com/spf13/pflag"
 )
 
@@ -37,18 +39,18 @@ type AyatoConfig struct {
 	// DefaultArches is the arch set a repo with no explicit Arches serves, so the
 	// per-repo declaration can be omitted when every repo shares one arch list.
 	// Empty leaves per-repo Arches as the only declared source.
-	DefaultArches []string        `koanf:"default_arches,omitempty"`
-	Repos         []BinRepoConfig `koanf:"repos"`
-	Auth          AuthConfig      `koanf:"auth"`
-	Store         StoreConfig     `koanf:"store"`
-	Build         BuildConfig     `koanf:"build"`
-	Miko          MikoUpstream    `koanf:"miko"`
-	Verify        VerifyConfig    `koanf:"verify"`
-	AUR           AURConfig       `koanf:"aur"`
-	BugReport     BugReportConfig `koanf:"bug_report"`
-	Recaptcha     RecaptchaConfig `koanf:"recaptcha"`
-	Sign          SignConfig      `koanf:"sign"`
-	Secrets       SecretsConfig   `koanf:"secrets"`
+	DefaultArches []string           `koanf:"default_arches,omitempty"`
+	Repos         []BinRepoConfig    `koanf:"repos"`
+	Auth          AuthConfig         `koanf:"auth"`
+	Store         StoreConfig        `koanf:"store"`
+	Build         BuildServiceConfig `koanf:"build"`
+	Miko          MikoUpstream       `koanf:"miko"`
+	Verify        VerifyConfig       `koanf:"verify"`
+	AUR           AURConfig          `koanf:"aur"`
+	BugReport     BugReportConfig    `koanf:"bug_report"`
+	Recaptcha     RecaptchaConfig    `koanf:"recaptcha"`
+	Sign          SignConfig         `koanf:"sign"`
+	Secrets       SecretsConfig      `koanf:"secrets"`
 	// Mirror configures the pacman mirrorlist served at /repo/<repo>/mirrorlist.
 	Mirror MirrorConfig `koanf:"mirror"`
 	// RedirectDownloads, unset by default, answers a file download with a 302 to a
@@ -203,13 +205,14 @@ type MikoUpstream struct {
 	APIKey string `koanf:"api_key"` // shared secret sent to miko on every proxied call
 }
 
-type BuildConfig struct {
-	Image     string `koanf:"image"`      // Docker image (default: "archlinux:latest")
-	Timeout   int    `koanf:"timeout"`    // Build timeout in minutes (default: 30)
+// BuildServiceConfig keeps orchestration policy separate from builder.HostConfig.
+type BuildServiceConfig struct {
+	// Image and Timeout preserve the legacy Miko schema.
+	Image     string `koanf:"image"`
+	Timeout   int    `koanf:"timeout"`
 	GnupgHome string `koanf:"gnupg_home"` // GPG home directory for signing
-	// ExtraRepos are pacman repositories added to the build environment (e.g. the
-	// ayato repo) so already-published dependencies resolve during a build.
-	ExtraRepos []ExtraRepo `koanf:"extra_repos"`
+	// ExtraRepos preserves the legacy Miko schema.
+	ExtraRepos []builder.PacmanRepository `koanf:"extra_repos"`
 	// ResolveAURDeps, when set, makes miko resolve a target's unbuilt AUR
 	// dependencies (from its .SRCINFO), build each in dependency order and publish
 	// it to ayato before building the target. Opt-in; the target repo is exposed to
@@ -218,13 +221,6 @@ type BuildConfig struct {
 	// AURRPCURL overrides the aurweb RPC endpoint used to resolve AUR dependencies.
 	// Empty uses the canonical AUR.
 	AURRPCURL string `koanf:"aur_rpc_url"`
-}
-
-// ExtraRepo is a pacman repository exposed inside the build environment.
-type ExtraRepo struct {
-	Name     string `koanf:"name"`     // pacman repo name, e.g. "ayato"
-	Server   string `koanf:"server"`   // Server line, e.g. https://repo.example.com/$repo/$arch
-	SigLevel string `koanf:"siglevel"` // optional SigLevel; empty defaults to "Optional TrustAll"
 }
 
 type AuthConfig struct {
@@ -555,10 +551,8 @@ func (c *AyatoConfig) UpstreamRepoNames() []string {
 // name — a tier of a tiered repo maps to its logical config — or nil if unknown.
 func (c *AyatoConfig) ResolveRepo(physical string) *BinRepoConfig {
 	for i := range c.Repos {
-		for _, p := range c.Repos[i].PhysicalRepos() {
-			if p == physical {
-				return &c.Repos[i]
-			}
+		if slices.Contains(c.Repos[i].PhysicalRepos(), physical) {
+			return &c.Repos[i]
 		}
 	}
 	return nil

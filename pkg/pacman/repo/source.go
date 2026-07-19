@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"path/filepath"
 
+	"github.com/Hayao0819/Kamisato/pkg/pacman/builder"
 	pkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
 	"github.com/Hayao0819/nahi/futils"
 )
@@ -15,29 +16,11 @@ type SrcConfig struct {
 	Name        string
 	Maintainer  string
 	URL         string
-	Build       BuildConfig
+	Build       builder.ProjectConfig
 	InstallPkgs struct {
 		Files []string
 		Names []string
 	}
-}
-
-type BuildRepo struct{ Name, Server, SigLevel string }
-
-type MakepkgSettings struct {
-	Packager     string
-	Microarch    string
-	CFlagsAppend string
-	Options      []string
-}
-
-type BuildConfig struct {
-	Repos     []BuildRepo
-	Makepkg   MakepkgSettings
-	Arches    []string
-	Image     string
-	ArchBuild string
-	Timeout   string
 }
 
 type SourceRepo struct {
@@ -64,7 +47,6 @@ func GetSrcDirs(repodir string) ([]string, error) {
 		}
 		return nil
 	})
-
 	if err != nil {
 		return nil, err
 	}

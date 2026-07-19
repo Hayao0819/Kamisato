@@ -92,8 +92,6 @@ func (s *Service) buildAndPublishDep(ctx context.Context, job *domain.BuildJob, 
 		SrcDir:    depSrc,
 		OutDir:    depOut,
 		Arch:      job.Request.Arch,
-		Makepkg:   builder.MakepkgSettings{Microarch: job.Request.Microarch},
-		ArchBuild: s.archBuildFor(job.Request.Arch),
 		LogWriter: s.LogBuffer(job.ID),
 	}
 	res, err := backend.Build(ctx, spec)

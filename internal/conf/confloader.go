@@ -25,12 +25,16 @@ import (
 
 // Loader is a builder that assembles search conditions incrementally and loads config.
 type Loader[T any] struct {
-	k         *koanf.Koanf
-	dirs      []string
-	filenames []string
-	envPrefix string
-	pflags    *pflag.FlagSet
+	k                *koanf.Koanf
+	dirs             []string
+	filenames        []string
+	envPrefix        string
+	pflags           *pflag.FlagSet
+	sourceTransforms []sourceTransform
 }
+
+// sourceTransform runs before merging so aliases keep provider precedence.
+type sourceTransform func(*koanf.Koanf) error
 
 // New returns a new Loader instance with a custom delimiter (default ".")
 func New[T any](delimiter string) *Loader[T] {
@@ -60,6 +64,11 @@ func (l *Loader[T]) PFlags(flags *pflag.FlagSet) *Loader[T] {
 	return l
 }
 
+func (l *Loader[T]) transformSources(transforms ...sourceTransform) *Loader[T] {
+	l.sourceTransforms = append(l.sourceTransforms, transforms...)
+	return l
+}
+
 func (l *Loader[T]) Load() error {
 	// An absolute filename is used as-is; a relative one is searched under each
 	// dir. Joining an absolute path with a dir would mangle it.
@@ -82,7 +91,7 @@ func (l *Loader[T]) Load() error {
 	if l.envPrefix != "" {
 		// Env names stay pretty (single underscores). Map each one to its exact
 		// dotted koanf path so multi-word tags and cross-section keys resolve.
-		revMap, err := envPathMap(reflect.TypeOf((*T)(nil)).Elem(), l.envPrefix)
+		revMap, err := envPathMap(reflect.TypeFor[T](), l.envPrefix)
 		if err != nil {
 			return err
 		}
@@ -106,7 +115,7 @@ func (l *Loader[T]) Load() error {
 				return leaf.path, val
 			},
 		})
-		if err := l.k.Load(provider, nil); err != nil {
+		if err := l.loadSource(provider, nil); err != nil {
 			return fmt.Errorf("failed to load env vars: %w", err)
 		}
 		if parseErr != nil {
@@ -121,7 +130,7 @@ func (l *Loader[T]) Load() error {
 		provider := posflag.ProviderWithFlag(l.pflags, ".", nil, func(f *pflag.Flag) (string, any) {
 			return strings.ReplaceAll(f.Name, "-", "_"), posflag.FlagVal(l.pflags, f)
 		})
-		if err := l.k.Load(provider, nil); err != nil {
+		if err := l.loadSource(provider, nil); err != nil {
 			return fmt.Errorf("failed to load pflags: %w", err)
 		}
 	}
@@ -150,10 +159,23 @@ func (l *Loader[T]) loadFile(path string) error {
 	}
 
 	slog.Debug("Loading config", "path", path)
-	if err := l.k.Load(file.Provider(path), parser); err != nil {
+	if err := l.loadSource(file.Provider(path), parser); err != nil {
 		return fmt.Errorf("failed to load %s: %w", path, err)
 	}
 	return nil
+}
+
+func (l *Loader[T]) loadSource(provider koanf.Provider, parser koanf.Parser) error {
+	source := koanf.New(l.k.Delim())
+	if err := source.Load(provider, parser); err != nil {
+		return err
+	}
+	for _, transform := range l.sourceTransforms {
+		if err := transform(source); err != nil {
+			return err
+		}
+	}
+	return l.k.Merge(source)
 }
 
 func (l *Loader[T]) Get() (*T, error) {

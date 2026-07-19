@@ -1,4 +1,4 @@
-package builder
+package docker
 
 import (
 	"context"
@@ -16,52 +16,52 @@ import (
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/pkg/stdcopy"
+
+	"github.com/Hayao0819/Kamisato/pkg/pacman/builder"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/builder/internal/artifact"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/builder/internal/buildenv"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/builder/internal/errutil"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/builder/internal/shellutil"
 )
 
-// buildScript is the in-container entrypoint; __EXTRA_REPOS__ and __INSTALL__ are substituted per build.
-//
 //go:embed buildscript.sh
 var buildScript string
 
-// makepkgOverrideConf is the static base of /build/makepkg.override.conf;
-// the entrypoint appends dynamic per-build settings so it's a real file rather than a heredoc.
-//
-//go:embed makepkg.override.conf
-var makepkgOverrideConf string
-
-// containerBackend builds packages in a fresh throwaway container (makecontainerpkg-style clean room).
+// Backend builds packages in a fresh throwaway container.
 // Cross-arch requires qemu-user-static registered with binfmt_misc using the "F" (fix_binary) flag.
-type containerBackend struct {
+type Backend struct {
 	image          string
 	timeout        time.Duration
 	host           string
 	pacmanCacheDir string
 	ccacheDir      string
-	extraRepos     []RepoSpec
+	extraRepos     []builder.PacmanRepository
+	makepkg        builder.MakepkgConfig
 }
 
-func newContainerBackend(opts Options) Backend {
-	img := opts.Image
+func New(config builder.ResolvedConfig) *Backend {
+	img := config.Docker.Image
 	if img == "" {
 		img = defaultContainerImage
 	}
-	timeout := opts.Timeout
+	timeout := config.Timeout
 	if timeout <= 0 {
 		timeout = defaultBuildTimeout
 	}
-	return &containerBackend{
+	return &Backend{
 		image:          img,
 		timeout:        timeout,
-		host:           opts.DockerHost,
-		pacmanCacheDir: opts.PacmanCacheDir,
-		ccacheDir:      opts.CcacheDir,
-		extraRepos:     opts.ExtraRepos,
+		host:           config.Docker.Host,
+		pacmanCacheDir: config.Docker.PacmanCacheDir,
+		ccacheDir:      config.Docker.CcacheDir,
+		extraRepos:     config.Repositories,
+		makepkg:        config.Makepkg,
 	}
 }
 
-func (b *containerBackend) Name() string { return "container" }
+func (b *Backend) Name() string { return "container" }
 
-func (b *containerBackend) Build(ctx context.Context, spec Spec) (*Result, error) {
+func (b *Backend) Build(ctx context.Context, spec builder.Spec) (*builder.Result, error) {
 	if spec.SrcDir == "" {
 		return nil, errors.New("container backend requires Spec.SrcDir")
 	}
@@ -69,13 +69,13 @@ func (b *containerBackend) Build(ctx context.Context, spec Spec) (*Result, error
 
 	platform, err := archToPlatform(spec.Arch)
 	if err != nil {
-		return nil, wrapErr(err, "failed to resolve platform")
+		return nil, errutil.Wrap(err, "failed to resolve platform")
 	}
 	platformStr := platformString(platform)
 
 	absSrc, err := filepath.Abs(spec.SrcDir)
 	if err != nil {
-		return nil, wrapErr(err, "failed to resolve src dir")
+		return nil, errutil.Wrap(err, "failed to resolve src dir")
 	}
 	outDir := spec.OutDir
 	if outDir == "" {
@@ -83,16 +83,18 @@ func (b *containerBackend) Build(ctx context.Context, spec Spec) (*Result, error
 	}
 	absOut, err := filepath.Abs(outDir)
 	if err != nil {
-		return nil, wrapErr(err, "failed to resolve out dir")
+		return nil, errutil.Wrap(err, "failed to resolve out dir")
 	}
 	if err := os.MkdirAll(absOut, 0o755); err != nil { //nolint:gosec // build output dir, read by the build user and downstream consumers
-		return nil, wrapErr(err, "failed to create out dir")
+		return nil, errutil.Wrap(err, "failed to create out dir")
 	}
-
-	// Snapshot baseline so a build into a non-empty OutDir only reports freshly produced artifacts.
-	baseline, err := snapshotPackages(absOut)
+	stagingOut, err := os.MkdirTemp("", "kamisato-docker-out-*")
 	if err != nil {
-		return nil, err
+		return nil, errutil.Wrap(err, "failed to create build output staging dir")
+	}
+	defer func() { _ = os.RemoveAll(stagingOut) }()
+	if err := os.Chmod(stagingOut, 0o755); err != nil { //nolint:gosec // the build container must be able to traverse this host mount
+		return nil, errutil.Wrap(err, "failed to prepare build output staging dir")
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, b.timeout)
@@ -100,17 +102,17 @@ func (b *containerBackend) Build(ctx context.Context, spec Spec) (*Result, error
 
 	cli, err := newDockerClient(b.host)
 	if err != nil {
-		return nil, wrapErr(err, "failed to create docker client")
+		return nil, errutil.Wrap(err, "failed to create docker client")
 	}
 	defer cli.Close()
 
 	slog.Info("pulling container image", "image", b.image, "platform", platformStr)
 	reader, err := cli.ImagePull(ctx, b.image, image.PullOptions{Platform: platformStr})
 	if err != nil {
-		return nil, wrapErr(err, "failed to pull image")
+		return nil, errutil.Wrap(err, "failed to pull image")
 	}
 	if err := drainPullStream(reader); err != nil {
-		return nil, wrapErr(err, "failed to pull image")
+		return nil, errutil.Wrap(err, "failed to pull image")
 	}
 
 	// Shell-quote install paths so a hostile filename can't inject into `sh -c`.
@@ -119,7 +121,7 @@ func (b *containerBackend) Build(ctx context.Context, spec Spec) (*Result, error
 	for i, pkg := range spec.InstallPkgs {
 		absPkg, err := filepath.Abs(pkg)
 		if err != nil {
-			return nil, wrapErr(err, "failed to resolve install package path")
+			return nil, errutil.Wrap(err, "failed to resolve install package path")
 		}
 		target := fmt.Sprintf("/build/install/%d/%s", i, filepath.Base(pkg))
 		installMounts = append(installMounts, mount.Mount{
@@ -128,16 +130,16 @@ func (b *containerBackend) Build(ctx context.Context, spec Spec) (*Result, error
 			Target:   target,
 			ReadOnly: true,
 		})
-		fmt.Fprintf(&installCmd, "pacman -U --noconfirm %s\n", shellQuote(target))
+		fmt.Fprintf(&installCmd, "pacman -U --noconfirm %s\n", shellutil.Quote(target))
 	}
 
-	// ExtraRepos (server-config) precede Spec.Repos (repo.json) in pacman.conf.
-	effectiveRepos := append(append([]RepoSpec{}, b.extraRepos...), spec.Repos...)
+	reposScript, err := buildenv.ExtraReposScript(b.extraRepos)
+	if err != nil {
+		return nil, errutil.Wrap(err, "invalid build repository configuration")
+	}
+	script := buildenv.SubstituteBuildPlaceholders(buildScript, reposScript, strings.TrimRight(installCmd.String(), "\n"))
 
-	script := substituteBuildPlaceholders(buildScript, extraReposScript(effectiveRepos), strings.TrimRight(installCmd.String(), "\n"))
-
-	// Stage per-build makepkg settings as a host temp file for bind-mounting into the container.
-	overridePath, cleanupOverride, err := stageOverrideConf(spec.Makepkg)
+	overridePath, cleanupOverride, err := buildenv.StageOverrideConf(b.makepkg)
 	if err != nil {
 		return nil, err
 	}
@@ -162,7 +164,7 @@ func (b *containerBackend) Build(ctx context.Context, spec Spec) (*Result, error
 		},
 		{
 			Type:   mount.TypeBind,
-			Source: absOut,
+			Source: stagingOut,
 			Target: "/build/out",
 		},
 		{
@@ -187,7 +189,7 @@ func (b *containerBackend) Build(ctx context.Context, spec Spec) (*Result, error
 
 	resp, err := cli.ContainerCreate(ctx, containerConfig, hostConfig, nil, platform, "")
 	if err != nil {
-		return nil, wrapErr(err, "failed to create container")
+		return nil, errutil.Wrap(err, "failed to create container")
 	}
 	containerID := resp.ID
 	defer func() {
@@ -200,14 +202,14 @@ func (b *containerBackend) Build(ctx context.Context, spec Spec) (*Result, error
 	}()
 
 	if err := cli.ContainerStart(ctx, containerID, container.StartOptions{}); err != nil {
-		return nil, wrapErr(err, "failed to start container")
+		return nil, errutil.Wrap(err, "failed to start container")
 	}
 
-	// Stream container output live via stdcopy (demuxes the multiplexed log); capture feeds error messages on failure.
+	// Docker multiplexes stdout and stderr on this stream.
 	capture := &syncBuffer{}
-	var logDst io.Writer = capture
+	var logDst io.Writer = io.MultiWriter(os.Stdout, capture)
 	if spec.LogWriter != nil {
-		logDst = io.MultiWriter(capture, spec.LogWriter)
+		logDst = io.MultiWriter(os.Stdout, capture, spec.LogWriter)
 	}
 	logDone := make(chan struct{})
 	logs, logErr := cli.ContainerLogs(ctx, containerID, container.LogsOptions{
@@ -238,43 +240,34 @@ func (b *containerBackend) Build(ctx context.Context, spec Spec) (*Result, error
 		case <-time.After(2 * time.Second):
 		}
 		if status.StatusCode != 0 {
-			return nil, fmt.Errorf("%w with exit code %d:\n%s", ErrBuildFailed, status.StatusCode, capture.String())
+			return nil, fmt.Errorf("%w with exit code %d:\n%s", builder.ErrBuildFailed, status.StatusCode, capture.String())
 		}
 	}
 
-	pkgs, err := collectNewPackages(absOut, baseline)
+	packages, err := collectStagedPackages(stagingOut, absOut)
 	if err != nil {
-		return nil, wrapErr(err, "failed to collect built packages")
+		return nil, err
 	}
-	slog.Info("container build completed", "packages", len(pkgs))
-	return &Result{Packages: pkgs}, nil
+	slog.Info("container build completed", "packages", len(packages))
+	return &builder.Result{Packages: packages}, nil
 }
 
-// stageOverrideConf writes the embedded makepkg override base plus per-build settings to a host temp file
-// for bind-mounting into the container; errors on unknown microarch tier.
-func stageOverrideConf(mk MakepkgSettings) (string, func(), error) {
-	overrides, err := makepkgOverrideLines(mk)
+func collectStagedPackages(stagingOut, outDir string) ([]string, error) {
+	packages, err := artifact.Collect(stagingOut, nil)
 	if err != nil {
-		return "", nil, err
+		return nil, errutil.Wrap(err, "failed to collect built packages")
 	}
-	f, err := os.CreateTemp("", "makepkg-override-*.conf")
+	if len(packages) == 0 {
+		return nil, fmt.Errorf("%w: no package files (*.pkg.tar.*) were produced", builder.ErrBuildFailed)
+	}
+	moved, err := artifact.MoveToDir(packages, stagingOut, outDir)
 	if err != nil {
-		return "", nil, wrapErr(err, "failed to stage makepkg override")
+		return nil, errutil.Wrap(err, "failed to move built packages")
 	}
-	if _, err := f.WriteString(makepkgOverrideConf + overrides); err != nil {
-		_ = f.Close()
-		_ = os.Remove(f.Name())
-		return "", nil, wrapErr(err, "failed to write makepkg override")
-	}
-	if err := f.Close(); err != nil {
-		_ = os.Remove(f.Name())
-		return "", nil, wrapErr(err, "failed to write makepkg override")
-	}
-	return f.Name(), func() { _ = os.Remove(f.Name()) }, nil
+	return moved, nil
 }
 
-// cacheMounts returns the cache bind-mounts, creating host dirs if missing.
-func (b *containerBackend) cacheMounts() ([]mount.Mount, error) {
+func (b *Backend) cacheMounts() ([]mount.Mount, error) {
 	var mounts []mount.Mount
 	add := func(hostDir, target string) error {
 		if hostDir == "" {
@@ -282,10 +275,10 @@ func (b *containerBackend) cacheMounts() ([]mount.Mount, error) {
 		}
 		abs, err := filepath.Abs(hostDir)
 		if err != nil {
-			return wrapErr(err, "failed to resolve cache dir")
+			return errutil.Wrap(err, "failed to resolve cache dir")
 		}
 		if err := os.MkdirAll(abs, 0o755); err != nil { //nolint:gosec // cache dir shared with the build container
-			return wrapErr(err, "failed to create cache dir")
+			return errutil.Wrap(err, "failed to create cache dir")
 		}
 		mounts = append(mounts, mount.Mount{
 			Type:   mount.TypeBind,

@@ -1,15 +1,14 @@
-package builder
+package devtools
 
 import (
-	"context"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/Hayao0819/Kamisato/pkg/pacman/builder"
 )
 
-// writeFixture lays out a devtools-style data dir and points devtoolsDataDir at
-// it for the duration of the test.
 func writeFixture(t *testing.T, files map[string]string) {
 	t.Helper()
 	dir := t.TempDir()
@@ -33,8 +32,7 @@ func TestRenderChrootPacmanConf(t *testing.T) {
 		"pacman.conf.d/alterlinux.conf": "# alterlinux base\n[options]\n",
 	})
 
-	// A repo with its own base file uses it, with the stanzas appended.
-	got, err := renderChrootPacmanConf("alterlinux", []RepoSpec{{Name: "ayato", Server: "https://r/$repo/$arch"}})
+	got, err := renderChrootPacmanConf("alterlinux", []builder.PacmanRepository{{Name: "ayato", Server: "https://r/$repo/$arch"}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -45,7 +43,6 @@ func TestRenderChrootPacmanConf(t *testing.T) {
 		t.Errorf("repo stanza not appended:\n%s", got)
 	}
 
-	// An unknown repo falls back to extra.conf.
 	fb, err := renderChrootPacmanConf("nosuchrepo", nil)
 	if err != nil {
 		t.Fatal(err)
@@ -69,7 +66,7 @@ func TestRenderChrootMakepkgConf(t *testing.T) {
 		"makepkg.conf.d/x86_64.conf": "# x86_64 base\nCARCH=x86_64\n",
 	})
 
-	got, err := renderChrootMakepkgConf("x86_64", MakepkgSettings{Microarch: "x86_64_v3", Packager: "Foo <f@e>"})
+	got, err := renderChrootMakepkgConf("x86_64", builder.MakepkgConfig{Microarch: "x86_64_v3", Packager: "Foo <f@e>"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -85,12 +82,10 @@ func TestRenderChrootMakepkgConf(t *testing.T) {
 		t.Errorf("generated makepkg.conf must not source /etc/makepkg.conf:\n%s", got)
 	}
 
-	// A missing base for the arch is a clear error.
-	if _, err := renderChrootMakepkgConf("aarch64", MakepkgSettings{}); err == nil {
+	if _, err := renderChrootMakepkgConf("aarch64", builder.MakepkgConfig{}); err == nil {
 		t.Error("want an error for a missing makepkg base")
 	}
-	// An unknown microarch tier is propagated.
-	if _, err := renderChrootMakepkgConf("x86_64", MakepkgSettings{Microarch: "x86_64_v9"}); err == nil {
+	if _, err := renderChrootMakepkgConf("x86_64", builder.MakepkgConfig{Microarch: "x86_64_v9"}); err == nil {
 		t.Error("want an error for an unknown microarch tier")
 	}
 }
@@ -133,7 +128,6 @@ func TestMakechrootpkgArgs(t *testing.T) {
 		t.Errorf("makechrootpkgArgs = %v, want %v", got, want)
 	}
 
-	// Without install packages the -I pair is absent but the makepkg args remain.
 	noInstall := makechrootpkgArgs("/tmp/chroot", nil)
 	wantNoInstall := "makechrootpkg -c -r /tmp/chroot -- --syncdeps --noconfirm --log --holdver"
 	if strings.Join(noInstall, " ") != wantNoInstall {
@@ -141,17 +135,10 @@ func TestMakechrootpkgArgs(t *testing.T) {
 	}
 }
 
-// A build config (Spec.Makepkg here) must route the chroot backend down the
-// generated -C/-M path, where the missing devtools fixture surfaces a config
-// error before any privileged mkarchroot run — so this needs no root/nspawn.
 func TestChrootBuildGeneratedBranch(t *testing.T) {
 	writeFixture(t, map[string]string{}) // empty: renders will fail fast
-	b := newChrootBackend(Options{})
-	_, err := b.Build(context.Background(), Spec{
-		SrcDir:  t.TempDir(),
-		Arch:    "x86_64",
-		Makepkg: MakepkgSettings{Microarch: "x86_64_v3"},
-	})
+	b := New(builder.ResolvedConfig{Makepkg: builder.MakepkgConfig{Microarch: "x86_64_v3"}})
+	_, err := b.Build(t.Context(), builder.Spec{SrcDir: t.TempDir(), Arch: "x86_64"})
 	if err == nil {
 		t.Fatal("want an error from the generated path with no devtools config")
 	}
@@ -160,11 +147,9 @@ func TestChrootBuildGeneratedBranch(t *testing.T) {
 	}
 }
 
-// With no build config and no wrapper, the chroot backend keeps the historical
-// requirement on Spec.ArchBuild.
 func TestChrootBuildWrapperRequiresArchBuild(t *testing.T) {
-	b := newChrootBackend(Options{})
-	if _, err := b.Build(context.Background(), Spec{SrcDir: t.TempDir()}); err == nil {
+	b := New(builder.ResolvedConfig{})
+	if _, err := b.Build(t.Context(), builder.Spec{SrcDir: t.TempDir()}); err == nil {
 		t.Fatal("want an error when neither build config nor ArchBuild is set")
 	}
 }

@@ -40,7 +40,30 @@ func LoadTyped[T any, PT interface {
 	envPrefix string,
 	defaults func(PT),
 ) (*T, error) {
-	cfg, err := Load[T](dirs, files, flags, envPrefix)
+	return loadTypedWithSourceTransforms[T, PT](dirs, files, flags, envPrefix, defaults)
+}
+
+func loadTypedWithSourceTransforms[T any, PT interface {
+	*T
+	Validator
+}](
+	dirs []string,
+	files []string,
+	flags *pflag.FlagSet,
+	envPrefix string,
+	defaults func(PT),
+	transforms ...sourceTransform,
+) (*T, error) {
+	loader := New[T](".").
+		Dirs(dirs...).
+		Files(files...).
+		PFlags(flags).
+		Env(envPrefix).
+		transformSources(transforms...)
+	if err := loader.Load(); err != nil {
+		return nil, err
+	}
+	cfg, err := loader.Get()
 	if err != nil {
 		return nil, err
 	}

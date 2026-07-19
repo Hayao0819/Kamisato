@@ -1,17 +1,20 @@
-package builder
+package buildenv
 
 import (
 	"strings"
 	"testing"
+
+	"github.com/Hayao0819/Kamisato/pkg/pacman/builder"
 )
 
 func TestPacmanRepoStanzas(t *testing.T) {
-	got := pacmanRepoStanzas([]RepoSpec{
+	got, err := PacmanRepoStanzas([]builder.PacmanRepository{
 		{Name: "ayato", Server: "https://repo.example.com/$repo/$arch"},
 		{Name: "signed", Server: "https://s.example.com/$arch", SigLevel: "Required"},
-		{Name: "", Server: "https://skip.example.com"}, // skipped: no name
-		{Name: "noserver"},                             // skipped: no server
 	})
+	if err != nil {
+		t.Fatal(err)
+	}
 	for _, want := range []string{
 		"[ayato]",
 		"SigLevel = Optional TrustAll", // default when unset
@@ -23,20 +26,19 @@ func TestPacmanRepoStanzas(t *testing.T) {
 			t.Errorf("stanzas missing %q:\n%s", want, got)
 		}
 	}
-	if strings.Contains(got, "skip.example.com") || strings.Contains(got, "[noserver]") {
-		t.Errorf("incomplete repos were not skipped:\n%s", got)
-	}
 }
 
 func TestExtraReposScript(t *testing.T) {
-	if s := extraReposScript(nil); s != "" {
+	if s, err := ExtraReposScript(nil); err != nil || s != "" {
 		t.Errorf("no repos should render an empty script, got %q", s)
 	}
-	// A single incomplete repo also collapses to nothing.
-	if s := extraReposScript([]RepoSpec{{Name: "x"}}); s != "" {
-		t.Errorf("incomplete repo should render empty, got %q", s)
+	if _, err := ExtraReposScript([]builder.PacmanRepository{{Name: "x"}}); err == nil {
+		t.Error("incomplete repo should be rejected")
 	}
-	s := extraReposScript([]RepoSpec{{Name: "ayato", Server: "https://r/$repo/$arch"}})
+	s, err := ExtraReposScript([]builder.PacmanRepository{{Name: "ayato", Server: "https://r/$repo/$arch"}})
+	if err != nil {
+		t.Fatal(err)
+	}
 	if !strings.HasPrefix(s, "cat >> /etc/pacman.conf <<'KAMISATO_EXTRA_REPO_EOF'\n") {
 		t.Errorf("script should append via a quoted heredoc, got:\n%s", s)
 	}
@@ -45,5 +47,11 @@ func TestExtraReposScript(t *testing.T) {
 	}
 	if !strings.Contains(s, "[ayato]") {
 		t.Errorf("script missing repo stanza:\n%s", s)
+	}
+	if _, err := ExtraReposScript([]builder.PacmanRepository{{
+		Name:   "ayato",
+		Server: "https://r\nKAMISATO_EXTRA_REPO_EOF\ntouch /build/out/PWNED",
+	}}); err == nil {
+		t.Fatal("newline/heredoc injection should be rejected")
 	}
 }

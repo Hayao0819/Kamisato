@@ -1,13 +1,10 @@
 #!/bin/bash
-# Container backend entrypoint. __EXTRA_REPOS__ and __INSTALL__ are substituted
-# by container.go before this runs; TARGET_CARCH is passed via the environment.
 set -euo pipefail
 
 : "${TARGET_CARCH:?TARGET_CARCH must be set by the container backend}"
 : "${TARGET_CHOST:?TARGET_CHOST must be set by the container backend}"
 
-# Extra repositories (e.g. ayato) are appended to pacman.conf before the first
-# sync so their databases feed dependency resolution below.
+# Add repositories before the first sync so they participate in dependency resolution.
 __EXTRA_REPOS__
 
 # makepkg refuses to run as root (exit 10); build as an unprivileged builduser.
@@ -30,6 +27,10 @@ cp /build/staging/makepkg.override.conf /build/makepkg.override.conf
 # src is mounted read-only; copy it to a writable work dir so the caller's tree
 # is never mutated.
 cp -r /build/src /build/work
-chown -R builduser:builduser /build/work /build/makepkg.override.conf /build/out
+chown -R builduser:builduser /build/work /build/makepkg.override.conf
+# /build/out is an isolated per-build host staging directory. Keep its host
+# ownership intact so the caller can move artifacts after the container exits,
+# while allowing the unprivileged build user to create package files in it.
+chmod 0777 /build/out
 __INSTALL__
 sudo -u builduser env PKGDEST=/build/out sh -c 'cd /build/work && makepkg --config /build/makepkg.override.conf --syncdeps --noconfirm --clean'

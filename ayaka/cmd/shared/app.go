@@ -67,19 +67,7 @@ func SrcConfigFromConf(c *conf.SrcRepoConfig) *repo.SrcConfig {
 		Name:       c.Name,
 		Maintainer: c.Maintainer,
 		URL:        c.URL,
-		Build: repo.BuildConfig{
-			ArchBuild: c.Build.ArchBuild,
-			Repos:     buildReposFromConf(c.Build.Repos),
-			Arches:    c.Build.Arches,
-			Image:     c.Build.Image,
-			Timeout:   c.Build.Timeout,
-			Makepkg: repo.MakepkgSettings{
-				Packager:     c.Build.Makepkg.Packager,
-				Microarch:    c.Build.Makepkg.Microarch,
-				CFlagsAppend: c.Build.Makepkg.CFlagsAppend,
-				Options:      c.Build.Makepkg.Options,
-			},
-		},
+		Build:      c.Build,
 	}
 	// The repo maintainer is the natural PACKAGER when the build config leaves it
 	// unset, matching how a hand-run makepkg picks up the packager's identity.
@@ -89,17 +77,6 @@ func SrcConfigFromConf(c *conf.SrcRepoConfig) *repo.SrcConfig {
 	sc.InstallPkgs.Files = c.InstallPkgs.Files
 	sc.InstallPkgs.Names = c.InstallPkgs.Names
 	return sc
-}
-
-func buildReposFromConf(repos []conf.BuildRepo) []repo.BuildRepo {
-	if len(repos) == 0 {
-		return nil
-	}
-	out := make([]repo.BuildRepo, 0, len(repos))
-	for _, r := range repos {
-		out = append(out, repo.BuildRepo{Name: r.Name, Server: r.Server, SigLevel: r.SigLevel})
-	}
-	return out
 }
 
 func (a *App) GetSrcRepo(name string) *repo.SourceRepo {

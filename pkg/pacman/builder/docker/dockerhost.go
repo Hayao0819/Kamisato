@@ -1,4 +1,4 @@
-package builder
+package docker
 
 import (
 	"crypto/sha256"
@@ -10,8 +10,7 @@ import (
 	"github.com/docker/docker/client"
 )
 
-// newDockerClient resolves the daemon endpoint (host → DOCKER_HOST → active context → socket), matching docker CLI priority.
-// client.FromEnv alone ignores contexts, causing wrong-daemon issues on Docker Desktop/rootless/remote setups.
+// client.FromEnv ignores active Docker contexts, so resolve one after host and DOCKER_HOST.
 func newDockerClient(host string) (*client.Client, error) {
 	opts := []client.Opt{client.WithAPIVersionNegotiation(), client.FromEnv}
 	if host == "" && os.Getenv("DOCKER_HOST") == "" {
@@ -23,7 +22,6 @@ func newDockerClient(host string) (*client.Client, error) {
 	return client.NewClientWithOpts(opts...)
 }
 
-// dockerHostFromContext reads ~/.docker to get the active context's endpoint; returns "" for the default context or on error (callers fall back to socket).
 func dockerHostFromContext() string {
 	dir := os.Getenv("DOCKER_CONFIG")
 	if dir == "" {

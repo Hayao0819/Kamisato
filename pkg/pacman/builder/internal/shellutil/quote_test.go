@@ -1,8 +1,8 @@
-package builder
+package shellutil
 
 import "testing"
 
-func TestShellQuote(t *testing.T) {
+func TestQuote(t *testing.T) {
 	cases := []struct{ in, want string }{
 		{"", "''"},
 		{"simple", "'simple'"},
@@ -14,8 +14,8 @@ func TestShellQuote(t *testing.T) {
 		{"a'b'c", `'a'\''b'\''c'`},
 	}
 	for _, tc := range cases {
-		if got := shellQuote(tc.in); got != tc.want {
-			t.Errorf("shellQuote(%q) = %q, want %q", tc.in, got, tc.want)
+		if got := Quote(tc.in); got != tc.want {
+			t.Errorf("Quote(%q) = %q, want %q", tc.in, got, tc.want)
 		}
 	}
 }
