@@ -1,6 +1,7 @@
 package service_test
 
 import (
+	"bytes"
 	"context"
 	"os"
 	"path/filepath"
@@ -13,7 +14,13 @@ import (
 	"github.com/Hayao0819/Kamisato/ayato/repository"
 	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
 	"github.com/Hayao0819/Kamisato/ayato/service"
+	"github.com/Hayao0819/Kamisato/ayato/stream"
+	"github.com/Hayao0819/Kamisato/ayato/test/mocks"
 	"github.com/Hayao0819/Kamisato/internal/conf"
+	pacmanpkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
+	pacmanrepo "github.com/Hayao0819/Kamisato/pkg/pacman/repo"
+	"github.com/Hayao0819/Kamisato/pkg/raiou"
+	"go.uber.org/mock/gomock"
 )
 
 // newTieredService wires a real repository stack (localfs blob + BadgerDB kv) so
@@ -221,5 +228,76 @@ func TestTieredOffUnchanged(t *testing.T) {
 	uploadPkg(t, svc, "single", "foo")
 	if !has(pkgNames(t, svc, "single", "x86_64"), "foo") {
 		t.Fatal("upload to a non-tiered repo did not land in the repo")
+	}
+}
+
+func TestPromotionRegistersCarriedPackageSignature(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	bin := mocks.NewMockBinaryRepository(ctrl)
+	names := mocks.NewMockNameStore(ctrl)
+	cfg := &conf.AyatoConfig{Repos: []conf.BinRepoConfig{{
+		Name:                  "myrepo",
+		Tiered:                true,
+		Arches:                []string{"x86_64"},
+		PromotionKeepInSource: true,
+	}}}
+	sourceName := "foo-1.0-1-x86_64.pkg.tar.zst"
+	sourceRepo := &pacmanrepo.RemoteRepo{Pkgs: []*pacmanpkg.BinaryPackage{
+		pacmanpkg.NewBinaryPackage(
+			sourceName,
+			&raiou.PKGINFO{PkgName: "foo", PkgVer: "1.0-1", Arch: "x86_64"},
+		),
+	}}
+	bin.EXPECT().Arches("myrepo-staging").Return([]string{"x86_64"}, nil)
+	bin.EXPECT().RemoteRepo("myrepo-staging", "x86_64").Return(sourceRepo, nil)
+	bin.EXPECT().RemoteRepo("myrepo-testing", "x86_64").Return(&pacmanrepo.RemoteRepo{}, nil)
+	bin.EXPECT().FetchFile("myrepo-staging", "x86_64", sourceName).
+		Return(pkgStream(sourceName, []byte("package")), nil)
+	bin.EXPECT().FetchFile("myrepo-staging", "x86_64", sourceName+".sig").
+		Return(stream.NewFileStream(
+			sourceName+".sig",
+			"application/pgp-signature",
+			bufferToReadSeekCloser(bytes.NewBufferString("signature")),
+		), nil)
+	bin.EXPECT().StoreFileImmutable("myrepo-testing", "x86_64", gomock.Any()).
+		Return(true, nil).Times(2)
+	bin.EXPECT().RepoAddBatch(
+		"myrepo-testing",
+		"x86_64",
+		gomock.Any(),
+		false,
+		gomock.Nil(),
+	).DoAndReturn(func(
+		_ string,
+		_ string,
+		items []repository.RepoAddItem,
+		_ bool,
+		_ *string,
+	) error {
+		if len(items) != 1 || items[0].Sig == nil {
+			t.Fatalf("promoted RepoAddItem = %+v, want carried signature", items)
+		}
+		return nil
+	})
+	names.EXPECT().StorePackageFile(
+		"myrepo-testing",
+		"x86_64",
+		"foo",
+		sourceName,
+	).Return(nil)
+
+	svc := service.New(names, bin, nil, nil, cfg)
+	err := svc.PromotePackage(
+		context.Background(),
+		"myrepo",
+		domain.TierStaging,
+		domain.TierTesting,
+		"foo",
+		"1.0-1",
+	)
+	if err != nil {
+		t.Fatalf("PromotePackage: %v", err)
 	}
 }

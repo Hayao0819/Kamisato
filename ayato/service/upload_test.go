@@ -619,6 +619,35 @@ func TestUploadFiles_BatchOneRepoAddPerArch(t *testing.T) {
 	}
 }
 
+func TestUploadFiles_RejectsSamePackageTwicePerArch(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	bin := mocks.NewMockBinaryRepository(ctrl)
+	name := mocks.NewMockNameStore(ctrl)
+	bin.EXPECT().VerifyPkgRepo("myrepo").Return(nil)
+	bin.EXPECT().RemoteRepo("myrepo", "x86_64").Return(&repo.RemoteRepo{}, nil)
+
+	svc := service.New(name, bin, nil, nil, baseConfig(false, ""))
+	err := svc.UploadFiles("myrepo", []*domain.UploadFiles{
+		{
+			PkgFile: pkgStream(
+				"foo-1.0-1-x86_64.pkg.tar.zst",
+				buildRollbackPkg(t, "foo", "1.0-1", "x86_64"),
+			),
+		},
+		{
+			PkgFile: pkgStream(
+				"foo-1.1-1-x86_64.pkg.tar.zst",
+				buildRollbackPkg(t, "foo", "1.1-1", "x86_64"),
+			),
+		},
+	})
+	if !errors.Is(err, domain.ErrInvalidUpload) {
+		t.Fatalf("same package twice = %v, want ErrInvalidUpload", err)
+	}
+}
+
 func TestUploadFiles_PostCanonicalSupersessionCompensatesOwnedPackages(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()

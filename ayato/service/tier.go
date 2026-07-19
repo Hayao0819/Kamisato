@@ -5,15 +5,12 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
-	"os"
-	"path"
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
 
 	"github.com/Hayao0819/Kamisato/ayato/domain"
 	"github.com/Hayao0819/Kamisato/ayato/repository"
 	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
-	"github.com/Hayao0819/Kamisato/ayato/stream"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/alpm"
 )
 
@@ -115,33 +112,28 @@ func (s *Service) promoteOneArch(src, dst, arch, storeArch, filename, pkgname, v
 			return fmt.Errorf("%w: target tier has %s %s under a different immutable filename", domain.ErrConflict, pkgname, version)
 		}
 	}
-	pkgSeek, cleanup, err := s.spoolTierFile(src, storeArch, filename)
+	artifact, err := s.spoolPackage(src, storeArch, filename)
 	if err != nil {
 		return err
 	}
-	defer cleanup()
+	defer artifact.close()
 
-	if _, err := s.pkgBinaryRepo.StoreFileImmutable(dst, storeArch, pkgSeek); err != nil {
+	if _, err := s.pkgBinaryRepo.StoreFileImmutable(dst, storeArch, artifact.pkg); err != nil {
 		return errors.WrapErr(err, "store package pointer in target tier")
 	}
 
-	// Carry the detached signature across too when the source tier has one.
-	sigName := filename + ".sig"
-	if sigSeek, sigCleanup, serr := s.spoolTierFile(src, storeArch, sigName); serr == nil {
-		defer sigCleanup()
-		named := stream.NewFileStream(sigName, sigSeek.ContentType(), sigSeek)
-		if _, err := s.pkgBinaryRepo.StoreFileImmutable(dst, storeArch, named); err != nil {
+	if artifact.sig != nil {
+		if _, err := s.pkgBinaryRepo.StoreFileImmutable(dst, storeArch, artifact.sig); err != nil {
 			return errors.WrapErr(err, "store signature pointer in target tier")
 		}
-	} else if !errors.Is(serr, blob.ErrNotFound) {
-		return errors.WrapErr(serr, "read source tier signature")
 	}
 
-	if _, err := pkgSeek.Seek(0, io.SeekStart); err != nil {
+	if _, err := artifact.pkg.Seek(0, io.SeekStart); err != nil {
 		return errors.WrapErr(err, "rewind package for registration")
 	}
 	item := repository.RepoAddItem{
-		Pkg:             pkgSeek,
+		Pkg:             artifact.pkg,
+		Sig:             artifact.sig,
 		CheckCurrent:    true,
 		ExpectedName:    pkgname,
 		IntendedVersion: version,
@@ -175,37 +167,3 @@ func (s *Service) dropFromSource(src, pkgname string, arches []string, useSigned
 		}
 	}
 }
-
-// spoolTierFile copies a tier's stored file into a temp file and returns a
-// re-seekable handle plus its cleanup. Promotion both re-stores and re-registers
-// the bytes (each rewinds the stream), so a disk-backed temp keeps a large
-// package off the heap.
-func (s *Service) spoolTierFile(repo, arch, filename string) (stream.SeekFile, func(), error) {
-	f, err := s.pkgBinaryRepo.FetchFile(repo, arch, filename)
-	if err != nil {
-		return nil, nil, err
-	}
-	defer f.Close()
-
-	tmp, err := os.CreateTemp("", "ayato-promote-")
-	if err != nil {
-		return nil, nil, err
-	}
-	remove := func() { _ = tmp.Close(); _ = os.Remove(tmp.Name()) }
-	if _, err := io.Copy(tmp, f); err != nil {
-		remove()
-		return nil, nil, errors.WrapErr(err, "spool tier file")
-	}
-	if _, err := tmp.Seek(0, io.SeekStart); err != nil {
-		remove()
-		return nil, nil, err
-	}
-	return stream.NewFileStream(path.Base(filename), f.ContentType(), noRemoveClose{tmp}), remove, nil
-}
-
-// noRemoveClose leaves file removal to the caller's cleanup, so a Close from an
-// intermediate consumer (StoreFile/RepoAddBatch never close, but be defensive)
-// cannot delete the temp before the last read.
-type noRemoveClose struct{ *os.File }
-
-func (noRemoveClose) Close() error { return nil }

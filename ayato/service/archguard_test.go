@@ -109,3 +109,43 @@ func TestAllowNewArchBackfillsAny(t *testing.T) {
 		t.Fatalf("arch=any package not backfilled into the new arch aarch64: %v", got)
 	}
 }
+
+// TestAllowNewArchBatchUpgradesBackfilledAny covers the state ordering inside a
+// mixed batch: the new arch is seeded first, then the any-package upgrade takes
+// its conditional snapshot. Otherwise the backfilled old version looks like a
+// concurrent insert and the batch rejects its own work.
+func TestAllowNewArchBatchUpgradesBackfilledAny(t *testing.T) {
+	svc, _, _ := newTieredService(t, []conf.BinRepoConfig{{
+		Name:         "growable",
+		Arches:       []string{"x86_64"},
+		AllowNewArch: true,
+	}})
+	oldName := "noarch-0.9-1-any.pkg.tar.zst"
+	if err := svc.UploadFile("growable", &domain.UploadFiles{
+		PkgFile: pkgStream(oldName, buildRollbackPkg(t, "noarch", "0.9-1", "any")),
+	}); err != nil {
+		t.Fatalf("upload old any package: %v", err)
+	}
+
+	err := svc.UploadFiles("growable", []*domain.UploadFiles{
+		{
+			PkgFile: pkgStream(
+				"bar-1.0-1-aarch64.pkg.tar.zst",
+				buildRollbackPkg(t, "bar", "1.0-1", "aarch64"),
+			),
+		},
+		{
+			PkgFile: pkgStream(
+				"noarch-1.0-1-any.pkg.tar.zst",
+				buildRollbackPkg(t, "noarch", "1.0-1", "any"),
+			),
+		},
+	})
+	if err != nil {
+		t.Fatalf("mixed new-arch/any-upgrade batch: %v", err)
+	}
+	detail, err := svc.PkgDetail("growable", "aarch64", "noarch")
+	if err != nil || detail.PkgVer != "1.0-1" {
+		t.Fatalf("aarch64 noarch = %+v, %v; want upgraded 1.0-1", detail, err)
+	}
+}
