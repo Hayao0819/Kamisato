@@ -75,17 +75,9 @@ func (r *binaryRepository) StoreFileImmutable(repo, arch string, file stream.See
 }
 
 func (r *binaryRepository) DeleteOrphanIfUnchanged(repo, arch string, expected blob.FileInfo, cutoff time.Time) (bool, error) {
-	deleter, ok := r.Store.(blob.OrphanDeleter)
-	if !ok {
-		return false, blob.ErrSafeDeleteUnsupported
-	}
-	return deleter.DeleteFileIfUnchanged(repo, arch, expected, cutoff)
+	return blob.DeleteOrphanIfUnchanged(r.Store, repo, arch, expected, cutoff)
 }
 
 func (r *binaryRepository) AcquirePublicationLease(repo string) (func(), error) {
-	locker, ok := r.Store.(blob.PublicationLocker)
-	if !ok {
-		return func() {}, nil
-	}
-	return locker.LockPublication(repo)
+	return blob.LockPublication(r.Store, repo)
 }

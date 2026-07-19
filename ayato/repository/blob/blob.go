@@ -69,6 +69,38 @@ type MetaFetcher interface {
 	FetchFileWithMeta(repo, arch, file string) (stream.File, FileMeta, error)
 }
 
+func FetchFileWithMeta(
+	store Store,
+	repo, arch, file string,
+) (stream.File, FileMeta, error) {
+	if fetcher, ok := store.(MetaFetcher); ok {
+		return fetcher.FetchFileWithMeta(repo, arch, file)
+	}
+	value, err := store.FetchFile(repo, arch, file)
+	return value, FileMeta{}, err
+}
+
+func DeleteOrphanIfUnchanged(
+	store Store,
+	repo, arch string,
+	expected FileInfo,
+	cutoff time.Time,
+) (bool, error) {
+	deleter, ok := store.(OrphanDeleter)
+	if !ok {
+		return false, ErrSafeDeleteUnsupported
+	}
+	return deleter.DeleteFileIfUnchanged(repo, arch, expected, cutoff)
+}
+
+func LockPublication(store Store, repo string) (func(), error) {
+	locker, ok := store.(PublicationLocker)
+	if !ok {
+		return func() {}, nil
+	}
+	return locker.LockPublication(repo)
+}
+
 // ObjectMover is an optional Store capability for migrations: raw full-key operations
 // below the (repo, arch, name) API and the repo allowlist, to relocate objects
 // between key layouts. Never used on the serving path.

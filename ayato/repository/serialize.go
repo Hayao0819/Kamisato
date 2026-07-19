@@ -59,20 +59,12 @@ func (s *serializingStore) DeleteFile(repo, arch, file string) error {
 }
 
 func (s *serializingStore) DeleteFileIfUnchanged(repo, arch string, expected blob.FileInfo, cutoff time.Time) (bool, error) {
-	deleter, ok := s.Store.(blob.OrphanDeleter)
-	if !ok {
-		return false, blob.ErrSafeDeleteUnsupported
-	}
 	defer s.mu.lock(repo + "/" + arch)()
-	return deleter.DeleteFileIfUnchanged(repo, arch, expected, cutoff)
+	return blob.DeleteOrphanIfUnchanged(s.Store, repo, arch, expected, cutoff)
 }
 
 func (s *serializingStore) LockPublication(repo string) (func(), error) {
-	locker, ok := s.Store.(blob.PublicationLocker)
-	if !ok {
-		return func() {}, nil
-	}
-	return locker.LockPublication(repo)
+	return blob.LockPublication(s.Store, repo)
 }
 
 // FetchFileWithMeta forwards the optional MetaFetcher capability through the
@@ -81,9 +73,5 @@ func (s *serializingStore) LockPublication(repo string) (func(), error) {
 // validators silently degrade to a full body on every request. Reads are not
 // serialized against writes (same as the embedded FetchFile).
 func (s *serializingStore) FetchFileWithMeta(repo, arch, file string) (stream.File, blob.FileMeta, error) {
-	if mf, ok := s.Store.(blob.MetaFetcher); ok {
-		return mf.FetchFileWithMeta(repo, arch, file)
-	}
-	f, err := s.Store.FetchFile(repo, arch, file)
-	return f, blob.FileMeta{}, err
+	return blob.FetchFileWithMeta(s.Store, repo, arch, file)
 }
