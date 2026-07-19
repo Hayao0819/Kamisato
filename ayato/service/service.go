@@ -5,18 +5,15 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"os"
-	"slices"
 	"time"
 
-	"github.com/ProtonMail/go-crypto/openpgp"
+	"github.com/Hayao0819/Kamisato/internal/errors"
 
 	"github.com/Hayao0819/Kamisato/ayato/domain"
 	"github.com/Hayao0819/Kamisato/ayato/repository"
 	"github.com/Hayao0819/Kamisato/ayato/stream"
 	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/pkg/httpx"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/sign"
 )
 
 type Service struct {
@@ -31,16 +28,7 @@ type Service struct {
 	// upstreamClient fetches upstream repo databases for the overlay/merge sync,
 	// with the shared retry/timeout policy of pkg/httpx.
 	upstreamClient *http.Client
-
-	// Signature trust roots: baseEntities from verify.keyring, trustedFprs from
-	// verify.trusted_keys (allowlist), masterEntities from verify.master_keys
-	// (which certify workers registered at runtime via RegisterSigner).
-	// verifierErr is a fail-closed startup error surfaced by InitAll.
-	baseEntities   openpgp.EntityList
-	masterEntities openpgp.EntityList
-	trustedFprs    []string
-	verifyRoot     bool
-	verifierErr    error
+	verifier       signatureTrust
 }
 
 //go:generate mockgen -source=service.go -destination=../test/mocks/service.go -package=mocks
@@ -119,7 +107,13 @@ type Servicer interface {
 	Lifecycle
 }
 
-func New(pkgNameRepo repository.NameStore, pkgBinaryRepo repository.BinaryRepository, authRepo repository.AuthRepository, signerRepo repository.SignerRepository, config *conf.AyatoConfig) *Service {
+func New(
+	pkgNameRepo repository.NameStore,
+	pkgBinaryRepo repository.BinaryRepository,
+	authRepo repository.AuthRepository,
+	signerRepo repository.SignerRepository,
+	config *conf.AyatoConfig,
+) *Service {
 	catalog, _ := domain.NewRepositoryCatalog(nil, nil)
 	s := &Service{
 		pkgNameRepo:    pkgNameRepo,
@@ -138,133 +132,44 @@ func New(pkgNameRepo repository.NameStore, pkgBinaryRepo repository.BinaryReposi
 	} else {
 		s.catalog = configuredCatalog
 	}
-
-	s.trustedFprs = config.Verify.TrustedKeys
-
-	// The keyring is public-key material, separate from the signing private key.
-	if config.Verify.Keyring != "" {
-		data, err := os.ReadFile(config.Verify.Keyring)
-		if err == nil {
-			s.baseEntities, err = sign.ReadEntities(data)
-		}
-		if err != nil {
-			s.verifierErr = fmt.Errorf("load package-signature keyring: %w", err)
-			slog.Error("failed to load package-signature keyring", "path", config.Verify.Keyring, "err", err)
-		} else {
-			slog.Info("package-signature verification enabled", "keyring", config.Verify.Keyring, "trusted_keys", len(config.Verify.TrustedKeys))
-		}
-	}
-
-	for i, armored := range config.Verify.MasterKeys {
-		ents, err := sign.ReadEntities([]byte(armored))
-		if err != nil {
-			s.verifierErr = fmt.Errorf("parse verify.master_keys[%d]: %w", i, err)
-			slog.Error("failed to parse master key", "index", i, "err", err)
-			continue
-		}
-		s.masterEntities = append(s.masterEntities, ents...)
-	}
-
-	// A trust root exists if a keyring is configured or a master can certify
-	// runtime-registered workers; without one we cannot fail closed.
-	s.verifyRoot = config.Verify.Keyring != "" || len(config.Verify.MasterKeys) > 0
-	if config.RequireSign && !s.verifyRoot && s.verifierErr == nil {
-		s.verifierErr = fmt.Errorf("require_sign is enabled but neither verify.keyring nor verify.master_keys is configured; cannot fail closed without a trust root")
-	}
-
+	s.verifier = loadSignatureTrust(config)
 	return s
 }
 
-// verifyKeyring composes the trust root for package verification: the configured
-// keyring plus every registered worker key. It returns nil when no entity is
-// available, so a present signature with no trust root is rejected by the caller.
-func (s *Service) verifyKeyring() (*sign.Keyring, error) {
-	entities := slices.Clone(s.baseEntities)
-	trusted := slices.Clone(s.trustedFprs)
-	if s.signerRepo != nil {
-		regs, err := s.signerRepo.ListSigners()
-		if err != nil {
-			return nil, err
-		}
-		for _, armored := range regs {
-			ents, perr := sign.ReadEntities(armored)
-			if perr != nil {
-				slog.Warn("skipping unparseable registered signer key", "err", perr)
-				continue
-			}
-			entities = append(entities, ents...)
-			// Registered workers are already gated by master certification, so
-			// they must pass even when verify.trusted_keys pins the base keyring.
-			if len(s.trustedFprs) > 0 {
-				for _, e := range ents {
-					trusted = append(trusted, fmt.Sprintf("%X", e.PrimaryKey.Fingerprint))
-				}
-			}
+// InitAll validates fail-closed startup state and initializes each physical
+// repository (including every tier).
+func (s *Service) InitAll() error {
+	if s.catalogErr != nil {
+		return errors.WrapErr(s.catalogErr, "invalid repository catalog")
+	}
+	if s.verifier.err != nil {
+		return s.verifier.err
+	}
+	repos := s.catalog.PhysicalNames()
+	if len(repos) == 0 {
+		slog.Warn("no repositories found in config, skipping initialization")
+		return nil
+	}
+	slog.Debug("init all package repositories", "repos", repos)
+	for _, repo := range repos {
+		if err := s.initRepo(repo, s.signedDB(), nil); err != nil {
+			return errors.WrapErr(err, fmt.Sprintf("failed to init repo %s", repo))
 		}
 	}
-	if len(entities) == 0 {
-		return nil, nil
-	}
-	return sign.NewKeyring(entities, trusted), nil
+	return nil
 }
 
-func (s *Service) UnregisterSigner(fingerprint string) error {
-	if s.signerRepo == nil {
-		return fmt.Errorf("signer registration is not available")
-	}
-	return s.signerRepo.DeleteSigner(fingerprint)
-}
-
-// RegisterSigner persists a worker public key after confirming it is certified by
-// a configured master, returning its uppercase-hex fingerprint.
-func (s *Service) RegisterSigner(armoredPub []byte) (string, error) {
-	if s.signerRepo == nil {
-		return "", fmt.Errorf("signer registration is not available")
-	}
-	ents, err := sign.ReadEntities(armoredPub)
-	if err != nil {
-		return "", fmt.Errorf("parse signer key: %w", err)
-	}
-	if len(ents) != 1 {
-		return "", fmt.Errorf("expected exactly one signer key, got %d", len(ents))
-	}
-	worker := ents[0]
-	if len(s.masterEntities) == 0 {
-		return "", fmt.Errorf("no verify.master_keys configured to certify a worker key")
-	}
-	certified := false
-	for _, master := range s.masterEntities {
-		if sign.CertifiedBy(worker, master) == nil {
-			certified = true
-			break
+// initRepo seeds declared and already-stored arches, backfilling arch=any
+// packages when an architecture is first created.
+func (s *Service) initRepo(
+	repo string,
+	useSignedDB bool,
+	gnupgDir *string,
+) error {
+	for _, arch := range s.repoArches(repo) {
+		if err := s.ensureArchSeeded(repo, arch, useSignedDB, gnupgDir); err != nil {
+			return err
 		}
 	}
-	if !certified {
-		return "", fmt.Errorf("worker key is not certified by any configured master key")
-	}
-	fpr := fmt.Sprintf("%X", worker.PrimaryKey.Fingerprint)
-	if err := s.signerRepo.AddSigner(fpr, armoredPub); err != nil {
-		return "", err
-	}
-	slog.Info("registered worker signing key", "fingerprint", fpr)
-	return fpr, nil
-}
-
-func (s *Service) ListSigners() ([]string, error) {
-	if s.signerRepo == nil {
-		return nil, nil
-	}
-	regs, err := s.signerRepo.ListSigners()
-	if err != nil {
-		return nil, err
-	}
-	var fprs []string
-	for _, armored := range regs {
-		ents, perr := sign.ReadEntities(armored)
-		if perr != nil || len(ents) == 0 {
-			continue
-		}
-		fprs = append(fprs, fmt.Sprintf("%X", ents[0].PrimaryKey.Fingerprint))
-	}
-	return fprs, nil
+	return nil
 }
