@@ -10,6 +10,7 @@ import (
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
 
+	"github.com/Hayao0819/Kamisato/ayato/domain"
 	"github.com/Hayao0819/Kamisato/ayato/stream"
 )
 
@@ -58,13 +59,8 @@ type PublicationLocker interface {
 	LockPublication(repo string) (unlock func(), err error)
 }
 
-// FileMeta carries the validators the HTTP layer uses for a conditional GET: an
-// opaque strong ETag (empty when the backend has no object versioning) and the
-// object's last-modified time (zero when unknown).
-type FileMeta struct {
-	ETag         string
-	LastModified time.Time
-}
+// FileMeta is an alias for the domain-owned conditional request metadata.
+type FileMeta = domain.FileMeta
 
 // MetaFetcher is the optional capability of a Store that returns a file's
 // conditional-GET metadata in a single fetch; a store without it is served full

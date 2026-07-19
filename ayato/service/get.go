@@ -21,5 +21,5 @@ func (s *Service) GetFileWithMeta(repoName, archName, name string) (stream.File,
 		}
 		return nil, domain.FileMeta{}, err
 	}
-	return f, domain.FileMeta{ETag: meta.ETag, LastModified: meta.LastModified}, nil
+	return f, meta, nil
 }

@@ -20,15 +20,7 @@ func (s *Service) RemoveAdmin(id int64) error {
 }
 
 func (s *Service) ListAdmins() ([]domain.AllowedAdmin, error) {
-	entries, err := s.authRepo.ListAdmins()
-	if err != nil {
-		return nil, err
-	}
-	admins := make([]domain.AllowedAdmin, 0, len(entries))
-	for _, e := range entries {
-		admins = append(admins, domain.AllowedAdmin{ID: e.ID, Login: e.Login})
-	}
-	return admins, nil
+	return s.authRepo.ListAdmins()
 }
 
 // SeedBootstrapAdmin seeds id only when the allowlist is empty; id <= 0 is

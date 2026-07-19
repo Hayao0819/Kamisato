@@ -3,15 +3,15 @@ package repository
 import (
 	"strconv"
 
+	"github.com/Hayao0819/Kamisato/ayato/domain"
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv/schema"
 	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
-type AllowedAdmin struct {
-	ID    int64  `json:"id"`
-	Login string `json:"login"`
-}
+// AllowedAdmin is kept as an alias for repository API compatibility. The
+// application-wide representation is owned by domain.
+type AllowedAdmin = domain.AllowedAdmin
 
 // AuthRepository persists the admin allowlist. Fail-closed: an empty allowlist,
 // an unknown id, or a non-positive id all deny.
