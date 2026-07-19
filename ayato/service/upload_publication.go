@@ -13,21 +13,23 @@ import (
 func (p *uploadPublication) storeObjects() error {
 	for i := range p.uploads {
 		upload := &p.uploads[i]
-		if err := p.storeObject(
-			upload.storeArch,
-			"package",
-			upload.storedName,
-			upload.pkgStream,
-		); err != nil {
-			return err
+		objects := []struct {
+			kind string
+			name string
+			file platform.SeekFile
+		}{
+			{kind: "package", name: upload.storedName, file: upload.pkgStream},
+			{kind: "signature", name: upload.sigName, file: upload.sigStream},
 		}
-		if err := p.storeObject(
-			upload.storeArch,
-			"signature",
-			upload.sigName,
-			upload.sigStream,
-		); err != nil {
-			return err
+		for _, object := range objects {
+			if err := p.storeObject(
+				upload.storeArch,
+				object.kind,
+				object.name,
+				object.file,
+			); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
