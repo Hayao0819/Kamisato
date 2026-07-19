@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -103,41 +104,34 @@ func TestRequireAdminNoCredentials(t *testing.T) {
 }
 
 func TestRequireAdminBearerToken(t *testing.T) {
-	m, signer := testMiddleware(t, 42)
-	tok := cliToken(t, signer, 42, "alice")
-
-	w := run(m, false, func(req *http.Request) {
-		req.Header.Set("Authorization", "Bearer "+tok)
-	})
-	if w.Code != http.StatusOK {
-		t.Fatalf("valid bearer of allowlisted id: status = %d, want 200", w.Code)
+	tests := []struct {
+		name      string
+		tokenType string
+		gitHubID  int64
+		want      int
+	}{
+		{name: "allowlisted CLI", tokenType: auth.TypCLI, gitHubID: 42, want: http.StatusOK},
+		{name: "not allowlisted", tokenType: auth.TypCLI, gitHubID: 99, want: http.StatusForbidden},
+		{name: "session type rejected", tokenType: auth.TypSession, gitHubID: 42, want: http.StatusUnauthorized},
 	}
-}
 
-func TestRequireAdminBearerNotAllowlisted(t *testing.T) {
-	m, signer := testMiddleware(t, 42)
-	// Signed token for an id NOT on the allowlist: the per-request IsAdmin
-	// re-check must reject it (the de-allowlist path).
-	tok := cliToken(t, signer, 99, "mallory")
-
-	w := run(m, false, func(req *http.Request) {
-		req.Header.Set("Authorization", "Bearer "+tok)
-	})
-	if w.Code != http.StatusForbidden {
-		t.Fatalf("bearer of non-allowlisted id: status = %d, want 403", w.Code)
-	}
-}
-
-func TestRequireAdminBearerWrongType(t *testing.T) {
-	m, signer := testMiddleware(t, 42)
-	// A session-typed token must not authenticate the Bearer path (type pinning).
-	tok := sessionToken(t, signer, 42, "alice")
-
-	w := run(m, false, func(req *http.Request) {
-		req.Header.Set("Authorization", "Bearer "+tok)
-	})
-	if w.Code != http.StatusUnauthorized {
-		t.Fatalf("session token on bearer path: status = %d, want 401", w.Code)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			m, signer := testMiddleware(t, 42)
+			token, err := signer.Sign(auth.Claims{
+				Typ: test.tokenType, GitHubID: test.gitHubID,
+				Login: "alice", Exp: time.Now().Add(time.Hour),
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			response := run(m, false, func(request *http.Request) {
+				request.Header.Set("Authorization", "Bearer "+token)
+			})
+			if response.Code != test.want {
+				t.Fatalf("status = %d, want %d", response.Code, test.want)
+			}
+		})
 	}
 }
 
@@ -234,9 +228,39 @@ func TestRequireAdminRevokedSessionFamilyRejected(t *testing.T) {
 	}
 }
 
+func TestRequireAdminCookieChecksSessionRevocation(t *testing.T) {
+	m, signer := testMiddleware(t, 42)
+	token, err := signer.Sign(auth.Claims{
+		Typ: auth.TypSession, GitHubID: 42, Login: "alice",
+		SessionID: "session-1", Exp: time.Now().Add(time.Hour),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := func(req *http.Request) {
+		req.AddCookie(&http.Cookie{Name: m.sessionCookieName(), Value: token})
+		req.Header.Set("Sec-Fetch-Site", "same-origin")
+	}
+
+	m.WithDenylist(fakeDenylist{sessionRevoked: map[string]bool{"session-1": true}})
+	if w := run(m, false, request); w.Code != http.StatusUnauthorized {
+		t.Fatalf("revoked cookie session: status = %d, want 401", w.Code)
+	}
+
+	m.WithDenylist(fakeDenylist{err: errors.New("denylist unavailable")})
+	if w := run(m, false, request); w.Code != http.StatusServiceUnavailable {
+		t.Fatalf("cookie revocation failure: status = %d, want 503", w.Code)
+	}
+
+	m.WithDenylist(fakeDenylist{})
+	if w := run(m, false, request); w.Code != http.StatusOK {
+		t.Fatalf("live cookie session: status = %d, want 200", w.Code)
+	}
+}
+
 func TestRequireAdminDenylistFailureFailsClosed(t *testing.T) {
 	m, signer := testMiddleware(t, 42)
-	m.WithDenylist(fakeDenylist{err: errBadBasic})
+	m.WithDenylist(fakeDenylist{err: errors.New("denylist unavailable")})
 	tok, err := signer.Sign(auth.Claims{Typ: auth.TypCLI, GitHubID: 42, Login: "alice", JTI: "checked", Exp: time.Now().Add(time.Hour)})
 	if err != nil {
 		t.Fatal(err)

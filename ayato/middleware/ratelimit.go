@@ -8,8 +8,17 @@ import (
 	"github.com/gin-gonic/gin"
 	"golang.org/x/time/rate"
 
+	"github.com/Hayao0819/Kamisato/ayato/ratelimit"
+	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
 	sharedlimit "github.com/Hayao0819/Kamisato/pkg/ratelimit"
 )
+
+// WithRateLimiter wires the shared kv-backed limiter so limits hold across
+// replicas. An unwired Middleware leaves RateLimit as a pass-through.
+func (m *Middleware) WithRateLimiter(store kv.Store) *Middleware {
+	m.limiter = ratelimit.New(store)
+	return m
+}
 
 // RateLimit returns a per-client-IP middleware that answers excess requests with
 // 429 and a Retry-After header, backed by the shared kv limiter (wired via
