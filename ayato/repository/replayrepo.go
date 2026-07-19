@@ -30,12 +30,26 @@ func (r *replayGuard) Consume(id string, ttl time.Duration) (bool, error) {
 	if id == "" {
 		return false, errors.NewErr("replay: empty id")
 	}
+	consumed, err := consumeOnce(r.kv, schema.ReplayCodes, id, ttl)
+	if err != nil {
+		return false, errors.WrapErr(err, "replay: consume")
+	}
+	return consumed, nil
+}
+
+// consumeOnce is the shared first-writer-wins primitive for one-time credentials.
+// A backend without atomic Add support must fail closed.
+func consumeOnce(
+	store kv.Store,
+	namespace, key string,
+	ttl time.Duration,
+) (bool, error) {
 	if ttl <= 0 {
 		return false, nil
 	}
-	adder, ok := r.kv.(kv.Adder)
+	adder, ok := store.(kv.Adder)
 	if !ok {
-		return false, errors.NewErr("replay: atomic consumption is not supported by this store")
+		return false, errors.NewErr("atomic consumption is not supported by this store")
 	}
-	return adder.Add(schema.ReplayCodes, id, []byte{1}, ttl)
+	return adder.Add(namespace, key, []byte{1}, ttl)
 }

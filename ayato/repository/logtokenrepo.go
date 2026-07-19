@@ -75,11 +75,7 @@ func (r *logTokenRepository) ConsumeLogToken(token string) (string, bool, error)
 	if record.JobID == "" || ttl <= 0 {
 		return "", false, nil
 	}
-	adder, ok := r.kv.(kv.Adder)
-	if !ok {
-		return "", false, errors.NewErr("logtoken: atomic consumption is not supported by this store")
-	}
-	created, err := adder.Add(schema.SpentLogTokens, token, []byte{1}, ttl)
+	created, err := consumeOnce(r.kv, schema.SpentLogTokens, token, ttl)
 	if err != nil {
 		return "", false, errors.WrapErr(err, "logtoken: consume")
 	}

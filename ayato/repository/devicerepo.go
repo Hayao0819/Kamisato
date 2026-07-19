@@ -112,11 +112,7 @@ func (r *deviceRepository) ConsumeDevice(deviceCode string) (bool, error) {
 	if ttl <= 0 {
 		return false, nil
 	}
-	adder, ok := r.kv.(kv.Adder)
-	if !ok {
-		return false, errors.NewErr("device: atomic consumption is not supported by this store")
-	}
-	created, err := adder.Add(schema.SpentDevices, deviceCode, []byte{1}, ttl)
+	created, err := consumeOnce(r.kv, schema.SpentDevices, deviceCode, ttl)
 	if err != nil {
 		return false, errors.WrapErr(err, "device: consume")
 	}

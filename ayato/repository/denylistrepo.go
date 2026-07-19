@@ -23,14 +23,7 @@ func (r *denylistRepository) Consume(jti string, ttl time.Duration) (bool, error
 	if jti == "" {
 		return false, errors.NewErr("deny: empty jti")
 	}
-	if ttl <= 0 {
-		return false, nil
-	}
-	adder, ok := r.kv.(kv.Adder)
-	if !ok {
-		return false, errors.NewErr("deny: atomic token consumption is not supported by this store")
-	}
-	created, err := adder.Add(schema.TokenDenylist, jti, []byte{1}, ttl)
+	created, err := consumeOnce(r.kv, schema.TokenDenylist, jti, ttl)
 	if err != nil {
 		return false, errors.WrapErr(err, "deny: consume jti")
 	}
