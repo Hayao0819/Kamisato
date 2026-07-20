@@ -1,7 +1,6 @@
 package aurweb
 
 import (
-	"cmp"
 	"hash/fnv"
 
 	"github.com/Hayao0819/Kamisato/pkg/raiou"
@@ -18,8 +17,8 @@ type SrcinfoMeta struct {
 	URLPath string
 }
 
-// FromSrcinfo converts a parsed .SRCINFO into one Pkg per split package, merging pkgbase-level
-// relations with per-package ones across all architectures to match aurweb's output.
+// FromSrcinfo converts a parsed .SRCINFO into one Pkg per resolved split
+// package, flattening architecture groups to match aurweb's output.
 func FromSrcinfo(si *raiou.SRCINFO, meta SrcinfoMeta) []Pkg {
 	if si == nil {
 		return nil
@@ -34,52 +33,39 @@ func FromSrcinfo(si *raiou.SRCINFO, meta SrcinfoMeta) []Pkg {
 		urlPath = "/cgit/aur.git/snapshot/" + base.PkgBase + ".tar.gz"
 	}
 
-	pkgs := si.Packages
+	pkgs := si.SplitPackages()
 	if len(pkgs) == 0 {
 		pkgs = []raiou.SrcinfoPackage{global}
 	}
 
 	out := make([]Pkg, 0, len(pkgs))
 	for _, p := range pkgs {
-		desc := cmp.Or(p.PkgDesc, global.PkgDesc)
-		url := cmp.Or(p.URL, global.URL)
 		out = append(out, Pkg{
 			ID:             stableID(p.PkgName),
 			Name:           p.PkgName,
 			PackageBaseID:  baseID,
 			PackageBase:    base.PkgBase,
 			Version:        version,
-			Description:    desc,
-			URL:            url,
+			Description:    p.PkgDesc,
+			URL:            p.URL,
 			Maintainer:     meta.Maintainer,
 			Submitter:      meta.Submitter,
 			FirstSubmitted: meta.FirstSubmitted,
 			LastModified:   meta.LastModified,
 			URLPath:        urlPath,
 
-			Depends:      mergeArch(global.Depends, p.Depends),
-			OptDepends:   mergeArch(global.OptDepends, p.OptDepends),
-			Provides:     mergeArch(global.Provides, p.Provides),
-			Conflicts:    mergeArch(global.Conflicts, p.Conflicts),
-			Replaces:     mergeArch(global.Replaces, p.Replaces),
-			MakeDepends:  mergeArch(base.MakeDepends, nil),
-			CheckDepends: mergeArch(base.CheckDepends, nil),
-			Groups:       sortedNonEmpty(global.Groups, p.Groups),
-			License:      sortedNonEmpty(global.License, p.License),
+			Depends:      sortedNonEmpty(p.Depends.All()),
+			OptDepends:   sortedNonEmpty(p.OptDepends.All()),
+			Provides:     sortedNonEmpty(p.Provides.All()),
+			Conflicts:    sortedNonEmpty(p.Conflicts.All()),
+			Replaces:     sortedNonEmpty(p.Replaces.All()),
+			MakeDepends:  sortedNonEmpty(base.MakeDepends.All()),
+			CheckDepends: sortedNonEmpty(base.CheckDepends.All()),
+			Groups:       sortedNonEmpty(p.Groups),
+			License:      sortedNonEmpty(p.License),
 		})
 	}
 	return out
-}
-
-// mergeArch unions two per-arch maps across all architectures, sorted.
-func mergeArch(global, pkg raiou.ArchStrings) []string {
-	var lists [][]string
-	for _, m := range []raiou.ArchStrings{global, pkg} {
-		for _, vals := range m {
-			lists = append(lists, vals)
-		}
-	}
-	return sortedNonEmpty(lists...)
 }
 
 // stableID derives a deterministic positive int from a name; aurweb IDs are

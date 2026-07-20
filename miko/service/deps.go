@@ -112,25 +112,24 @@ func srcinfoBuildDeps(data []byte, arch string) ([]string, error) {
 
 	var out []string
 	seen := map[string]bool{}
-	add := func(as raiou.ArchStrings) {
-		// The empty key holds arch-independent values; arch holds the
-		// arch-scoped ones (depends_<arch>), both relevant to this build.
-		for _, group := range [][]string{as[""], as[arch]} {
-			for _, v := range group {
-				if v == "" || seen[v] {
-					continue
-				}
-				seen[v] = true
-				out = append(out, v)
+	add := func(values []string) {
+		for _, value := range values {
+			if value == "" || seen[value] {
+				continue
 			}
+			seen[value] = true
+			out = append(out, value)
 		}
 	}
 
-	add(si.MakeDepends)
-	add(si.CheckDepends)
-	add(si.Depends)
-	for _, pkg := range si.Packages {
-		add(pkg.Depends)
+	add(si.MakeDepends.ForArch(arch))
+	add(si.CheckDepends.ForArch(arch))
+	packages := si.SplitPackages()
+	if len(packages) == 0 {
+		add(si.Depends.ForArch(arch))
+	}
+	for _, pkg := range packages {
+		add(pkg.Depends.ForArch(arch))
 	}
 	return out, nil
 }

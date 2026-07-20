@@ -1,16 +1,41 @@
 package raiou
 
-import (
-	go_srcinfo "github.com/Morganamilo/go-srcinfo"
-)
-
 // ArchStrings maps an architecture to its values; a single arch can have multiple.
 type ArchStrings map[string][]string
+
+// ForArch returns architecture-independent values followed by values specific
+// to arch. Empty override markers are omitted.
+func (a ArchStrings) ForArch(arch string) []string {
+	out := appendNonEmpty(nil, a[""]...)
+	if arch != "" {
+		out = appendNonEmpty(out, a[arch]...)
+	}
+	return out
+}
+
+// All returns every non-empty value. The order between architecture groups is
+// unspecified; value order within each group is preserved.
+func (a ArchStrings) All() []string {
+	var out []string
+	for _, values := range a {
+		out = appendNonEmpty(out, values...)
+	}
+	return out
+}
+
+type scalarOverrides uint8
+
+const (
+	overridePkgDesc scalarOverrides = 1 << iota
+	overrideURL
+	overrideInstall
+	overrideChangelog
+)
 
 type SrcinfoPackage struct {
 	PkgName    string      `mapstructure:"pkgname" json:"pkgname" yml:"pkgname" toml:"pkgname"`
 	PkgDesc    string      `mapstructure:"pkgdesc" json:"pkgdesc" yml:"pkgdesc" toml:"pkgdesc"`
-	PkgArch    []string    `mapstructure:"pkgarch" json:"pkgarch" yml:"pkgarch" toml:"pkgarch"`
+	PkgArch    []string    `mapstructure:"arch" json:"arch" yml:"arch" toml:"arch"`
 	URL        string      `mapstructure:"url" json:"url" yml:"url" toml:"url"`
 	License    []string    `mapstructure:"license" json:"license" yml:"license" toml:"license"`
 	Groups     []string    `mapstructure:"groups" json:"groups" yml:"groups" toml:"groups"`
@@ -23,6 +48,10 @@ type SrcinfoPackage struct {
 	Options    []string    `mapstructure:"options" json:"options" yml:"options" toml:"options"`
 	Install    string      `mapstructure:"install" json:"install" yml:"install" toml:"install"`
 	Changelog  string      `mapstructure:"changelog" json:"changelog" yml:"changelog" toml:"changelog"`
+
+	// overrides distinguishes an absent scalar from an explicitly empty split
+	// package override without exposing go-srcinfo's NUL sentinel.
+	overrides scalarOverrides
 }
 
 // SrcinfoBase represents the pkgbase of a .SRCINFO (build info common to all packages).
@@ -41,6 +70,7 @@ type SrcinfoBase struct {
 	SHA384Sums   ArchStrings `mapstructure:"sha384sums" json:"sha384sums" yml:"sha384sums" toml:"sha384sums"`
 	SHA512Sums   ArchStrings `mapstructure:"sha512sums" json:"sha512sums" yml:"sha512sums" toml:"sha512sums"`
 	B2Sums       ArchStrings `mapstructure:"b2sums" json:"b2sums" yml:"b2sums" toml:"b2sums"`
+	CKSums       ArchStrings `mapstructure:"cksums" json:"cksums" yml:"cksums" toml:"cksums"`
 	MakeDepends  ArchStrings `mapstructure:"makedepends" json:"makedepends" yml:"makedepends" toml:"makedepends"`
 	CheckDepends ArchStrings `mapstructure:"checkdepends" json:"checkdepends" yml:"checkdepends" toml:"checkdepends"`
 }
@@ -62,105 +92,4 @@ type SRCINFO struct {
 	SrcinfoBase    `mapstructure:",squash"`
 	SrcinfoPackage `mapstructure:",squash"`
 	Packages       []SrcinfoPackage `mapstructure:"packages" json:"packages" yml:"packages" toml:"packages"`
-}
-
-func ParseSrcinfoFile(path string) (*SRCINFO, error) {
-	parsed, err := go_srcinfo.ParseFile(path)
-	if err != nil {
-		return nil, err
-	}
-	return srcinfoFromGo(parsed), nil
-}
-
-func ParseSrcinfoString(data string) (*SRCINFO, error) {
-	parsed, err := go_srcinfo.Parse(data)
-	if err != nil {
-		return nil, err
-	}
-	return srcinfoFromGo(parsed), nil
-}
-
-func srcinfoPackageFromGo(pkg *go_srcinfo.Package) *SrcinfoPackage {
-	if pkg == nil {
-		return nil
-	}
-
-	out := &SrcinfoPackage{
-		PkgName:   pkg.Pkgname,
-		PkgDesc:   pkg.Pkgdesc,
-		PkgArch:   pkg.Arch,
-		URL:       pkg.URL,
-		License:   pkg.License,
-		Groups:    pkg.Groups,
-		Backup:    pkg.Backup,
-		Options:   pkg.Options,
-		Install:   pkg.Install,
-		Changelog: pkg.Changelog,
-	}
-
-	out.Depends = archStringsFromGo(pkg.Depends)
-	out.OptDepends = archStringsFromGo(pkg.OptDepends)
-	out.Provides = archStringsFromGo(pkg.Provides)
-	out.Conflicts = archStringsFromGo(pkg.Conflicts)
-	out.Replaces = archStringsFromGo(pkg.Replaces)
-
-	return out
-}
-
-func srcinfoBaseFromGo(pkgBase *go_srcinfo.PackageBase) *SrcinfoBase {
-	if pkgBase == nil {
-		return nil
-	}
-
-	out := &SrcinfoBase{
-		PkgBase:      pkgBase.Pkgbase,
-		PkgVer:       pkgBase.Pkgver,
-		PkgRel:       pkgBase.Pkgrel,
-		PkgEpoch:     pkgBase.Epoch,
-		ValidPGPKeys: pkgBase.ValidPGPKeys,
-		NoExtract:    pkgBase.NoExtract,
-	}
-
-	out.Source = archStringsFromGo(pkgBase.Source)
-	out.MD5Sums = archStringsFromGo(pkgBase.MD5Sums)
-	out.SHA1Sums = archStringsFromGo(pkgBase.SHA1Sums)
-	out.SHA224Sums = archStringsFromGo(pkgBase.SHA224Sums)
-	out.SHA256Sums = archStringsFromGo(pkgBase.SHA256Sums)
-	out.SHA384Sums = archStringsFromGo(pkgBase.SHA384Sums)
-	out.SHA512Sums = archStringsFromGo(pkgBase.SHA512Sums)
-	out.B2Sums = archStringsFromGo(pkgBase.B2Sums)
-	out.MakeDepends = archStringsFromGo(pkgBase.MakeDepends)
-	out.CheckDepends = archStringsFromGo(pkgBase.CheckDepends)
-
-	return out
-}
-
-func srcinfoFromGo(srcinfo *go_srcinfo.Srcinfo) *SRCINFO {
-	if srcinfo == nil {
-		return nil
-	}
-
-	out := &SRCINFO{
-		SrcinfoBase:    *srcinfoBaseFromGo(&srcinfo.PackageBase),
-		SrcinfoPackage: *srcinfoPackageFromGo(&srcinfo.Package),
-		Packages:       make([]SrcinfoPackage, len(srcinfo.Packages)),
-	}
-
-	for i, pkg := range srcinfo.Packages {
-		out.Packages[i] = *srcinfoPackageFromGo(&pkg)
-	}
-
-	return out
-}
-
-func archStringsFromGo(archStrings []go_srcinfo.ArchString) ArchStrings {
-	if archStrings == nil {
-		return nil
-	}
-	result := make(ArchStrings)
-	for _, archString := range archStrings {
-		result[archString.Arch] = append(result[archString.Arch], archString.Value)
-	}
-
-	return result
 }

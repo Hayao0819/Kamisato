@@ -28,7 +28,7 @@ pkgname = foo
 	if err != nil {
 		t.Fatalf("x86_64 parse: %v", err)
 	}
-	want := []string{"cmake", "git", "python-pytest", "glibc", "lib32-glibc", "bar>=2.0"}
+	want := []string{"cmake", "git", "python-pytest", "glibc", "bar>=2.0", "lib32-glibc"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("x86_64 deps:\n got %q\nwant %q", got, want)
 	}
@@ -59,5 +59,27 @@ func TestSrcinfoBuildDepsEmpty(t *testing.T) {
 	}
 	if len(got) != 0 {
 		t.Errorf("expected no deps, got %q", got)
+	}
+}
+
+func TestSrcinfoBuildDepsHonorsEmptyPackageOverride(t *testing.T) {
+	srcinfo := `pkgbase = x
+	pkgver = 1
+	pkgrel = 1
+	arch = x86_64
+	makedepends = make
+	depends = runtime
+	depends_x86_64 = runtime-x86
+
+pkgname = x
+	depends =
+	depends_x86_64 =
+`
+	got, err := srcinfoBuildDeps([]byte(srcinfo), "x86_64")
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if want := []string{"make"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("deps = %q, want %q", got, want)
 	}
 }
