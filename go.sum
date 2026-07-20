@@ -29,12 +29,16 @@ github.com/BrenekH/blinky v0.0.0-20260701031321-fd31e83d792e h1:0bgWDPPhgoz30lsD
 github.com/BrenekH/blinky v0.0.0-20260701031321-fd31e83d792e/go.mod h1:U1xXjLxqSCY9lXbfYqlKchfaquGUU+n4dNgbmNhUolw=
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
 github.com/BurntSushi/xgb v0.0.0-20160522181843-27f122750802/go.mod h1:IVnqGOEym/WlBOVXweHU+Q+/VP0lqqI8lqeDx9IjBqo=
+github.com/Hayao0819/dyalpm v0.0.0-20260720143651-d4d22cf02d12 h1:zp50dmsW/RGtLoxKFJyvU32QpBtL9JFSGNW5yFC+IiE=
+github.com/Hayao0819/dyalpm v0.0.0-20260720143651-d4d22cf02d12/go.mod h1:RLp3Fimtg3MNOP9UG/YlJrOmVlvJdozSTmfBAxZRm10=
 github.com/Hayao0819/go-git/v6 v6.0.0-alpha.4.0.20260710080932-d035d025d1b3 h1:/3DRJLxZvrLcB2J2UhtB5N0EeNwBdF4VqHhghUPyf88=
 github.com/Hayao0819/go-git/v6 v6.0.0-alpha.4.0.20260710080932-d035d025d1b3/go.mod h1:xXG9RUtYwsD4I8v+0kEpkWF+JICyuIXotnqMd+odWis=
 github.com/Hayao0819/nahi v0.0.4 h1:pAKnPcSwPPpq1XNV6+++PLS5eZ+CNgRMgnW4+Vmxd+U=
 github.com/Hayao0819/nahi v0.0.4/go.mod h1:cup9lsmub3ZNT4CKb1S7wdCp+v3TCORul2la3Iim+a0=
 github.com/Microsoft/go-winio v0.6.2 h1:F2VQgta7ecxGYO8k3ZZz3RS8fVIXVxONVUPlNERoyfY=
 github.com/Microsoft/go-winio v0.6.2/go.mod h1:yd8OoFMLzJbo9gZq8j5qaps8bJ9aShtEA8Ipt1oGCvU=
+github.com/Morganamilo/go-pacmanconf v0.0.0-20210502114700-cff030e927a5 h1:TMscPjkb1ThXN32LuFY5bEYIcXZx3YlwzhS1GxNpn/c=
+github.com/Morganamilo/go-pacmanconf v0.0.0-20210502114700-cff030e927a5/go.mod h1:Hk55m330jNiwxRodIlMCvw5iEyoRUCIY64W1p9D+tHc=
 github.com/Morganamilo/go-srcinfo v1.0.0 h1:Wh4nEF+HJWo+29hnxM18Q2hi+DUf0GejS13+Wg+dzmI=
 github.com/Morganamilo/go-srcinfo v1.0.0/go.mod h1:MP6VGY1NNpVUmYIEgoM9acix95KQqIRyqQ0hCLsyYUY=
 github.com/ProtonMail/go-crypto v1.4.1 h1:9RfcZHqEQUvP8RzecWEUafnZVtEvrBVL9BiF67IQOfM=
@@ -153,6 +157,8 @@ github.com/dsnet/compress v0.0.2-0.20230904184137-39efe44ab707/go.mod h1:qssHWj6
 github.com/dsnet/golib v0.0.0-20171103203638-1ea166775780/go.mod h1:Lj+Z9rebOhdfkVLjJ8T6VcRQv3SXugXy999NBtR9aFY=
 github.com/dustin/go-humanize v1.0.1 h1:GzkhY7T5VNhEkwH0PVJgjz+fX1rhBrR7pRT3mDkpeCY=
 github.com/dustin/go-humanize v1.0.1/go.mod h1:Mu1zIs6XwVuF/gI1OepvI0qD18qycQx+mFykh5fBlto=
+github.com/ebitengine/purego v0.10.1 h1:dewVBCBT2GaMu1SrNTYxQhgQBethzfhiwvZiLGP/qyY=
+github.com/ebitengine/purego v0.10.1/go.mod h1:iIjxzd6CiRiOG0UyXP+V1+jWqUXVjPKLAI0mRfJZTmQ=
 github.com/emirpasic/gods v1.18.1 h1:FXtiHYKDGKCW2KzwZKx0iC0PQmdlorYgdFG9jPXJ1Bc=
 github.com/emirpasic/gods v1.18.1/go.mod h1:8tpGGwCnJ5H4r6BWwaV6OrWmMoPhUl5jm/FMNAnJvWQ=
 github.com/envoyproxy/go-control-plane v0.9.1-0.20191026205805-5f8ba28d4473/go.mod h1:YTl/9mNaCwkRvm6d1a2C3ymFceY/DCBVvsKhRF0iEA4=

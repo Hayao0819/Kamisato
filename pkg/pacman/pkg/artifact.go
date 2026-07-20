@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"path"
+	"path/filepath"
 	"strings"
 )
 
@@ -119,6 +120,23 @@ func IsAny(name string) bool {
 	}
 	coordinates, err := artifact.Coordinates()
 	return err == nil && coordinates.IsAny()
+}
+
+func FindCached(dirs []string, name, version string) (string, bool) {
+	for _, dir := range dirs {
+		matches, _ := filepath.Glob(filepath.Join(dir, name+"-*"))
+		for _, match := range matches {
+			artifact, err := ParseArtifact(filepath.Base(match))
+			if err != nil || artifact.IsSignature() {
+				continue
+			}
+			coordinates, err := artifact.Coordinates()
+			if err == nil && coordinates.MatchesMetadata(name, version, coordinates.Arch) {
+				return match, true
+			}
+		}
+	}
+	return "", false
 }
 
 func (a Artifact) Filename() string { return a.filename }

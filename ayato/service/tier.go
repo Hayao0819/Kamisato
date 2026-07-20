@@ -11,7 +11,7 @@ import (
 	"github.com/Hayao0819/Kamisato/ayato/platform"
 	"github.com/Hayao0819/Kamisato/ayato/repository"
 	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/alpm"
+	alpm "github.com/Hayao0819/dyalpm"
 )
 
 // Promoter advances a package through a tiered repo's staging -> testing -> stable
@@ -104,7 +104,7 @@ func (s *Service) promoteOneArch(src, dst, arch, storeArch, filename, pkgname, v
 		return errors.WrapErr(err, "read target tier package state")
 	}
 	if exists {
-		cmp, _ := alpm.VerCmp(version, current.version)
+		cmp := alpm.VerCmp(version, current.version)
 		if cmp < 0 {
 			return fmt.Errorf("%w: target tier already has newer %s %s", domain.ErrConflict, pkgname, current.version)
 		}

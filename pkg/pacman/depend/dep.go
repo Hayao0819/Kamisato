@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/Hayao0819/Kamisato/pkg/pacman/alpm"
+	alpm "github.com/Hayao0819/dyalpm"
 )
 
 type Op string
@@ -53,10 +53,7 @@ func (c Constraint) Satisfies(version string) (bool, error) {
 	if c.Op == OpAny {
 		return true, nil
 	}
-	cmp, err := alpm.VerCmp(version, c.Ver)
-	if err != nil {
-		return false, err
-	}
+	cmp := alpm.VerCmp(version, c.Ver)
 	switch c.Op {
 	case OpEQ:
 		return cmp == 0, nil

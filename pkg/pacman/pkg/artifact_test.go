@@ -2,6 +2,8 @@ package pkg
 
 import (
 	"errors"
+	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -126,5 +128,33 @@ func TestSupportedArchiveSuffixesReturnsCopy(t *testing.T) {
 	first[0] = ".changed"
 	if second := SupportedArchiveSuffixes(); second[0] == ".changed" {
 		t.Error("caller mutated the package suffix manifest")
+	}
+}
+
+func TestFindCached(t *testing.T) {
+	dir := t.TempDir()
+	for _, name := range []string{
+		"foo-1.0-1-x86_64.pkg.tar.zst",
+		"foo-1.0-1-x86_64.pkg.tar.zst.sig",
+		"foo-bar-2.0-1-x86_64.pkg.tar.zst",
+		"foo-1.0-1-1-x86_64.pkg.tar.zst",
+		"foo-1.0-1-x86_64.pkg.tar.zst.part",
+		"epochpkg-2_1.0-1-x86_64.pkg.tar.zst",
+	} {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte("x"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	got, ok := FindCached([]string{dir}, "foo", "1.0-1")
+	if !ok || filepath.Base(got) != "foo-1.0-1-x86_64.pkg.tar.zst" {
+		t.Errorf("FindCached(foo) = %q, %t", got, ok)
+	}
+	got, ok = FindCached([]string{dir}, "epochpkg", "2:1.0-1")
+	if !ok || filepath.Base(got) != "epochpkg-2_1.0-1-x86_64.pkg.tar.zst" {
+		t.Errorf("FindCached(epochpkg) = %q, %t", got, ok)
+	}
+	if _, ok := FindCached([]string{dir}, "missing", "1.0-1"); ok {
+		t.Error("FindCached found an absent package")
 	}
 }

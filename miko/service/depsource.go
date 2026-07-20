@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/Hayao0819/Kamisato/pkg/aurweb"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/alpm"
+	"github.com/Hayao0819/Kamisato/pkg/pacman"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/depend"
 )
 
@@ -16,7 +16,7 @@ func NewRepoChecker() depend.RepoChecker { return alpmRepoChecker{} }
 type alpmRepoChecker struct{}
 
 func (alpmRepoChecker) Unsatisfied(deps []string) ([]string, error) {
-	return alpm.Deptest(deps)
+	return pacman.Deptest(deps)
 }
 
 // NewAURSource adapts an aurweb upstream client to the AURSource seam.

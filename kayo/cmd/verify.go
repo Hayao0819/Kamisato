@@ -14,7 +14,7 @@ import (
 	"github.com/Hayao0819/Kamisato/kayo/cmd/shared"
 	"github.com/Hayao0819/Kamisato/kayo/trust"
 	"github.com/Hayao0819/Kamisato/pkg/aurweb"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/alpm"
+	"github.com/Hayao0819/Kamisato/pkg/pacman"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/hook"
 )
 
@@ -123,7 +123,7 @@ func verifyCmd() *cobra.Command {
 			// package — a -Syu otherwise floods the AUR with a request per target.
 			if len(unknown) > 0 && up != nil {
 				foreign := unknown
-				if sync, serr := alpm.SyncPackages(); serr == nil {
+				if sync, serr := pacman.SyncPackages(); serr == nil {
 					foreign = foreign[:0]
 					for _, n := range unknown {
 						if !sync[n] {

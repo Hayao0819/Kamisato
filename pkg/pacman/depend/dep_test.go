@@ -1,7 +1,6 @@
 package depend_test
 
 import (
-	"os/exec"
 	"testing"
 
 	"github.com/Hayao0819/Kamisato/pkg/pacman/depend"
@@ -30,9 +29,6 @@ func TestParse(t *testing.T) {
 }
 
 func TestSatisfies(t *testing.T) {
-	if _, err := exec.LookPath("vercmp"); err != nil {
-		t.Skip("vercmp not available")
-	}
 	cases := []struct {
 		spec    string
 		version string

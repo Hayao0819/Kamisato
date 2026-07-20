@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/Hayao0819/Kamisato/pkg/pacman/alpm"
+	alpm "github.com/Hayao0819/dyalpm"
 )
 
 // Entry is one monitored package: how to find its latest upstream version and how
@@ -138,6 +138,5 @@ func isNewer(latest, current string) bool {
 	if current == "" {
 		return true
 	}
-	cmp, _ := alpm.VerCmp(latest, current)
-	return cmp > 0
+	return alpm.VerCmp(latest, current) > 0
 }

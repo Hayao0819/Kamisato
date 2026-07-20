@@ -5,12 +5,12 @@ import (
 	"io"
 	"strings"
 
+	alpm "github.com/Hayao0819/dyalpm"
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
 	"github.com/Hayao0819/Kamisato/internal/errors"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/alpm"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
 )
 
@@ -127,11 +127,7 @@ func localAheadOfRemote(local, remote string) bool {
 	if local == "-" || remote == "-" {
 		return false
 	}
-	cmp, err := alpm.VerCmp(local, remote)
-	if err != nil {
-		return false
-	}
-	return cmp > 0
+	return alpm.VerCmp(local, remote) > 0
 }
 
 func isFailedStatus(s string) bool {

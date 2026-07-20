@@ -9,7 +9,7 @@ import (
 
 	"github.com/Hayao0819/Kamisato/ayato/domain"
 	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/alpm"
+	alpm "github.com/Hayao0819/dyalpm"
 )
 
 func (p *uploadPublication) ensureRepository() error {
@@ -109,7 +109,7 @@ func (p *uploadPublication) resolveUploadState(
 		if !exists {
 			continue
 		}
-		comparison, _ := alpm.VerCmp(upload.pkgVersion, current.version)
+		comparison := alpm.VerCmp(upload.pkgVersion, current.version)
 		switch {
 		case comparison < 0:
 			return fmt.Errorf(

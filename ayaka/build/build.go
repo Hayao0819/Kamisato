@@ -18,7 +18,8 @@ import (
 	"github.com/otiai10/copy"
 	"github.com/samber/lo"
 
-	"github.com/Hayao0819/Kamisato/pkg/pacman/alpm"
+	alpm "github.com/Hayao0819/dyalpm"
+
 	"github.com/Hayao0819/Kamisato/pkg/pacman/builder"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/builder/factory"
 	pkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
@@ -118,12 +119,7 @@ func diffPackages(src []*pkg.SourcePackage, rr *repo.RemoteRepo) ([]*pkg.SourceP
 			toBuild = append(toBuild, sp)
 			continue
 		}
-		cmp, err := alpm.VerCmp(sp.Version(), rp.Version())
-		if err != nil {
-			slog.Error("Failed to compare versions", "pkgbase", sp.Base(), "error", err)
-			return nil, errors.WrapErr(err, "failed to compare package versions")
-		}
-		if cmp > 0 {
+		if alpm.VerCmp(sp.Version(), rp.Version()) > 0 {
 			slog.Debug("Local package is newer", "pkgbase", sp.Base(), "local", sp.Version(), "remote", rp.Version())
 			toBuild = append(toBuild, sp)
 		}

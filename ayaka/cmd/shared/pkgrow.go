@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/Hayao0819/Kamisato/internal/client"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/alpm"
+	"github.com/Hayao0819/Kamisato/pkg/pacman"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
 )
 
@@ -32,7 +32,7 @@ func BuildPkgRows(repos []*repo.SourceRepo, format, server string) []PkgRow {
 
 	var installed map[string]string
 	if wantInstalled {
-		installed, _ = alpm.InstalledVersions()
+		installed, _ = pacman.InstalledVersions()
 	}
 	var jobs []client.Job
 	if wantBuild {

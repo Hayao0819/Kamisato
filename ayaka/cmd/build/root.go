@@ -15,7 +15,7 @@ import (
 
 	"github.com/Hayao0819/Kamisato/ayaka/build"
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/alpm"
+	"github.com/Hayao0819/Kamisato/pkg/pacman"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/builder"
 	pacmanrepo "github.com/Hayao0819/Kamisato/pkg/pacman/repo"
 	pacmansign "github.com/Hayao0819/Kamisato/pkg/pacman/sign"
@@ -133,7 +133,7 @@ func Cmd() *cobra.Command {
 				}
 			}
 
-			pkgs, cleanup, err := alpm.GetCleanPkgBinary(srcrepo.Config.InstallPkgs.Names...)
+			pkgs, cleanup, err := pacman.GetCleanPkgBinary(srcrepo.Config.InstallPkgs.Names...)
 			if err != nil {
 				return errors.WrapErr(err, "failed to get clean package binaries")
 			}

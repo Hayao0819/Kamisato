@@ -14,7 +14,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/Hayao0819/Kamisato/pkg/pacman/alpm"
+	alpm "github.com/Hayao0819/dyalpm"
 )
 
 // VersionSource resolves the latest upstream version of a package.
@@ -124,7 +124,7 @@ func (s *githubTagSource) Latest(ctx context.Context) (string, error) {
 			best = v
 			continue
 		}
-		if c, _ := alpm.VerCmp(v, best); c > 0 {
+		if alpm.VerCmp(v, best) > 0 {
 			best = v
 		}
 	}

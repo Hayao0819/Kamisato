@@ -1,13 +1,15 @@
 module github.com/Hayao0819/Kamisato
 
-go 1.25.8
+go 1.26
 
 tool github.com/gzuidhof/tygo
 
 require (
 	filippo.io/age v1.3.1
 	github.com/BrenekH/blinky v0.0.0-20260701031321-fd31e83d792e
+	github.com/Hayao0819/dyalpm v0.0.0-20260720143651-d4d22cf02d12
 	github.com/Hayao0819/nahi v0.0.4
+	github.com/Morganamilo/go-pacmanconf v0.0.0-20210502114700-cff030e927a5
 	github.com/Morganamilo/go-srcinfo v1.0.0
 	github.com/aws/aws-sdk-go-v2 v1.42.1
 	github.com/aws/aws-sdk-go-v2/config v1.32.27
@@ -70,6 +72,7 @@ require (
 	github.com/dgraph-io/ristretto/v2 v2.2.0 // indirect
 	github.com/dlclark/regexp2 v1.10.0 // indirect
 	github.com/dsnet/compress v0.0.2-0.20230904184137-39efe44ab707 // indirect
+	github.com/ebitengine/purego v0.10.1 // indirect
 	github.com/emirpasic/gods v1.18.1 // indirect
 	github.com/fatih/structtag v1.2.0 // indirect
 	github.com/glebarez/go-sqlite v1.21.2 // indirect
