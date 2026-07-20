@@ -17,9 +17,9 @@ func (h *AuthHandler) DeviceTokenHandler(c *gin.Context) {
 		return
 	}
 	var body struct {
-		DeviceCode string `json:"device_code"`
+		DeviceCode string `json:"device_code" binding:"required"`
 	}
-	if err := c.ShouldBindJSON(&body); err != nil || body.DeviceCode == "" {
+	if err := c.ShouldBindJSON(&body); err != nil {
 		respondAuthError(c, http.StatusBadRequest, "invalid request")
 		return
 	}

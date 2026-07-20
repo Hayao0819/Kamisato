@@ -10,8 +10,8 @@ import (
 )
 
 type codeExchangeRequest struct {
-	Code         string `json:"code"`
-	CodeVerifier string `json:"code_verifier"`
+	Code         string `json:"code" binding:"required"`
+	CodeVerifier string `json:"code_verifier" binding:"required"`
 }
 
 type tokenPairResponse struct {
@@ -44,8 +44,7 @@ func (h *AuthHandler) redeemCode(c *gin.Context, tokenType string) (*auth.Claims
 		return nil, false
 	}
 	var request codeExchangeRequest
-	if err := c.ShouldBindJSON(&request); err != nil ||
-		request.Code == "" || request.CodeVerifier == "" {
+	if err := c.ShouldBindJSON(&request); err != nil {
 		respondAuthError(c, http.StatusBadRequest, "invalid request")
 		return nil, false
 	}

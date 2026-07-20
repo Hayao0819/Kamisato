@@ -80,9 +80,9 @@ func (h *AuthHandler) RefreshHandler(c *gin.Context) {
 		return
 	}
 	var body struct {
-		RefreshToken string `json:"refresh_token"`
+		RefreshToken string `json:"refresh_token" binding:"required"`
 	}
-	if err := c.ShouldBindJSON(&body); err != nil || body.RefreshToken == "" {
+	if err := c.ShouldBindJSON(&body); err != nil {
 		respondAuthError(c, http.StatusBadRequest, "invalid request")
 		return
 	}

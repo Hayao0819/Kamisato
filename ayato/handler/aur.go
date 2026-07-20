@@ -21,7 +21,7 @@ func NewAURHandler(svc *aur.Service) *AURHandler {
 }
 
 type aurRegisterRequest struct {
-	GitURL     string `json:"git_url"`
+	GitURL     string `json:"git_url" binding:"required"`
 	Ref        string `json:"ref"`
 	Maintainer string `json:"maintainer"`
 }
@@ -29,7 +29,7 @@ type aurRegisterRequest struct {
 // RegisterHandler registers an external PKGBUILD repo. Body: {git_url, ref?, maintainer?}.
 func (h *AURHandler) RegisterHandler(c *gin.Context) {
 	var req aurRegisterRequest
-	if err := c.ShouldBindJSON(&req); err != nil || req.GitURL == "" {
+	if err := c.ShouldBindJSON(&req); err != nil {
 		respondError(c, http.StatusBadRequest, "git_url is required")
 		return
 	}
