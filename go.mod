@@ -22,6 +22,7 @@ require (
 	github.com/dgraph-io/badger/v4 v4.9.2
 	github.com/gabriel-vasile/mimetype v1.4.13
 	github.com/gin-contrib/cors v1.7.7
+	github.com/gin-contrib/secure v1.1.3
 	github.com/gin-gonic/gin v1.12.0
 	github.com/glebarez/sqlite v1.11.0
 	github.com/go-git/go-billy/v6 v6.0.0-alpha.1.0.20260519112248-0095b064a6c6
