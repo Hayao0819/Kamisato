@@ -13,6 +13,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/samber/lo"
 )
 
 // DumpSource is an optional Upstream capability for bulk package dumps AUR helpers use in discovery mode.
@@ -218,8 +220,8 @@ func (s *Server) buildNamesDump(ctx context.Context) ([]byte, error) {
 			names = append(names, up...)
 		}
 	}
-	// Local names lead, so DedupeBy keeps a local name over an upstream duplicate.
-	names = DedupeBy(names, func(n string) string { return n })
+	// Local names lead, so Uniq keeps them over upstream duplicates.
+	names = lo.Uniq(names)
 
 	var buf bytes.Buffer
 	gz := gzip.NewWriter(&buf)

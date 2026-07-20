@@ -12,6 +12,7 @@ import (
 
 	"github.com/Hayao0819/Kamisato/kayo/trust"
 	"github.com/Hayao0819/Kamisato/pkg/aurweb"
+	"github.com/samber/lo"
 )
 
 type Syncer interface {
@@ -99,7 +100,7 @@ type sourced struct {
 // the first occurrence wins) and trust-gates each survivor.
 func (c *Composite) gateUnique(all []sourced) []aurweb.Pkg {
 	var out []aurweb.Pkg
-	for _, item := range aurweb.DedupeBy(all, func(s sourced) string { return s.pkg.Name }) {
+	for _, item := range lo.UniqBy(all, func(s sourced) string { return s.pkg.Name }) {
 		if gp, keep := c.keep(item.entry, item.pkg); keep {
 			out = append(out, gp)
 		}
@@ -159,7 +160,7 @@ func (c *Composite) Suggest(ctx context.Context, arg string, pkgbase bool) ([]st
 		}
 		names = append(names, got...)
 	}
-	names = aurweb.DedupeBy(names, func(n string) string { return n })
+	names = lo.Uniq(names)
 	if len(names) > aurweb.SuggestLimit {
 		names = names[:aurweb.SuggestLimit]
 	}
