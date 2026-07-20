@@ -11,6 +11,8 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/samber/lo"
+
 	"github.com/Hayao0819/Kamisato/internal/errors"
 
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
@@ -57,11 +59,11 @@ func (b *Backend) Search(_ context.Context, by aurweb.By, arg string) ([]aurweb.
 	if err != nil {
 		return nil, err
 	}
-	var out []aurweb.Pkg
-	for _, p := range all {
-		if aurweb.Match(p, by, arg) {
-			out = append(out, p)
-		}
+	out := lo.Filter(all, func(pkg aurweb.Pkg, _ int) bool {
+		return aurweb.Match(pkg, by, arg)
+	})
+	if len(out) == 0 {
+		return nil, nil
 	}
 	slices.SortFunc(out, func(a, b aurweb.Pkg) int { return cmp.Compare(a.Name, b.Name) })
 	return out, nil
@@ -79,10 +81,7 @@ func (b *Backend) Suggest(ctx context.Context, arg string, pkgbase bool) ([]stri
 	if err != nil {
 		return nil, err
 	}
-	names := make([]string, len(all))
-	for i, p := range all {
-		names[i] = p.Name
-	}
+	names := lo.Map(all, func(pkg aurweb.Pkg, _ int) string { return pkg.Name })
 	slices.Sort(names)
 	return prefix(names, arg), nil
 }
