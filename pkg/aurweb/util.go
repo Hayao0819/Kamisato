@@ -17,6 +17,11 @@ func readAllLimited(r io.Reader) ([]byte, error) {
 	return io.ReadAll(io.LimitReader(r, maxResponseBytes))
 }
 
+// DedupeBy keeps the first occurrence of each distinct key in input order.
+func DedupeBy[T any, K comparable](items []T, key func(T) K) []T {
+	return lo.UniqBy(items, key)
+}
+
 func mergeByName(local, upstream []Pkg) []Pkg {
 	return lo.UniqBy(slices.Concat(local, upstream), func(p Pkg) string { return p.Name })
 }
