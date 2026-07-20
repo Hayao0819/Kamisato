@@ -113,7 +113,7 @@ func (c *Ayato) RemoveAdmin(ctx context.Context, id int64) error {
 			ctx,
 			noRetry,
 			http.MethodDelete,
-			c.request.transport.endpoint("api", "unstable", "auth", "admins", pathID(id)),
+			c.request.transport.endpoint("api", "unstable", "auth", "admins", strconv.FormatInt(id, 10)),
 			true,
 			nil,
 			nil,

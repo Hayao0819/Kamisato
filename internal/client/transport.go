@@ -10,7 +10,6 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"strconv"
 	"strings"
 	"time"
 
@@ -375,5 +374,3 @@ func (t *transport) get(ctx context.Context, target *url.URL, authenticated bool
 	}
 	return t.http.Do(req)
 }
-
-func pathID(id int64) string { return strconv.FormatInt(id, 10) }
