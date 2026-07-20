@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
-	"github.com/Hayao0819/Kamisato/pkg/atomicfile"
+	"github.com/Hayao0819/Kamisato/pkg/safefile"
 )
 
 func (c *BuildClient) SubmitBuild(ctx context.Context, request *BuildRequest) (string, error) {
@@ -249,7 +249,7 @@ func (c *BuildClient) DownloadPackage(ctx context.Context, repo, arch, name stri
 }
 
 func (c *BuildClient) DownloadPackageFile(ctx context.Context, repo, arch, name, destination string) error {
-	return atomicfile.Replace(destination, 0o644, func(file io.Writer) error { //nolint:gosec // downloaded package artifacts are public
+	return safefile.Replace(destination, 0o644, func(file io.Writer) error { //nolint:gosec // downloaded package artifacts are public
 		return c.DownloadPackage(ctx, repo, arch, name, file)
 	})
 }

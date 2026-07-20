@@ -12,7 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/Hayao0819/Kamisato/pkg/atomicfile"
+	"github.com/Hayao0819/Kamisato/pkg/safefile"
 )
 
 // ExecPlaceholder is the token in a template that Install swaps for the Exec line.
@@ -32,7 +32,7 @@ func ValidateExecArg(name, v string) error {
 func Install(dir, fileName, template, exec string) (string, error) {
 	content := strings.ReplaceAll(template, ExecPlaceholder, exec)
 	path := filepath.Join(dir, fileName)
-	if err := atomicfile.WriteFile(path, []byte(content), 0o644); err != nil { //nolint:gosec // pacman hooks must be world-readable (0644 matches the libalpm hook-dir convention)
+	if err := safefile.WriteFile(path, []byte(content), 0o644); err != nil { //nolint:gosec // pacman hooks must be world-readable (0644 matches the libalpm hook-dir convention)
 		return "", fmt.Errorf("failed to write pacman hook (root needed for %s?): %w", dir, err)
 	}
 	return path, nil
@@ -41,7 +41,7 @@ func Install(dir, fileName, template, exec string) (string, error) {
 // Uninstall removes dir/fileName. A missing file is not an error.
 func Uninstall(dir, fileName string) (string, error) {
 	path := filepath.Join(dir, fileName)
-	if err := atomicfile.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
+	if err := safefile.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
 		return "", err
 	}
 	return path, nil

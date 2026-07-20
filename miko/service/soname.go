@@ -11,10 +11,10 @@ import (
 	"strings"
 
 	"github.com/Hayao0819/Kamisato/miko/domain"
-	"github.com/Hayao0819/Kamisato/pkg/atomicfile"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/depend"
 	ppkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
+	"github.com/Hayao0819/Kamisato/pkg/safefile"
 )
 
 // sonameStore records the sonames a package provided at its last successful
@@ -75,7 +75,7 @@ func (s *fileSonameStore) save(pkgbase string, sonames []string) error {
 	if err != nil {
 		return err
 	}
-	return atomicfile.WriteFile(p, data, 0o600)
+	return safefile.WriteFile(p, data, 0o600)
 }
 
 // maybeRebuildOnSonameBump compares the built package's sonames against the last

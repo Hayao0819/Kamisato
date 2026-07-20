@@ -9,8 +9,7 @@ import (
 
 	"github.com/Hayao0819/Kamisato/internal/blinkyutils"
 	"github.com/Hayao0819/Kamisato/internal/errors"
-	"github.com/Hayao0819/Kamisato/pkg/atomicfile"
-	"github.com/Hayao0819/Kamisato/pkg/filelock"
+	"github.com/Hayao0819/Kamisato/pkg/safefile"
 )
 
 // credentialMode selects the active credential sources.
@@ -51,11 +50,11 @@ func withCredentialMutation(operation func() error) error {
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return errors.WrapErr(err, "create server data directory")
 	}
-	lock, err := filelock.Acquire(filepath.Join(dir, "credentials.lock"), 0o600)
+	lock, err := safefile.Lock(filepath.Join(dir, "credentials.lock"), 0o600)
 	if err != nil {
 		return errors.WrapErr(err, "lock credential mutation")
 	}
-	defer func() { _ = lock.Release() }()
+	defer func() { _ = lock.Unlock() }()
 	return operation()
 }
 
@@ -124,5 +123,5 @@ func saveCredentialMode(server string, mode credentialMode) error {
 	if err != nil {
 		return errors.WrapErr(err, "encode credential state")
 	}
-	return errors.WrapErr(atomicfile.WriteFile(path, raw, 0o600), "save credential state")
+	return errors.WrapErr(safefile.WriteFile(path, raw, 0o600), "save credential state")
 }

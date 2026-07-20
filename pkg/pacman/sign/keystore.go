@@ -8,8 +8,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/Hayao0819/Kamisato/pkg/atomicfile"
-	"github.com/Hayao0819/Kamisato/pkg/filelock"
+	"github.com/Hayao0819/Kamisato/pkg/safefile"
 	"github.com/ProtonMail/go-crypto/openpgp"
 	"github.com/ProtonMail/go-crypto/openpgp/armor"
 	"github.com/ProtonMail/go-crypto/openpgp/packet"
@@ -40,11 +39,11 @@ func OpenOrCreate(dir, name, email, passphrase string) (*Keystore, error) {
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return nil, fmt.Errorf("create keystore directory: %w", err)
 	}
-	lock, err := filelock.Acquire(filepath.Join(dir, keystoreLock), 0o600)
+	lock, err := safefile.Lock(filepath.Join(dir, keystoreLock), 0o600)
 	if err != nil {
 		return nil, fmt.Errorf("lock keystore: %w", err)
 	}
-	defer func() { _ = lock.Release() }()
+	defer func() { _ = lock.Unlock() }()
 
 	// Recheck only after acquiring the process-shared lock. Otherwise concurrent
 	// first starts can generate different key pairs and interleave their three
@@ -181,7 +180,7 @@ func readEntityData(path string) (*openpgp.Entity, []byte, error) {
 // storage both succeed. The sibling temporary file starts as 0600, so private
 // material is never briefly exposed with the public-key mode.
 func writeArmored(path, blockType string, perm os.FileMode, serialize func(io.Writer) error) error {
-	return atomicfile.Replace(path, perm, func(w io.Writer) error {
+	return safefile.Replace(path, perm, func(w io.Writer) error {
 		armored, err := armor.Encode(w, blockType, nil)
 		if err != nil {
 			return err

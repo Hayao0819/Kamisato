@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
-	"github.com/Hayao0819/Kamisato/pkg/atomicfile"
+	"github.com/Hayao0819/Kamisato/pkg/safefile"
 
 	"github.com/Hayao0819/Kamisato/ayato/platform"
 	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
@@ -68,7 +68,7 @@ func (l *LocalStore) DeleteFile(repo, arch, name string) error {
 	}
 	slog.Info("remove pkg file", "file", objectPath)
 	return withObjectLock(repoPath, name, func() error {
-		if err := atomicfile.Remove(objectPath); err != nil {
+		if err := safefile.Remove(objectPath); err != nil {
 			slog.Warn("remove pkg file err", "err", err)
 			return errors.WrapErr(err, "failed to remove pkg file")
 		}
@@ -111,7 +111,7 @@ func (l *LocalStore) DeleteFileIfUnchanged(
 				return nil
 			}
 		}
-		if err := atomicfile.Remove(objectPath); err != nil {
+		if err := safefile.Remove(objectPath); err != nil {
 			if errors.Is(err, os.ErrNotExist) {
 				return nil
 			}

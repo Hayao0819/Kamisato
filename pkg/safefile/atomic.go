@@ -1,9 +1,10 @@
-// Package atomicfile durably replaces individual files.
+// Package safefile provides durable file mutations and process-shared advisory
+// locks.
 //
 // A replacement is written to a uniquely named sibling, flushed, and renamed
 // over the destination. The parent directory is then flushed so a successful
 // call means both the file contents and the rename reached durable storage.
-package atomicfile
+package safefile
 
 import (
 	"bytes"
@@ -23,19 +24,19 @@ import (
 // a final-path symbolic link is replaced rather than followed.
 func Replace(path string, perm fs.FileMode, write func(io.Writer) error) error {
 	if path == "" {
-		return errors.New("atomicfile: empty destination path")
+		return errors.New("safefile: empty destination path")
 	}
 	if perm != perm.Perm() {
-		return fmt.Errorf("atomicfile: invalid permission bits %#o", perm)
+		return fmt.Errorf("safefile: invalid permission bits %#o", perm)
 	}
 	if write == nil {
-		return errors.New("atomicfile: nil write function")
+		return errors.New("safefile: nil write function")
 	}
 
 	dir := filepath.Dir(path)
 	tmp, err := os.CreateTemp(dir, ".atomic-*")
 	if err != nil {
-		return fmt.Errorf("atomicfile: create temporary file for %q: %w", path, err)
+		return fmt.Errorf("safefile: create temporary file for %q: %w", path, err)
 	}
 	tmpPath := tmp.Name()
 	closed := false
@@ -47,24 +48,24 @@ func Replace(path string, perm fs.FileMode, write func(io.Writer) error) error {
 	}()
 
 	if err := write(tmp); err != nil {
-		return fmt.Errorf("atomicfile: write temporary file for %q: %w", path, err)
+		return fmt.Errorf("safefile: write temporary file for %q: %w", path, err)
 	}
 	if err := tmp.Chmod(perm); err != nil {
-		return fmt.Errorf("atomicfile: set permissions on temporary file for %q: %w", path, err)
+		return fmt.Errorf("safefile: set permissions on temporary file for %q: %w", path, err)
 	}
 	if err := tmp.Sync(); err != nil {
-		return fmt.Errorf("atomicfile: sync temporary file for %q: %w", path, err)
+		return fmt.Errorf("safefile: sync temporary file for %q: %w", path, err)
 	}
 	if err := tmp.Close(); err != nil {
 		closed = true
-		return fmt.Errorf("atomicfile: close temporary file for %q: %w", path, err)
+		return fmt.Errorf("safefile: close temporary file for %q: %w", path, err)
 	}
 	closed = true
 	if err := os.Rename(tmpPath, path); err != nil {
-		return fmt.Errorf("atomicfile: replace %q: %w", path, err)
+		return fmt.Errorf("safefile: replace %q: %w", path, err)
 	}
 	if err := SyncDirectory(dir); err != nil {
-		return fmt.Errorf("atomicfile: commit replacement of %q: %w", path, err)
+		return fmt.Errorf("safefile: commit replacement of %q: %w", path, err)
 	}
 	return nil
 }
@@ -80,13 +81,13 @@ func WriteFile(path string, data []byte, perm fs.FileMode) error {
 // Remove deletes path and flushes its parent directory.
 func Remove(path string) error {
 	if path == "" {
-		return errors.New("atomicfile: empty path")
+		return errors.New("safefile: empty path")
 	}
 	if err := os.Remove(path); err != nil {
-		return fmt.Errorf("atomicfile: remove %q: %w", path, err)
+		return fmt.Errorf("safefile: remove %q: %w", path, err)
 	}
 	if err := SyncDirectory(filepath.Dir(path)); err != nil {
-		return fmt.Errorf("atomicfile: commit removal of %q: %w", path, err)
+		return fmt.Errorf("safefile: commit removal of %q: %w", path, err)
 	}
 	return nil
 }

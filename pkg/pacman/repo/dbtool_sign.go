@@ -6,7 +6,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/Hayao0819/Kamisato/pkg/atomicfile"
+	"github.com/Hayao0819/Kamisato/pkg/safefile"
 	"github.com/ProtonMail/go-crypto/openpgp"
 	"github.com/ProtonMail/go-crypto/openpgp/packet"
 )
@@ -43,7 +43,7 @@ func detachSignFile(entity *openpgp.Entity, srcPath, sigPath string) error {
 		return fmt.Errorf("failed to open %s for signing: %w", srcPath, err)
 	}
 	defer in.Close()
-	err = atomicfile.Replace(sigPath, 0o644, func(out io.Writer) error { //nolint:gosec // detached database signatures are public
+	err = safefile.Replace(sigPath, 0o644, func(out io.Writer) error { //nolint:gosec // detached database signatures are public
 		return SignDetached(entity, in, out)
 	})
 	if err != nil {

@@ -1,4 +1,4 @@
-package atomicfile
+package safefile
 
 import (
 	"errors"

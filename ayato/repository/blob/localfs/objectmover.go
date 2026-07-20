@@ -9,7 +9,7 @@ import (
 
 	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
 	"github.com/Hayao0819/Kamisato/internal/errors"
-	"github.com/Hayao0819/Kamisato/pkg/atomicfile"
+	"github.com/Hayao0819/Kamisato/pkg/safefile"
 )
 
 var _ blob.ObjectMover = (*LocalStore)(nil)
@@ -97,7 +97,7 @@ func (l *LocalStore) DeleteObject(objKey string) error {
 	if err != nil {
 		return err
 	}
-	if err := atomicfile.Remove(p); err != nil && !errors.Is(err, os.ErrNotExist) {
+	if err := safefile.Remove(p); err != nil && !errors.Is(err, os.ErrNotExist) {
 		return errors.WrapErr(err, "remove object")
 	}
 	return nil

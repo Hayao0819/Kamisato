@@ -16,7 +16,7 @@ import (
 	"time"
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
-	"github.com/Hayao0819/Kamisato/pkg/atomicfile"
+	"github.com/Hayao0819/Kamisato/pkg/safefile"
 )
 
 // TrustedMaintainer is a maintainer account the user explicitly vouches for,
@@ -214,5 +214,5 @@ func (s *Store) Save() error {
 	if err != nil {
 		return errors.WrapErr(err, "failed to encode trust store")
 	}
-	return errors.WrapErr(atomicfile.WriteFile(s.path, raw, 0o600), "failed to save trust store")
+	return errors.WrapErr(safefile.WriteFile(s.path, raw, 0o600), "failed to save trust store")
 }

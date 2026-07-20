@@ -11,7 +11,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/Hayao0819/Kamisato/pkg/filelock"
+	"github.com/Hayao0819/Kamisato/pkg/safefile"
 	"github.com/ProtonMail/go-crypto/openpgp"
 	"github.com/ProtonMail/go-crypto/openpgp/armor"
 	"github.com/ProtonMail/go-crypto/openpgp/packet"
@@ -95,12 +95,12 @@ func (k *SigningKey) saveWithOverwrite(passphrase string, overwrite bool) (retEr
 	if err := os.MkdirAll(k.dir, 0o700); err != nil {
 		return err
 	}
-	lock, err := filelock.Acquire(filepath.Join(k.dir, signingKeyLock), 0o600)
+	lock, err := safefile.Lock(filepath.Join(k.dir, signingKeyLock), 0o600)
 	if err != nil {
 		return fmt.Errorf("lock signing key: %w", err)
 	}
 	defer func() {
-		retErr = errors.Join(retErr, lock.Release())
+		retErr = errors.Join(retErr, lock.Unlock())
 	}()
 
 	keyPath := filepath.Join(k.dir, signingKeyFile)

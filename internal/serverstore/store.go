@@ -11,7 +11,7 @@ import (
 
 	"github.com/Hayao0819/Kamisato/internal/blinkyutils"
 	"github.com/Hayao0819/Kamisato/internal/errors"
-	"github.com/Hayao0819/Kamisato/pkg/atomicfile"
+	"github.com/Hayao0819/Kamisato/pkg/safefile"
 )
 
 var (
@@ -69,7 +69,7 @@ func saveDB(db blinkyutils.Registry) error {
 	if err != nil {
 		return err
 	}
-	return errors.WrapErr(atomicfile.WriteFile(path, raw, 0o600), "save server database")
+	return errors.WrapErr(safefile.WriteFile(path, raw, 0o600), "save server database")
 }
 
 func Resolve(name string) (*Endpoint, error) {

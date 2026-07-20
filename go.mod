@@ -26,6 +26,7 @@ require (
 	github.com/glebarez/sqlite v1.11.0
 	github.com/go-git/go-billy/v6 v6.0.0-alpha.1.0.20260519112248-0095b064a6c6
 	github.com/go-git/go-git/v6 v6.0.0-alpha.4
+	github.com/gofrs/flock v0.13.0
 	github.com/google/go-github/v88 v88.0.0
 	github.com/hashicorp/go-retryablehttp v0.7.8
 	github.com/joho/godotenv v1.5.1

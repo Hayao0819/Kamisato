@@ -11,8 +11,8 @@ import (
 
 	"github.com/ProtonMail/go-crypto/openpgp"
 
-	"github.com/Hayao0819/Kamisato/pkg/atomicfile"
 	pkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
+	"github.com/Hayao0819/Kamisato/pkg/safefile"
 )
 
 // Tool mutates a pacman repository database on disk: it adds or removes a
@@ -276,7 +276,7 @@ func writeDerivedBuilder(b *dbBuilder, paths toolPaths) error {
 }
 
 func writeToolArchive(path string, write func(io.Writer) error) error {
-	return atomicfile.Replace(path, 0o644, func(out io.Writer) error { //nolint:gosec // pacman repository databases are public
+	return safefile.Replace(path, 0o644, func(out io.Writer) error { //nolint:gosec // pacman repository databases are public
 		return write(out)
 	})
 }
@@ -287,7 +287,7 @@ func copyToolFile(src, dst string) error {
 		return fmt.Errorf("failed to open %s: %w", src, err)
 	}
 	defer in.Close()
-	return atomicfile.Replace(dst, 0o644, func(out io.Writer) error { //nolint:gosec // pacman repository databases are public
+	return safefile.Replace(dst, 0o644, func(out io.Writer) error { //nolint:gosec // pacman repository databases are public
 		if _, err := io.Copy(out, in); err != nil {
 			return fmt.Errorf("failed to copy to %s: %w", dst, err)
 		}

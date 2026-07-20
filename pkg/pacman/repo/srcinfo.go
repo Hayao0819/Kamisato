@@ -7,7 +7,7 @@ import (
 	"os/exec"
 	"path"
 
-	"github.com/Hayao0819/Kamisato/pkg/atomicfile"
+	"github.com/Hayao0819/Kamisato/pkg/safefile"
 )
 
 // GenerateSrcinfo rewrites <dir>/.SRCINFO from the PKGBUILD in dir by running
@@ -24,7 +24,7 @@ func GenerateSrcinfo(dir string, stderr io.Writer) error {
 		return fmt.Errorf("generate .SRCINFO in %s: %w", dir, err)
 	}
 
-	if err := atomicfile.WriteFile(path.Join(dir, ".SRCINFO"), buf.Bytes(), 0o644); err != nil { //nolint:gosec // .SRCINFO is world-readable repo metadata
+	if err := safefile.WriteFile(path.Join(dir, ".SRCINFO"), buf.Bytes(), 0o644); err != nil { //nolint:gosec // .SRCINFO is world-readable repo metadata
 		return fmt.Errorf("write .SRCINFO in %s: %w", dir, err)
 	}
 	return nil

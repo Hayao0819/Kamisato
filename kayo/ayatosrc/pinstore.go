@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
-	"github.com/Hayao0819/Kamisato/pkg/atomicfile"
+	"github.com/Hayao0819/Kamisato/pkg/safefile"
 )
 
 // pin records the TOFU-trusted public key and the anti-rollback watermark for one
@@ -134,5 +134,5 @@ func (s *PinStore) saveLocked() error {
 	}
 	// Callers treat SetLastIssued success as "reached disk" before swapping the
 	// index, so both the bytes and the rename must be durable.
-	return errors.WrapErr(atomicfile.WriteFile(s.path, raw, 0o600), "failed to save ayato pin store")
+	return errors.WrapErr(safefile.WriteFile(s.path, raw, 0o600), "failed to save ayato pin store")
 }

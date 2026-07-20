@@ -11,7 +11,7 @@ import (
 
 	"github.com/Hayao0819/Kamisato/internal/client"
 	"github.com/Hayao0819/Kamisato/internal/errors"
-	"github.com/Hayao0819/Kamisato/pkg/filelock"
+	"github.com/Hayao0819/Kamisato/pkg/safefile"
 )
 
 // TokenSource supplies and refreshes stored Ayato credentials.
@@ -102,10 +102,10 @@ func withRefreshLock(ctx context.Context, server string, operation func() error)
 	}
 	digest := sha256.Sum256([]byte(server))
 	lockPath := filepath.Join(lockDirectory, hex.EncodeToString(digest[:])+".lock")
-	lock, err := filelock.AcquireContext(ctx, lockPath, 0o600, 50*time.Millisecond)
+	lock, err := safefile.LockContext(ctx, lockPath, 0o600, 50*time.Millisecond)
 	if err != nil {
 		return errors.WrapErr(err, "acquire refresh lock")
 	}
-	defer func() { _ = lock.Release() }()
+	defer func() { _ = lock.Unlock() }()
 	return operation()
 }

@@ -13,8 +13,7 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/auth/apikey"
 	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/internal/errors"
-	"github.com/Hayao0819/Kamisato/pkg/atomicfile"
-	"github.com/Hayao0819/Kamisato/pkg/filelock"
+	"github.com/Hayao0819/Kamisato/pkg/safefile"
 )
 
 func apikeyCmd() *cobra.Command {
@@ -77,11 +76,11 @@ func appendAPIKey(path string, entry conf.MikoAPIKey) error {
 	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return errors.WrapErr(err, "failed to create API key config directory")
 	}
-	lock, err := filelock.Acquire(filepath.Join(dir, "."+filepath.Base(path)+".lock"), 0o600)
+	lock, err := safefile.Lock(filepath.Join(dir, "."+filepath.Base(path)+".lock"), 0o600)
 	if err != nil {
 		return errors.WrapErr(err, "failed to lock API key config")
 	}
-	defer func() { _ = lock.Release() }()
+	defer func() { _ = lock.Unlock() }()
 
 	cfg := map[string]any{}
 	if data, err := os.ReadFile(path); err == nil {
@@ -110,5 +109,5 @@ func appendAPIKey(path string, entry conf.MikoAPIKey) error {
 	if err != nil {
 		return err
 	}
-	return atomicfile.WriteFile(path, append(out, '\n'), 0o600)
+	return safefile.WriteFile(path, append(out, '\n'), 0o600)
 }

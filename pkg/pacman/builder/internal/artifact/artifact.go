@@ -8,9 +8,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/Hayao0819/Kamisato/pkg/atomicfile"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/builder"
 	pacmanpkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
+	"github.com/Hayao0819/Kamisato/pkg/safefile"
 )
 
 type fileState struct {
@@ -118,11 +118,11 @@ func moveFile(src, dst string) error {
 	if err := os.Rename(src, dst); err == nil {
 		dstDir := filepath.Dir(dst)
 		srcDir := filepath.Dir(src)
-		dstSyncErr := atomicfile.SyncDirectory(dstDir)
+		dstSyncErr := safefile.SyncDirectory(dstDir)
 		if srcDir == dstDir {
 			return dstSyncErr
 		}
-		return errors.Join(dstSyncErr, atomicfile.SyncDirectory(srcDir))
+		return errors.Join(dstSyncErr, safefile.SyncDirectory(srcDir))
 	}
 	in, err := os.Open(src)
 	if err != nil {
@@ -133,7 +133,7 @@ func moveFile(src, dst string) error {
 	if err != nil {
 		return err
 	}
-	if err := atomicfile.Replace(dst, info.Mode().Perm(), func(out io.Writer) error {
+	if err := safefile.Replace(dst, info.Mode().Perm(), func(out io.Writer) error {
 		_, err := io.Copy(out, in)
 		return err
 	}); err != nil {
@@ -142,7 +142,7 @@ func moveFile(src, dst string) error {
 	if err := in.Close(); err != nil {
 		return err
 	}
-	return atomicfile.Remove(src)
+	return safefile.Remove(src)
 }
 
 func IsPackageFile(name string) bool {

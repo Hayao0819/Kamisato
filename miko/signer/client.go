@@ -10,8 +10,8 @@ import (
 
 	"github.com/Hayao0819/Kamisato/internal/client"
 	"github.com/Hayao0819/Kamisato/internal/errors"
-	"github.com/Hayao0819/Kamisato/pkg/atomicfile"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/sign"
+	"github.com/Hayao0819/Kamisato/pkg/safefile"
 )
 
 // SignPath is the signer service's detach-sign endpoint, shared by client and
@@ -44,7 +44,7 @@ func (s *RemoteSigner) Sign(ctx context.Context, pkgPath string) (string, error)
 	sigPath := pkgPath + ".sig"
 	// The signature is transient worker state consumed by the uploader; 0600 is
 	// sufficient and keeps the at-rest footprint minimal.
-	if err := atomicfile.WriteFile(sigPath, sig, 0o600); err != nil {
+	if err := safefile.WriteFile(sigPath, sig, 0o600); err != nil {
 		return "", errors.WrapErr(err, "remote signer: write signature")
 	}
 	return sigPath, nil

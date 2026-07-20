@@ -8,7 +8,7 @@ import (
 
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
 	"github.com/Hayao0819/Kamisato/internal/errors"
-	"github.com/Hayao0819/Kamisato/pkg/atomicfile"
+	"github.com/Hayao0819/Kamisato/pkg/safefile"
 )
 
 func exportCmd() *cobra.Command {
@@ -47,7 +47,7 @@ func exportCmd() *cobra.Command {
 			if secret {
 				perm = 0o600
 			}
-			return errors.WrapErr(atomicfile.WriteFile(output, []byte(armored), perm), "failed to write key")
+			return errors.WrapErr(safefile.WriteFile(output, []byte(armored), perm), "failed to write key")
 		},
 	}
 	cmd.Flags().BoolVar(&secret, "secret", false, "Export the full private key (for offline backup) instead of the public key")

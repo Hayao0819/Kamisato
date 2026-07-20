@@ -10,9 +10,8 @@ import (
 	"path"
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
-	"github.com/Hayao0819/Kamisato/pkg/atomicfile"
-	"github.com/Hayao0819/Kamisato/pkg/filelock"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/reponame"
+	"github.com/Hayao0819/Kamisato/pkg/safefile"
 
 	"github.com/Hayao0819/nahi/futils"
 	"github.com/samber/lo"
@@ -92,11 +91,11 @@ func withObjectLock(repoPath, name string, operation func() error) error {
 		return errors.WrapErr(err, "create object lock directory")
 	}
 	lockName := fmt.Sprintf("%x.lock", sha256.Sum256([]byte(name)))
-	lock, err := filelock.Acquire(path.Join(lockDir, lockName), 0o600)
+	lock, err := safefile.Lock(path.Join(lockDir, lockName), 0o600)
 	if err != nil {
 		return errors.WrapErr(err, "lock object")
 	}
-	defer func() { _ = lock.Release() }()
+	defer func() { _ = lock.Unlock() }()
 	return operation()
 }
 
@@ -109,11 +108,11 @@ func (l *LocalStore) LockPublication(repo string) (func(), error) {
 	if err := os.MkdirAll(repoPath, 0o755); err != nil { //nolint:gosec // published repository
 		return nil, errors.WrapErr(err, "create repository directory")
 	}
-	lock, err := filelock.Acquire(path.Join(repoPath, ".publication.lock"), 0o600)
+	lock, err := safefile.Lock(path.Join(repoPath, ".publication.lock"), 0o600)
 	if err != nil {
 		return nil, errors.WrapErr(err, "lock publication")
 	}
-	return func() { _ = lock.Release() }, nil
+	return func() { _ = lock.Unlock() }, nil
 }
 
 func writeAtomicFile(dst string, file platform.SeekFile) error {
@@ -124,7 +123,7 @@ func writeAtomicFile(dst string, file platform.SeekFile) error {
 }
 
 func replaceObject(dst string, source io.Reader) error {
-	return atomicfile.Replace(dst, 0o644, func(out io.Writer) error { //nolint:gosec // published file
+	return safefile.Replace(dst, 0o644, func(out io.Writer) error { //nolint:gosec // published file
 		_, err := io.Copy(out, source)
 		return errors.WrapErr(err, "copy object")
 	})
