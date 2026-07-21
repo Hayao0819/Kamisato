@@ -115,9 +115,22 @@ func TestValidateRejectsBadPublicOrigin(t *testing.T) {
 		"ftp://repo.example.com",       // wrong scheme
 		"https://",                     // no host
 		"https://repo.example.com/sub", // has a path
+		"http://repo.example.com",      // insecure non-loopback origin
 	} {
 		if err := githubCfg(bad).Validate(); err == nil {
 			t.Fatalf("public_origin %q must be rejected", bad)
+		}
+	}
+}
+
+func TestValidateAllowsLoopbackHTTPOrigin(t *testing.T) {
+	for _, origin := range []string{
+		"http://localhost:8080",
+		"http://127.0.0.1:8080",
+		"http://[::1]:8080",
+	} {
+		if err := githubCfg(origin).Validate(); err != nil {
+			t.Fatalf("loopback public_origin %q: Validate = %v, want nil", origin, err)
 		}
 	}
 }

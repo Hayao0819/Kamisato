@@ -8,7 +8,7 @@ Use from another repo as `Hayao0819/Kamisato/actions/<name>@<ref>`.
 - `build-lumine` — build the lumine web UI to a static directory with `env.json`/CSP injected, ready for any static host (the host-specific upload is the caller's step).
 
 ```yaml
-- uses: actions/setup-go@v5
+- uses: actions/setup-go@v7
   with: { go-version: "1.x" }
 - uses: Hayao0819/Kamisato/actions/install@<ref>
   with: { ayaka: "true" }          # method=source, version=main by default
@@ -27,7 +27,7 @@ Use from another repo as `Hayao0819/Kamisato/actions/<name>@<ref>`.
   with:
     ayato_url: https://repo.example.com
     auth_mode: bearer
-- uses: cloudflare/wrangler-action@v3
+- uses: cloudflare/wrangler-action@v4
   with:
     apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
     accountId: ${{ vars.CF_ACCOUNT_ID }}

@@ -163,8 +163,8 @@ func TestGitHubLoginBindsStateToBrowser(t *testing.T) {
 	for _, ck := range w.Result().Cookies() {
 		if ck.Name == oauthStateCookieName {
 			nonce = ck.Value
-			if !ck.HttpOnly || ck.SameSite != http.SameSiteLaxMode {
-				t.Fatalf("binding cookie must be HttpOnly + SameSite=Lax, got %+v", ck)
+			if !ck.HttpOnly || !ck.Secure || ck.SameSite != http.SameSiteLaxMode {
+				t.Fatalf("binding cookie must be HttpOnly + Secure + SameSite=Lax, got %+v", ck)
 			}
 		}
 	}

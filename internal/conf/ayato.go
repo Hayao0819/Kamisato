@@ -380,6 +380,13 @@ func validateHTTPOrigin(name, raw string) error {
 	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
 		return fmt.Errorf("%s must be an absolute http(s) URL with a host: %q", name, raw)
 	}
+	if u.Scheme == "http" {
+		host := u.Hostname()
+		ip := net.ParseIP(host)
+		if !strings.EqualFold(host, "localhost") && (ip == nil || !ip.IsLoopback()) {
+			return fmt.Errorf("%s must use https outside loopback: %q", name, raw)
+		}
+	}
 	if u.Path != "" && u.Path != "/" {
 		return fmt.Errorf("%s must be an origin without a path: %q", name, raw)
 	}

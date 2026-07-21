@@ -81,9 +81,6 @@ func TestReverseProxyKeepsFlushInterval(t *testing.T) {
 	if proxy.Rewrite == nil {
 		t.Error("Rewrite must be set")
 	}
-	if proxy.Director != nil {
-		t.Error("Director must be nil when Rewrite is used")
-	}
 }
 
 func TestBearerEnvironmentUsesNormalizedPrefixedURL(t *testing.T) {

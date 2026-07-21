@@ -4,6 +4,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/http/httputil"
 	"strings"
 	"testing"
 
@@ -24,7 +25,7 @@ func (r *closeNotifyRecorder) CloseNotify() <-chan bool {
 	return make(chan bool)
 }
 
-// The Director must strip the client's Authorization and X-API-Key so a CLI
+// The rewrite must strip the client's Authorization and X-API-Key so a CLI
 // token never leaks to miko.
 func TestMikoProxyStripsAuthorization(t *testing.T) {
 	cfg := &conf.AyatoConfig{}
@@ -45,18 +46,19 @@ func TestMikoProxyStripsAuthorization(t *testing.T) {
 	req.Header.Set("Cookie", "ayato_session=secret-sid")
 	req.Header.Set("X-Log-Token", "one-time-user-token")
 
-	mp.proxy.Director(req)
+	out := req.Clone(req.Context())
+	mp.proxy.Rewrite(&httputil.ProxyRequest{In: req, Out: out})
 
-	if got := req.Header.Get("Authorization"); got != "" {
+	if got := out.Header.Get("Authorization"); got != "" {
 		t.Fatalf("Authorization must be stripped, got %q", got)
 	}
-	if got := req.Header.Get("Cookie"); got != "" {
+	if got := out.Header.Get("Cookie"); got != "" {
 		t.Fatalf("Cookie must be stripped (no user session into miko), got %q", got)
 	}
-	if got := req.Header.Get("X-Log-Token"); got != "" {
+	if got := out.Header.Get("X-Log-Token"); got != "" {
 		t.Fatalf("X-Log-Token must be stripped, got %q", got)
 	}
-	if got := req.Header.Get("X-API-Key"); got != "shared-secret" {
+	if got := out.Header.Get("X-API-Key"); got != "shared-secret" {
 		t.Fatalf("X-API-Key must be the shared secret, got %q", got)
 	}
 }

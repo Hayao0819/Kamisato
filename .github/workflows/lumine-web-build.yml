@@ -15,9 +15,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
-      - uses: volta-cli/action@v4
+      - uses: volta-cli/action@v5
         with:
           node-version: '22'
 

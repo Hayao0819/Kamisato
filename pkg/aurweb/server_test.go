@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 )
@@ -288,6 +289,40 @@ func (f *fakeUpstream) Suggest(_ context.Context, _ string, _ bool) ([]string, e
 func (f *fakeUpstream) GitBase() string             { return "https://aur.archlinux.org" }
 func (f *fakeUpstream) SnapshotURL(b string) string { return "https://aur/snap/" + b }
 func (f *fakeUpstream) PlainURL(n string) string    { return "https://aur/plain/" + n }
+
+func TestUpstreamRedirectsKeepConfiguredOrigin(t *testing.T) {
+	s := New(&stubBackend{pkgs: map[string]Pkg{}}, WithUpstream(NewAURUpstream("https://aur.example/rpc")))
+	tests := []struct {
+		name   string
+		target string
+		run    func(http.ResponseWriter, *http.Request)
+	}{
+		{
+			name:   "snapshot path",
+			target: "/cgit/aur.git/snapshot/https:%2F%2Fevil.example%2Fpkg.tar.gz",
+			run:    s.Snapshot,
+		},
+		{
+			name:   "plain query",
+			target: "/cgit/aur.git/plain/PKGBUILD?h=https%3A%2F%2Fevil.example%2Fpkg%23fragment",
+			run:    s.PlainPKGBUILD,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, test.target, nil)
+			rec := httptest.NewRecorder()
+			test.run(rec, req)
+			location, err := url.Parse(rec.Header().Get("Location"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if location.Scheme != "https" || location.Host != "aur.example" {
+				t.Fatalf("redirect origin = %q, want https://aur.example", location.Scheme+"://"+location.Host)
+			}
+		})
+	}
+}
 
 func TestUpstreamFallbackInfo(t *testing.T) {
 	be := &stubBackend{pkgs: map[string]Pkg{"local": {Name: "local", PackageBase: "local"}}}

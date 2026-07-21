@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"net/http"
 	"net/http/httputil"
 	"net/url"
 
@@ -37,16 +36,16 @@ func NewMikoProxy(cfg *conf.AyatoConfig) (*MikoProxy, error) {
 
 	apiKey := cfg.Miko.APIKey
 	proxy := &httputil.ReverseProxy{
-		Director: func(req *http.Request) {
-			req.URL.Scheme = target.Scheme
-			req.URL.Host = target.Host
-			req.Host = target.Host
-			req.Header.Del(apikey.Header)
-			req.Header.Del("Authorization")
-			req.Header.Del("Cookie")
-			req.Header.Del("X-Log-Token")
+		Rewrite: func(pr *httputil.ProxyRequest) {
+			pr.Out.URL.Scheme = target.Scheme
+			pr.Out.URL.Host = target.Host
+			pr.Out.Host = target.Host
+			pr.Out.Header.Del(apikey.Header)
+			pr.Out.Header.Del("Authorization")
+			pr.Out.Header.Del("Cookie")
+			pr.Out.Header.Del("X-Log-Token")
 			if apiKey != "" {
-				req.Header.Set(apikey.Header, apiKey)
+				pr.Out.Header.Set(apikey.Header, apiKey)
 			}
 		},
 		FlushInterval: -1,

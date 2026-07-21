@@ -113,6 +113,7 @@ func (h *AuthHandler) oauthConfig(c *gin.Context) *oauth2.Config {
 
 // SameSite=Lax so the cookie returns on GitHub's top-level cross-site redirect back.
 func (h *AuthHandler) setOAuthStateCookie(c *gin.Context, nonce string, secure bool) {
+	// #nosec G124 -- config validation limits insecure cookies to loopback HTTP.
 	http.SetCookie(c.Writer, &http.Cookie{
 		Name:     oauthStateCookieName,
 		Value:    nonce,
@@ -125,6 +126,7 @@ func (h *AuthHandler) setOAuthStateCookie(c *gin.Context, nonce string, secure b
 }
 
 func (h *AuthHandler) clearOAuthStateCookie(c *gin.Context, secure bool) {
+	// #nosec G124 -- config validation limits insecure cookies to loopback HTTP.
 	http.SetCookie(c.Writer, &http.Cookie{
 		Name:     oauthStateCookieName,
 		Value:    "",
@@ -138,6 +140,7 @@ func (h *AuthHandler) clearOAuthStateCookie(c *gin.Context, secure bool) {
 
 // Uses http.SetCookie (not gin's c.SetCookie) to omit Domain for a host-only cookie.
 func (h *AuthHandler) setSessionCookie(c *gin.Context, value string, secure bool, maxAge int) {
+	// #nosec G124 -- config validation limits insecure cookies to loopback HTTP.
 	ck := &http.Cookie{
 		Name:     h.cfg.Auth.CookieName(),
 		Value:    value,

@@ -33,6 +33,7 @@ func (s *Server) GitClone(w http.ResponseWriter, r *http.Request) {
 	if r.URL.RawQuery != "" {
 		loc += "?" + r.URL.RawQuery
 	}
+	// #nosec G710 -- target origin comes from admin-validated source data or operator federation config.
 	http.Redirect(w, r, loc, http.StatusFound)
 }
 
@@ -54,6 +55,7 @@ func (s *Server) Snapshot(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
+	// #nosec G710 -- the operator configures the origin and SnapshotURL path-escapes base.
 	http.Redirect(w, r, s.upstream.SnapshotURL(base), http.StatusFound)
 }
 
@@ -64,6 +66,7 @@ func (s *Server) PlainPKGBUILD(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
+	// #nosec G710 -- the operator configures the origin and PlainURL query-escapes h.
 	http.Redirect(w, r, s.upstream.PlainURL(h), http.StatusFound)
 }
 

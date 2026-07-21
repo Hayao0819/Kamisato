@@ -56,7 +56,7 @@ func AddCmd() *cobra.Command {
 			}
 			credentialInput := cmd.Flags().Changed("token") || tokenStdin || passwordStdin
 			if credentialInput && token == "" {
-				return fmt.Errorf("Bearer token input is empty; omit the token option to preserve credentials or use --clear-credentials to remove them")
+				return fmt.Errorf("bearer token input is empty; omit the token option to preserve credentials or use --clear-credentials to remove them")
 			}
 
 			if clearCredentials {
