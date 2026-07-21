@@ -12,6 +12,20 @@ import (
 	"github.com/Hayao0819/Kamisato/pkg/raiou"
 )
 
+// srcinfoPkg opens a SourcePackage from a raw .SRCINFO body.
+func srcinfoPkg(t *testing.T, srcinfo string) *pkg.SourcePackage {
+	t.Helper()
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, ".SRCINFO"), []byte(srcinfo), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	p, err := pkg.OpenSourcePackage(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return p
+}
+
 // srcPkg writes a minimal .SRCINFO (pkgrel is fixed at 1, so Version is ver-1)
 // and opens it as a SourcePackage. When no names are given, pkgbase is used.
 func srcPkg(t *testing.T, base, ver string, names ...string) *pkg.SourcePackage {
@@ -24,23 +38,17 @@ func srcPkg(t *testing.T, base, ver string, names ...string) *pkg.SourcePackage 
 	for _, n := range names {
 		fmt.Fprintf(&b, "pkgname = %s\n", n)
 	}
-
-	dir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dir, ".SRCINFO"), []byte(b.String()), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	p, err := pkg.OpenSourcePackage(dir)
-	if err != nil {
-		t.Fatalf("OpenSourcePackage(%s): %v", base, err)
-	}
-	return p
+	return srcinfoPkg(t, b.String())
 }
 
-func remoteBin(base, ver string) *pkg.BinaryPackage {
+func remoteBin(base, ver string, mutate ...func(*raiou.PKGINFO)) *pkg.BinaryPackage {
 	info := raiou.NewPKGINFO()
 	info.PkgBase = base
 	info.PkgName = base
 	info.PkgVer = ver
+	for _, m := range mutate {
+		m(info)
+	}
 	return pkg.NewBinaryPackage(base+"-"+ver+".pkg.tar.zst", info)
 }
 

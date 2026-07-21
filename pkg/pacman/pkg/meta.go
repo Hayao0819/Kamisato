@@ -31,6 +31,35 @@ func (p *SourcePackage) Arches() []string {
 	return lo.Uniq(arches)
 }
 
+// Depends returns the runtime depends for arch across the pkgbase and every
+// sub-package.
+func (p *SourcePackage) Depends(arch string) []string {
+	out := p.info.SrcinfoPackage.Depends.ForArch(arch)
+	for _, sub := range p.info.Packages {
+		out = append(out, sub.Depends.ForArch(arch)...)
+	}
+	return lo.Uniq(out)
+}
+
+// MakeDepends returns the makedepends for arch (pkgbase-level, as in .SRCINFO).
+func (p *SourcePackage) MakeDepends(arch string) []string {
+	return lo.Uniq(p.info.MakeDepends.ForArch(arch))
+}
+
+// CheckDepends returns the checkdepends for arch (pkgbase-level, as in .SRCINFO).
+func (p *SourcePackage) CheckDepends(arch string) []string {
+	return lo.Uniq(p.info.CheckDepends.ForArch(arch))
+}
+
+// Provides returns what the pkgbase and every sub-package provide for arch.
+func (p *SourcePackage) Provides(arch string) []string {
+	out := p.info.SrcinfoPackage.Provides.ForArch(arch)
+	for _, sub := range p.info.Packages {
+		out = append(out, sub.Provides.ForArch(arch)...)
+	}
+	return lo.Uniq(out)
+}
+
 // SupportsArch reports whether the package builds for arch; "any" and an
 // undeclared arch match everything.
 func (p *SourcePackage) SupportsArch(arch string) bool {
