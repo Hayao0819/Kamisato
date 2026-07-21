@@ -100,6 +100,22 @@ func TestSelectPackages(t *testing.T) {
 	}
 }
 
+func TestOrderByDeps(t *testing.T) {
+	pkgs := []*pkg.SourcePackage{kamisatoSrc(t, "0.1"), goSrc(t, "1.24")}
+	got := bases(orderByDeps(pkgs, "i686"))
+	if !equalStrings(got, []string{"go", "kamisato"}) {
+		t.Errorf("orderByDeps = %v, want [go kamisato]", got)
+	}
+
+	// A cycle keeps the incoming order instead of failing the build.
+	a := srcinfoPkg(t, "pkgbase = a\n\tpkgver = 1\n\tpkgrel = 1\n\tarch = x86_64\n\tmakedepends = b\n\npkgname = a\n")
+	b := srcinfoPkg(t, "pkgbase = b\n\tpkgver = 1\n\tpkgrel = 1\n\tarch = x86_64\n\tmakedepends = a\n\npkgname = b\n")
+	got = bases(orderByDeps([]*pkg.SourcePackage{a, b}, "x86_64"))
+	if !equalStrings(got, []string{"a", "b"}) {
+		t.Errorf("orderByDeps with cycle = %v, want incoming order [a b]", got)
+	}
+}
+
 func TestDiffPackages(t *testing.T) {
 	src := []*pkg.SourcePackage{
 		srcPkg(t, "newer", "2.0"),   // remote 1.0-1 -> build

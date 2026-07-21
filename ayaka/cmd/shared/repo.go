@@ -21,6 +21,16 @@ func AddRepoServerFlags(cmd *cobra.Command) {
 
 // RepoClient resolves an Ayato client with optional credential overrides.
 func RepoClient(cmd *cobra.Command) (*client.Ayato, error) {
+	server, err := cmd.Flags().GetString("server")
+	if err != nil {
+		return nil, err
+	}
+	return RepoClientAt(cmd, server)
+}
+
+// RepoClientAt is RepoClient with an explicit server selection, for commands
+// whose --server flag keeps a different (legacy) meaning.
+func RepoClientAt(cmd *cobra.Command, server string) (*client.Ayato, error) {
 	tokenFlag, err := cmd.Flags().GetString("token")
 	if err != nil {
 		return nil, err
@@ -34,7 +44,7 @@ func RepoClient(cmd *cobra.Command) (*client.Ayato, error) {
 		return nil, err
 	}
 
-	info, err := ServerFromFlag(cmd)
+	info, err := ResolveAyatoServer(server)
 	if err != nil {
 		return nil, err
 	}

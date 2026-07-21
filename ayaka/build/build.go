@@ -6,12 +6,14 @@
 package build
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"io"
 	"log/slog"
 	"os"
 	"path"
+	"slices"
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
 
@@ -27,13 +29,16 @@ import (
 	"github.com/Hayao0819/Kamisato/pkg/pacman/sign"
 )
 
-// Target keeps signing outside backend configuration.
+// Target keeps signing and publishing outside backend configuration.
 type Target struct {
 	Config      builder.ResolvedConfig
 	Arch        string
 	SignKey     string
 	InstallPkgs []string
 	Output      io.Writer
+	// Publish, when non-nil, uploads a package's built files right after it is
+	// built (and signed), so later builds in the same run can depend on it.
+	Publish func(pkgPaths []string) error
 }
 
 // Package copies the SourcePackage to a temp directory, builds it, and signs it if needed.
@@ -73,6 +78,12 @@ func Package(p *pkg.SourcePackage, target *Target, dest string) error {
 		}
 	}
 
+	if target.Publish != nil {
+		if err := target.Publish(result.Packages); err != nil {
+			return errors.WrapErr(err, "failed to publish packages")
+		}
+	}
+
 	return nil
 }
 
@@ -106,6 +117,25 @@ func filterByArch(pkgs []*pkg.SourcePackage, arch string) []*pkg.SourcePackage {
 		slog.Info("skipping package: arch not supported", "pkgbase", p.Base(), "arch", arch, "supports", p.Arches())
 	}
 	return kept
+}
+
+// orderByDeps sorts pkgs dependencies-first for arch so a --publish run can
+// feed later builds; the incoming order is kept on a dependency cycle.
+func orderByDeps(pkgs []*pkg.SourcePackage, arch string) []*pkg.SourcePackage {
+	order, err := buildDepGraph(pkgs, arch).BuildOrder()
+	if err != nil {
+		slog.Warn("keeping given package order", "err", err)
+		return pkgs
+	}
+	pos := make(map[string]int, len(order))
+	for i, n := range order {
+		pos[n] = i
+	}
+	sorted := slices.Clone(pkgs)
+	slices.SortStableFunc(sorted, func(a, b *pkg.SourcePackage) int {
+		return cmp.Compare(pos[a.Base()], pos[b.Base()])
+	})
+	return sorted
 }
 
 // diffPackages returns the source packages that are newer than (or missing
@@ -144,12 +174,18 @@ func Repo(r *repo.SourceRepo, t *Target, dest string, pkgs ...string) error {
 		slog.Info("No packages to build for arch", "arch", t.Arch)
 		return nil
 	}
+	targetPkgs = orderByDeps(targetPkgs, t.Arch)
 
 	for _, p := range targetPkgs {
 		slog.Info("building package", "pkg", p.Names())
 		if err := Package(p, t, fulldstdir); err != nil {
 			slog.Error("build package failed", "pkg", p.Names(), "err", err)
 			errs = append(errs, err)
+			// When publishing, a later package may depend on this one's upload;
+			// stop instead of building against a stale repo.
+			if t.Publish != nil {
+				break
+			}
 		}
 	}
 	return errors.Join(errs...)
@@ -165,6 +201,7 @@ func Diff(s *repo.SourceRepo, t *Target, rr *repo.RemoteRepo, dest string, pkgs 
 		slog.Info("No packages to build")
 		return nil
 	}
+	toBuild = orderByDeps(toBuild, t.Arch)
 
 	outDir := path.Join(dest, t.Arch)
 	var errs []error
@@ -174,6 +211,9 @@ func Diff(s *repo.SourceRepo, t *Target, rr *repo.RemoteRepo, dest string, pkgs 
 		if err := Package(p, t, outDir); err != nil {
 			slog.Error("Package build failed", "pkgbase", pkgbase, "error", err)
 			errs = append(errs, errors.WrapErr(err, "failed to build package: "+pkgbase))
+			if t.Publish != nil {
+				break
+			}
 			continue
 		}
 		slog.Debug("Package build completed", "pkgbase", pkgbase)
