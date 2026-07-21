@@ -9,6 +9,8 @@ import (
 	"github.com/Hayao0819/Kamisato/ayato/auth"
 )
 
+const cliTokenName = "cli"
+
 func (h *AuthHandler) accessTTL() time.Duration {
 	if h.cfg != nil {
 		return h.cfg.Auth.AccessTokenTTL()
@@ -24,15 +26,15 @@ func (h *AuthHandler) refreshTTL() time.Duration {
 }
 
 // issueAccessRefresh creates a CLI session family.
-func (h *AuthHandler) issueAccessRefresh(githubID int64, login, name string) (access, refresh string, expiresIn int, err error) {
+func (h *AuthHandler) issueAccessRefresh(githubID int64, login string) (access, refresh string, expiresIn int, err error) {
 	sessionID, err := auth.NewJTI()
 	if err != nil {
 		return "", "", 0, err
 	}
-	return h.issueAccessRefreshForSession(githubID, login, name, sessionID, time.Now().Add(h.refreshTTL()))
+	return h.issueAccessRefreshForSession(githubID, login, sessionID, time.Now().Add(h.refreshTTL()))
 }
 
-func (h *AuthHandler) issueAccessRefreshForSession(githubID int64, login, name, sessionID string, refreshExpiresAt time.Time) (access, refresh string, expiresIn int, err error) {
+func (h *AuthHandler) issueAccessRefreshForSession(githubID int64, login, sessionID string, refreshExpiresAt time.Time) (access, refresh string, expiresIn int, err error) {
 	if sessionID == "" || !refreshExpiresAt.After(time.Now()) {
 		return "", "", 0, auth.ErrExpired
 	}
@@ -45,7 +47,7 @@ func (h *AuthHandler) issueAccessRefreshForSession(githubID int64, login, name, 
 		Typ:       auth.TypCLI,
 		GitHubID:  githubID,
 		Login:     login,
-		Name:      name,
+		Name:      cliTokenName,
 		JTI:       accessJTI,
 		SessionID: sessionID,
 		Exp:       time.Now().Add(accessTTL),
@@ -113,7 +115,7 @@ func (h *AuthHandler) RefreshHandler(c *gin.Context) {
 		return
 	}
 
-	access, refresh, expiresIn, err := h.issueAccessRefreshForSession(rec.GitHubID, rec.Login, "cli", sessionID, rec.Exp)
+	access, refresh, expiresIn, err := h.issueAccessRefreshForSession(rec.GitHubID, rec.Login, sessionID, rec.Exp)
 	if err != nil {
 		respondAuthError(c, http.StatusInternalServerError, "token")
 		return

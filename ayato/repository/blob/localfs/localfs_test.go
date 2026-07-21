@@ -17,9 +17,11 @@ type nopSeekCloser struct{ *bytes.Reader }
 
 func (nopSeekCloser) Close() error { return nil }
 
-func seekFile(name string, data []byte) platform.SeekFile {
+const testPackageName = "pkg-1.0-1-x86_64.pkg.tar.zst"
+
+func seekFile(data []byte) platform.SeekFile {
 	return platform.NewFileStream(
-		name,
+		testPackageName,
 		"application/octet-stream",
 		nopSeekCloser{bytes.NewReader(data)},
 	)
@@ -27,13 +29,12 @@ func seekFile(name string, data []byte) platform.SeekFile {
 
 func TestLocalStorePutGetDelete(t *testing.T) {
 	store := localfs.New(t.TempDir(), []string{"myrepo"})
-	const name = "pkg-1.0-1-x86_64.pkg.tar.zst"
 	want := []byte("payload")
 
-	if err := store.StoreFile("myrepo", "x86_64", seekFile(name, want)); err != nil {
+	if err := store.StoreFile("myrepo", "x86_64", seekFile(want)); err != nil {
 		t.Fatalf("StoreFile: %v", err)
 	}
-	file, err := store.FetchFile("myrepo", "x86_64", name)
+	file, err := store.FetchFile("myrepo", "x86_64", testPackageName)
 	if err != nil {
 		t.Fatalf("FetchFile: %v", err)
 	}
@@ -43,29 +44,28 @@ func TestLocalStorePutGetDelete(t *testing.T) {
 		t.Fatalf("FetchFile content = %q, want %q", got, want)
 	}
 
-	if err := store.DeleteFile("myrepo", "x86_64", name); err != nil {
+	if err := store.DeleteFile("myrepo", "x86_64", testPackageName); err != nil {
 		t.Fatalf("DeleteFile: %v", err)
 	}
-	if _, err := store.FetchFile("myrepo", "x86_64", name); !errors.Is(err, blob.ErrNotFound) {
+	if _, err := store.FetchFile("myrepo", "x86_64", testPackageName); !errors.Is(err, blob.ErrNotFound) {
 		t.Fatalf("FetchFile after delete = %v, want ErrNotFound", err)
 	}
 }
 
 func TestLocalStoreCompareAndSwap(t *testing.T) {
 	store := localfs.New(t.TempDir(), []string{"myrepo"})
-	const name = "pkg-1.0-1-x86_64.pkg.tar.zst"
 	if err := store.StoreFileIfMatch(
-		"myrepo", "x86_64", seekFile(name, []byte("v1")), "",
+		"myrepo", "x86_64", seekFile([]byte("v1")), "",
 	); err != nil {
 		t.Fatalf("create-only write: %v", err)
 	}
 	err := store.StoreFileIfMatch(
-		"myrepo", "x86_64", seekFile(name, []byte("clobber")), "",
+		"myrepo", "x86_64", seekFile([]byte("clobber")), "",
 	)
 	if !errors.Is(err, blob.ErrPreconditionFailed) {
 		t.Fatalf("second create-only write = %v, want ErrPreconditionFailed", err)
 	}
-	file, etag, err := store.FetchFileWithETag("myrepo", "x86_64", name)
+	file, etag, err := store.FetchFileWithETag("myrepo", "x86_64", testPackageName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -74,17 +74,17 @@ func TestLocalStoreCompareAndSwap(t *testing.T) {
 		t.Fatal("localfs must return a strong ETag")
 	}
 	if err := store.StoreFileIfMatch(
-		"myrepo", "x86_64", seekFile(name, []byte("v2")), etag,
+		"myrepo", "x86_64", seekFile([]byte("v2")), etag,
 	); err != nil {
 		t.Fatalf("matching update: %v", err)
 	}
 	err = store.StoreFileIfMatch(
-		"myrepo", "x86_64", seekFile(name, []byte("stale")), etag,
+		"myrepo", "x86_64", seekFile([]byte("stale")), etag,
 	)
 	if !errors.Is(err, blob.ErrPreconditionFailed) {
 		t.Fatalf("stale update = %v, want ErrPreconditionFailed", err)
 	}
-	file, err = store.FetchFile("myrepo", "x86_64", name)
+	file, err = store.FetchFile("myrepo", "x86_64", testPackageName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -138,8 +138,7 @@ func TestLocalStoreRejectsTraversalAndUnknownRepo(t *testing.T) {
 
 func TestLocalStoreFilesWithMeta(t *testing.T) {
 	store := localfs.New(t.TempDir(), []string{"myrepo"})
-	const name = "pkg-1.0-1-x86_64.pkg.tar.zst"
-	if err := store.StoreFile("myrepo", "x86_64", seekFile(name, []byte("payload"))); err != nil {
+	if err := store.StoreFile("myrepo", "x86_64", seekFile([]byte("payload"))); err != nil {
 		t.Fatalf("StoreFile: %v", err)
 	}
 
@@ -147,8 +146,8 @@ func TestLocalStoreFilesWithMeta(t *testing.T) {
 	if err != nil {
 		t.Fatalf("FilesWithMeta: %v", err)
 	}
-	if len(infos) != 1 || infos[0].Name != name {
-		t.Fatalf("FilesWithMeta = %v, want one entry named %q", infos, name)
+	if len(infos) != 1 || infos[0].Name != testPackageName {
+		t.Fatalf("FilesWithMeta = %v, want one entry named %q", infos, testPackageName)
 	}
 	if infos[0].LastModified.IsZero() || time.Since(infos[0].LastModified) > time.Hour {
 		t.Errorf("FilesWithMeta ModTime %v is invalid", infos[0].LastModified)

@@ -13,7 +13,7 @@ import (
 )
 
 func TestDeviceApproveRedirectsToGitHub(t *testing.T) {
-	handler, devices, signer := deviceHandler(t, 42)
+	handler, devices, signer := deviceHandler(t)
 	if err := devices.CreateDevice("dc-3", "WXZB-CDFG", deviceCodeTTL); err != nil {
 		t.Fatalf("CreateDevice: %v", err)
 	}
@@ -65,7 +65,7 @@ func TestDeviceApproveRedirectsToGitHub(t *testing.T) {
 }
 
 func TestFinishAndDenyDeviceLogin(t *testing.T) {
-	handler, devices, _ := deviceHandler(t, 42)
+	handler, devices, _ := deviceHandler(t)
 	if err := devices.CreateDevice("dc-approve", "APPR-OVED", deviceCodeTTL); err != nil {
 		t.Fatalf("CreateDevice: %v", err)
 	}
@@ -75,7 +75,7 @@ func TestFinishAndDenyDeviceLogin(t *testing.T) {
 	handler.finishDeviceLogin(
 		context,
 		&auth.Claims{Device: true, UserCode: "APPR-OVED"},
-		githubUser{ID: 42, Login: "alice"},
+		githubUser{ID: testAdminID, Login: "alice"},
 	)
 	if response.Code != http.StatusOK {
 		t.Fatalf("finishDeviceLogin = %d, want 200", response.Code)

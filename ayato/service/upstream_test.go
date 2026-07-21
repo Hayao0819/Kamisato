@@ -35,13 +35,13 @@ func TestUpstreamLayeringAndSync(t *testing.T) {
 	if len(result.Arches) != 1 || !result.Arches[0].Changed {
 		t.Fatalf("first sync = %+v, want one changed arch", result.Arches)
 	}
-	if version, ok := versionOf(t, svc, "myrepo", "x86_64", "foo"); !ok || version != "1.0-1" {
+	if version, ok := versionOf(t, svc, "myrepo", "foo"); !ok || version != "1.0-1" {
 		t.Fatalf("merged foo = %q,%v, want upstream 1.0-1", version, ok)
 	}
-	if version, ok := versionOf(t, svc, "myrepo", "x86_64", "bar"); !ok || version != "2.0-1" {
+	if version, ok := versionOf(t, svc, "myrepo", "bar"); !ok || version != "2.0-1" {
 		t.Fatalf("merged bar = %q,%v, want local 2.0-1", version, ok)
 	}
-	if _, ok := versionOf(t, svc, "myrepo", "x86_64", "baz"); !ok {
+	if _, ok := versionOf(t, svc, "myrepo", "baz"); !ok {
 		t.Fatal("merged view lost local-only baz")
 	}
 
@@ -70,13 +70,13 @@ func TestUpstreamLayeringAndSync(t *testing.T) {
 	if !result.Arches[0].Changed || result.Arches[0].Added != 1 {
 		t.Fatalf("changed sync = %+v, want one addition", result.Arches[0])
 	}
-	if _, ok := versionOf(t, svc, "myrepo", "x86_64", "qux"); !ok {
+	if _, ok := versionOf(t, svc, "myrepo", "qux"); !ok {
 		t.Fatal("merged view did not add upstream qux")
 	}
-	if version, ok := versionOf(t, svc, "myrepo", "x86_64", "bar"); !ok || version != "2.0-1" {
+	if version, ok := versionOf(t, svc, "myrepo", "bar"); !ok || version != "2.0-1" {
 		t.Fatalf("local bar = %q,%v after sync, want 2.0-1", version, ok)
 	}
-	if _, ok := versionOf(t, svc, "myrepo", "x86_64", "baz"); !ok {
+	if _, ok := versionOf(t, svc, "myrepo", "baz"); !ok {
 		t.Fatal("local-only baz did not survive sync")
 	}
 }
@@ -108,10 +108,10 @@ func TestSyncUpstreamKeepsAddressedPhysicalTier(t *testing.T) {
 	if result.Repo != "myrepo-testing" {
 		t.Fatalf("result repo = %q, want addressed physical tier", result.Repo)
 	}
-	if _, ok := versionOf(t, svc, "myrepo-testing", "x86_64", "foo"); !ok {
+	if _, ok := versionOf(t, svc, "myrepo-testing", "foo"); !ok {
 		t.Fatal("testing tier did not receive the upstream snapshot")
 	}
-	if _, ok := versionOf(t, svc, "myrepo", "x86_64", "foo"); ok {
+	if _, ok := versionOf(t, svc, "myrepo", "foo"); ok {
 		t.Fatal("syncing testing unexpectedly rewrote stable")
 	}
 }

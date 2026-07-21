@@ -22,8 +22,8 @@ func postRefresh(t *testing.T, h *AuthHandler, refreshToken string) *httptest.Re
 }
 
 func TestRefreshTokenHasAtMostOneConcurrentWinner(t *testing.T) {
-	handler, _, _ := denylistHandler(t, 42)
-	_, refresh, _, err := handler.issueAccessRefresh(42, "alice", "cli")
+	handler, _, _ := denylistHandler(t)
+	_, refresh, _, err := handler.issueAccessRefresh(42, "alice")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -56,9 +56,9 @@ func TestRefreshTokenHasAtMostOneConcurrentWinner(t *testing.T) {
 // A valid refresh token mints a fresh access token (with a jti), rotates the
 // refresh token, and denylists the consumed one so it cannot be reused.
 func TestRefreshIssuesNewAccessAndRotates(t *testing.T) {
-	h, dl, _ := denylistHandler(t, 42)
+	h, dl, _ := denylistHandler(t)
 
-	_, refresh, _, err := h.issueAccessRefresh(42, "alice", "cli")
+	_, refresh, _, err := h.issueAccessRefresh(42, "alice")
 	if err != nil {
 		t.Fatalf("issueAccessRefresh: %v", err)
 	}
@@ -109,8 +109,8 @@ func TestRefreshIssuesNewAccessAndRotates(t *testing.T) {
 
 // A denylisted refresh token is rejected even before its TTL elapses.
 func TestRefreshRejectsDenylisted(t *testing.T) {
-	h, dl, _ := denylistHandler(t, 42)
-	_, refresh, _, err := h.issueAccessRefresh(42, "alice", "cli")
+	h, dl, _ := denylistHandler(t)
+	_, refresh, _, err := h.issueAccessRefresh(42, "alice")
 	if err != nil {
 		t.Fatalf("issueAccessRefresh: %v", err)
 	}
@@ -124,7 +124,7 @@ func TestRefreshRejectsDenylisted(t *testing.T) {
 
 // An expired refresh token is rejected (the client must re-login).
 func TestRefreshRejectsExpired(t *testing.T) {
-	h, _, signer := denylistHandler(t, 42)
+	h, _, signer := denylistHandler(t)
 	expired, err := signer.Sign(auth.Claims{
 		Typ:      auth.TypRefresh,
 		GitHubID: 42,

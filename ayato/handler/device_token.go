@@ -61,7 +61,7 @@ func (h *AuthHandler) issueDeviceToken(
 		respondAuthError(c, http.StatusBadRequest, "access_denied")
 		return
 	}
-	access, refresh, expiresIn, err := h.issueAccessRefresh(githubID, login, "cli")
+	access, refresh, expiresIn, err := h.issueAccessRefresh(githubID, login)
 	if err != nil {
 		respondAuthError(c, http.StatusInternalServerError, "token")
 		return

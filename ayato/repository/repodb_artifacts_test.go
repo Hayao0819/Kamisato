@@ -15,14 +15,14 @@ import (
 	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
 )
 
-func makePkg(t *testing.T, dir, name, version, arch string) string {
+func makePkg(t *testing.T, dir, name, version string) string {
 	t.Helper()
 	pkginfo := "pkgname = " + name + "\n" +
 		"pkgver = " + version + "\n" +
 		"pkgdesc = test\n" +
-		"arch = " + arch + "\n" +
+		"arch = " + testPackageArch + "\n" +
 		"size = 0\n"
-	output := path.Join(dir, name+"-"+version+"-"+arch+".pkg.tar.zst")
+	output := path.Join(dir, name+"-"+version+"-"+testPackageArch+".pkg.tar.zst")
 	file, err := os.Create(output)
 	if err != nil {
 		t.Fatal(err)
@@ -87,16 +87,16 @@ func TestRepoDBArtifactSet(t *testing.T) {
 			if err := repository.InitArch("r", "x86_64", false, nil); err != nil {
 				t.Fatalf("InitArch: %v", err)
 			}
-			assertSuperset(t, mem.names("r", "x86_64"), want, "InitArch")
+			assertSuperset(t, mem.names(), want, "InitArch")
 			assertAliases(t, repository, mem, "InitArch")
 
-			pkgPath := makePkg(t, t.TempDir(), "foo", "1.0-1", "x86_64")
+			pkgPath := makePkg(t, t.TempDir(), "foo", "1.0-1")
 			if err := repository.RepoAdd(
 				"r", "x86_64", openSeek(t, pkgPath), nil, false, nil,
 			); err != nil {
 				t.Fatalf("RepoAdd: %v", err)
 			}
-			got := mem.names("r", "x86_64")
+			got := mem.names()
 			assertSuperset(t, got, want, "RepoAdd")
 			assertAliases(t, repository, mem, "RepoAdd")
 			if contains(got, path.Base(pkgPath)) {
@@ -110,7 +110,7 @@ func TestRepoDBArtifactSet(t *testing.T) {
 			if err := repository.RepoRemove("r", "x86_64", "foo", false, nil); err != nil {
 				t.Fatalf("RepoRemove: %v", err)
 			}
-			assertSuperset(t, mem.names("r", "x86_64"), want, "RepoRemove")
+			assertSuperset(t, mem.names(), want, "RepoRemove")
 			assertAliases(t, repository, mem, "RepoRemove")
 		})
 	}
@@ -123,7 +123,7 @@ func assertAliases(
 	context string,
 ) {
 	t.Helper()
-	stored := mem.names("r", "x86_64")
+	stored := mem.names()
 	for _, bare := range []string{"r.db", "r.files"} {
 		if contains(stored, bare) {
 			t.Errorf("%s: %q was stored instead of served as an alias", context, bare)

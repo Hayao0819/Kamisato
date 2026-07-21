@@ -18,7 +18,7 @@ func writePkg(t *testing.T, dir, name string, data []byte) string {
 	return p
 }
 
-func verify(t *testing.T, pubPath, pkgPath, sigPath string) (string, error) {
+func verify(t *testing.T, pubPath, pkgPath, sigPath string) error {
 	t.Helper()
 	kr, err := LoadKeyring(pubPath, nil)
 	if err != nil {
@@ -34,7 +34,8 @@ func verify(t *testing.T, pubPath, pkgPath, sigPath string) (string, error) {
 		t.Fatal(err)
 	}
 	defer func() { _ = sig.Close() }()
-	return kr.VerifyDetached(pkg, sig)
+	_, err = kr.VerifyDetached(pkg, sig)
+	return err
 }
 
 func TestHostKeySignerRoundTrip(t *testing.T) {
@@ -51,7 +52,7 @@ func TestHostKeySignerRoundTrip(t *testing.T) {
 	}
 
 	pubPath := filepath.Join(dir, workerCertFile)
-	if _, err := verify(t, pubPath, pkgPath, sigPath); err != nil {
+	if err := verify(t, pubPath, pkgPath, sigPath); err != nil {
 		t.Fatalf("worker signature must verify against the worker cert: %v", err)
 	}
 
@@ -59,7 +60,7 @@ func TestHostKeySignerRoundTrip(t *testing.T) {
 	if err := os.WriteFile(pkgPath, []byte("tampered"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := verify(t, pubPath, pkgPath, sigPath); err == nil {
+	if err := verify(t, pubPath, pkgPath, sigPath); err == nil {
 		t.Fatal("tampered package must not verify")
 	}
 }
@@ -160,7 +161,7 @@ func TestEncryptedKeystore(t *testing.T) {
 	if err != nil {
 		t.Fatalf("sign after reload: %v", err)
 	}
-	if _, err := verify(t, filepath.Join(dir, workerCertFile), pkgPath, sigPath); err != nil {
+	if err := verify(t, filepath.Join(dir, workerCertFile), pkgPath, sigPath); err != nil {
 		t.Fatalf("signature must verify after encrypted reload: %v", err)
 	}
 
@@ -190,7 +191,7 @@ func TestLocalSigner(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Sign: %v", err)
 	}
-	if _, err := verify(t, filepath.Join(dir, workerCertFile), pkgPath, sigPath); err != nil {
+	if err := verify(t, filepath.Join(dir, workerCertFile), pkgPath, sigPath); err != nil {
 		t.Fatalf("locally-signed package must verify: %v", err)
 	}
 	_ = k

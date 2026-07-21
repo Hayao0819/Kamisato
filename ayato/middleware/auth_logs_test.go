@@ -39,7 +39,7 @@ func runLogAccess(
 }
 
 func TestRequireLogAccessOneTimeToken(t *testing.T) {
-	m, _ := testMiddleware(t, 42)
+	m, _ := testMiddleware(t)
 	m.WithLogTokens(fakeLogTokenConsumer{jobs: map[string]string{"valid": "job-1"}})
 
 	if response := runLogAccess(m, "/logs/job-1?token=valid", func(*http.Request) {}); response.Code != http.StatusOK {
@@ -56,7 +56,7 @@ func TestRequireLogAccessOneTimeToken(t *testing.T) {
 }
 
 func TestRequireLogAccessTokenFailureIsFinal(t *testing.T) {
-	m, signer := testMiddleware(t, 42)
+	m, signer := testMiddleware(t)
 	token := cliToken(t, signer, 42, "alice")
 	m.WithLogTokens(fakeLogTokenConsumer{jobs: map[string]string{}})
 
@@ -75,7 +75,7 @@ func TestRequireLogAccessTokenFailureIsFinal(t *testing.T) {
 }
 
 func TestRequireLogAccessFallsBackToAdmin(t *testing.T) {
-	m, signer := testMiddleware(t, 42)
+	m, signer := testMiddleware(t)
 	token := cliToken(t, signer, 42, "alice")
 	response := runLogAccess(m, "/logs/job-1", func(request *http.Request) {
 		request.Header.Set("Authorization", "Bearer "+token)

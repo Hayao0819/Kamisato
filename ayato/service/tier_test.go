@@ -39,8 +39,9 @@ func newTieredService(
 	return svc, cfg, repoDir
 }
 
-func uploadPkg(t *testing.T, svc *service.Service, repo, pkgname string) {
+func uploadFoo(t *testing.T, svc *service.Service, repo string) {
 	t.Helper()
+	const pkgname = "foo"
 	filename := pkgname + "-1.0-1-x86_64.pkg.tar.zst"
 	files := &domain.UploadFiles{
 		PkgFile: pkgStream(filename, buildPackage(t, pkgname, "1.0-1", "x86_64")),
@@ -99,7 +100,7 @@ func TestTieredPromotionFlow(t *testing.T) {
 	})
 	ctx := context.Background()
 
-	uploadPkg(t, svc, "myrepo", "foo")
+	uploadFoo(t, svc, "myrepo")
 	if !has(pkgNames(t, svc, "myrepo-staging", "x86_64"), "foo") {
 		t.Fatal("upload did not land in the staging tier")
 	}

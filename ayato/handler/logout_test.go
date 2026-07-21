@@ -11,7 +11,7 @@ import (
 // LogoutHandler must fail closed against CSRF: a request without a proven
 // same-origin signal is rejected, and only a same-origin caller succeeds.
 func TestLogoutFailsClosedOnCSRF(t *testing.T) {
-	h, _, _ := testHandler(t)
+	h, _ := testHandler(t)
 
 	call := func(setHeaders func(r *http.Request)) int {
 		r := gin.New()

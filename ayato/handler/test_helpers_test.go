@@ -15,6 +15,11 @@ import (
 	"github.com/Hayao0819/Kamisato/ayato/test/mocks"
 )
 
+const (
+	testSecret  = "0123456789abcdef0123456789abcdef" // 32 bytes
+	testAdminID = int64(42)
+)
+
 func setup(t *testing.T) (*gomock.Controller, *mocks.MockServicer, *Set) {
 	t.Helper()
 	gin.SetMode(gin.TestMode)

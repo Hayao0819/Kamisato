@@ -32,6 +32,7 @@ func (spaceReader) Read(p []byte) (int, error) {
 // setup wires the mock service through the production router so tests exercise
 // the same /api/unstable paths (and middleware) the server serves.
 func setup(t *testing.T) (*gomock.Controller, *mocks.MockServicer, http.Handler) {
+	t.Helper()
 	return setupWithVerifier(t, apikey.NewVerifier(nil))
 }
 

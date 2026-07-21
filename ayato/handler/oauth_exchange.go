@@ -88,11 +88,7 @@ func (h *AuthHandler) CLIExchangeHandler(c *gin.Context) {
 	if !ok {
 		return
 	}
-	access, refresh, expiresIn, err := h.issueAccessRefresh(
-		claims.GitHubID,
-		claims.Login,
-		"cli",
-	)
+	access, refresh, expiresIn, err := h.issueAccessRefresh(claims.GitHubID, claims.Login)
 	if err != nil {
 		respondAuthError(c, http.StatusInternalServerError, "token")
 		return

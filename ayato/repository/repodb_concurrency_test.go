@@ -55,8 +55,8 @@ func TestConcurrentWritersReconcileDerivedArtifactsToCanonicalDB(t *testing.T) {
 	canonicalCommitted, release := pauseCanonicalCommit(mem)
 	defer release()
 	dir := t.TempDir()
-	alpha := openSeek(t, makePkg(t, dir, "alpha", "1.0-1", "x86_64"))
-	bravo := openSeek(t, makePkg(t, dir, "bravo", "1.0-1", "x86_64"))
+	alpha := openSeek(t, makePkg(t, dir, "alpha", "1.0-1"))
+	bravo := openSeek(t, makePkg(t, dir, "bravo", "1.0-1"))
 	firstDone := make(chan error, 1)
 	go func() {
 		firstDone <- first.RepoAddBatch("r", "x86_64", []RepoAddItem{{
@@ -115,8 +115,8 @@ func TestPostCanonicalSupersessionReturnsCommittedOutcome(t *testing.T) {
 	canonicalCommitted, release := pauseCanonicalCommit(mem)
 	defer release()
 	dir := t.TempDir()
-	alpha1 := openSeek(t, makePkg(t, dir, "alpha", "1.0-1", "x86_64"))
-	charlie1 := openSeek(t, makePkg(t, dir, "charlie", "1.0-1", "x86_64"))
+	alpha1 := openSeek(t, makePkg(t, dir, "alpha", "1.0-1"))
+	charlie1 := openSeek(t, makePkg(t, dir, "charlie", "1.0-1"))
 	firstDone := make(chan error, 1)
 	go func() {
 		firstDone <- first.RepoAddBatch("r", "x86_64", []RepoAddItem{
@@ -136,7 +136,7 @@ func TestPostCanonicalSupersessionReturnsCommittedOutcome(t *testing.T) {
 	}()
 	waitForSignal(t, canonicalCommitted, "first writer did not commit canonical DB")
 
-	alpha2 := openSeek(t, makePkg(t, dir, "alpha", "2.0-1", "x86_64"))
+	alpha2 := openSeek(t, makePkg(t, dir, "alpha", "2.0-1"))
 	err := second.RepoAddBatch("r", "x86_64", []RepoAddItem{{
 		Pkg:                    alpha2,
 		CheckCurrent:           true,

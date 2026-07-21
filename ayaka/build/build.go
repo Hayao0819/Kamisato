@@ -110,7 +110,7 @@ func filterByArch(pkgs []*pkg.SourcePackage, arch string) []*pkg.SourcePackage {
 
 // diffPackages returns the source packages that are newer than (or missing
 // from) the remote repo rr.
-func diffPackages(src []*pkg.SourcePackage, rr *repo.RemoteRepo) ([]*pkg.SourcePackage, error) {
+func diffPackages(src []*pkg.SourcePackage, rr *repo.RemoteRepo) []*pkg.SourcePackage {
 	var toBuild []*pkg.SourcePackage
 	for _, sp := range src {
 		rp := rr.PkgByPkgBase(sp.Base())
@@ -124,7 +124,7 @@ func diffPackages(src []*pkg.SourcePackage, rr *repo.RemoteRepo) ([]*pkg.SourceP
 			toBuild = append(toBuild, sp)
 		}
 	}
-	return toBuild, nil
+	return toBuild
 }
 
 // Repo builds the named packages in r (all of them when none are named).
@@ -157,10 +157,7 @@ func Repo(r *repo.SourceRepo, t *Target, dest string, pkgs ...string) error {
 
 // Diff builds only the packages in s that are newer than (or missing from) the remote repo rr.
 func Diff(s *repo.SourceRepo, t *Target, rr *repo.RemoteRepo, dest string, pkgs ...string) error {
-	toBuild, err := diffPackages(s.Pkgs, rr)
-	if err != nil {
-		return err
-	}
+	toBuild := diffPackages(s.Pkgs, rr)
 	toBuild = selectPackages(toBuild, pkgs)
 	toBuild = filterByArch(toBuild, t.Arch)
 

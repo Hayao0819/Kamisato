@@ -71,7 +71,7 @@ func TestRepoAddConditionalRejectsConcurrentDowngrade(t *testing.T) {
 		t.Fatal(err)
 	}
 	dir := t.TempDir()
-	oldPath := makePkg(t, dir, "foo", "0.9-1", "x86_64")
+	oldPath := makePkg(t, dir, "foo", "0.9-1")
 	if err := repository.RepoAdd(
 		"r", "x86_64", openSeek(t, oldPath), nil, false, nil,
 	); err != nil {
@@ -87,11 +87,11 @@ func TestRepoAddConditionalRejectsConcurrentDowngrade(t *testing.T) {
 		}}, false, nil)
 	}
 	if err := conditional(openSeek(
-		t, makePkg(t, dir, "foo", "2.0-1", "x86_64"),
+		t, makePkg(t, dir, "foo", "2.0-1"),
 	)); err != nil {
 		t.Fatal(err)
 	}
-	err := conditional(openSeek(t, makePkg(t, dir, "foo", "1.0-1", "x86_64")))
+	err := conditional(openSeek(t, makePkg(t, dir, "foo", "1.0-1")))
 	if !errors.Is(err, ErrPackageChanged) {
 		t.Fatalf("stale publish = %v, want ErrPackageChanged", err)
 	}
@@ -113,7 +113,7 @@ func TestRepoAddReportsCanonicalCommitBeforeDerivedFailure(t *testing.T) {
 	boom := errors.New("files write failed")
 	mem.storeErrName = "r.files.tar.gz"
 	mem.storeErr = boom
-	pkgPath := makePkg(t, t.TempDir(), "foo", "1.0-1", "x86_64")
+	pkgPath := makePkg(t, t.TempDir(), "foo", "1.0-1")
 	if err := mem.StoreFile("r", "x86_64", openSeek(t, pkgPath)); err != nil {
 		t.Fatal(err)
 	}
@@ -152,7 +152,7 @@ func TestRepoAddTreatsCanonicalWriteResponseFailureAsCommitted(t *testing.T) {
 	boom := errors.New("response lost after canonical write")
 	mem.storeAfterErrName = "r.db.tar.gz"
 	mem.storeAfterErr = boom
-	pkgPath := makePkg(t, t.TempDir(), "foo", "1.0-1", "x86_64")
+	pkgPath := makePkg(t, t.TempDir(), "foo", "1.0-1")
 	err := repository.RepoAdd(
 		"r", "x86_64", openSeek(t, pkgPath), nil, false, nil,
 	)

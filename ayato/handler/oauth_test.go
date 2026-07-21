@@ -16,9 +16,7 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/conf"
 )
 
-const testSecret = "0123456789abcdef0123456789abcdef" // 32 bytes
-
-func testHandler(t *testing.T) (*AuthHandler, service.Servicer, *auth.Signer) {
+func testHandler(t *testing.T) (*AuthHandler, *auth.Signer) {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
 	store, err := badgerkv.New(t.TempDir())
@@ -41,12 +39,12 @@ func testHandler(t *testing.T) (*AuthHandler, service.Servicer, *auth.Signer) {
 	}
 
 	h := NewAuthHandler(svc, svc, cfg).WithSigner(signer)
-	return h, svc, signer
+	return h, signer
 }
 
 // Bad ports must 400, not redirect (no open-redirect surface).
 func TestCLIStartRejectsBadPort(t *testing.T) {
-	h, _, _ := testHandler(t)
+	h, _ := testHandler(t)
 
 	bad := []string{"", "abc", "12.5", "-1", "0", "70000", "8080x", "0x1f", " 8080"}
 	for _, p := range bad {
@@ -64,7 +62,7 @@ func TestCLIStartRejectsBadPort(t *testing.T) {
 // A good port redirects to GitHub; the state is the signed token carrying the
 // port, challenge, and ayaka's state.
 func TestCLIStartAcceptsGoodPort(t *testing.T) {
-	h, _, signer := testHandler(t)
+	h, signer := testHandler(t)
 	r := gin.New()
 	r.GET("/cli/start", h.CLIStartHandler)
 
@@ -98,7 +96,7 @@ func TestCLIStartAcceptsGoodPort(t *testing.T) {
 // 127.0.0.1) and the redirect carries a one-time CODE, never an arbitrary target
 // or a token.
 func TestCLILoopbackReconstructedServerSide(t *testing.T) {
-	h, _, signer := testHandler(t)
+	h, signer := testHandler(t)
 
 	rec := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(rec)
@@ -142,7 +140,7 @@ func TestCLILoopbackReconstructedServerSide(t *testing.T) {
 // Login sets the binding cookie and signs its hash into the state, so a callback
 // from a different browser cannot redeem it.
 func TestGitHubLoginBindsStateToBrowser(t *testing.T) {
-	h, _, signer := testHandler(t)
+	h, signer := testHandler(t)
 	r := gin.New()
 	r.GET("/login", h.GitHubLoginHandler)
 

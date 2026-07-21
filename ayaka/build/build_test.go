@@ -108,10 +108,7 @@ func TestDiffPackages(t *testing.T) {
 		},
 	}
 
-	got, err := diffPackages(src, rr)
-	if err != nil {
-		t.Fatalf("diffPackages: %v", err)
-	}
+	got := diffPackages(src, rr)
 	want := []string{"newer", "missing"}
 	if !equalStrings(bases(got), want) {
 		t.Errorf("diffPackages = %v, want %v", bases(got), want)

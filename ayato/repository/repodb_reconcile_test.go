@@ -16,7 +16,7 @@ func TestReconcileDBNeverImportsStaleFilesIntoCanonical(t *testing.T) {
 		t.Fatal(err)
 	}
 	dir := t.TempDir()
-	v1 := makePkg(t, dir, "foo", "1.0-1", "x86_64")
+	v1 := makePkg(t, dir, "foo", "1.0-1")
 	if err := mem.StoreFile("r", "x86_64", openSeek(t, v1)); err != nil {
 		t.Fatal(err)
 	}
@@ -35,7 +35,7 @@ func TestReconcileDBNeverImportsStaleFilesIntoCanonical(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	v2 := makePkg(t, dir, "foo", "2.0-1", "x86_64")
+	v2 := makePkg(t, dir, "foo", "2.0-1")
 	if err := mem.StoreFile("r", "x86_64", openSeek(t, v2)); err != nil {
 		t.Fatal(err)
 	}
@@ -91,7 +91,7 @@ func TestReconcileDBDiscardsCorruptDerivedFiles(t *testing.T) {
 	if err := repository.InitArch("r", "x86_64", false, nil); err != nil {
 		t.Fatal(err)
 	}
-	pkgPath := makePkg(t, t.TempDir(), "foo", "1.0-1", "x86_64")
+	pkgPath := makePkg(t, t.TempDir(), "foo", "1.0-1")
 	if err := mem.StoreFile("r", "x86_64", openSeek(t, pkgPath)); err != nil {
 		t.Fatal(err)
 	}

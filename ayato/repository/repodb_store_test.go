@@ -164,10 +164,15 @@ func (*memStore) FilesWithMeta(string, string) ([]blob.FileInfo, error) {
 }
 func (*memStore) Arches(string) ([]string, error) { return nil, nil }
 
-func (store *memStore) names(repoName, arch string) []string {
+const (
+	testRepoName    = "r"
+	testPackageArch = "x86_64"
+)
+
+func (store *memStore) names() []string {
 	store.mu.Lock()
 	defer store.mu.Unlock()
-	prefix := repoName + "/" + arch + "/"
+	prefix := testRepoName + "/" + testPackageArch + "/"
 	names := make([]string, 0)
 	for key := range store.files {
 		if len(key) > len(prefix) && key[:len(prefix)] == prefix {

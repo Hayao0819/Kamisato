@@ -94,15 +94,9 @@ func (upstream *fakeUpstream) handler() http.HandlerFunc {
 	}
 }
 
-func versionOf(
-	t *testing.T,
-	svc *service.Service,
-	repoName,
-	arch,
-	packageName string,
-) (string, bool) {
+func versionOf(t *testing.T, svc *service.Service, repoName, packageName string) (string, bool) {
 	t.Helper()
-	packages, err := svc.Pkgs(repoName, arch)
+	packages, err := svc.Pkgs(repoName, "x86_64")
 	if err != nil {
 		t.Fatalf("Pkgs: %v", err)
 	}

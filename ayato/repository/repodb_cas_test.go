@@ -17,7 +17,7 @@ func TestRepoDBCASNoLostUpdate(t *testing.T) {
 	dir := t.TempDir()
 	addPackage := func(repository *binaryRepository, name string) {
 		t.Helper()
-		path := makePkg(t, dir, name, "1.0-1", "x86_64")
+		path := makePkg(t, dir, name, "1.0-1")
 		if err := repository.RepoAdd(
 			"r", "x86_64", openSeek(t, path), nil, false, nil,
 		); err != nil {
@@ -53,7 +53,7 @@ func TestInitArchPreservesPopulatedDB(t *testing.T) {
 	if err := repository.InitArch("r", "x86_64", false, nil); err != nil {
 		t.Fatalf("InitArch (create): %v", err)
 	}
-	pkg := makePkg(t, t.TempDir(), "foo", "1.0-1", "x86_64")
+	pkg := makePkg(t, t.TempDir(), "foo", "1.0-1")
 	if err := repository.RepoAdd(
 		"r", "x86_64", openSeek(t, pkg), nil, false, nil,
 	); err != nil {
@@ -77,7 +77,7 @@ func TestRepoRemoveIdempotent(t *testing.T) {
 	if err := repository.InitArch("r", "x86_64", false, nil); err != nil {
 		t.Fatalf("InitArch: %v", err)
 	}
-	pkg := makePkg(t, t.TempDir(), "foo", "1.0-1", "x86_64")
+	pkg := makePkg(t, t.TempDir(), "foo", "1.0-1")
 	if err := repository.RepoAdd(
 		"r", "x86_64", openSeek(t, pkg), nil, false, nil,
 	); err != nil {
@@ -97,7 +97,7 @@ func TestRepoAddSurfacesTransientFetchError(t *testing.T) {
 		t.Fatal(err)
 	}
 	dir := t.TempDir()
-	foo := makePkg(t, dir, "foo", "1.0-1", "x86_64")
+	foo := makePkg(t, dir, "foo", "1.0-1")
 	if err := repository.RepoAdd(
 		"r", "x86_64", openSeek(t, foo), nil, false, nil,
 	); err != nil {
@@ -106,7 +106,7 @@ func TestRepoAddSurfacesTransientFetchError(t *testing.T) {
 
 	boom := errors.New("transient backend error")
 	mem.fetchErr = boom
-	bar := makePkg(t, dir, "bar", "1.0-1", "x86_64")
+	bar := makePkg(t, dir, "bar", "1.0-1")
 	err := repository.RepoAdd(
 		"r", "x86_64", openSeek(t, bar), nil, false, nil,
 	)

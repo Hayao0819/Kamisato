@@ -24,7 +24,7 @@ func TestTieredPromotionKeepInSource(t *testing.T) {
 		Name: "myrepo", Tiered: true, PromotionKeepInSource: true,
 	}})
 
-	uploadPkg(t, svc, "myrepo", "foo")
+	uploadFoo(t, svc, "myrepo")
 	err := svc.PromotePackage(
 		context.Background(),
 		"myrepo",
@@ -50,7 +50,7 @@ func TestPromotionRejectsInvalidRequests(t *testing.T) {
 		{Name: "single"},
 	})
 	ctx := context.Background()
-	uploadPkg(t, svc, "myrepo", "foo")
+	uploadFoo(t, svc, "myrepo")
 
 	tests := []struct {
 		name string
@@ -88,7 +88,7 @@ func TestTieredOffUnchanged(t *testing.T) {
 	if names := catalog.PhysicalNames(); len(names) != 1 || names[0] != "single" {
 		t.Fatalf("PhysicalNames = %v, want [single]", names)
 	}
-	uploadPkg(t, svc, "single", "foo")
+	uploadFoo(t, svc, "single")
 	if !has(pkgNames(t, svc, "single", "x86_64"), "foo") {
 		t.Fatal("upload to a non-tiered repo did not land in the repo")
 	}

@@ -10,7 +10,7 @@ import (
 )
 
 func TestRequireAdminRevokedTokenRejected(t *testing.T) {
-	middleware, signer := testMiddleware(t, 42)
+	middleware, signer := testMiddleware(t)
 	middleware.WithDenylist(fakeDenylist{revoked: map[string]bool{"revoked-jti": true}})
 
 	revoked, err := signer.Sign(auth.Claims{
@@ -43,7 +43,7 @@ func TestRequireAdminRevokedTokenRejected(t *testing.T) {
 }
 
 func TestRequireAdminRevokedSessionFamilyRejected(t *testing.T) {
-	middleware, signer := testMiddleware(t, 42)
+	middleware, signer := testMiddleware(t)
 	middleware.WithDenylist(fakeDenylist{
 		sessionRevoked: map[string]bool{"session-1": true},
 	})
@@ -63,7 +63,7 @@ func TestRequireAdminRevokedSessionFamilyRejected(t *testing.T) {
 }
 
 func TestRequireAdminCookieChecksSessionRevocation(t *testing.T) {
-	middleware, signer := testMiddleware(t, 42)
+	middleware, signer := testMiddleware(t)
 	token, err := signer.Sign(auth.Claims{
 		Typ: auth.TypSession, GitHubID: 42, Login: "alice",
 		SessionID: "session-1", Exp: time.Now().Add(time.Hour),
@@ -106,7 +106,7 @@ func TestRequireAdminCookieChecksSessionRevocation(t *testing.T) {
 }
 
 func TestRequireAdminDenylistFailureFailsClosed(t *testing.T) {
-	middleware, signer := testMiddleware(t, 42)
+	middleware, signer := testMiddleware(t)
 	middleware.WithDenylist(fakeDenylist{err: errors.New("denylist unavailable")})
 	token, err := signer.Sign(auth.Claims{
 		Typ: auth.TypCLI, GitHubID: 42, Login: "alice",
@@ -124,7 +124,7 @@ func TestRequireAdminDenylistFailureFailsClosed(t *testing.T) {
 }
 
 func TestRequireAdminExpiredAccessTokenHint(t *testing.T) {
-	middleware, signer := testMiddleware(t, 42)
+	middleware, signer := testMiddleware(t)
 	expired, err := signer.Sign(auth.Claims{
 		Typ: auth.TypCLI, GitHubID: 42, Login: "alice", Name: "cli",
 		JTI: "a-old", Exp: time.Now().Add(-time.Minute),
@@ -151,7 +151,7 @@ func TestRequireAdminExpiredAccessTokenHint(t *testing.T) {
 }
 
 func TestRequireAdminBasicTokenBlinkyOnly(t *testing.T) {
-	middleware, signer := testMiddleware(t, 42)
+	middleware, signer := testMiddleware(t)
 	token := cliToken(t, signer, 42, "alice")
 	basic := func(request *http.Request) {
 		request.SetBasicAuth("anything", token)

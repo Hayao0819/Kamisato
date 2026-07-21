@@ -80,18 +80,18 @@ func TestSignedDBArtifactsAtomic(t *testing.T) {
 		t.Fatalf("InitArch: %v", err)
 	}
 	dir := t.TempDir()
-	if err := r.RepoAdd("r", "x86_64", openSeek(t, makePkg(t, dir, "foo", "1.0-1", "x86_64")), nil, true, nil); err != nil {
+	if err := r.RepoAdd("r", "x86_64", openSeek(t, makePkg(t, dir, "foo", "1.0-1")), nil, true, nil); err != nil {
 		t.Fatalf("RepoAdd: %v", err)
 	}
 
 	for _, want := range []string{"r.db.tar.gz", "r.db.tar.gz.sig", "r.files.tar.gz", "r.files.tar.gz.sig"} {
-		if !contains(mem.names("r", "x86_64"), want) {
-			t.Errorf("signed artifact %q not stored; got %v", want, mem.names("r", "x86_64"))
+		if !contains(mem.names(), want) {
+			t.Errorf("signed artifact %q not stored; got %v", want, mem.names())
 		}
 	}
 	// The bare sigs are NOT stored; they are served as aliases of the archive sigs.
 	for _, bare := range []string{"r.db.sig", "r.files.sig"} {
-		if contains(mem.names("r", "x86_64"), bare) {
+		if contains(mem.names(), bare) {
 			t.Errorf("%q was stored; it must be served as an alias", bare)
 		}
 	}
@@ -123,10 +123,10 @@ func TestBackfillSignatures(t *testing.T) {
 		t.Fatalf("InitArch: %v", err)
 	}
 	dir := t.TempDir()
-	if err := unsigned.RepoAdd("r", "x86_64", openSeek(t, makePkg(t, dir, "foo", "1.0-1", "x86_64")), nil, false, nil); err != nil {
+	if err := unsigned.RepoAdd("r", "x86_64", openSeek(t, makePkg(t, dir, "foo", "1.0-1")), nil, false, nil); err != nil {
 		t.Fatalf("RepoAdd: %v", err)
 	}
-	if contains(mem.names("r", "x86_64"), "r.db.tar.gz.sig") {
+	if contains(mem.names(), "r.db.tar.gz.sig") {
 		t.Fatal("an unsigned publish must not produce a .sig")
 	}
 	legacyCanonical := reencodeGzipWithLegacyHeader(t, readStored(t, mem, "r.db.tar.gz"))
@@ -143,7 +143,7 @@ func TestBackfillSignatures(t *testing.T) {
 	if err := signed.BackfillSignatures("r", "x86_64"); err != nil {
 		t.Fatalf("BackfillSignatures: %v", err)
 	}
-	if !contains(mem.names("r", "x86_64"), "r.db.tar.gz.sig") {
+	if !contains(mem.names(), "r.db.tar.gz.sig") {
 		t.Fatal("backfill did not create the db signature")
 	}
 	db, afterVersion, err := mem.FetchFileWithETag("r", "x86_64", "r.db.tar.gz")

@@ -18,8 +18,8 @@ import (
 )
 
 // deviceHandler builds a handler with a real kv-backed device store, GitHub OAuth
-// configured, and adminID seeded into the allowlist.
-func deviceHandler(t *testing.T, adminID int64) (*AuthHandler, repository.DeviceRepository, *auth.Signer) {
+// configured, and the test administrator seeded into the allowlist.
+func deviceHandler(t *testing.T) (*AuthHandler, repository.DeviceRepository, *auth.Signer) {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
 	store, err := badgerkv.New(t.TempDir())
@@ -34,7 +34,7 @@ func deviceHandler(t *testing.T, adminID int64) (*AuthHandler, repository.Device
 	cfg.Auth.PublicOrigin = "https://repo.example.com"
 
 	authRepo := repository.NewAuthRepository(store)
-	if err := authRepo.AddAdmin(adminID, "alice"); err != nil {
+	if err := authRepo.AddAdmin(testAdminID, "alice"); err != nil {
 		t.Fatalf("AddAdmin: %v", err)
 	}
 	dev := repository.NewDeviceRepository(store)
@@ -69,7 +69,7 @@ func deviceErr(t *testing.T, w *httptest.ResponseRecorder) string {
 // The full issuance path: a fresh code polls pending, an approval attaches the
 // identity, the next poll mints a CLI token, and the code is then spent.
 func TestDeviceTokenPendingApprovedThenSpent(t *testing.T) {
-	h, dev, signer := deviceHandler(t, 42)
+	h, dev, signer := deviceHandler(t)
 	if err := dev.CreateDevice("dc-1", "BCDF-GHJK", deviceCodeTTL); err != nil {
 		t.Fatalf("CreateDevice: %v", err)
 	}
@@ -78,7 +78,7 @@ func TestDeviceTokenPendingApprovedThenSpent(t *testing.T) {
 		t.Fatalf("pending poll = %d %q, want 400 authorization_pending", w.Code, deviceErr(t, w))
 	}
 
-	if ok, err := dev.ApproveDevice("BCDF-GHJK", 42, "alice"); err != nil || !ok {
+	if ok, err := dev.ApproveDevice("BCDF-GHJK", testAdminID, "alice"); err != nil || !ok {
 		t.Fatalf("ApproveDevice ok=%v err=%v", ok, err)
 	}
 
@@ -94,7 +94,7 @@ func TestDeviceTokenPendingApprovedThenSpent(t *testing.T) {
 	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
 		t.Fatalf("unmarshal token response: %v", err)
 	}
-	if resp.Login != "alice" || resp.ID != 42 {
+	if resp.Login != "alice" || resp.ID != testAdminID {
 		t.Fatalf("response login/id = %q/%d, want alice/42", resp.Login, resp.ID)
 	}
 	if _, err := signer.VerifyTyp(resp.Token, auth.TypCLI); err != nil {
@@ -109,7 +109,7 @@ func TestDeviceTokenPendingApprovedThenSpent(t *testing.T) {
 
 // A denied authorization stops the client immediately with access_denied.
 func TestDeviceTokenDenied(t *testing.T) {
-	h, dev, _ := deviceHandler(t, 42)
+	h, dev, _ := deviceHandler(t)
 	if err := dev.CreateDevice("dc-2", "MNPQ-RSTV", deviceCodeTTL); err != nil {
 		t.Fatalf("CreateDevice: %v", err)
 	}
@@ -123,7 +123,7 @@ func TestDeviceTokenDenied(t *testing.T) {
 
 // An unknown (or expired-and-evicted) device_code reads as expired_token.
 func TestDeviceTokenExpired(t *testing.T) {
-	h, _, _ := deviceHandler(t, 42)
+	h, _, _ := deviceHandler(t)
 	if w := pollDevice(t, h, "does-not-exist"); w.Code != http.StatusBadRequest || deviceErr(t, w) != "expired_token" {
 		t.Fatalf("unknown poll = %d %q, want 400 expired_token", w.Code, deviceErr(t, w))
 	}
@@ -131,7 +131,7 @@ func TestDeviceTokenExpired(t *testing.T) {
 
 // DeviceCodeHandler stores a pending record and advertises the verification URIs.
 func TestDeviceCodeHandlerIssuesPending(t *testing.T) {
-	h, _, _ := deviceHandler(t, 42)
+	h, _, _ := deviceHandler(t)
 	r := gin.New()
 	r.POST("/code", h.DeviceCodeHandler)
 	w := httptest.NewRecorder()
@@ -165,7 +165,7 @@ func TestDeviceCodeHandlerIssuesPending(t *testing.T) {
 // With the poll guard wired, a second poll inside the interval is answered
 // slow_down.
 func TestDeviceTokenSlowDown(t *testing.T) {
-	h, dev, _ := deviceHandler(t, 42)
+	h, dev, _ := deviceHandler(t)
 	store, err := badgerkv.New(t.TempDir())
 	if err != nil {
 		t.Fatalf("badgerkv.New: %v", err)

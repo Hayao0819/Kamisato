@@ -13,8 +13,8 @@ import (
 )
 
 func TestRevokeOldPairInvalidatesAlreadyRotatedSession(t *testing.T) {
-	handler, denylist, _ := denylistHandler(t, 42)
-	oldAccess, oldRefresh, _, err := handler.issueAccessRefresh(42, "alice", "cli")
+	handler, denylist, _ := denylistHandler(t)
+	oldAccess, oldRefresh, _, err := handler.issueAccessRefresh(42, "alice")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -63,7 +63,7 @@ func TestRevokeOldPairInvalidatesAlreadyRotatedSession(t *testing.T) {
 }
 
 func TestLegacyRefreshAdoptsItsJTIAsSessionFamily(t *testing.T) {
-	handler, denylist, signer := denylistHandler(t, 42)
+	handler, denylist, signer := denylistHandler(t)
 	legacy, err := signer.Sign(auth.Claims{
 		Typ:      auth.TypRefresh,
 		GitHubID: 42,

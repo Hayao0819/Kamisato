@@ -19,7 +19,7 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/conf"
 )
 
-func denylistHandler(t *testing.T, adminID int64) (*AuthHandler, *fakeDenylistRepo, *auth.Signer) {
+func denylistHandler(t *testing.T) (*AuthHandler, *fakeDenylistRepo, *auth.Signer) {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
 	store, err := badgerkv.New(t.TempDir())
@@ -32,7 +32,7 @@ func denylistHandler(t *testing.T, adminID int64) (*AuthHandler, *fakeDenylistRe
 	cfg.Auth.PublicOrigin = "https://repo.example.com"
 
 	authRepo := repository.NewAuthRepository(store)
-	if err := authRepo.AddAdmin(adminID, "alice"); err != nil {
+	if err := authRepo.AddAdmin(testAdminID, "alice"); err != nil {
 		t.Fatalf("AddAdmin: %v", err)
 	}
 	dl := &fakeDenylistRepo{}
@@ -45,6 +45,7 @@ func denylistHandler(t *testing.T, adminID int64) (*AuthHandler, *fakeDenylistRe
 }
 
 func jtiOf(t *testing.T, token string) string {
+	t.Helper()
 	return claimsOf(t, token).JTI
 }
 
@@ -68,7 +69,7 @@ func claimsOf(t *testing.T, token string) auth.Claims {
 // A redeemed code must be rejected on replay: the second exchange of the same code
 // reads as used (400). The kv-backed guard closes the window the stateless code leaves open.
 func TestCLIExchangeRejectsCodeReplay(t *testing.T) {
-	h, _, signer := denylistHandler(t, 42)
+	h, _, signer := denylistHandler(t)
 	store, err := badgerkv.New(t.TempDir())
 	if err != nil {
 		t.Fatalf("badgerkv.New: %v", err)
@@ -111,7 +112,7 @@ func TestCLIExchangeRejectsCodeReplay(t *testing.T) {
 // The web bearer exchange must mint a token carrying a jti, and that jti must be
 // honoured by the denylist so MeHandler reads a revoked token as unauthenticated.
 func TestWebExchangeMintsRevocableBearer(t *testing.T) {
-	h, dl, _ := denylistHandler(t, 42)
+	h, dl, _ := denylistHandler(t)
 
 	const verifier = "cli-verifier-cli-verifier-cli-verifier-0123"
 	challenge := oauth2.S256ChallengeFromVerifier(verifier)

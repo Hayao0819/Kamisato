@@ -12,7 +12,10 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/conf"
 )
 
-const testSecret = "0123456789abcdef0123456789abcdef"
+const (
+	testSecret  = "0123456789abcdef0123456789abcdef"
+	testAdminID = int64(42)
+)
 
 type fakeChecker struct {
 	allowed map[int64]bool
@@ -36,13 +39,10 @@ func (denylist fakeDenylist) IsSessionRevoked(sessionID string) (bool, error) {
 	return denylist.sessionRevoked[sessionID], denylist.err
 }
 
-func testMiddleware(t *testing.T, bootstrap int64) (*Middleware, *auth.Signer) {
+func testMiddleware(t *testing.T) (*Middleware, *auth.Signer) {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
-	checker := fakeChecker{allowed: map[int64]bool{}}
-	if bootstrap > 0 {
-		checker.allowed[bootstrap] = true
-	}
+	checker := fakeChecker{allowed: map[int64]bool{testAdminID: true}}
 	signer, err := auth.NewSigner([]string{testSecret})
 	if err != nil {
 		t.Fatalf("NewSigner: %v", err)
@@ -103,7 +103,7 @@ func TestRequireAdminFailsClosedWithoutAuth(t *testing.T) {
 }
 
 func TestRequireAdminNoCredentials(t *testing.T) {
-	middleware, _ := testMiddleware(t, 42)
+	middleware, _ := testMiddleware(t)
 	if response := run(middleware, false, func(*http.Request) {}); response.Code != http.StatusUnauthorized {
 		t.Fatalf("no credentials: status = %d, want 401", response.Code)
 	}
@@ -122,7 +122,7 @@ func TestRequireAdminBearerToken(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			middleware, signer := testMiddleware(t, 42)
+			middleware, signer := testMiddleware(t)
 			token, err := signer.Sign(auth.Claims{
 				Typ: test.tokenType, GitHubID: test.gitHubID,
 				Login: "alice", Exp: time.Now().Add(time.Hour),
@@ -141,7 +141,7 @@ func TestRequireAdminBearerToken(t *testing.T) {
 }
 
 func TestRequireAdminCookieRequiresSecFetch(t *testing.T) {
-	middleware, signer := testMiddleware(t, 42)
+	middleware, signer := testMiddleware(t)
 	token := sessionToken(t, signer, 42, "alice")
 	request := func(site string) *httptest.ResponseRecorder {
 		return run(middleware, false, func(request *http.Request) {
@@ -162,7 +162,7 @@ func TestRequireAdminCookieRequiresSecFetch(t *testing.T) {
 }
 
 func TestRequireAdminCookieOriginFallback(t *testing.T) {
-	middleware, signer := testMiddleware(t, 42)
+	middleware, signer := testMiddleware(t)
 	middleware.cfg.Auth.PublicOrigin = "https://repo.example.com"
 	token := sessionToken(t, signer, 42, "alice")
 	withCookie := func(mutate func(*http.Request)) *httptest.ResponseRecorder {
