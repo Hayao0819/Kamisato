@@ -90,6 +90,48 @@ func revTree(repo *git.Repository, rev string) (*object.Tree, error) {
 	return commit.Tree()
 }
 
+// CommitPaths stages the worktree-relative paths and commits them, the go-git
+// equivalent of `git add -- <paths> && git commit -m <message>`. The author
+// comes from git config; an unset user.name/email fails the commit.
+func CommitPaths(dir string, paths []string, message string) (string, error) {
+	repo, err := git.PlainOpenWithOptions(dir, &git.PlainOpenOptions{DetectDotGit: true})
+	if err != nil {
+		return "", errors.WrapErr(err, "open repo "+dir)
+	}
+	wt, err := repo.Worktree()
+	if err != nil {
+		return "", errors.WrapErr(err, "open worktree")
+	}
+	// Commit snapshots the whole index, so refuse when unrelated changes are
+	// already staged rather than sweeping them into this commit.
+	st, err := wt.Status()
+	if err != nil {
+		return "", errors.WrapErr(err, "read worktree status")
+	}
+	allowed := map[string]struct{}{}
+	for _, p := range paths {
+		allowed[p] = struct{}{}
+	}
+	for file, fs := range st {
+		if _, ok := allowed[file]; ok {
+			continue
+		}
+		if fs.Staging != git.Unmodified && fs.Staging != git.Untracked {
+			return "", errors.NewErr("index already has staged changes: " + file)
+		}
+	}
+	for _, p := range paths {
+		if _, err := wt.Add(p); err != nil {
+			return "", errors.WrapErr(err, "stage "+p)
+		}
+	}
+	hash, err := wt.Commit(message, &git.CommitOptions{})
+	if err != nil {
+		return "", errors.WrapErr(err, "commit")
+	}
+	return hash.String(), nil
+}
+
 // SetRef points refName at hash in the repo at dir, the go-git equivalent of
 // `git update-ref`.
 func SetRef(dir, refName, hash string) error {

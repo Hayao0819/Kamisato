@@ -9,6 +9,7 @@ import (
 	admincmd "github.com/Hayao0819/Kamisato/ayaka/cmd/admin"
 	aurcmd "github.com/Hayao0819/Kamisato/ayaka/cmd/aur"
 	buildcmd "github.com/Hayao0819/Kamisato/ayaka/cmd/build"
+	bumpcmd "github.com/Hayao0819/Kamisato/ayaka/cmd/bump"
 	hookcmd "github.com/Hayao0819/Kamisato/ayaka/cmd/hook"
 	initcmd "github.com/Hayao0819/Kamisato/ayaka/cmd/init"
 	keycmd "github.com/Hayao0819/Kamisato/ayaka/cmd/key"
@@ -65,6 +66,7 @@ func RootCmd() *cobra.Command {
 		aurcmd.Cmd(),
 		buildcmd.Cmd(),
 		plancmd.Cmd(),
+		bumpcmd.Cmd(),
 		mikocmd.Cmd(),
 		hookcmd.Cmd(),
 		admincmd.Cmd(),
