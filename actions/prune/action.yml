@@ -50,7 +50,7 @@ runs:
         # Compute the prune list locally: ayaka reads the checked-out source and the
         # public repo db (no credential needed). --dry-run prints pkgnames to stdout.
         diff_url="${IN_SERVER%/}/repo/${IN_REPO}/${IN_ARCH}"
-        mapfile -t pkgs < <(ayaka repo remove --diff "$IN_REPO" --arch "$IN_ARCH" --diff-url "$diff_url" --dry-run)
+        mapfile -t pkgs < <(ayaka prune "$IN_REPO" --arch "$IN_ARCH" --diff-url "$diff_url" --dry-run)
         if [ ${#pkgs[@]} -eq 0 ]; then
           echo "nothing to prune for ${IN_REPO}/${IN_ARCH}"
           exit 0

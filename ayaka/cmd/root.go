@@ -17,6 +17,7 @@ import (
 	listcmd "github.com/Hayao0819/Kamisato/ayaka/cmd/list"
 	mikocmd "github.com/Hayao0819/Kamisato/ayaka/cmd/miko"
 	plancmd "github.com/Hayao0819/Kamisato/ayaka/cmd/plan"
+	prunecmd "github.com/Hayao0819/Kamisato/ayaka/cmd/prune"
 	repocmd "github.com/Hayao0819/Kamisato/ayaka/cmd/repo"
 	servercmd "github.com/Hayao0819/Kamisato/ayaka/cmd/server"
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
@@ -67,6 +68,7 @@ func RootCmd() *cobra.Command {
 		buildcmd.Cmd(),
 		plancmd.Cmd(),
 		bumpcmd.Cmd(),
+		prunecmd.Cmd(),
 		mikocmd.Cmd(),
 		hookcmd.Cmd(),
 		admincmd.Cmd(),
