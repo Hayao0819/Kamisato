@@ -152,21 +152,6 @@ func remoteBuild(config string) error {
 	return placePackages(ctx, cfg, buildAPI, jobID, dests, job.Packages)
 }
 
-func newBuildClient(cfg *conf.ThomaConfig, base, credential string) (*client.BuildClient, error) {
-	if cfg.Direct() {
-		miko, err := client.NewMiko(base, credential)
-		if err != nil {
-			return nil, err
-		}
-		return miko.BuildClient, nil
-	}
-	ayato, err := client.NewAyato(base, client.StaticBearer(credential))
-	if err != nil {
-		return nil, err
-	}
-	return ayato.BuildClient, nil
-}
-
 // packageDests asks the real makepkg where the output packages belong, so the
 // downloaded artifacts land exactly where yay's --packagelist told it to look.
 func packageDests(mkpkg, config string) ([]string, error) {

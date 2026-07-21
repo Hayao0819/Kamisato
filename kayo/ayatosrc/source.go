@@ -11,11 +11,6 @@ import (
 	"github.com/Hayao0819/Kamisato/kayo/pkgindex"
 )
 
-const (
-	catalogPath = client.CatalogPath
-	pubkeyPath  = client.CatalogPublicKeyPath
-)
-
 type Options struct {
 	Name, BaseURL   string
 	PubKey          string        // explicit hard pin (base64); "" => trust-on-first-use or Insecure

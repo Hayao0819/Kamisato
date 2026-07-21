@@ -106,15 +106,6 @@ func storeRefreshToken(server, token string) (bool, error) {
 	return true, nil
 }
 
-func loadRefreshTokenValue(server string) string {
-	token, err := loadRefreshToken(server)
-	if err != nil {
-		slog.Error("credential state unavailable; refusing refresh token", "server", server, "err", err)
-		return ""
-	}
-	return token
-}
-
 func loadRefreshToken(server string) (string, error) {
 	mode, explicit, stateErr := loadCredentialMode(server)
 	if stateErr != nil {

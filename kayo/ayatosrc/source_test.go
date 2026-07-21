@@ -10,6 +10,7 @@ import (
 	"time"
 
 	ayatoaur "github.com/Hayao0819/Kamisato/ayato/service/aur"
+	"github.com/Hayao0819/Kamisato/internal/client"
 	"github.com/Hayao0819/Kamisato/internal/kayoproto"
 	"github.com/Hayao0819/Kamisato/pkg/aurweb"
 )
@@ -25,7 +26,7 @@ func signedServer(t *testing.T, signer *ayatoaur.CatalogSigner, alg string) *htt
 	t.Helper()
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case catalogPath:
+		case client.CatalogPath:
 			if alg == "none" { // legacy/unsigned envelope
 				payload, _ := json.Marshal(kayoproto.SignedPayload{IssuedAt: time.Now().UTC(), Catalog: testCat})
 				_ = json.NewEncoder(w).Encode(kayoproto.CatalogEnvelope{Payload: payload, Alg: "none"})
@@ -37,7 +38,7 @@ func signedServer(t *testing.T, signer *ayatoaur.CatalogSigner, alg string) *htt
 			}
 			wire, _ := json.Marshal(env) // re-marshal exactly as gin's render does
 			_, _ = w.Write(wire)
-		case pubkeyPath:
+		case client.CatalogPublicKeyPath:
 			_ = json.NewEncoder(w).Encode(map[string]string{"pubkey": signer.PublicKeyB64(), "key_id": signer.KeyID()})
 		default:
 			http.NotFound(w, r)

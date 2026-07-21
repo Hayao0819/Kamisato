@@ -9,8 +9,25 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Hayao0819/Kamisato/internal/client"
 	"github.com/Hayao0819/Kamisato/internal/conf"
 )
+
+func testBuildClient(t *testing.T, cfg *conf.ThomaConfig, base string) *client.BuildClient {
+	t.Helper()
+	if cfg.Direct() {
+		miko, err := client.NewMiko(base, cfg.ApiKey)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return miko.BuildClient
+	}
+	ayato, err := client.NewAyato(base, client.StaticBearer(cfg.ApiKey))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return ayato.BuildClient
+}
 
 // TestPlacePackages drives the pkgname-match + download loop against a stand-in
 // server for both modes, covering the drift and no-match edge cases.
@@ -74,11 +91,8 @@ func TestPlacePackages(t *testing.T) {
 			}
 			dest := filepath.Join(t.TempDir(), tc.destName)
 
-			buildAPI, err := newBuildClient(cfg, srv.URL, cfg.ApiKey)
-			if err != nil {
-				t.Fatal(err)
-			}
-			err = placePackages(context.Background(), cfg, buildAPI, "job-123", []string{dest}, tc.built)
+			buildAPI := testBuildClient(t, cfg, srv.URL)
+			err := placePackages(context.Background(), cfg, buildAPI, "job-123", []string{dest}, tc.built)
 			if tc.wantErr != "" {
 				if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
 					t.Fatalf("err = %v, want substring %q", err, tc.wantErr)

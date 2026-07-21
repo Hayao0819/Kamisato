@@ -62,6 +62,15 @@ func useKeyring(t *testing.T, backend keyring) {
 	t.Cleanup(func() { secretKeyring = previous })
 }
 
+func refreshToken(t *testing.T, server string) string {
+	t.Helper()
+	token, err := loadRefreshToken(server)
+	if err != nil {
+		t.Fatalf("load refresh token: %v", err)
+	}
+	return token
+}
+
 func TestKeyringIdentifiersAndFileFallbackRemainCompatible(t *testing.T) {
 	fake := newFakeKeyring()
 	useKeyring(t, fake)
@@ -83,8 +92,8 @@ func TestKeyringIdentifiersAndFileFallbackRemainCompatible(t *testing.T) {
 	if got := loadAccessTokenValue("https://ayato.example", "file-access"); got != "file-access" {
 		t.Fatalf("file fallback = %q", got)
 	}
-	if got := loadRefreshTokenValue("https://ayato.example"); got != "" {
-		t.Fatalf("refresh token must remain keyring-only, got %q", got)
+	if token, err := loadRefreshToken("https://ayato.example"); token != "" || err == nil {
+		t.Fatalf("unavailable keyring returned token %q, error %v", token, err)
 	}
 }
 
@@ -109,7 +118,7 @@ func TestFailedCredentialDeletionCannotReactivateStaleSecrets(t *testing.T) {
 	if got := loadAccessTokenValue(server, "new-file-token"); got != "" {
 		t.Fatalf("inactive marker allowed a stale credential: %q", got)
 	}
-	if got := loadRefreshTokenValue(server); got != "" {
+	if got := refreshToken(t, server); got != "" {
 		t.Fatalf("inactive marker allowed a stale refresh credential: %q", got)
 	}
 }
@@ -129,7 +138,7 @@ func TestStaticFileFallbackDisablesStaleRefreshWhenKeyringUnavailable(t *testing
 	if got := loadAccessTokenValue(server, "new-static-token"); got != "new-static-token" {
 		t.Fatalf("static file fallback = %q", got)
 	}
-	if got := loadRefreshTokenValue(server); got != "" {
+	if got := refreshToken(t, server); got != "" {
 		t.Fatalf("stale refresh token became active: %q", got)
 	}
 }
@@ -188,7 +197,7 @@ func TestTokenSourcesCoordinateRotationThroughCompatibleStore(t *testing.T) {
 	if token, _ := second.Token(context.Background()); token != "new-access" {
 		t.Fatalf("second source token = %q", token)
 	}
-	if got := loadRefreshTokenValue(server); got != "new-refresh" {
+	if got := refreshToken(t, server); got != "new-refresh" {
 		t.Fatalf("rotated refresh token = %q", got)
 	}
 
@@ -305,8 +314,8 @@ func TestSaveEndpointPreservesCredentials(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if endpoint.Username != "renamed" || endpoint.AccessToken != "access" || loadRefreshTokenValue(server) != "refresh" {
-		t.Fatalf("endpoint update changed credentials: %#v refresh=%q", endpoint, loadRefreshTokenValue(server))
+	if refresh := refreshToken(t, server); endpoint.Username != "renamed" || endpoint.AccessToken != "access" || refresh != "refresh" {
+		t.Fatalf("endpoint update changed credentials: %#v refresh=%q", endpoint, refresh)
 	}
 }
 
@@ -385,7 +394,7 @@ func TestConcurrentCredentialMutationsRemainPairedAndDoNotLoseServers(t *testing
 	if err != nil {
 		t.Fatal(err)
 	}
-	refresh := loadRefreshTokenValue(server)
+	refresh := refreshToken(t, server)
 	if !((endpoint.AccessToken == "access-a" && refresh == "refresh-a") || (endpoint.AccessToken == "access-b" && refresh == "refresh-b")) {
 		t.Fatalf("mixed credential pair: access=%q refresh=%q", endpoint.AccessToken, refresh)
 	}
@@ -421,8 +430,8 @@ func TestClearCredentialsIfCurrentRetainsConcurrentLogin(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if endpoint.AccessToken != "new-access" || loadRefreshTokenValue(server) != "new-refresh" {
-		t.Fatalf("new login was not retained: access=%q refresh=%q", endpoint.AccessToken, loadRefreshTokenValue(server))
+	if refresh := refreshToken(t, server); endpoint.AccessToken != "new-access" || refresh != "new-refresh" {
+		t.Fatalf("new login was not retained: access=%q refresh=%q", endpoint.AccessToken, refresh)
 	}
 
 	current, err := SnapshotCredentials(server)
@@ -440,8 +449,8 @@ func TestClearCredentialsIfCurrentRetainsConcurrentLogin(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if endpoint.AccessToken != "" || loadRefreshTokenValue(server) != "" {
-		t.Fatalf("credentials remain after matching clear: access=%q refresh=%q", endpoint.AccessToken, loadRefreshTokenValue(server))
+	if refresh := refreshToken(t, server); endpoint.AccessToken != "" || refresh != "" {
+		t.Fatalf("credentials remain after matching clear: access=%q refresh=%q", endpoint.AccessToken, refresh)
 	}
 }
 
@@ -464,7 +473,7 @@ func TestFailedOAuthReplacementLeavesDurableDisabledMode(t *testing.T) {
 	if got := loadAccessTokenValue(server, entry.Endpoints[server].AccessToken); got != "" {
 		t.Fatalf("failed replacement re-enabled access token %q", got)
 	}
-	if got := loadRefreshTokenValue(server); got != "" {
+	if got := refreshToken(t, server); got != "" {
 		t.Fatalf("failed replacement re-enabled refresh token %q", got)
 	}
 }
@@ -490,7 +499,7 @@ func TestCorruptCredentialStateFailsClosedForFileAndKeyring(t *testing.T) {
 	if got := loadAccessTokenValue(server, "file-access"); got != "" {
 		t.Fatalf("corrupt state failed open to %q", got)
 	}
-	if got := loadRefreshTokenValue(server); got != "" {
-		t.Fatalf("corrupt state enabled refresh %q", got)
+	if token, err := loadRefreshToken(server); token != "" || err == nil {
+		t.Fatalf("corrupt state returned refresh token %q, error %v", token, err)
 	}
 }
