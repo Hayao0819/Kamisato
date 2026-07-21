@@ -1,32 +1,37 @@
 # Thoma | トーマ
 
-A drop-in `makepkg` that builds on miko instead of locally, so yay works
-unchanged on low-powered machines. Only the compile is sent to the build server;
-the rest (source download, `--packagelist`, install) stays local.
+A `makepkg` drop-in that sends the compile to a miko builder instead of running
+it locally, so an underpowered machine can keep using yay. thoma offloads only
+the build itself. Source download, `--packagelist`, `.SRCINFO`, and the install
+all fall through to the real makepkg on the local box.
 
 ## Modes
 
-`THOMA_MODE` selects where the build runs and where the package comes from:
+`THOMA_MODE` picks where the build runs and where the finished package comes
+from.
 
-- `ayato` (default): submit through an ayato server and install the published,
-  host-signed package from ayato's repo. The build ends up in the shared repo.
-- `direct`: submit straight to a miko builder (set `THOMA_SERVER` to its URL and
-  `THOMA_API_KEY` to a miko key) and install the unsigned artifact pulled from
-  the job. Nothing is published to the shared repo — this is the LAN-dev win:
-  build on a beefy box, install locally, without touching the published repo.
+`ayato` (the default) submits through an ayato server and installs the
+published, host-signed package from ayato's repo. The build lands in the shared
+repo like any other ayato build.
+
+`direct` submits straight to a miko builder. Set `THOMA_SERVER` to the builder's
+URL and `THOMA_API_KEY` to a miko key. thoma pulls the unsigned artifact back
+from the job and installs that; nothing is published. Use it when you want to
+build on a fast box on the LAN and install locally without touching the shared
+repo.
 
 ## Use
 
 ```sh
-ayaka server login https://ayato.example.com   # once, for the token
+ayaka server login https://ayato.example.com   # once, to get the token
 yay --makepkg /usr/bin/thoma -S <pkg>          # or set makepkgbin in yay.conf
 ```
 
 ## Configuration
 
 Settings come from `THOMA_*` environment variables or a
-`.thomarc.{json,toml,yaml}` (snake_case keys, e.g. `api_key`), in the usual
-koanf precedence.
+`.thomarc.{json,toml,yaml}` with snake_case keys (`api_key`), resolved through
+koanf.
 
 | Variable | Meaning | Default |
 |---|---|---|
@@ -38,5 +43,5 @@ koanf precedence.
 | `THOMA_MAKEPKG` | real makepkg | `/usr/bin/makepkg` |
 | `THOMA_TIMEOUT` | timeout, minutes | miko default |
 
-Client-side signing (the old `THOMA_GPGKEY`) is not implemented; packages are
-signed by the build host, so no signing key is read here.
+There is no client-side signing (the old `THOMA_GPGKEY`). The build host signs
+the package, so thoma never reads a signing key.
