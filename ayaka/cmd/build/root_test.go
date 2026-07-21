@@ -1,8 +1,12 @@
 package buildcmd
 
 import (
+	"context"
 	"strings"
 	"testing"
+
+	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
+	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
 )
 
 func TestBuildFlagShape(t *testing.T) {
@@ -32,22 +36,21 @@ func TestBuildFlagShape(t *testing.T) {
 }
 
 func TestBuildSignRequiresKey(t *testing.T) {
-	// --sign without --key should fail in PreRunE; without an app context here,
-	// just confirm --sign is a bool and --key a string with no shorthand.
 	cmd := Cmd()
-	flags := cmd.Flags()
+	app := &shared.App{SrcRepos: []*repo.SourceRepo{
+		{Config: &repo.SrcConfig{Name: "extra"}},
+	}}
+	cmd.SetContext(shared.WithApp(context.Background(), app))
+	cmd.SetArgs([]string{"--sign", "extra"})
+	cmd.SilenceErrors = true
+	cmd.SilenceUsage = true
 
-	if err := flags.Set("sign", "true"); err != nil {
-		t.Fatalf("could not set --sign: %v", err)
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatal("--sign without --key succeeded")
 	}
-	v, err := flags.GetBool("sign")
-	if err != nil || !v {
-		t.Errorf("--sign not set correctly: v=%v err=%v", v, err)
-	}
-
-	// --key has no shorthand -g anymore.
-	if sh := flags.ShorthandLookup("g"); sh != nil {
-		t.Error("shorthand -g must not exist on build")
+	if !strings.Contains(err.Error(), "--sign requires --key") {
+		t.Fatalf("error = %q, want missing --key error", err)
 	}
 }
 

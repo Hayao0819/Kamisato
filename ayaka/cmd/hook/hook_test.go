@@ -31,10 +31,3 @@ func TestUploadFlagShape(t *testing.T) {
 		}
 	}
 }
-
-func TestUploadUseString(t *testing.T) {
-	cmd := hookUploadCmd()
-	if !strings.HasPrefix(cmd.Use, "upload") {
-		t.Errorf("Use = %q, want prefix 'upload'", cmd.Use)
-	}
-}

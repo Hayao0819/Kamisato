@@ -1,35 +1,31 @@
 package mikocmd
 
 import (
-	"bytes"
-	"strings"
 	"testing"
+
+	"github.com/spf13/cobra"
 )
 
-func TestLogsUseString(t *testing.T) {
-	cmd := mikoLogsCmd()
-	if !strings.Contains(cmd.Use, "<job-id>") {
-		t.Errorf("logs Use = %q, want <job-id>", cmd.Use)
+func TestStreamCommandsRequireOneJobID(t *testing.T) {
+	commands := []struct {
+		name string
+		new  func() *cobra.Command
+	}{
+		{name: "logs", new: mikoLogsCmd},
+		{name: "cancel", new: mikoCancelCmd},
 	}
-}
 
-func TestCancelUseString(t *testing.T) {
-	cmd := mikoCancelCmd()
-	if !strings.Contains(cmd.Use, "<job-id>") {
-		t.Errorf("cancel Use = %q, want <job-id>", cmd.Use)
+	for _, command := range commands {
+		t.Run(command.name, func(t *testing.T) {
+			cmd := command.new()
+			if err := cmd.Args(cmd, []string{"job-123"}); err != nil {
+				t.Fatalf("one job ID rejected: %v", err)
+			}
+			for _, args := range [][]string{nil, {"job-1", "job-2"}} {
+				if err := cmd.Args(cmd, args); err == nil {
+					t.Errorf("%d arguments accepted, want exactly one", len(args))
+				}
+			}
+		})
 	}
-}
-
-func TestCancelWritesToCmdOut(t *testing.T) {
-	// Confirm the command writes through cmd.OutOrStdout(), not os.Stdout: drive
-	// the arg-count error path with a buffer injected via SetOut.
-	cmd := mikoCancelCmd()
-	var buf bytes.Buffer
-	cmd.SetOut(&buf)
-	cmd.SetArgs([]string{}) // too few args → error before RunE
-	cmd.SilenceErrors = true
-	cmd.SilenceUsage = true
-	_ = cmd.Execute()
-	// No assertion on buf content: the point is the command compiles with the
-	// injected writer, not os.Stdout.
 }
