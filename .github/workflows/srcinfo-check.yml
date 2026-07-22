@@ -1,0 +1,58 @@
+name: Check .SRCINFO
+
+# Reusable check for repos built with ayaka: the build pipeline reads committed
+# .SRCINFO (the runners have no makepkg), so a stale one silently hides a
+# version bump from ayaka plan/build. Regenerate with ayaka and fail when the
+# result differs from what is committed.
+on:
+  workflow_call:
+    inputs:
+      repos:
+        description: "Space-separated source repo names (repo.json name) to regenerate"
+        required: true
+        type: string
+      version:
+        description: "Kamisato ref to install ayaka from"
+        default: master
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  srcinfo:
+    runs-on: ubuntu-latest
+    container: archlinux:latest
+    steps:
+      - name: Install tooling
+        run: pacman -Syu --noconfirm base-devel git go sudo
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
+          # Dumb-HTTP submodule hosts reject shallow clones; full depth makes
+          # checkout clone submodules without --depth.
+          fetch-depth: 0
+      - uses: Hayao0819/Kamisato/actions/install@master
+        with:
+          ayaka: "true"
+          version: ${{ inputs.version }}
+      - name: Regenerate .SRCINFO
+        env:
+          REPOS: ${{ inputs.repos }}
+        run: |
+          set -euo pipefail
+          # makepkg refuses to run as root, hence the builder user.
+          install -m 0755 "$(command -v ayaka)" /usr/local/bin/ayaka
+          useradd -m builder
+          chown -R builder: .
+          for repo in $REPOS; do
+            sudo -u builder ayaka srcinfo "$repo"
+          done
+      - name: Fail on stale .SRCINFO
+        run: |
+          set -euo pipefail
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          if ! git diff --exit-code --ignore-submodules=dirty; then
+            echo "::error::.SRCINFO is out of date; run 'ayaka srcinfo' and commit the result"
+            exit 1
+          fi
