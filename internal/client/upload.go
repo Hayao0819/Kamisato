@@ -55,14 +55,22 @@ func uploadPackageFiles(ctx context.Context, requester *requester, repo string, 
 		}
 	}
 
-	return requester.execute(ctx, func() error {
-		return uploadMultipart(
-			ctx,
-			requester.transport,
-			requester.transport.endpoint("api", "unstable", "repos", repo, "packages"),
-			packages,
-		)
-	})
+	// One request per package: a batch of large artifacts (kernel + headers)
+	// exceeds proxy body limits (Cloudflare caps requests at 100MB).
+	for _, pkg := range packages {
+		err := requester.execute(ctx, func() error {
+			return uploadMultipart(
+				ctx,
+				requester.transport,
+				requester.transport.endpoint("api", "unstable", "repos", repo, "packages"),
+				[]string{pkg},
+			)
+		})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // uploadMultipart creates a fresh multipart request body.
