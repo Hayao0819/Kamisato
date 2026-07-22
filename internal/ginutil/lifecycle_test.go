@@ -1,4 +1,4 @@
-package platform
+package ginutil
 
 import (
 	"context"
@@ -54,12 +54,31 @@ func TestServeHTTPTracksReadyAndDraining(t *testing.T) {
 	}
 }
 
-func TestServeHTTPRejectsInvalidDependencies(t *testing.T) {
+func TestServeHTTPRejectsNilServer(t *testing.T) {
 	t.Parallel()
 	if err := ServeHTTP(context.Background(), nil, &Readiness{}); err == nil {
 		t.Fatal("ServeHTTP(nil server) succeeded")
 	}
-	if err := ServeHTTP(context.Background(), &http.Server{}, nil); err == nil {
-		t.Fatal("ServeHTTP(nil state) succeeded")
+}
+
+func TestServeHTTPAllowsNilState(t *testing.T) {
+	t.Parallel()
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() {
+		done <- ServeHTTP(ctx, &http.Server{
+			Addr:              "127.0.0.1:0",
+			Handler:           http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}),
+			ReadHeaderTimeout: time.Second,
+		}, nil)
+	}()
+	cancel()
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("ServeHTTP with nil state: %v", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("ServeHTTP did not return after cancellation")
 	}
 }

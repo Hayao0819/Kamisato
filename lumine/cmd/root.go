@@ -6,15 +6,18 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/gin-gonic/gin"
-	sloggin "github.com/samber/slog-gin"
 	"github.com/spf13/cobra"
 
 	"github.com/Hayao0819/Kamisato/internal/client"
 	"github.com/Hayao0819/Kamisato/internal/cliutil"
 	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/internal/errors"
+	"github.com/Hayao0819/Kamisato/internal/ginutil"
 	"github.com/Hayao0819/Kamisato/internal/version"
 	"github.com/Hayao0819/Kamisato/lumine/embed"
 )
@@ -68,22 +71,14 @@ func RootCmd() *cobra.Command {
 				return err
 			}
 
-			if cfg.Debug {
-				cliutil.Setup(slog.LevelDebug, cliutil.ColorEnabled(cmd))
-				gin.SetMode(gin.DebugMode)
-			} else {
-				cliutil.Setup(slog.LevelInfo, cliutil.ColorEnabled(cmd))
-				gin.SetMode(gin.ReleaseMode)
-			}
+			ginutil.Setup(cmd, cfg.Debug)
 
 			static, err := embed.NextHandler()
 			if err != nil {
 				return errors.WrapErr(err, "failed to prepare embedded filesystem")
 			}
 
-			engine := gin.New()
-			engine.Use(gin.Recovery())
-			engine.Use(sloggin.NewWithConfig(slog.Default(), sloggin.Config{DefaultLevel: slog.LevelDebug, HandleGinDebug: true}))
+			engine := ginutil.NewEngine()
 
 			var target *url.URL
 			if cfg.AyatoURL != "" {
@@ -131,11 +126,10 @@ func RootCmd() *cobra.Command {
 
 			engine.NoRoute(gin.WrapH(static))
 
+			ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
+			defer stop()
 			slog.Info("Waiting on address", "addr", cfg.Addr)
-			if err := engine.Run(cfg.Addr); err != nil {
-				return err
-			}
-			return nil
+			return ginutil.ServeHTTP(ctx, ginutil.NewServer(cfg.Addr, engine), nil)
 		},
 		SilenceUsage: true,
 	}

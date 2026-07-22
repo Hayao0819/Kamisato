@@ -1,4 +1,4 @@
-package platform
+package ginutil
 
 import (
 	"context"
@@ -31,13 +31,11 @@ func (s *Readiness) setReady(ready bool) {
 
 // ServeHTTP listens, marks the process ready, and serves until ctx is cancelled or
 // the HTTP server fails. Cancellation first makes the process unready, then
-// waits for in-flight requests before forcibly closing on the deadline.
+// waits for in-flight requests before forcibly closing on the deadline. A nil
+// state is fine for servers without a readiness probe.
 func ServeHTTP(ctx context.Context, server *http.Server, state *Readiness) error {
 	if server == nil {
 		return errors.New("lifecycle: nil HTTP server")
-	}
-	if state == nil {
-		return errors.New("lifecycle: nil readiness state")
 	}
 
 	var listenerConfig net.ListenConfig

@@ -4,28 +4,24 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"github.com/gin-gonic/gin"
-	sloggin "github.com/samber/slog-gin"
 	"github.com/spf13/cobra"
 
 	"github.com/Hayao0819/Kamisato/ayato/auth"
 	"github.com/Hayao0819/Kamisato/ayato/handler"
 	"github.com/Hayao0819/Kamisato/ayato/middleware"
 	"github.com/Hayao0819/Kamisato/ayato/migrate"
-	"github.com/Hayao0819/Kamisato/ayato/platform"
 	"github.com/Hayao0819/Kamisato/ayato/repository"
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
 	"github.com/Hayao0819/Kamisato/ayato/router"
 	"github.com/Hayao0819/Kamisato/ayato/service"
-	"github.com/Hayao0819/Kamisato/internal/cliutil"
 	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/internal/errors"
+	"github.com/Hayao0819/Kamisato/internal/ginutil"
 )
 
 func run(cmd *cobra.Command, _ []string) error {
@@ -48,14 +44,7 @@ func run(cmd *cobra.Command, _ []string) error {
 }
 
 func setupRuntime(cmd *cobra.Command, cfg *conf.AyatoConfig) {
-	if cfg.Debug {
-		cliutil.Setup(slog.LevelDebug, cliutil.ColorEnabled(cmd))
-		slog.Debug("Debug mode enabled")
-		gin.SetMode(gin.DebugMode)
-	} else {
-		cliutil.Setup(slog.LevelInfo, cliutil.ColorEnabled(cmd))
-		gin.SetMode(gin.ReleaseMode)
-	}
+	ginutil.Setup(cmd, cfg.Debug)
 	slog.Debug("Configuration loaded",
 		"port", cfg.Port,
 		"debug", cfg.Debug,
@@ -124,7 +113,7 @@ func runServer(ctx context.Context, cfg *conf.AyatoConfig) (runErr error) {
 		slog.Warn("legacy Basic authentication is enabled only for signer registration; deploy Ayato before Miko, then disable auth.allow_legacy_signer_basic after the rollback window")
 	}
 
-	state := &platform.Readiness{}
+	state := &ginutil.Readiness{}
 	engine, err := buildRouter(cfg, appHandler, appMiddleware, kvStore, state)
 	if err != nil {
 		return err
@@ -134,17 +123,9 @@ func runServer(ctx context.Context, cfg *conf.AyatoConfig) (runErr error) {
 	}
 	slog.Info("All services initialized")
 
-	// No ReadTimeout or WriteTimeout: large bounded uploads, repository downloads,
-	// and proxied miko SSE streams can legitimately be long-lived.
-	server := &http.Server{
-		Addr:              fmt.Sprintf(":%d", cfg.Port),
-		Handler:           engine,
-		ReadHeaderTimeout: 10 * time.Second,
-		IdleTimeout:       120 * time.Second,
-		MaxHeaderBytes:    1 << 20,
-	}
+	server := ginutil.NewServer(fmt.Sprintf(":%d", cfg.Port), engine)
 	slog.Info("Waiting on port", "port", cfg.Port)
-	return platform.ServeHTTP(ctx, server, state)
+	return ginutil.ServeHTTP(ctx, server, state)
 }
 
 func buildRouter(
@@ -152,19 +133,14 @@ func buildRouter(
 	appHandler *handler.Set,
 	appMiddleware *middleware.Middleware,
 	kvStore kv.Store,
-	state *platform.Readiness,
+	state *ginutil.Readiness,
 ) (*gin.Engine, error) {
-	engine := gin.New()
+	engine := ginutil.NewEngine()
 	engine.Use(
-		gin.Recovery(),
-		sloggin.NewWithConfig(slog.Default(), sloggin.Config{DefaultLevel: slog.LevelDebug, HandleGinDebug: true}),
 		appMiddleware.SecurityHeaders(),
 		appMiddleware.RejectMutationsWhenNotReady(state),
 	)
 
-	if err := engine.SetTrustedProxies(nil); err != nil {
-		return nil, errors.WrapErr(err, "failed to reset trusted proxies")
-	}
 	if len(cfg.Auth.TrustedProxies) > 0 {
 		if err := engine.SetTrustedProxies(cfg.Auth.TrustedProxies); err != nil {
 			return nil, errors.WrapErr(err, "failed to set trusted proxies")

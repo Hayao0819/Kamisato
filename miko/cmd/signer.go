@@ -1,16 +1,14 @@
 package cmd
 
 import (
-	"context"
 	"fmt"
 	"log/slog"
-	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
+	"github.com/Hayao0819/Kamisato/internal/ginutil"
 
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/cobra"
@@ -59,26 +57,11 @@ func signerCmd() *cobra.Command {
 				slog.Warn("signer service authentication explicitly disabled")
 			}
 
-			srv := &http.Server{
-				Addr:              fmt.Sprintf(":%d", cfg.Port),
-				Handler:           signer.Handler(hostSigner, verifier, cfg.MaxSize),
-				ReadHeaderTimeout: 10 * time.Second,
-			}
+			srv := ginutil.NewServer(fmt.Sprintf(":%d", cfg.Port), signer.Handler(hostSigner, verifier, cfg.MaxSize))
 			ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
 			defer stop()
-			go func() {
-				slog.Info("signer service listening", "port", cfg.Port)
-				if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-					slog.Error("signer server error", "error", err)
-					stop()
-				}
-			}()
-
-			<-ctx.Done()
-			slog.Info("Shutting down signer service")
-			shutdownCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-			defer cancel()
-			return srv.Shutdown(shutdownCtx)
+			slog.Info("signer service listening", "port", cfg.Port)
+			return ginutil.ServeHTTP(ctx, srv, nil)
 		},
 	}
 }

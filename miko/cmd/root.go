@@ -4,23 +4,20 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
 	"syscall"
 	"time"
 
-	sloggin "github.com/samber/slog-gin"
-
 	"github.com/Hayao0819/Kamisato/internal/errors"
 
-	"github.com/gin-gonic/gin"
 	"github.com/spf13/cobra"
 
 	"github.com/Hayao0819/Kamisato/internal/auth/apikey"
 	"github.com/Hayao0819/Kamisato/internal/cliutil"
 	"github.com/Hayao0819/Kamisato/internal/conf"
+	"github.com/Hayao0819/Kamisato/internal/ginutil"
 	"github.com/Hayao0819/Kamisato/internal/version"
 	"github.com/Hayao0819/Kamisato/miko/handler"
 	"github.com/Hayao0819/Kamisato/miko/router"
@@ -131,14 +128,7 @@ func RootCmd() *cobra.Command {
 				slog.Info("Loaded from config file", "path", configFile)
 			}
 
-			if cfg.Debug {
-				cliutil.Setup(slog.LevelDebug, cliutil.ColorEnabled(cmd))
-				slog.Debug("Debug mode enabled")
-				gin.SetMode(gin.DebugMode)
-			} else {
-				cliutil.Setup(slog.LevelInfo, cliutil.ColorEnabled(cmd))
-				gin.SetMode(gin.ReleaseMode)
-			}
+			ginutil.Setup(cmd, cfg.Debug)
 
 			slog.Debug("Configuration loaded", "port", cfg.Port, "debug", cfg.Debug, "executor", cfg.Executor)
 
@@ -187,45 +177,26 @@ func RootCmd() *cobra.Command {
 			}()
 			slog.Info("Build workers launched", "concurrency", cfg.Concurrency)
 
-			engine := gin.New()
-			engine.Use(gin.Recovery())
-			engine.Use(sloggin.NewWithConfig(slog.Default(), sloggin.Config{DefaultLevel: slog.LevelDebug, HandleGinDebug: true}))
+			engine := ginutil.NewEngine()
 			if err := router.SetRoute(engine, h, verifier); err != nil {
 				return errors.WrapErr(err, "failed to set routing")
 			}
 			slog.Info("Routing initialized")
 
-			// No WriteTimeout: it would kill healthy long-lived SSE log streams.
-			// The per-flush write deadline in JobLogsHandler covers stuck writers.
-			srv := &http.Server{
-				Addr:              fmt.Sprintf(":%d", cfg.Port),
-				Handler:           engine,
-				ReadHeaderTimeout: 10 * time.Second,
-				IdleTimeout:       120 * time.Second,
-			}
-			go func() {
-				slog.Info("Waiting on port", "port", cfg.Port)
-				if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-					slog.Error("server error", "error", err)
-					stop()
-				}
-			}()
+			srv := ginutil.NewServer(fmt.Sprintf(":%d", cfg.Port), engine)
+			slog.Info("Waiting on port", "port", cfg.Port)
+			serveErr := ginutil.ServeHTTP(ctx, srv, nil)
+			// A serve failure returns without ctx being cancelled; stop the
+			// workers explicitly or the wait below would never end.
+			stop()
 
-			<-ctx.Done()
-			slog.Info("Shutting down")
-			shutdownCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-			defer cancel()
-			shutdownErr := srv.Shutdown(shutdownCtx)
 			var workerErr error
 			select {
 			case <-serviceDone:
-			case <-shutdownCtx.Done():
-				workerErr = errors.WrapErr(shutdownCtx.Err(), "build workers did not stop before shutdown deadline")
+			case <-time.After(15 * time.Second):
+				workerErr = errors.NewErr("build workers did not stop before shutdown deadline")
 			}
-			return errors.Join(
-				errors.WrapErr(shutdownErr, "graceful HTTP shutdown failed"),
-				workerErr,
-			)
+			return errors.Join(serveErr, workerErr)
 		},
 	}
 	cmd.PersistentFlags().BoolP("debug", "d", false, "Enable debug mode")

@@ -1,5 +1,5 @@
 // Package platform contains Ayato's layer-neutral technical building blocks:
-// HTTP representations and security, process lifecycle, shared rate limits, and
+// HTTP representations and security, shared rate limits, and
 // portable file streams.
 //
 // It does not depend on Ayato's domain, service, repository, or transport layers.

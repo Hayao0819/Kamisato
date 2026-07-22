@@ -9,8 +9,6 @@ import (
 	"syscall"
 	"time"
 
-	sloggin "github.com/samber/slog-gin"
-
 	"github.com/Hayao0819/Kamisato/internal/errors"
 
 	"github.com/gin-gonic/gin"
@@ -18,6 +16,7 @@ import (
 
 	"github.com/Hayao0819/Kamisato/internal/cliutil"
 	"github.com/Hayao0819/Kamisato/internal/conf"
+	"github.com/Hayao0819/Kamisato/internal/ginutil"
 	"github.com/Hayao0819/Kamisato/internal/version"
 	ayatocmd "github.com/Hayao0819/Kamisato/kayo/cmd/ayato"
 	hookcmd "github.com/Hayao0819/Kamisato/kayo/cmd/hook"
@@ -57,13 +56,7 @@ func run(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 
-	if cfg.Debug {
-		cliutil.Setup(slog.LevelDebug, cliutil.ColorEnabled(cmd))
-		gin.SetMode(gin.DebugMode)
-	} else {
-		cliutil.Setup(slog.LevelInfo, cliutil.ColorEnabled(cmd))
-		gin.SetMode(gin.ReleaseMode)
-	}
+	ginutil.Setup(cmd, cfg.Debug)
 
 	ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -110,37 +103,16 @@ func run(cmd *cobra.Command, _ []string) error {
 		go refreshLoop(ctx, comp, time.Duration(cfg.RefreshMinutes)*time.Minute)
 	}
 
-	engine := gin.New()
-	engine.Use(gin.Recovery(), sloggin.NewWithConfig(slog.Default(), sloggin.Config{DefaultLevel: slog.LevelDebug, HandleGinDebug: true}))
-	if err := engine.SetTrustedProxies(nil); err != nil {
-		return errors.WrapErr(err, "failed to reset trusted proxies")
-	}
+	engine := ginutil.NewEngine()
 	engine.GET("/health", func(c *gin.Context) { c.String(http.StatusOK, "ok") })
 	// Approved packages are served from their pinned local repo (variant B);
 	// everything else (/rpc, unmanaged /<pkgbase>.git redirects, /cgit, dumps)
 	// falls through to the aurweb surface.
 	engine.NoRoute(gin.WrapH(gitserve.NewHandler(cfg.ServedRoot(), srv)))
 
-	httpSrv := &http.Server{
-		Addr:              cfg.ListenAddr(),
-		Handler:           engine,
-		ReadHeaderTimeout: 10 * time.Second,
-		IdleTimeout:       120 * time.Second,
-		MaxHeaderBytes:    1 << 20,
-	}
-
-	go func() {
-		slog.Info("kayo listening", "addr", cfg.ListenAddr())
-		if err := httpSrv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			slog.Error("server error", "error", err)
-			stop()
-		}
-	}()
-
-	<-ctx.Done()
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	return httpSrv.Shutdown(shutdownCtx)
+	httpSrv := ginutil.NewServer(cfg.ListenAddr(), engine)
+	slog.Info("kayo listening", "addr", cfg.ListenAddr())
+	return ginutil.ServeHTTP(ctx, httpSrv, nil)
 }
 
 func refreshLoop(ctx context.Context, comp *federate.Composite, every time.Duration) {
