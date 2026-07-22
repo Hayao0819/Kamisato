@@ -5,7 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
+	"github.com/Hayao0819/Kamisato/ayaka/service/report"
 	"github.com/Hayao0819/Kamisato/internal/cliutil"
 )
 
@@ -14,7 +14,7 @@ func TestListFormatFlagResolution(t *testing.T) {
 		args []string
 		want string
 	}{
-		{nil, shared.DefaultListFormat},
+		{nil, report.DefaultListFormat},
 		{[]string{"--json"}, "json"},
 		{[]string{"-F", "json"}, "json"},
 		{[]string{"-F", "{{.Package}}"}, "{{.Package}}"},
@@ -29,7 +29,7 @@ func TestListFormatFlagResolution(t *testing.T) {
 			if err := cmd.ParseFlags(tc.args); err != nil {
 				t.Fatalf("ParseFlags: %v", err)
 			}
-			got, err := cliutil.ResolveFormat(cmd, shared.DefaultListFormat)
+			got, err := cliutil.ResolveFormat(cmd, report.DefaultListFormat)
 			if err != nil {
 				t.Fatalf("ResolveFormat: %v", err)
 			}

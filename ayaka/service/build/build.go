@@ -1,26 +1,19 @@
-// Package build は ayaka のパッケージビルド操作をまとめる。
-//
-// もとは pkg/pacman/{pkg,repo} のメソッドだったが、builder(Docker SDK 依存)を
-// ドメイン型に持ち込み、配布専用の ayato まで Docker を巻き込んでいた。利用者は
-// ayaka だけなのでこちらへ移した。置き場所は暫定。
+// Package build executes package builds: it drives a builder backend over the
+// selected source packages in dependency order, then signs and (optionally)
+// publishes each result. Planning what to build lives in service/plan.
 package build
 
 import (
-	"cmp"
 	"context"
 	"fmt"
 	"io"
 	"log/slog"
 	"os"
 	"path"
-	"slices"
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
 
 	"github.com/otiai10/copy"
-	"github.com/samber/lo"
-
-	alpm "github.com/Hayao0819/dyalpm"
 
 	"github.com/Hayao0819/Kamisato/pkg/pacman/builder"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/builder/factory"
@@ -87,76 +80,6 @@ func Package(p *pkg.SourcePackage, target *Target, dest string) error {
 	return nil
 }
 
-// selectPackages returns the packages in pkgs whose pkgbase or any sub-package
-// name is in names; all of them when names is empty.
-func selectPackages(pkgs []*pkg.SourcePackage, names []string) []*pkg.SourcePackage {
-	if len(names) == 0 {
-		return pkgs
-	}
-	var selected []*pkg.SourcePackage
-	for _, name := range names {
-		for _, p := range pkgs {
-			if name == p.Base() || lo.Contains(p.Names(), name) {
-				selected = append(selected, p)
-				break
-			}
-		}
-	}
-	return selected
-}
-
-// filterByArch drops packages whose arch=() excludes arch ("any" matches all), so
-// a mixed-arch source repo builds only what each PKGBUILD supports.
-func filterByArch(pkgs []*pkg.SourcePackage, arch string) []*pkg.SourcePackage {
-	var kept []*pkg.SourcePackage
-	for _, p := range pkgs {
-		if p.SupportsArch(arch) {
-			kept = append(kept, p)
-			continue
-		}
-		slog.Info("skipping package: arch not supported", "pkgbase", p.Base(), "arch", arch, "supports", p.Arches())
-	}
-	return kept
-}
-
-// orderByDeps sorts pkgs dependencies-first for arch so a --publish run can
-// feed later builds; the incoming order is kept on a dependency cycle.
-func orderByDeps(pkgs []*pkg.SourcePackage, arch string) []*pkg.SourcePackage {
-	order, err := buildDepGraph(pkgs, arch).BuildOrder()
-	if err != nil {
-		slog.Warn("keeping given package order", "err", err)
-		return pkgs
-	}
-	pos := make(map[string]int, len(order))
-	for i, n := range order {
-		pos[n] = i
-	}
-	sorted := slices.Clone(pkgs)
-	slices.SortStableFunc(sorted, func(a, b *pkg.SourcePackage) int {
-		return cmp.Compare(pos[a.Base()], pos[b.Base()])
-	})
-	return sorted
-}
-
-// diffPackages returns the source packages that are newer than (or missing
-// from) the remote repo rr.
-func diffPackages(src []*pkg.SourcePackage, rr *repo.RemoteRepo) []*pkg.SourcePackage {
-	var toBuild []*pkg.SourcePackage
-	for _, sp := range src {
-		rp := rr.PkgByPkgBase(sp.Base())
-		if rp == nil {
-			slog.Warn("Package does not exist in remote repository", "pkgbase", sp.Base())
-			toBuild = append(toBuild, sp)
-			continue
-		}
-		if alpm.VerCmp(sp.Version(), rp.Version()) > 0 {
-			slog.Debug("Local package is newer", "pkgbase", sp.Base(), "local", sp.Version(), "remote", rp.Version())
-			toBuild = append(toBuild, sp)
-		}
-	}
-	return toBuild
-}
-
 // Repo builds the named packages in r (all of them when none are named).
 func Repo(r *repo.SourceRepo, t *Target, dest string, pkgs ...string) error {
 	fulldstdir := path.Join(dest, t.Arch)
@@ -165,16 +88,16 @@ func Repo(r *repo.SourceRepo, t *Target, dest string, pkgs ...string) error {
 		return err
 	}
 
-	targetPkgs := selectPackages(r.Pkgs, pkgs)
+	targetPkgs := repo.SelectPackages(r.Pkgs, pkgs)
 	if len(targetPkgs) == 0 {
 		return fmt.Errorf("no packages found")
 	}
-	targetPkgs = filterByArch(targetPkgs, t.Arch)
+	targetPkgs = repo.FilterByArch(targetPkgs, t.Arch)
 	if len(targetPkgs) == 0 {
 		slog.Info("No packages to build for arch", "arch", t.Arch)
 		return nil
 	}
-	targetPkgs = orderByDeps(targetPkgs, t.Arch)
+	targetPkgs = repo.OrderByDeps(targetPkgs, t.Arch)
 
 	for _, p := range targetPkgs {
 		slog.Info("building package", "pkg", p.Names())
@@ -193,15 +116,15 @@ func Repo(r *repo.SourceRepo, t *Target, dest string, pkgs ...string) error {
 
 // Diff builds only the packages in s that are newer than (or missing from) the remote repo rr.
 func Diff(s *repo.SourceRepo, t *Target, rr *repo.RemoteRepo, dest string, pkgs ...string) error {
-	toBuild := diffPackages(s.Pkgs, rr)
-	toBuild = selectPackages(toBuild, pkgs)
-	toBuild = filterByArch(toBuild, t.Arch)
+	toBuild := repo.DiffPackages(s.Pkgs, rr)
+	toBuild = repo.SelectPackages(toBuild, pkgs)
+	toBuild = repo.FilterByArch(toBuild, t.Arch)
 
 	if len(toBuild) == 0 {
 		slog.Info("No packages to build")
 		return nil
 	}
-	toBuild = orderByDeps(toBuild, t.Arch)
+	toBuild = repo.OrderByDeps(toBuild, t.Arch)
 
 	outDir := path.Join(dest, t.Arch)
 	var errs []error

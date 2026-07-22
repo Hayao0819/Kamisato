@@ -3,19 +3,15 @@ package hookcmd
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"path/filepath"
 	"time"
 
-	"github.com/samber/lo"
 	"github.com/spf13/cobra"
 
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
+	"github.com/Hayao0819/Kamisato/ayaka/service/hook"
 	"github.com/Hayao0819/Kamisato/internal/errors"
-	"github.com/Hayao0819/Kamisato/pkg/pacman"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/hook"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/makepkgconf"
-	pacmanpkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
+	pacmanhook "github.com/Hayao0819/Kamisato/pkg/pacman/hook"
 )
 
 // hookUploadCmd is the hook's pacman entry point. pacman does not copy
@@ -32,57 +28,15 @@ func hookUploadCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			names := args
 			if len(names) == 0 {
-				names = hook.StdinTargets()
+				names = pacmanhook.StdinTargets()
 			}
 			if len(names) == 0 {
 				return nil
 			}
 
-			// By default only publish foreign (AUR/local) packages; the hook's
-			// Target=* otherwise fires for every official-repo package, which
-			// already lives on mirrors.
-			if !all {
-				foreign, err := pacman.ForeignPackages()
-				if err != nil {
-					return errors.WrapErr(err, "could not determine foreign packages; pass --all to upload every target")
-				}
-				names = lo.Filter(names, func(name string, _ int) bool {
-					return foreign[name]
-				})
-				if len(names) == 0 {
-					slog.Info("no foreign (AUR/local) packages to upload in this transaction")
-					return nil
-				}
-			}
-
-			// Search build-output dirs (PKGDEST / --build-dir) before the cache:
-			// foreign packages live in the former, repo downloads in the latter.
-			dirs := cacheOverride
-			if len(dirs) == 0 {
-				dirs = append([]string{}, buildDirs...)
-				if config, err := makepkgconf.Read(); err == nil && config.PKGDEST != "" {
-					dirs = append(dirs, config.PKGDEST)
-				}
-				dirs = append(dirs, pacman.CacheDirs(pacmanConf)...)
-			}
-
-			installed, err := pacman.InstalledVersions()
+			files, err := hook.CollectFiles(names, all, cacheOverride, buildDirs, pacmanConf)
 			if err != nil {
-				return errors.WrapErr(err, "read installed package versions")
-			}
-			var files []string
-			for _, name := range names {
-				ver, ok := installed[name]
-				if !ok {
-					slog.Warn("skipping package not in the local db", "name", name)
-					continue
-				}
-				path, ok := pacmanpkg.FindCached(dirs, name, ver)
-				if !ok {
-					slog.Warn("no package file found; skipping upload (set makepkg PKGDEST or --build-dir for locally-built packages)", "name", name, "version", ver)
-					continue
-				}
-				files = append(files, path)
+				return err
 			}
 			if len(files) == 0 {
 				return nil

@@ -1,6 +1,8 @@
-package build
+package plan
 
 import (
+	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
 
@@ -8,6 +10,31 @@ import (
 	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
 	"github.com/Hayao0819/Kamisato/pkg/raiou"
 )
+
+// srcinfoPkg opens a SourcePackage from a raw .SRCINFO body.
+func srcinfoPkg(t *testing.T, srcinfo string) *pkg.SourcePackage {
+	t.Helper()
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, ".SRCINFO"), []byte(srcinfo), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	p, err := pkg.OpenSourcePackage(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return p
+}
+
+func remoteBin(base, ver string, mutate ...func(*raiou.PKGINFO)) *pkg.BinaryPackage {
+	info := raiou.NewPKGINFO()
+	info.PkgBase = base
+	info.PkgName = base
+	info.PkgVer = ver
+	for _, m := range mutate {
+		m(info)
+	}
+	return pkg.NewBinaryPackage(base+"-"+ver+".pkg.tar.zst", info)
+}
 
 // goSrc self-hosts go for 32bit only; kamisatoSrc makedepends on it (via its
 // go-pie provide, exercising provider resolution) and also builds for x86_64.
@@ -34,33 +61,6 @@ pkgname = kamisato
 `)
 }
 
-func TestBuildDepGraphPerArch(t *testing.T) {
-	pkgs := []*pkg.SourcePackage{goSrc(t, "1.24"), kamisatoSrc(t, "0.1")}
-
-	g32 := buildDepGraph(filterByArch(pkgs, "i686"), "i686")
-	if got := g32.Deps("kamisato"); !reflect.DeepEqual(got, []string{"go"}) {
-		t.Errorf("i686 deps of kamisato = %v, want [go]", got)
-	}
-
-	g64 := buildDepGraph(filterByArch(pkgs, "x86_64"), "x86_64")
-	if got := g64.Deps("kamisato"); len(got) != 0 {
-		t.Errorf("x86_64 deps of kamisato = %v, want none (go is external there)", got)
-	}
-}
-
-func TestBuildDepGraphProvidesCannotShadowRealPackage(t *testing.T) {
-	foo := srcinfoPkg(t, "pkgbase = foo\n\tpkgver = 1.0\n\tpkgrel = 1\n\tarch = x86_64\n\npkgname = foo\n")
-	bar := srcinfoPkg(t, "pkgbase = bar\n\tpkgver = 1.0\n\tpkgrel = 1\n\tarch = x86_64\n\tprovides = foo\n\npkgname = bar\n")
-	baz := srcinfoPkg(t, "pkgbase = baz\n\tpkgver = 1.0\n\tpkgrel = 1\n\tarch = x86_64\n\tmakedepends = foo\n\npkgname = baz\n")
-
-	for _, pkgs := range [][]*pkg.SourcePackage{{foo, bar, baz}, {bar, foo, baz}} {
-		g := buildDepGraph(pkgs, "x86_64")
-		if got := g.Deps("baz"); !reflect.DeepEqual(got, []string{"foo"}) {
-			t.Errorf("deps of baz = %v, want [foo] regardless of package order", got)
-		}
-	}
-}
-
 func TestComputePlanMakedependsCascade(t *testing.T) {
 	pkgs := []*pkg.SourcePackage{goSrc(t, "1.25"), kamisatoSrc(t, "0.1")}
 	rr := &repo.RemoteRepo{Name: "test", Pkgs: []*pkg.BinaryPackage{
@@ -68,7 +68,7 @@ func TestComputePlanMakedependsCascade(t *testing.T) {
 		remoteBin("kamisato", "0.1-1"),
 	}}
 
-	plan, err := ComputePlan(pkgs, rr, "i686", CascadeMakeDepends, 0, nil)
+	plan, err := Compute(pkgs, rr, "i686", CascadeMakeDepends, 0, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -83,7 +83,7 @@ func TestComputePlanMakedependsCascade(t *testing.T) {
 	}
 
 	// On x86_64 go is external, so kamisato does not rebuild for it.
-	plan64, err := ComputePlan(pkgs, rr, "x86_64", CascadeMakeDepends, 0, nil)
+	plan64, err := Compute(pkgs, rr, "x86_64", CascadeMakeDepends, 0, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -99,7 +99,7 @@ func TestComputePlanCascadeOff(t *testing.T) {
 		remoteBin("kamisato", "0.1-1"),
 	}}
 
-	plan, err := ComputePlan(pkgs, rr, "i686", CascadeOff, 0, nil)
+	plan, err := Compute(pkgs, rr, "i686", CascadeOff, 0, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -126,7 +126,7 @@ pkgname = go
 		remoteBin("kamisato", "0.1-1"),
 	}}
 
-	plan, err := ComputePlan(pkgs, rr, "i686", CascadeMakeDepends, 0, nil)
+	plan, err := Compute(pkgs, rr, "i686", CascadeMakeDepends, 0, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -152,7 +152,7 @@ pkgname = go
 		remoteBin("kamisato", "0.1-1"),
 	}}
 
-	plan, err := ComputePlan(pkgs, rr, "i686", CascadeMakeDepends, 0, nil)
+	plan, err := Compute(pkgs, rr, "i686", CascadeMakeDepends, 0, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -178,7 +178,7 @@ func TestComputePlanSonameCascade(t *testing.T) {
 		}),
 	}}
 
-	plan, err := ComputePlan(pkgs, rr, "x86_64", CascadeSoname, 0, nil)
+	plan, err := Compute(pkgs, rr, "x86_64", CascadeSoname, 0, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -211,7 +211,7 @@ func TestComputePlanCascadeBoth(t *testing.T) {
 		}),
 	}}
 
-	plan, err := ComputePlan(pkgs, rr, "i686", CascadeBoth, 0, nil)
+	plan, err := Compute(pkgs, rr, "i686", CascadeBoth, 0, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -228,7 +228,7 @@ func TestComputePlanEmpty(t *testing.T) {
 	rr := &repo.RemoteRepo{Name: "test", Pkgs: []*pkg.BinaryPackage{
 		remoteBin("kamisato", "0.1-1"),
 	}}
-	plan, err := ComputePlan(pkgs, rr, "x86_64", CascadeMakeDepends, 4, nil)
+	plan, err := Compute(pkgs, rr, "x86_64", CascadeMakeDepends, 4, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -249,7 +249,7 @@ func TestComputePlanBuckets(t *testing.T) {
 	}}
 
 	costs := map[string]float64{"linux-nost": 300, "go": 60, "kamisato": 5}
-	plan, err := ComputePlan(pkgs, rr, "i686", CascadeMakeDepends, 2, costs)
+	plan, err := Compute(pkgs, rr, "i686", CascadeMakeDepends, 2, costs)
 	if err != nil {
 		t.Fatal(err)
 	}

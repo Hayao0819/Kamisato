@@ -1,29 +1,18 @@
 package aurcmd
 
-import (
-	"os"
-	"path/filepath"
+import "github.com/spf13/cobra"
 
-	"github.com/spf13/cobra"
-
-	"github.com/Hayao0819/Kamisato/internal/errors"
-)
-
-func aurUpdateCmd() *cobra.Command {
+func aurUpdateCmd(svc aurManager) *cobra.Command {
 	return aurMutationCmd(
 		"update <srcrepo> <pkgname>...",
 		"Pull tracked AUR packages from upstream",
 		"Force pull even on unclean state",
-		runAurUpdate,
+		func(cmd *cobra.Command, repoName string, pkgs []string, force bool) error {
+			dir, err := repoDir(cmd, repoName)
+			if err != nil {
+				return err
+			}
+			return svc.Update(cmd.Context(), dir, pkgs, force)
+		},
 	)
-}
-
-func runAurUpdate(cmd *cobra.Command, repoName string, pkgs []string, force bool) error {
-	return runAurPackages(cmd, repoName, pkgs, "one or more AUR updates failed:\n", func(repoDir, name string) error {
-		gitDir := filepath.Join(repoDir, name, ".git")
-		if _, err := os.Stat(gitDir); err != nil {
-			return errors.NewErrf("package %q is not tracked; use 'aur add' to clone it first", name)
-		}
-		return updateAurPkg(cmd, repoDir, name, force)
-	})
 }

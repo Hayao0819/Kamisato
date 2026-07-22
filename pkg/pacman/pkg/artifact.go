@@ -122,7 +122,9 @@ func IsAny(name string) bool {
 	return err == nil && coordinates.IsAny()
 }
 
-func FindCached(dirs []string, name, version string) (string, bool) {
+// FindCached locates the package file for name-version-arch in dirs. An empty
+// arch matches any architecture.
+func FindCached(dirs []string, name, version, arch string) (string, bool) {
 	for _, dir := range dirs {
 		matches, _ := filepath.Glob(filepath.Join(dir, name+"-*"))
 		for _, match := range matches {
@@ -131,7 +133,14 @@ func FindCached(dirs []string, name, version string) (string, bool) {
 				continue
 			}
 			coordinates, err := artifact.Coordinates()
-			if err == nil && coordinates.MatchesMetadata(name, version, coordinates.Arch) {
+			if err != nil {
+				continue
+			}
+			want := arch
+			if want == "" {
+				want = coordinates.Arch
+			}
+			if coordinates.MatchesMetadata(name, version, want) {
 				return match, true
 			}
 		}

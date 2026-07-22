@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
@@ -59,6 +60,17 @@ func (r *RemoteRepo) PkgByPkgBase(pkgbase string) *pkg.BinaryPackage {
 		}
 	}
 	return nil
+}
+
+// FetchOrEmpty fetches the repo db at server; a missing db resolves to an
+// empty repo, so a repo/arch with no packages yet diffs as "build everything".
+func FetchOrEmpty(server, name string) (*RemoteRepo, error) {
+	rr, err := RepoFromURL(server, name)
+	if errors.Is(err, ErrRepoNotFound) {
+		slog.Warn("remote repo db not found; treating as empty", "url", server)
+		return &RemoteRepo{Name: name}, nil
+	}
+	return rr, err
 }
 
 func RepoFromURL(server string, name string) (*RemoteRepo, error) {

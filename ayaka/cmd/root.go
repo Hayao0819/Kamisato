@@ -6,6 +6,7 @@ import (
 	"github.com/Hayao0819/nahi/cobrautils"
 	"github.com/spf13/cobra"
 
+	"github.com/Hayao0819/Kamisato/ayaka/app"
 	admincmd "github.com/Hayao0819/Kamisato/ayaka/cmd/admin"
 	aurcmd "github.com/Hayao0819/Kamisato/ayaka/cmd/aur"
 	buildcmd "github.com/Hayao0819/Kamisato/ayaka/cmd/build"
@@ -20,7 +21,6 @@ import (
 	prunecmd "github.com/Hayao0819/Kamisato/ayaka/cmd/prune"
 	repocmd "github.com/Hayao0819/Kamisato/ayaka/cmd/repo"
 	servercmd "github.com/Hayao0819/Kamisato/ayaka/cmd/server"
-	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
 	srcinfocmd "github.com/Hayao0819/Kamisato/ayaka/cmd/srcinfo"
 	statuscmd "github.com/Hayao0819/Kamisato/ayaka/cmd/status"
 	submodulescmd "github.com/Hayao0819/Kamisato/ayaka/cmd/submodules"
@@ -49,11 +49,11 @@ func RootCmd() *cobra.Command {
 			}
 			cliutil.Setup(level, cliutil.ColorEnabled(cmd))
 
-			app, err := shared.NewApp(c)
+			a, err := app.New(c)
 			if err != nil {
 				return err
 			}
-			cmd.SetContext(shared.WithApp(cmd.Context(), app))
+			cmd.SetContext(app.WithContext(cmd.Context(), a))
 			return nil
 		},
 	}

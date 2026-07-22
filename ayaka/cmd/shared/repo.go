@@ -4,6 +4,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/Hayao0819/Kamisato/internal/client"
+	"github.com/Hayao0819/Kamisato/internal/cliutil"
 )
 
 // AddRepoServerFlags registers the shared --server selection flag plus the
@@ -54,7 +55,7 @@ func RepoClientAt(cmd *cobra.Command, server string) (*client.Ayato, error) {
 	} else if passwordFlag != "" {
 		info.AccessToken = passwordFlag
 	} else if askPass {
-		p, err := PromptPassword("Access token:")
+		p, err := cliutil.PromptPassword("Access token:")
 		if err != nil {
 			return nil, err
 		}

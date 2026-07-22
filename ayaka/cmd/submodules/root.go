@@ -5,7 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
+	"github.com/Hayao0819/Kamisato/ayaka/app"
 	"github.com/Hayao0819/Kamisato/internal/errors"
 	"github.com/Hayao0819/Kamisato/internal/gitcmd"
 )
@@ -23,8 +23,8 @@ func Cmd() *cobra.Command {
 		Short:   "Update git submodules in the repository",
 		Long:    "Pull and update all git submodules in the repository directories.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			for _, r := range shared.AppFrom(cmd).Config.Repos {
-				root, err := shared.GitRootDir(r.Dir)
+			for _, r := range app.From(cmd).Config.Repos {
+				root, err := gitcmd.RepoRoot(r.Dir)
 				if err != nil {
 					slog.Warn("skipping non-git repository", "dir", r.Dir)
 					continue

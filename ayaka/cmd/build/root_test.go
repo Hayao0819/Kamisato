@@ -1,11 +1,10 @@
 package buildcmd
 
 import (
-	"context"
 	"strings"
 	"testing"
 
-	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
+	"github.com/Hayao0819/Kamisato/ayaka/app"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
 )
 
@@ -13,7 +12,7 @@ func TestBuildFlagShape(t *testing.T) {
 	cmd := Cmd()
 	flags := cmd.Flags()
 
-	present := []string{"sign", "key", "diff", "server", "executor", "arch"}
+	present := []string{"sign", "key", "diff", "server", "executor", "arch", "publish", "publish-url", "publish-server"}
 	for _, name := range present {
 		if flags.Lookup(name) == nil {
 			t.Errorf("flag --%s not registered", name)
@@ -36,21 +35,28 @@ func TestBuildFlagShape(t *testing.T) {
 }
 
 func TestBuildSignRequiresKey(t *testing.T) {
-	cmd := Cmd()
-	app := &shared.App{SrcRepos: []*repo.SourceRepo{
-		{Config: &repo.SrcConfig{Name: "extra"}},
-	}}
-	cmd.SetContext(shared.WithApp(context.Background(), app))
-	cmd.SetArgs([]string{"--sign", "extra"})
-	cmd.SilenceErrors = true
-	cmd.SilenceUsage = true
+	// --diff must not exempt the key check, or --sign --diff silently builds
+	// unsigned packages.
+	for _, args := range [][]string{
+		{"--sign", "extra"},
+		{"--sign", "--diff", "extra"},
+	} {
+		cmd := Cmd()
+		a := &app.App{SrcRepos: []*repo.SourceRepo{
+			{Config: &repo.SrcConfig{Name: "extra"}},
+		}}
+		cmd.SetContext(app.WithContext(t.Context(), a))
+		cmd.SetArgs(args)
+		cmd.SilenceErrors = true
+		cmd.SilenceUsage = true
 
-	err := cmd.Execute()
-	if err == nil {
-		t.Fatal("--sign without --key succeeded")
-	}
-	if !strings.Contains(err.Error(), "--sign requires --key") {
-		t.Fatalf("error = %q, want missing --key error", err)
+		err := cmd.Execute()
+		if err == nil {
+			t.Fatalf("%v without --key succeeded", args)
+		}
+		if !strings.Contains(err.Error(), "--sign requires --key") {
+			t.Fatalf("%v: error = %q, want missing --key error", args, err)
+		}
 	}
 }
 

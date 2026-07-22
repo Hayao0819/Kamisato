@@ -5,19 +5,18 @@ import (
 	"log/slog"
 	"os"
 	"path"
-	"slices"
 	"time"
-
-	"github.com/Hayao0819/Kamisato/internal/errors"
 
 	"github.com/spf13/cobra"
 
-	"github.com/Hayao0819/Kamisato/ayaka/build"
+	"github.com/Hayao0819/Kamisato/ayaka/app"
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
+	"github.com/Hayao0819/Kamisato/ayaka/service/build"
+	"github.com/Hayao0819/Kamisato/ayaka/service/source"
 	"github.com/Hayao0819/Kamisato/internal/client"
+	"github.com/Hayao0819/Kamisato/internal/errors"
 	"github.com/Hayao0819/Kamisato/pkg/pacman"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/builder"
-	pacmanrepo "github.com/Hayao0819/Kamisato/pkg/pacman/repo"
 	pacmansign "github.com/Hayao0819/Kamisato/pkg/pacman/sign"
 )
 
@@ -35,38 +34,20 @@ func Cmd() *cobra.Command {
 	var buildTimeout time.Duration
 	var publish bool
 	var publishURL string
+	var publishServer string
 	cmd := cobra.Command{
-		Use:   "build <srcrepo> [pkgname...]",
-		Short: "Build packages locally (--diff to build only changed packages)",
-		Args:  cobra.MinimumNArgs(1),
-		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-			app := shared.AppFrom(cmd)
-			if len(args) == 0 {
-				return app.GetSrcRepoNames(), cobra.ShellCompDirectiveNoFileComp
-			}
-
-			repoName := args[0]
-			sr := app.GetSrcRepo(repoName)
-			if sr == nil {
-				return nil, cobra.ShellCompDirectiveNoFileComp
-			}
-
-			var cands []string
-			for _, p := range sr.Pkgs {
-				cands = append(cands, p.Base())
-				cands = append(cands, p.Names()...)
-			}
-
-			return cands, cobra.ShellCompDirectiveNoFileComp
-		},
+		Use:               "build <srcrepo> [pkgname...]",
+		Short:             "Build packages locally (--diff to build only changed packages)",
+		Args:              cobra.MinimumNArgs(1),
+		ValidArgsFunction: shared.CompleteSrcRepoThenPackages,
 		PreRunE: func(cmd *cobra.Command, args []string) error {
 			repo = args[0]
 
-			if !slices.Contains(shared.AppFrom(cmd).GetSrcRepoNames(), repo) {
-				return errors.WrapErr(shared.ErrInvalidRepoName, repo)
+			if app.From(cmd).GetSrcRepo(repo) == nil {
+				return errors.WrapErr(shared.ErrSourceRepoNotFound, repo)
 			}
 
-			if !sign || diffMode {
+			if !sign {
 				return nil
 			}
 			if gpgkey == "" {
@@ -97,8 +78,8 @@ func Cmd() *cobra.Command {
 				buildPkgs = args[1:]
 			}
 
-			app := shared.AppFrom(cmd)
-			srcrepo := app.GetSrcRepo(repo)
+			a := app.From(cmd)
+			srcrepo := a.GetSrcRepo(repo)
 			if srcrepo == nil {
 				return errors.WrapErr(shared.ErrSourceRepoNotFound, repo)
 			}
@@ -114,7 +95,7 @@ func Cmd() *cobra.Command {
 			// Regenerate .SRCINFO first so a stale one doesn't build or skip the
 			// wrong packages; makepkg may be absent on CI, so warn and carry on.
 			if updateSrcinfo {
-				srcrepo, err = shared.ReloadWithSrcinfo(srcrepo, cmd.ErrOrStderr())
+				srcrepo, err = source.ReloadWithSrcinfo(srcrepo, cmd.ErrOrStderr())
 				if err != nil {
 					return err
 				}
@@ -138,8 +119,8 @@ func Cmd() *cobra.Command {
 				overrides.Timeout = buildTimeout
 			}
 			var host builder.HostConfig
-			if app.Config != nil {
-				host = app.Config.Builder
+			if a.Config != nil {
+				host = a.Config.Builder
 			}
 			if srcrepo.Config.Build.ArchBuild != "" {
 				slog.Warn("Ignoring repository-owned build.archbuild; host executable selection belongs in .ayakarc builder.devtools",
@@ -161,7 +142,7 @@ func Cmd() *cobra.Command {
 				InstallPkgs: append(srcrepo.Config.InstallPkgs.Files, pkgs...),
 			}
 			if publish {
-				upload, err := resolvePublisher(cmd, publishURL)
+				upload, err := resolvePublisher(cmd, publishURL, publishServer)
 				if err != nil {
 					return err
 				}
@@ -174,15 +155,10 @@ func Cmd() *cobra.Command {
 			writeDir := path.Join(outDir, buildTarget.Arch)
 
 			if diffMode {
-				diffServer := shared.ResolveDiffServer(diffURL, server, srcrepo.Config.URL, buildTarget.Arch)
-				slog.Info("Starting diff build", "repo", srcdir, "outdir", writeDir, "gpgkey", gpgkey, "server", diffServer)
-				remoteRepo, err := pacmanrepo.RepoFromURL(diffServer, srcrepo.Config.Name)
-				if errors.Is(err, pacmanrepo.ErrRepoNotFound) {
-					// A repo/arch with no packages yet has no db; treat as empty and build all.
-					slog.Warn("remote repo db not found; building everything", "server", diffServer)
-					remoteRepo = &pacmanrepo.RemoteRepo{Name: srcrepo.Config.Name}
-				} else if err != nil {
-					return errors.WrapErr(err, "failed to get remote repository")
+				slog.Info("Starting diff build", "repo", srcdir, "outdir", writeDir, "gpgkey", gpgkey)
+				remoteRepo, err := shared.RemoteRepo(diffURL, server, srcrepo, buildTarget.Arch)
+				if err != nil {
+					return err
 				}
 				if err := build.Diff(srcrepo, &buildTarget, remoteRepo, outDir, buildPkgs...); err != nil {
 					return errors.WrapErr(err, "failed to perform diff build")
@@ -202,8 +178,10 @@ func Cmd() *cobra.Command {
 	cmd.Flags().BoolVar(&sign, "sign", false, "Sign built packages with the GPG key specified by --key")
 	cmd.Flags().StringVar(&gpgkey, "key", "", "GPG key ID for package signing (requires --sign)")
 	cmd.Flags().BoolVar(&diffMode, "diff", false, "Enable diff build mode (build only new packages)")
-	cmd.Flags().BoolVar(&publish, "publish", false, "Upload each package to ayato right after it is built (and signed); auth via --publish-url or the saved server login")
+	cmd.Flags().BoolVar(&publish, "publish", false, "Upload each package to ayato right after it is built (and signed); auth via --publish-url, --publish-server or the saved server login")
 	cmd.Flags().StringVar(&publishURL, "publish-url", "", "Publish to this ayato base URL with the API key in "+publishAPIKeyEnv+" (CI); default is the registry default server")
+	cmd.Flags().StringVar(&publishServer, "publish-server", "", "Publish to this registered ayato server (default: the registry default); --server keeps its legacy diff meaning")
+	cmd.MarkFlagsMutuallyExclusive("publish-url", "publish-server")
 	shared.AddRepoServerFlags(&cmd)
 	_ = cmd.Flags().MarkDeprecated("server", "use --diff-url to point diff builds at the remote repo db dir")
 	cmd.Flags().StringVar(&diffURL, "diff-url", "", "Remote repo db dir for diff builds (.../repo/<repo>/<arch>); overrides repo.json url")
@@ -219,10 +197,10 @@ func Cmd() *cobra.Command {
 const publishAPIKeyEnv = "AYAKA_PUBLISH_API_KEY" // #nosec G101 -- environment variable name, not a credential
 
 // resolvePublisher picks the upload credential: an explicit --publish-url with
-// the X-API-Key from AYAKA_PUBLISH_API_KEY (CI), else the registry default
-// server. --server keeps its legacy diff-URL meaning here, so it never selects
-// the publish server.
-func resolvePublisher(cmd *cobra.Command, publishURL string) (func(ctx context.Context, repo string, files ...string) error, error) {
+// the X-API-Key from AYAKA_PUBLISH_API_KEY (CI), else the registered server
+// named by --publish-server (the registry default when empty). --server keeps
+// its legacy diff-URL meaning here, so it never selects the publish server.
+func resolvePublisher(cmd *cobra.Command, publishURL, publishServer string) (func(ctx context.Context, repo string, files ...string) error, error) {
 	if publishURL != "" {
 		key := os.Getenv(publishAPIKeyEnv)
 		if key == "" {
@@ -234,7 +212,7 @@ func resolvePublisher(cmd *cobra.Command, publishURL string) (func(ctx context.C
 		}
 		return api.UploadPackageFiles, nil
 	}
-	api, err := shared.RepoClientAt(cmd, "")
+	api, err := shared.RepoClientAt(cmd, publishServer)
 	if err != nil {
 		return nil, err
 	}

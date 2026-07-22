@@ -1,4 +1,4 @@
-package build
+package source
 
 import (
 	"os"

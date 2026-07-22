@@ -1,13 +1,11 @@
 package initcmd
 
 import (
-	"os"
 	"path/filepath"
 
 	"github.com/spf13/cobra"
 
-	"github.com/Hayao0819/Kamisato/internal/conf"
-	"github.com/Hayao0819/Kamisato/internal/errors"
+	"github.com/Hayao0819/Kamisato/ayaka/service/source"
 )
 
 func Cmd() *cobra.Command {
@@ -24,93 +22,25 @@ func Cmd() *cobra.Command {
 			if len(args) > 0 {
 				targetDir = args[0]
 			}
-
-			if contents, err := os.ReadDir(targetDir); err != nil {
-				if os.IsNotExist(err) {
-					if err := os.MkdirAll(targetDir, 0o755); err != nil { //nolint:gosec // G301/G306: scaffolded repo world-readable by design
-						return errors.WrapErr(err, "failed to create target directory")
-					}
-				} else {
-					return errors.WrapErr(err, "failed to read target directory")
-				}
-			} else {
-				if len(contents) > 0 {
-					return &os.PathError{Op: "init", Path: targetDir, Err: os.ErrExist}
-				}
-			}
-
-			var err error
-			targetDir, err = filepath.Abs(targetDir)
+			abs, err := source.PrepareTargetDir(targetDir)
 			if err != nil {
-				return errors.WrapErr(err, "failed to resolve target directory")
+				return err
 			}
-
+			targetDir = abs
 			if destDir == "" {
 				destDir = filepath.Join(targetDir, "out")
 			}
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ayakarcPath := filepath.Join(targetDir, ".ayakarc.json")
-			repoDir := filepath.Join(targetDir, repoName)
-
-			relRepoDirFromAyakarc, err := filepath.Rel(filepath.Dir(ayakarcPath), repoDir)
+			s, err := source.Scaffold(targetDir, repoName, maintainer, destDir)
 			if err != nil {
-				cmd.PrintErrf("filepath.Rel(%s, %s) = %s, %s\n", filepath.Dir(ayakarcPath), repoDir, relRepoDirFromAyakarc, err)
-				return errors.WrapErr(err, "failed to compute repository directory path")
+				return err
 			}
-
-			relOutDirFromAyakarc, err := filepath.Rel(filepath.Dir(ayakarcPath), destDir)
-			if err != nil {
-				cmd.PrintErrf("filepath.Rel(%s, %s) = %s, Error(%s)\n", filepath.Dir(ayakarcPath), destDir, relOutDirFromAyakarc, err)
-				return errors.WrapErr(err, "failed to compute output directory path")
-			}
-
-			ayakarc := conf.AyakaConfig{
-				Repos: []conf.RepoEntry{{
-					Dir:     relRepoDirFromAyakarc,
-					DestDir: relOutDirFromAyakarc,
-				}},
-				Debug: false,
-			}
-
-			ayakarcBytes, err := ayakarc.Marshal()
-			if err != nil {
-				return errors.WrapErr(err, "failed to marshal ayaka config")
-			}
-
-			if err := os.WriteFile(ayakarcPath, ayakarcBytes, 0o644); err != nil { //nolint:gosec // G301/G306: scaffolded repo world-readable by design
-				return errors.WrapErr(err, "failed to write ayaka config")
-			}
-
-			if err := os.MkdirAll(repoDir, 0o755); err != nil { //nolint:gosec // G301/G306: scaffolded repo world-readable by design
-				return errors.WrapErr(err, "failed to create repository directory")
-			}
-
-			if err := os.MkdirAll(destDir, 0o755); err != nil { //nolint:gosec // G301/G306: scaffolded repo world-readable by design
-				return errors.WrapErr(err, "failed to create output directory")
-			}
-
-			repoconf := conf.SrcRepoConfig{
-				Name:       repoName,
-				Maintainer: maintainer,
-			}
-
-			repoconfBytes, err := repoconf.Marshal()
-			if err != nil {
-				return errors.WrapErr(err, "failed to marshal repo config")
-			}
-
-			repoconfPath := filepath.Join(repoDir, "repo.json")
-			if err := os.WriteFile(repoconfPath, repoconfBytes, 0o644); err != nil { //nolint:gosec // G301/G306: scaffolded repo world-readable by design
-				return errors.WrapErr(err, "failed to write repo config")
-			}
-
-			cmd.Printf("Initialized Ayaka repository in %s\n", targetDir)
-			cmd.Printf("Repository directory: %s\n", repoDir)
-			cmd.Printf("Output directory: %s\n", destDir)
-			cmd.Printf("Configuration file: %s\n", ayakarcPath)
-
+			cmd.Printf("Initialized Ayaka repository in %s\n", s.TargetDir)
+			cmd.Printf("Repository directory: %s\n", s.RepoDir)
+			cmd.Printf("Output directory: %s\n", s.DestDir)
+			cmd.Printf("Configuration file: %s\n", s.ConfigPath)
 			return nil
 		},
 	}

@@ -1,7 +1,8 @@
-package shared
+// Package report derives human-facing views of a source repository's state:
+// the list rows and the git-status-style build report.
+package report
 
 import (
-	"context"
 	"strings"
 
 	"github.com/Hayao0819/Kamisato/internal/client"
@@ -9,8 +10,8 @@ import (
 	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
 )
 
-// PkgRow is one `ayaka list` row; its fields are the columns a --format template references (e.g. {{.Package}}).
-type PkgRow struct {
+// Row is one `ayaka list` row; its fields are the columns a --format template references (e.g. {{.Package}}).
+type Row struct {
 	Repo      string `json:"repo"`
 	Package   string `json:"package"`
 	Installed string `json:"installed"`
@@ -22,10 +23,11 @@ type PkgRow struct {
 // DefaultListFormat is the Docker-style `table` form: every column, aligned, with a header.
 const DefaultListFormat = "table {{.Package}}\t{{.Installed}}\t{{.Local}}\t{{.Remote}}\t{{.Build}}"
 
-// BuildPkgRows builds one row per source package. Remote version, build status,
+// BuildRows builds one row per source package. Remote version, build status,
 // and installed version are fetched only when the format references them, so a
-// local-only format stays fast and offline.
-func BuildPkgRows(repos []*repo.SourceRepo, format, server string) []PkgRow {
+// local-only format stays fast and offline. fetchJobs supplies recent build
+// jobs for the Build column; nil (or an empty result) leaves it blank.
+func BuildRows(repos []*repo.SourceRepo, format string, fetchJobs func() []client.Job) []Row {
 	wantRemote := formatNeeds(format, "Remote")
 	wantBuild := formatNeeds(format, "Build")
 	wantInstalled := formatNeeds(format, "Installed")
@@ -35,13 +37,11 @@ func BuildPkgRows(repos []*repo.SourceRepo, format, server string) []PkgRow {
 		installed, _ = pacman.InstalledVersions()
 	}
 	var jobs []client.Job
-	if wantBuild {
-		if api := ayatoClientBestEffort(server); api != nil {
-			jobs, _ = api.ListJobs(context.Background())
-		}
+	if wantBuild && fetchJobs != nil {
+		jobs = fetchJobs()
 	}
 
-	var rows []PkgRow
+	var rows []Row
 	for _, r := range repos {
 		var remote *repo.RemoteRepo
 		if wantRemote && r.Config.URL != "" {
@@ -51,7 +51,7 @@ func BuildPkgRows(repos []*repo.SourceRepo, format, server string) []PkgRow {
 		}
 
 		for _, p := range r.Pkgs {
-			row := PkgRow{
+			row := Row{
 				Repo:    r.Config.Name,
 				Package: p.Base(),
 				Local:   orDash(p.Version()),
@@ -124,22 +124,6 @@ func LatestJobStatus(jobs []client.Job, repoName string, names []string) string 
 		}
 	}
 	return status
-}
-
-// ayatoBaseBestEffort resolves the ayato base URL and CLI token for the build
-// column: the registered --server (or serverdb default). Returns empty strings
-// when no registered server is available, so the caller skips the job lookup —
-// which the auth-gated jobs endpoint would reject without the token anyway.
-func ayatoClientBestEffort(server string) *client.Ayato {
-	srv, err := ResolveAyatoServer(server)
-	if err != nil {
-		return nil
-	}
-	api, err := AyatoClient(srv)
-	if err != nil {
-		return nil
-	}
-	return api
 }
 
 func orDash(s string) string {

@@ -1,4 +1,7 @@
-package shared
+// Package app is ayaka's per-invocation composition root: the loaded config
+// plus the source repositories it declares, threaded through the command
+// context so the cobra layer stays wiring-only.
+package app
 
 import (
 	"context"
@@ -18,10 +21,10 @@ type App struct {
 	SrcRepos []*repo.SourceRepo
 }
 
-type appCtxKey struct{}
+type ctxKey struct{}
 
-// NewApp loads the source repositories declared in cfg and returns the App.
-func NewApp(cfg *conf.AyakaConfig) (*App, error) {
+// New loads the source repositories declared in cfg and returns the App.
+func New(cfg *conf.AyakaConfig) (*App, error) {
 	app := &App{Config: cfg}
 	for _, r := range cfg.Repos {
 		repoconfig, err := conf.LoadSrcRepoConfig(r.Dir)
@@ -39,20 +42,20 @@ func NewApp(cfg *conf.AyakaConfig) (*App, error) {
 	return app, nil
 }
 
-// WithApp stores app in ctx for AppFrom / AppFromContext to retrieve.
-func WithApp(ctx context.Context, app *App) context.Context {
-	return context.WithValue(ctx, appCtxKey{}, app)
+// WithContext stores app in ctx for From / FromContext to retrieve.
+func WithContext(ctx context.Context, app *App) context.Context {
+	return context.WithValue(ctx, ctxKey{}, app)
 }
 
-// AppFrom returns the App from the command context, or an empty App during
+// From returns the App from the command context, or an empty App during
 // shell completion (which runs before the App is built) to avoid a nil panic.
-func AppFrom(cmd *cobra.Command) *App {
-	return AppFromContext(cmd.Context())
+func From(cmd *cobra.Command) *App {
+	return FromContext(cmd.Context())
 }
 
-// AppFromContext returns the App carried by ctx, or an empty App when none is set.
-func AppFromContext(ctx context.Context) *App {
-	if app, ok := ctx.Value(appCtxKey{}).(*App); ok && app != nil {
+// FromContext returns the App carried by ctx, or an empty App when none is set.
+func FromContext(ctx context.Context) *App {
+	if app, ok := ctx.Value(ctxKey{}).(*App); ok && app != nil {
 		return app
 	}
 	return &App{}

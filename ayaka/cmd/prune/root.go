@@ -7,7 +7,7 @@ import (
 	"github.com/samber/lo"
 	"github.com/spf13/cobra"
 
-	"github.com/Hayao0819/Kamisato/ayaka/build"
+	"github.com/Hayao0819/Kamisato/ayaka/app"
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
 	"github.com/Hayao0819/Kamisato/internal/errors"
 	pkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
@@ -21,15 +21,10 @@ func Cmd() *cobra.Command {
 	var dryRun bool
 	var diffURL string
 	cmd := cobra.Command{
-		Use:   "prune <srcrepo>",
-		Short: "Remove packages from ayato that are no longer in the source repo",
-		Args:  cobra.ExactArgs(1),
-		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-			if len(args) == 0 {
-				return shared.AppFrom(cmd).GetSrcRepoNames(), cobra.ShellCompDirectiveNoFileComp
-			}
-			return nil, cobra.ShellCompDirectiveNoFileComp
-		},
+		Use:               "prune <srcrepo>",
+		Short:             "Remove packages from ayato that are no longer in the source repo",
+		Args:              cobra.ExactArgs(1),
+		ValidArgsFunction: shared.CompleteSrcRepoNames,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return Run(cmd, args[0], arch, diffURL, dryRun)
 		},
@@ -45,7 +40,7 @@ func Cmd() *cobra.Command {
 // longer provides (a deleted PKGBUILD). The source repo names the desired set and
 // its public db names the present set; the difference is deleted.
 func Run(cmd *cobra.Command, srcName, arch, diffURL string, dryRun bool) error {
-	src := shared.AppFrom(cmd).GetSrcRepo(srcName)
+	src := app.From(cmd).GetSrcRepo(srcName)
 	if src == nil {
 		return errors.WrapErr(shared.ErrSourceRepoNotFound, srcName)
 	}
@@ -69,7 +64,7 @@ func Run(cmd *cobra.Command, srcName, arch, diffURL string, dryRun bool) error {
 		return errors.WrapErr(err, "failed to read remote repo db")
 	}
 
-	prune := build.PrunablePackages(desired, rr)
+	prune := pacmanrepo.PrunablePackages(desired, rr)
 	if len(prune) == 0 {
 		slog.Info("nothing to prune", "repo", src.Config.Name, "arch", arch)
 		return nil
@@ -80,7 +75,7 @@ func Run(cmd *cobra.Command, srcName, arch, diffURL string, dryRun bool) error {
 	if dryRun {
 		slog.Info("prunable packages removed from source", "repo", src.Config.Name, "arch", arch, "count", len(prune))
 		for _, p := range prune {
-			fmt.Println(p)
+			fmt.Fprintln(cmd.OutOrStdout(), p)
 		}
 		return nil
 	}

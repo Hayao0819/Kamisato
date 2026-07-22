@@ -146,15 +146,23 @@ func TestFindCached(t *testing.T) {
 		}
 	}
 
-	got, ok := FindCached([]string{dir}, "foo", "1.0-1")
+	got, ok := FindCached([]string{dir}, "foo", "1.0-1", "x86_64")
 	if !ok || filepath.Base(got) != "foo-1.0-1-x86_64.pkg.tar.zst" {
 		t.Errorf("FindCached(foo) = %q, %t", got, ok)
 	}
-	got, ok = FindCached([]string{dir}, "epochpkg", "2:1.0-1")
+	got, ok = FindCached([]string{dir}, "foo", "1.0-1", "")
+	if !ok || filepath.Base(got) != "foo-1.0-1-x86_64.pkg.tar.zst" {
+		t.Errorf("FindCached(foo, any arch) = %q, %t", got, ok)
+	}
+	got, ok = FindCached([]string{dir}, "epochpkg", "2:1.0-1", "x86_64")
 	if !ok || filepath.Base(got) != "epochpkg-2_1.0-1-x86_64.pkg.tar.zst" {
 		t.Errorf("FindCached(epochpkg) = %q, %t", got, ok)
 	}
-	if _, ok := FindCached([]string{dir}, "missing", "1.0-1"); ok {
+	// A same-version file for another arch must not satisfy an x86_64 install.
+	if _, ok := FindCached([]string{dir}, "foo", "1.0-1", "i686"); ok {
+		t.Error("FindCached matched a foreign-arch package file")
+	}
+	if _, ok := FindCached([]string{dir}, "missing", "1.0-1", "x86_64"); ok {
 		t.Error("FindCached found an absent package")
 	}
 }

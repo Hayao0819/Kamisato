@@ -1,17 +1,24 @@
 package admincmd
 
 import (
-	"fmt"
-	"text/tabwriter"
+	"strconv"
 
 	"github.com/spf13/cobra"
 
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
+	"github.com/Hayao0819/Kamisato/internal/cliutil"
 	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
+type adminRow struct {
+	ID    string `json:"id"`
+	Login string `json:"login"`
+}
+
+const adminListDefaultFmt = "table {{.ID}}\t{{.Login}}"
+
 func adminListCmd() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "list",
 		Short: "List ayato admins",
 		Args:  cobra.NoArgs,
@@ -28,12 +35,17 @@ func adminListCmd() *cobra.Command {
 			if err != nil {
 				return errors.WrapErr(err, "failed to list admins")
 			}
-			w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)
-			fmt.Fprintln(w, "ID\tLOGIN")
+			rows := make([]adminRow, 0, len(admins))
 			for _, a := range admins {
-				fmt.Fprintf(w, "%d\t%s\n", a.ID, a.Login)
+				rows = append(rows, adminRow{ID: strconv.FormatInt(a.ID, 10), Login: a.Login})
 			}
-			return w.Flush()
+			format, err := cliutil.ResolveFormat(cmd, adminListDefaultFmt)
+			if err != nil {
+				return err
+			}
+			return cliutil.RenderList(cmd.OutOrStdout(), format, adminRow{ID: "ID", Login: "LOGIN"}, rows)
 		},
 	}
+	cliutil.AddFormatFlags(cmd)
+	return cmd
 }

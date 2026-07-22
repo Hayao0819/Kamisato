@@ -1,34 +1,26 @@
 package aurcmd
 
 import (
-	"os"
-	"path/filepath"
-
 	"github.com/spf13/cobra"
 
-	"github.com/Hayao0819/Kamisato/internal/errors"
+	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
 )
 
-func aurAddCmd() *cobra.Command {
-	return aurMutationCmd(
+func aurAddCmd(svc aurManager) *cobra.Command {
+	cmd := aurMutationCmd(
 		"add <srcrepo> <pkgname>...",
 		"Clone AUR packages into a source repository (.ayakarc)",
 		"Re-clone even if already tracked",
-		runAurAdd,
+		func(cmd *cobra.Command, repoName string, pkgs []string, force bool) error {
+			dir, err := repoDir(cmd, repoName)
+			if err != nil {
+				return err
+			}
+			return svc.Add(cmd.Context(), dir, pkgs, force)
+		},
 	)
-}
-
-func runAurAdd(cmd *cobra.Command, repoName string, pkgs []string, force bool) error {
-	return runAurPackages(cmd, repoName, pkgs, "one or more AUR adds failed:\n", func(repoDir, name string) error {
-		gitDir := filepath.Join(repoDir, name, ".git")
-		if _, err := os.Stat(gitDir); err == nil {
-			if !force {
-				return errors.NewErrf("package %q is already tracked; use --force to re-clone", name)
-			}
-			if err := os.RemoveAll(filepath.Join(repoDir, name)); err != nil {
-				return errors.WrapErr(err, "failed to remove "+name)
-			}
-		}
-		return updateAurPkg(cmd, repoDir, name, false)
-	})
+	// New AUR packages are not local yet, so tracked-package completion would
+	// only mislead here.
+	cmd.ValidArgsFunction = shared.CompleteSrcRepoNames
+	return cmd
 }

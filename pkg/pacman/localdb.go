@@ -66,6 +66,29 @@ func InstalledVersions() (versions map[string]string, err error) {
 	return versions, err
 }
 
+// InstalledPackage is the local-db identity of an installed package.
+type InstalledPackage struct {
+	Version string
+	Arch    string
+}
+
+// InstalledPackages returns every locally installed package with its version
+// and architecture.
+func InstalledPackages() (pkgs map[string]InstalledPackage, err error) {
+	dbs, err := openDatabases(false)
+	if err != nil {
+		return nil, err
+	}
+	defer dbs.close(&err)
+
+	pkgs = make(map[string]InstalledPackage)
+	err = dbs.local.PkgCache().ForEach(func(pkg alpm.Package) error {
+		pkgs[pkg.Name()] = InstalledPackage{Version: pkg.Version(), Arch: pkg.Architecture()}
+		return nil
+	})
+	return pkgs, err
+}
+
 func Deptest(deps []string) (missing []string, err error) {
 	if len(deps) == 0 {
 		return nil, nil

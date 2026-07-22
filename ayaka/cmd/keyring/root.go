@@ -5,18 +5,11 @@
 package keyringcmd
 
 import (
-	"context"
-	"path/filepath"
-	"time"
-
-	"github.com/ProtonMail/go-crypto/openpgp"
 	"github.com/spf13/cobra"
 
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
-	"github.com/Hayao0819/Kamisato/internal/errors"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/keyring"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/sign"
-	"github.com/Hayao0819/Kamisato/pkg/safefile"
 )
 
 // Cmd builds the `ayaka keyring` command group.
@@ -60,51 +53,18 @@ func addBuildFlags(cmd *cobra.Command, p *buildParams) {
 	_ = cmd.MarkFlagRequired("name")
 }
 
-// defaultVersion is today's date with pkgrel 1, the convention every third-party
-// keyring package follows.
-func defaultVersion(p buildParams) string {
-	if p.version != "" {
-		return p.version
-	}
-	return time.Now().Format("20060102") + "-1"
-}
-
 // makePackage builds the keyring .pkg.tar.zst into outDir and, when p.sign is set,
 // signs it. It returns the package path and the signature path (empty when
 // unsigned).
 func makePackage(k *sign.SigningKey, p buildParams, outDir string) (pkgPath, sigPath string, err error) {
-	pub, err := k.PublicEntity()
-	if err != nil {
-		return "", "", errors.WrapErr(err, "export public key")
-	}
-	files, err := keyring.BuildFiles(p.name, []*openpgp.Entity{pub}, []string{k.PrimaryFingerprint()}, p.revoked)
-	if err != nil {
-		return "", "", errors.WrapErr(err, "build keyring files")
-	}
-	version := defaultVersion(p)
-	data, err := keyring.BuildPackage(keyring.PackageOpts{
-		Files:    files,
-		Version:  version,
+	return keyring.MakePackage(k, keyring.BuildParams{
+		Name:     p.name,
+		Version:  p.version,
 		Packager: p.packager,
 		Desc:     p.desc,
+		Revoked:  p.revoked,
 		License:  p.license,
 		Depends:  p.depends,
-	})
-	if err != nil {
-		return "", "", errors.WrapErr(err, "build keyring package")
-	}
-
-	pkgPath = filepath.Join(outDir, keyring.FileName(p.name, version))
-	// #nosec G306 -- this is a public package artifact intended for distribution.
-	if err := safefile.WriteFile(pkgPath, data, 0o644); err != nil {
-		return "", "", errors.WrapErr(err, "write keyring package")
-	}
-	if !p.sign {
-		return pkgPath, "", nil
-	}
-	sigPath, err = k.Sign(context.Background(), pkgPath)
-	if err != nil {
-		return "", "", errors.WrapErr(err, "sign keyring package")
-	}
-	return pkgPath, sigPath, nil
+		Sign:     p.sign,
+	}, outDir)
 }

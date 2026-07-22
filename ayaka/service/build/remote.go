@@ -2,14 +2,12 @@ package build
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"os"
 	"path/filepath"
 	"slices"
 	"time"
 
-	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
 	"github.com/Hayao0819/Kamisato/internal/client"
 	"github.com/Hayao0819/Kamisato/internal/errors"
 	pkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
@@ -19,7 +17,6 @@ import (
 
 type RemoteBuildOpts struct {
 	Repo      string
-	Server    string
 	GitURL    string
 	GitRef    string
 	GitSubdir string
@@ -28,35 +25,25 @@ type RemoteBuildOpts struct {
 	Pkgs      []string
 }
 
-// RunRemoteBuild submits a build to ayato and prints the job id. The source is
-// --git, else the local PKGBUILD of the named source package.
-func RunRemoteBuild(ctx context.Context, o RemoteBuildOpts) error {
-	srv, err := shared.ResolveAyatoServer(o.Server)
+// RunRemoteBuild submits a build to ayato and returns the job id. The source is
+// --git, else the local PKGBUILD of the named package in srcrepo.
+func RunRemoteBuild(ctx context.Context, api *client.Ayato, srcrepo *repo.SourceRepo, o RemoteBuildOpts) (string, error) {
+	req, err := buildRequest(srcrepo, o)
 	if err != nil {
-		return err
-	}
-	req, err := buildRequest(ctx, o)
-	if err != nil {
-		return err
+		return "", err
 	}
 
-	slog.Info("submitting remote build", "server", srv.URL, "repo", o.Repo)
-	api, err := shared.AyatoClient(srv)
-	if err != nil {
-		return err
-	}
+	slog.Info("submitting remote build", "repo", o.Repo)
 	jobID, err := api.SubmitBuild(ctx, req)
 	if err != nil {
-		return errors.WrapErr(err, "failed to submit build")
+		return "", errors.WrapErr(err, "failed to submit build")
 	}
-
-	fmt.Println(jobID)
-	return nil
+	return jobID, nil
 }
 
 // buildRequest assembles the build request from opts: a git source, else the
 // local PKGBUILD of the named source package.
-func buildRequest(ctx context.Context, o RemoteBuildOpts) (*client.BuildRequest, error) {
+func buildRequest(srcrepo *repo.SourceRepo, o RemoteBuildOpts) (*client.BuildRequest, error) {
 	arch := o.Arch
 	if arch == "" {
 		arch = "x86_64"
@@ -71,7 +58,7 @@ func buildRequest(ctx context.Context, o RemoteBuildOpts) (*client.BuildRequest,
 		req.Git = &client.GitSource{URL: o.GitURL, Ref: o.GitRef, Subdir: o.GitSubdir}
 		return req, nil
 	}
-	pkgbuild, files, err := readLocalSource(ctx, o.Repo, o.Pkgs)
+	pkgbuild, files, err := readLocalSource(srcrepo, o.Pkgs)
 	if err != nil {
 		return nil, err
 	}
@@ -85,30 +72,22 @@ func buildRequest(ctx context.Context, o RemoteBuildOpts) (*client.BuildRequest,
 
 // RunRemoteBuildLocalSign builds on miko without server-side signing, downloads
 // the artifacts, signs them locally with keyPath, and uploads them to ayato.
-func RunRemoteBuildLocalSign(ctx context.Context, o RemoteBuildOpts, keyPath, passphrase string) error {
-	srv, err := shared.ResolveAyatoServer(o.Server)
-	if err != nil {
-		return err
-	}
+func RunRemoteBuildLocalSign(ctx context.Context, api *client.Ayato, srcrepo *repo.SourceRepo, o RemoteBuildOpts, keyPath, passphrase string) error {
 	signer, err := sign.NewLocalSigner(keyPath, passphrase)
 	if err != nil {
 		return errors.WrapErr(err, "failed to load local signing key")
 	}
-	req, err := buildRequest(ctx, o)
+	req, err := buildRequest(srcrepo, o)
 	if err != nil {
 		return err
 	}
 	req.SignMode = "client"
 
-	api, err := shared.AyatoClient(srv)
-	if err != nil {
-		return err
-	}
 	jobID, err := api.SubmitBuild(ctx, req)
 	if err != nil {
 		return errors.WrapErr(err, "failed to submit build")
 	}
-	slog.Info("submitted client-signed build", "job", jobID, "server", srv.URL)
+	slog.Info("submitted client-signed build", "job", jobID)
 
 	// Bound the wait so a stuck queued/running job cannot hang the CLI forever.
 	waitCtx, cancel := context.WithTimeout(ctx, clientBuildTimeout)
@@ -175,14 +154,12 @@ func RunRemoteBuildLocalSign(ctx context.Context, o RemoteBuildOpts, keyPath, pa
 // build, so a stuck queued/running job does not hang the CLI forever.
 const clientBuildTimeout = 2 * time.Hour
 
-// readLocalSource reads the PKGBUILD and files of a source package in the repo.
+// readLocalSource reads the PKGBUILD and files of a source package in srcrepo.
 // With one named package that one is used, else the repo must hold exactly one.
-func readLocalSource(ctx context.Context, repoName string, pkgs []string) (string, map[string]string, error) {
-	srcrepo := shared.AppFromContext(ctx).GetSrcRepo(repoName)
+func readLocalSource(srcrepo *repo.SourceRepo, pkgs []string) (string, map[string]string, error) {
 	if srcrepo == nil {
-		return "", nil, errors.WrapErr(shared.ErrSourceRepoNotFound, repoName)
+		return "", nil, errors.NewErr("no source repository given")
 	}
-
 	sp, err := selectSourcePkg(srcrepo, pkgs)
 	if err != nil {
 		return "", nil, err

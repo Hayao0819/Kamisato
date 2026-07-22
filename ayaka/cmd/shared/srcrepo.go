@@ -1,14 +1,44 @@
 package shared
 
 import (
-	"io"
-	"log/slog"
-	"os/exec"
 	"strings"
 
+	"github.com/samber/lo"
+
+	"github.com/spf13/cobra"
+
+	"github.com/Hayao0819/Kamisato/ayaka/app"
 	"github.com/Hayao0819/Kamisato/internal/errors"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
 )
+
+// CompleteSrcRepoNames completes the first argument with the configured source
+// repository names.
+func CompleteSrcRepoNames(cmd *cobra.Command, args []string, _ string) ([]string, cobra.ShellCompDirective) {
+	if len(args) == 0 {
+		return app.From(cmd).GetSrcRepoNames(), cobra.ShellCompDirectiveNoFileComp
+	}
+	return nil, cobra.ShellCompDirectiveNoFileComp
+}
+
+// CompleteSrcRepoThenPackages completes the first argument with source repo
+// names and later arguments with that repo's package names.
+func CompleteSrcRepoThenPackages(cmd *cobra.Command, args []string, _ string) ([]string, cobra.ShellCompDirective) {
+	a := app.From(cmd)
+	if len(args) == 0 {
+		return a.GetSrcRepoNames(), cobra.ShellCompDirectiveNoFileComp
+	}
+	sr := a.GetSrcRepo(args[0])
+	if sr == nil {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+	var cands []string
+	for _, p := range sr.Pkgs {
+		cands = append(cands, p.Base())
+		cands = append(cands, p.Names()...)
+	}
+	return lo.Uniq(cands), cobra.ShellCompDirectiveNoFileComp
+}
 
 // ResolveDiffServer picks the remote repo db dir: the explicit --diff-url, else
 // the deprecated --server, else the arch-less repo.json url with the arch
@@ -26,28 +56,16 @@ func ResolveDiffServer(diffURL, server, configURL, arch string) string {
 	return ""
 }
 
-// ReloadWithSrcinfo regenerates every .SRCINFO in srcrepo and reloads it so the
-// fresh versions drive the diff or plan; returned unchanged when makepkg is
-// absent (e.g. CI without pacman tooling).
-func ReloadWithSrcinfo(srcrepo *repo.SourceRepo, stderr io.Writer) (*repo.SourceRepo, error) {
-	if _, err := exec.LookPath("makepkg"); err != nil {
-		slog.Warn("skipping .SRCINFO update: makepkg not found on PATH", "error", err)
-		return srcrepo, nil
+// RemoteRepo fetches the published repo db per ResolveDiffServer; a repo/arch
+// with no db yet resolves to an empty repo, so first runs plan/build everything.
+func RemoteRepo(diffURL, server string, src *repo.SourceRepo, arch string) (*repo.RemoteRepo, error) {
+	dburl := ResolveDiffServer(diffURL, server, src.Config.URL, arch)
+	if dburl == "" {
+		return nil, errors.NewErr("source repo " + src.Config.Name + " has no url in repo.json; pass --diff-url")
 	}
-	srcdirs, err := repo.GetSrcDirs(srcrepo.Dir)
+	rr, err := repo.FetchOrEmpty(dburl, src.Config.Name)
 	if err != nil {
-		return nil, errors.WrapErr(err, "failed to list source directories")
+		return nil, errors.WrapErr(err, "failed to read remote repo db")
 	}
-	for _, d := range srcdirs {
-		if err := repo.GenerateSrcinfo(d, stderr); err != nil {
-			slog.Warn("failed to update .SRCINFO", "dir", d, "error", err)
-		}
-	}
-	reloaded, err := repo.GetSrcRepo(srcrepo.Dir, srcrepo.Config)
-	if err != nil {
-		return nil, errors.WrapErr(err, "failed to reload source repo after .SRCINFO update")
-	}
-	reloaded.Dir = srcrepo.Dir
-	reloaded.DestDir = srcrepo.DestDir
-	return reloaded, nil
+	return rr, nil
 }

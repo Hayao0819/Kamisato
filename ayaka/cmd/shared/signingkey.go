@@ -3,12 +3,12 @@ package shared
 import (
 	"os"
 	"path/filepath"
-	"strings"
 	"syscall"
 
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 
+	"github.com/Hayao0819/Kamisato/internal/cliutil"
 	"github.com/Hayao0819/Kamisato/internal/errors"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/sign"
 )
@@ -45,20 +45,12 @@ func KeyDir(cmd *cobra.Command) (string, error) {
 // When neither is set and prompt is true and stdin is a terminal, it asks. An
 // empty result means an unprotected key.
 func Passphrase(cmd *cobra.Command, prompt bool) (string, error) {
-	if p := os.Getenv(PassphraseEnv); p != "" {
-		return p, nil
-	}
-	if file, _ := cmd.Flags().GetString(flagPassphraseFile); file != "" {
-		data, err := os.ReadFile(file)
-		if err != nil {
-			return "", errors.WrapErr(err, "read passphrase file")
-		}
-		return strings.TrimRight(string(data), "\n"), nil
-	}
+	file, _ := cmd.Flags().GetString(flagPassphraseFile)
+	var ask func() (string, error)
 	if prompt && term.IsTerminal(int(syscall.Stdin)) {
-		return PromptPassword("Key passphrase (empty for none):")
+		ask = func() (string, error) { return cliutil.PromptPassword("Key passphrase (empty for none):") }
 	}
-	return "", nil
+	return cliutil.ResolveSecret(PassphraseEnv, file, ask)
 }
 
 // LoadSigningKey opens the signing key, resolving the passphrase from env/file
@@ -80,7 +72,7 @@ func LoadSigningKey(cmd *cobra.Command) (*sign.SigningKey, string, error) {
 		return k, pass, nil
 	}
 	if pass == "" && term.IsTerminal(int(syscall.Stdin)) {
-		prompted, perr := PromptPassword("Key passphrase:")
+		prompted, perr := cliutil.PromptPassword("Key passphrase:")
 		if perr != nil {
 			return nil, "", perr
 		}

@@ -9,7 +9,6 @@ import (
 // errors.Is them through errors.WrapErr; don't build inline, since two NewErr
 // values with the same message are distinct.
 var (
-	ErrInvalidRepoName    = errors.NewErr("invalid repository name")
 	ErrSourceRepoNotFound = errors.NewErr("source repository not found")
 	ErrNoSourceDir        = errors.NewErr("source directory not found")
 	ErrNoDestDir          = errors.NewErr("destination directory not found")

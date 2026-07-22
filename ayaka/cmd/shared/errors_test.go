@@ -9,7 +9,6 @@ import (
 // TestSentinelErrorsMatchThroughWrap confirms sentinels stay errors.Is-matchable through nested WrapErr.
 func TestSentinelErrorsMatchThroughWrap(t *testing.T) {
 	sentinels := map[string]error{
-		"ErrInvalidRepoName":    ErrInvalidRepoName,
 		"ErrSourceRepoNotFound": ErrSourceRepoNotFound,
 		"ErrNoSourceDir":        ErrNoSourceDir,
 		"ErrNoDestDir":          ErrNoDestDir,
@@ -34,7 +33,7 @@ func TestSentinelErrorsAreDistinct(t *testing.T) {
 	if errors.Is(ErrServerNotFound, ErrNoServerSpecified) {
 		t.Error("ErrServerNotFound and ErrNoServerSpecified compare equal")
 	}
-	if errors.Is(errors.WrapErr(ErrInvalidRepoName, "myrepo"), ErrSourceRepoNotFound) {
-		t.Error("wrapped ErrInvalidRepoName matched ErrSourceRepoNotFound")
+	if errors.Is(errors.WrapErr(ErrNoSourceDir, "myrepo"), ErrSourceRepoNotFound) {
+		t.Error("wrapped ErrNoSourceDir matched ErrSourceRepoNotFound")
 	}
 }

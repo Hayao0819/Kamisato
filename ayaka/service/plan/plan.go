@@ -1,4 +1,7 @@
-package build
+// Package plan computes what a run must build from the source repo and the
+// published repo db alone, so repeated runs against the same db are idempotent
+// and no server-side build state is needed.
+package plan
 
 import (
 	"cmp"
@@ -45,18 +48,18 @@ type Plan struct {
 	BumpTargets []string          `json:"bump_targets"`
 }
 
-// ComputePlan derives the build set for arch from the source repo and the
-// published db alone, so repeated runs against the same db are idempotent.
-func ComputePlan(src []*pkg.SourcePackage, rr *repo.RemoteRepo, arch string, cascade CascadeMode, workers int, costs map[string]float64) (*Plan, error) {
-	archPkgs := filterByArch(src, arch)
+// Compute derives the build set for arch from the source packages and the
+// published db.
+func Compute(src []*pkg.SourcePackage, rr *repo.RemoteRepo, arch string, cascade CascadeMode, workers int, costs map[string]float64) (*Plan, error) {
+	archPkgs := repo.FilterByArch(src, arch)
 	byBase := lo.KeyBy(archPkgs, (*pkg.SourcePackage).Base)
 
 	reasons := map[string]string{}
-	for _, p := range diffPackages(archPkgs, rr) {
+	for _, p := range repo.DiffPackages(archPkgs, rr) {
 		reasons[p.Base()] = "version"
 	}
 
-	graph := buildDepGraph(archPkgs, arch)
+	graph := repo.BuildDepGraph(archPkgs, arch)
 
 	if cascade == CascadeMakeDepends || cascade == CascadeBoth {
 		// Only a pkgver change seeds the cascade: the cascaded rebuilds bump
@@ -157,6 +160,11 @@ func dependentsClosure(g *depend.DepGraph, seeds []string) []string {
 // brokenSonameDependents returns the pkgbases whose %DEPENDS% pin a soname the
 // db's %PROVIDES% no longer satisfies (sogrep-style, from the db alone).
 // Sonames no db package provides are external and skipped.
+//
+// Deliberately two-pass: a bump built in THIS run only breaks the db once its
+// publish lands, so its dependents surface on the next plan invocation. The CI
+// loop re-plans after publishing until this comes back empty (a soname bump is
+// unknowable before the library is actually built).
 func brokenSonameDependents(rr *repo.RemoteRepo) []string {
 	provides := map[string][]string{}
 	for _, p := range rr.Pkgs {

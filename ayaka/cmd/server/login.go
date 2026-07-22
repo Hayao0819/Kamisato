@@ -8,7 +8,6 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
 	"github.com/Hayao0819/Kamisato/internal/auth/oauth"
 	"github.com/Hayao0819/Kamisato/internal/serverstore"
 )
@@ -77,7 +76,7 @@ func LoginCmd() *cobra.Command {
 				}
 				return oauth.LoopbackLogin(ctx, serverURL,
 					oauth.WithNoBrowser(noBrowser),
-					oauth.WithBrowserOpener(shared.OpenBrowser),
+					oauth.WithBrowserOpener(oauth.OpenSystemBrowser),
 					oauth.WithOutput(cmd.OutOrStdout()),
 				)
 			}

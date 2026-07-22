@@ -5,11 +5,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
-	"github.com/Hayao0819/Kamisato/internal/client"
+	"github.com/Hayao0819/Kamisato/ayaka/service/report"
 )
 
-func renderToString(t *testing.T, format string, rows []shared.PkgRow) string {
+func renderToString(t *testing.T, format string, rows []report.Row) string {
 	t.Helper()
 	var buf bytes.Buffer
 	if err := renderRows(&buf, format, rows); err != nil {
@@ -19,13 +18,13 @@ func renderToString(t *testing.T, format string, rows []shared.PkgRow) string {
 }
 
 func TestRenderRowsFormats(t *testing.T) {
-	rows := []shared.PkgRow{
+	rows := []report.Row{
 		{Package: "foo", Installed: "1.0-1", Local: "1.1-1", Remote: "1.0-1", Build: "success"},
 		{Package: "bar", Installed: "-", Local: "2.0-1", Remote: "-", Build: "queued"},
 	}
 
 	t.Run("default table has header and aligns", func(t *testing.T) {
-		out := renderToString(t, shared.DefaultListFormat, rows)
+		out := renderToString(t, report.DefaultListFormat, rows)
 		lines := strings.Split(strings.TrimRight(out, "\n"), "\n")
 		if len(lines) != 3 {
 			t.Fatalf("want 3 lines (header + 2 rows), got %d: %q", len(lines), out)
@@ -79,24 +78,4 @@ func TestRenderRowsFormats(t *testing.T) {
 			t.Error("expected error for malformed template, got nil")
 		}
 	})
-}
-
-func TestLatestJobStatusPicksMostRecent(t *testing.T) {
-	jobs := []client.Job{
-		{Repo: "extra", Packages: []string{"foo"}, Status: "queued", CreatedAt: "2026-01-01T00:00:00Z"},
-		{Repo: "extra", Packages: []string{"foo"}, Status: "success", CreatedAt: "2026-02-01T00:00:00Z"},
-		{Repo: "other", Packages: []string{"foo"}, Status: "failed", CreatedAt: "2026-03-01T00:00:00Z"},
-		// Whole-repo build (no packages listed) still matches.
-		{Repo: "extra", Status: "running", CreatedAt: "2026-01-15T00:00:00Z"},
-	}
-	if got := shared.LatestJobStatus(jobs, "extra", []string{"foo"}); got != "success" {
-		t.Errorf("latestJobStatus = %q, want success", got)
-	}
-	if s := shared.LatestJobStatus(jobs, "extra", []string{"missing"}); s != "running" {
-		// "missing" matches only the whole-repo build.
-		t.Errorf("latestJobStatus for whole-repo match = %q, want running", s)
-	}
-	if s := shared.LatestJobStatus(jobs, "nope", []string{"foo"}); s != "" {
-		t.Errorf("latestJobStatus for unknown repo = %q, want empty", s)
-	}
 }
