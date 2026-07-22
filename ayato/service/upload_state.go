@@ -88,7 +88,7 @@ func (p *uploadPublication) resolveUploadState(
 	if err != nil {
 		return err
 	}
-	upload.dbArches = arches
+	upload.dbArches = make([]string, 0, len(arches))
 	upload.oldByArch = make(map[string]publishedPackage)
 	for _, arch := range arches {
 		key := archKey{arch: arch, key: upload.pkgName}
@@ -107,6 +107,7 @@ func (p *uploadPublication) resolveUploadState(
 			return err
 		}
 		if !exists {
+			upload.dbArches = append(upload.dbArches, arch)
 			continue
 		}
 		comparison := alpm.VerCmp(upload.pkgVersion, current.version)
@@ -120,14 +121,14 @@ func (p *uploadPublication) resolveUploadState(
 				current.version,
 			)
 		case comparison == 0:
-			return fmt.Errorf(
-				"%w: %s %s is already published",
-				domain.ErrInvalidUpload,
-				upload.pkgName,
-				upload.pkgVersion,
-			)
+			// A same-version re-upload is a no-op, not an error: parallel CI
+			// arch jobs each rebuild an arch=any package and race to publish
+			// it. The first stored artifact stays authoritative.
+			slog.Info("skipping already-published package",
+				"repo", p.repo, "arch", arch, "pkg", upload.pkgName, "version", upload.pkgVersion)
 		default:
 			upload.oldByArch[arch] = current
+			upload.dbArches = append(upload.dbArches, arch)
 		}
 	}
 	return nil

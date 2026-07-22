@@ -47,33 +47,44 @@ func baseConfig(requireSign bool, keyring string) *conf.AyatoConfig {
 	return cfg
 }
 
-func TestUploadFile_RejectsNonUpgrade(t *testing.T) {
-	for _, test := range []struct {
-		name           string
-		currentVersion string
-	}{
-		{name: "downgrade", currentVersion: "2.0-1"},
-		{name: "duplicate", currentVersion: "1.0-1"},
-	} {
-		t.Run(test.name, func(t *testing.T) {
-			ctrl := gomock.NewController(t)
-			defer ctrl.Finish()
+func TestUploadFile_RejectsDowngrade(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
 
-			bin := mocks.NewMockBinaryRepository(ctrl)
-			name := mocks.NewMockNameStore(ctrl)
-			bin.EXPECT().VerifyPkgRepo("myrepo").Return(nil)
-			bin.EXPECT().RemoteRepo("myrepo", "x86_64").
-				Return(remoteWith("foo", test.currentVersion), nil)
+	bin := mocks.NewMockBinaryRepository(ctrl)
+	name := mocks.NewMockNameStore(ctrl)
+	bin.EXPECT().VerifyPkgRepo("myrepo").Return(nil)
+	bin.EXPECT().RemoteRepo("myrepo", "x86_64").
+		Return(remoteWith("foo", "2.0-1"), nil)
 
-			svc := service.New(name, bin, nil, nil, baseConfig(false, ""))
-			files := &domain.UploadFiles{
-				PkgFile: pkgStream(uploadName, buildPackage(t, "foo", "1.0-1", "x86_64")),
-			}
-			err := svc.UploadFile("myrepo", files)
-			if !errors.Is(err, domain.ErrInvalidUpload) {
-				t.Fatalf("%s = %v, want ErrInvalidUpload", test.name, err)
-			}
-		})
+	svc := service.New(name, bin, nil, nil, baseConfig(false, ""))
+	files := &domain.UploadFiles{
+		PkgFile: pkgStream(uploadName, buildPackage(t, "foo", "1.0-1", "x86_64")),
+	}
+	err := svc.UploadFile("myrepo", files)
+	if !errors.Is(err, domain.ErrInvalidUpload) {
+		t.Fatalf("downgrade = %v, want ErrInvalidUpload", err)
+	}
+}
+
+// A same-version re-upload succeeds without storing anything: parallel CI arch
+// jobs race to publish the same arch=any package, and only the first may land.
+func TestUploadFile_DuplicateVersionIsNoOp(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	bin := mocks.NewMockBinaryRepository(ctrl)
+	name := mocks.NewMockNameStore(ctrl)
+	bin.EXPECT().VerifyPkgRepo("myrepo").Return(nil)
+	bin.EXPECT().RemoteRepo("myrepo", "x86_64").
+		Return(remoteWith("foo", "1.0-1"), nil)
+
+	svc := service.New(name, bin, nil, nil, baseConfig(false, ""))
+	files := &domain.UploadFiles{
+		PkgFile: pkgStream(uploadName, buildPackage(t, "foo", "1.0-1", "x86_64")),
+	}
+	if err := svc.UploadFile("myrepo", files); err != nil {
+		t.Fatalf("duplicate upload = %v, want no-op success", err)
 	}
 }
 

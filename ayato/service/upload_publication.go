@@ -13,6 +13,11 @@ import (
 func (p *uploadPublication) storeObjects() error {
 	for i := range p.uploads {
 		upload := &p.uploads[i]
+		// Every target arch was skipped as already published; the stored
+		// artifact stays authoritative, so don't touch the object either.
+		if len(upload.dbArches) == 0 {
+			continue
+		}
 		objects := []struct {
 			kind string
 			name string

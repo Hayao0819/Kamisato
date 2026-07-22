@@ -11,11 +11,19 @@ import (
 func (p *uploadPublication) storePackageNames() error {
 	entries := make([]repository.PackageFileEntry, 0, len(p.uploads))
 	for _, upload := range p.uploads {
+		// Skipped as already published on every target arch; its name entry is
+		// already in place.
+		if len(upload.dbArches) == 0 {
+			continue
+		}
 		entries = append(entries, repository.PackageFileEntry{
 			Arch:     upload.storeArch,
 			Name:     upload.pkgName,
 			FileName: upload.storedName,
 		})
+	}
+	if len(entries) == 0 {
+		return nil
 	}
 	p.rollback.namesTouched = true
 	if err := p.service.pkgNameRepo.StorePackageFiles(p.repo, entries); err != nil {
