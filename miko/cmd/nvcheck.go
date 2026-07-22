@@ -2,16 +2,25 @@ package cmd
 
 import (
 	"fmt"
-	"text/tabwriter"
 
 	"github.com/spf13/cobra"
 
+	"github.com/Hayao0819/Kamisato/internal/cliutil"
 	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/miko/service"
 )
 
+type nvcheckRow struct {
+	Pkgbase   string `json:"pkgbase"`
+	Published string `json:"published"`
+	Upstream  string `json:"upstream"`
+	Status    string `json:"status"`
+}
+
+const nvcheckDefaultFmt = "table {{.Pkgbase}}\t{{.Published}}\t{{.Upstream}}\t{{.Status}}"
+
 func nvcheckCmd() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "nvcheck",
 		Short: "Check monitored packages for newer upstream versions",
 		Long: "Fetch the latest upstream version of every entry under nvcheck.entries " +
@@ -35,8 +44,7 @@ func nvcheckCmd() *cobra.Command {
 			s := service.New(cfg, serviceOptions...)
 			results := s.CheckUpstreamVersionsDryRun(cmd.Context())
 
-			w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)
-			fmt.Fprintln(w, "PKGBASE\tPUBLISHED\tUPSTREAM\tSTATUS")
+			rows := make([]nvcheckRow, 0, len(results))
 			outdated := 0
 			for _, r := range results {
 				status := "up-to-date"
@@ -47,9 +55,21 @@ func nvcheckCmd() *cobra.Command {
 					status = "OUTDATED"
 					outdated++
 				}
-				fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", r.Pkgbase, dashIfEmpty(r.Current), dashIfEmpty(r.Latest), status)
+				rows = append(rows, nvcheckRow{
+					Pkgbase:   r.Pkgbase,
+					Published: dashIfEmpty(r.Current),
+					Upstream:  dashIfEmpty(r.Latest),
+					Status:    status,
+				})
 			}
-			_ = w.Flush()
+			format, err := cliutil.ResolveFormat(cmd, nvcheckDefaultFmt)
+			if err != nil {
+				return err
+			}
+			header := nvcheckRow{Pkgbase: "PKGBASE", Published: "PUBLISHED", Upstream: "UPSTREAM", Status: "STATUS"}
+			if err := cliutil.RenderList(cmd.OutOrStdout(), format, header, rows); err != nil {
+				return err
+			}
 
 			if outdated > 0 {
 				return fmt.Errorf("%d package(s) out of date", outdated)
@@ -57,6 +77,8 @@ func nvcheckCmd() *cobra.Command {
 			return nil
 		},
 	}
+	cliutil.AddFormatFlags(cmd)
+	return cmd
 }
 
 func dashIfEmpty(s string) string {

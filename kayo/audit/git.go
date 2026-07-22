@@ -2,9 +2,7 @@ package audit
 
 import (
 	"context"
-	"os"
 
-	"github.com/Hayao0819/Kamisato/internal/errors"
 	"github.com/Hayao0819/Kamisato/internal/gitcmd"
 )
 
@@ -16,19 +14,10 @@ func HeadCommit(ctx context.Context, dir string) (string, error) {
 
 // Clone clones url (optionally at ref) into a temp dir for auditing. The caller
 // must call cleanup.
+//
+// SSRF/loopback rejection is omitted on purpose: the URL is operator-chosen and
+// local git (file://, http://127.0.0.1) is a supported audit target; ext:: RCE is
+// blocked unconditionally by gitcmd. Full clone so Inspect can read author history.
 func Clone(ctx context.Context, url, ref string) (dir string, cleanup func(), err error) {
-	dir, err = os.MkdirTemp("", "kayo-audit-*")
-	if err != nil {
-		return "", func() {}, errors.WrapErr(err, "failed to create temp dir")
-	}
-	cleanup = func() { _ = os.RemoveAll(dir) }
-
-	// SSRF/loopback rejection is omitted on purpose: the URL is operator-chosen and
-	// local git (file://, http://127.0.0.1) is a supported audit target; ext:: RCE is
-	// blocked unconditionally by gitcmd. Full clone so Inspect can read author history.
-	if err := gitcmd.Clone(ctx, gitcmd.CloneOptions{URL: url, Dir: dir, Ref: ref}); err != nil {
-		cleanup()
-		return "", func() {}, err
-	}
-	return dir, cleanup, nil
+	return gitcmd.CloneTemp(ctx, "kayo-audit-*", gitcmd.CloneOptions{URL: url, Ref: ref})
 }

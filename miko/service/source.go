@@ -49,37 +49,31 @@ func materializeGit(ctx context.Context, git *domain.GitSource, srcDir string) e
 		return errors.NewErr("git source has no URL")
 	}
 
-	dest := srcDir
-	var cloneDir string
-	if git.Subdir != "" {
-		// Reject a subdir that escapes the clone root.
-		clean := filepath.Clean(git.Subdir)
-		if clean == ".." || strings.HasPrefix(clean, ".."+string(filepath.Separator)) || filepath.IsAbs(clean) {
-			return errors.NewErrf("invalid subdir: %s", git.Subdir)
-		}
-
-		tmp, err := os.MkdirTemp("", "miko-clone-*")
-		if err != nil {
-			return errors.WrapErr(err, "failed to create clone dir")
-		}
-		defer func() { _ = os.RemoveAll(tmp) }()
-		cloneDir = tmp
-		dest = tmp
-	}
-
-	opts := gitcmd.CloneOptions{URL: git.URL, Dir: dest, Ref: git.Ref, Strict: true}
+	opts := gitcmd.CloneOptions{URL: git.URL, Ref: git.Ref, Strict: true}
 	if git.Ref == "" {
 		opts.Depth = 1
 	}
-	if err := gitcmd.Clone(ctx, opts); err != nil {
-		return errors.WrapErr(err, "git clone failed")
+
+	if git.Subdir == "" {
+		opts.Dir = srcDir
+		if err := gitcmd.Clone(ctx, opts); err != nil {
+			return errors.WrapErr(err, "git clone failed")
+		}
+		return nil
 	}
 
-	if git.Subdir != "" {
-		src := filepath.Join(cloneDir, filepath.Clean(git.Subdir))
-		if err := copy.Copy(src, srcDir); err != nil {
-			return errors.WrapErr(err, "failed to copy subdir")
-		}
+	// Reject a subdir that escapes the clone root.
+	clean := filepath.Clean(git.Subdir)
+	if clean == ".." || strings.HasPrefix(clean, ".."+string(filepath.Separator)) || filepath.IsAbs(clean) {
+		return errors.NewErrf("invalid subdir: %s", git.Subdir)
+	}
+	cloneDir, cleanup, err := gitcmd.CloneTemp(ctx, "miko-clone-*", opts)
+	if err != nil {
+		return errors.WrapErr(err, "git clone failed")
+	}
+	defer cleanup()
+	if err := copy.Copy(filepath.Join(cloneDir, clean), srcDir); err != nil {
+		return errors.WrapErr(err, "failed to copy subdir")
 	}
 	return nil
 }

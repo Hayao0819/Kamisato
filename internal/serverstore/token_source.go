@@ -23,6 +23,11 @@ type TokenSource struct {
 	refresh  func(context.Context, string, string) (client.TokenPair, error)
 }
 
+// NewClient returns an authenticated Ayato client for the endpoint.
+func NewClient(endpoint *Endpoint) (*client.Ayato, error) {
+	return client.NewAyato(endpoint.URL, NewTokenSource(endpoint))
+}
+
 func NewTokenSource(endpoint *Endpoint) *TokenSource {
 	return &TokenSource{
 		server:   endpoint.URL,

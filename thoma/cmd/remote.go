@@ -48,7 +48,7 @@ func configuredBuildClient(cfg *conf.ThomaConfig) (string, *client.BuildClient, 
 	if err != nil {
 		return "", nil, err
 	}
-	ayato, err := client.NewAyato(endpoint.URL, serverstore.NewTokenSource(endpoint))
+	ayato, err := serverstore.NewClient(endpoint)
 	if err != nil {
 		return "", nil, err
 	}

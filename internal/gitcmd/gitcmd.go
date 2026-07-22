@@ -12,6 +12,7 @@ import (
 	"context"
 	"net"
 	"net/url"
+	"os"
 	"strings"
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
@@ -27,6 +28,22 @@ type CloneOptions struct {
 	Strict bool
 	// Bare clones without a working tree (a servable repository).
 	Bare bool
+}
+
+// CloneTemp clones into a fresh temp dir named after prefix and returns it with
+// its cleanup; o.Dir is set by CloneTemp.
+func CloneTemp(ctx context.Context, prefix string, o CloneOptions) (string, func(), error) {
+	dir, err := os.MkdirTemp("", prefix)
+	if err != nil {
+		return "", func() {}, errors.WrapErr(err, "create clone dir")
+	}
+	cleanup := func() { _ = os.RemoveAll(dir) }
+	o.Dir = dir
+	if err := Clone(ctx, o); err != nil {
+		cleanup()
+		return "", func() {}, err
+	}
+	return dir, cleanup, nil
 }
 
 // Clone clones o.URL into o.Dir via go-git (no git process spawned). A strict
