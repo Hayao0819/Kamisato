@@ -170,7 +170,7 @@ func writeGithubOutput(m *Matrix) error {
 	if path == "" {
 		return errors.NewErr("--format github needs $GITHUB_OUTPUT to be set")
 	}
-	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600) //nolint:gosec // G703: $GITHUB_OUTPUT is the runner-provided output path by contract
 	if err != nil {
 		return errors.WrapErr(err, "failed to open $GITHUB_OUTPUT")
 	}
