@@ -157,7 +157,7 @@ func TestPresignUpload_GCFailureDoesNotFailTheGrant(t *testing.T) {
 	bin.EXPECT().VerifyPkgRepo("myrepo").Return(nil)
 
 	svc := service.New(mocks.NewMockNameStore(ctrl), bin, nil, nil, baseConfig(false, ""))
-	if _, err := svc.PresignUpload("myrepo", []domain.StagedFileRequest{{Name: uploadName}}); err != nil {
+	if _, err := svc.PresignUpload("myrepo", []domain.StagedFileRequest{{Name: uploadName, Size: 1}}); err != nil {
 		t.Fatalf("PresignUpload with failing gc = %v, want success", err)
 	}
 }
