@@ -26,7 +26,7 @@ type fakeStagedUploader struct {
 	presigns []string
 }
 
-func (f *fakeStagedUploader) PresignStagedPut(id, name string, _ time.Duration) (string, error) {
+func (f *fakeStagedUploader) PresignStagedPut(id, name string, _ int64, _ time.Duration) (string, error) {
 	f.presigns = append(f.presigns, id+"/"+name)
 	return "https://storage.example/staging/" + id + "/" + name, nil
 }
@@ -72,7 +72,8 @@ func TestPresignUpload_ValidatesRequests(t *testing.T) {
 		{name: "empty list", files: nil},
 		{name: "not an artifact", files: []domain.StagedFileRequest{{Name: "evil.txt"}}},
 		{name: "path in name", files: []domain.StagedFileRequest{{Name: "a/" + uploadName}}},
-		{name: "duplicate name", files: []domain.StagedFileRequest{{Name: uploadName}, {Name: uploadName}}},
+		{name: "duplicate name", files: []domain.StagedFileRequest{{Name: uploadName, Size: 1}, {Name: uploadName, Size: 1}}},
+		{name: "missing size", files: []domain.StagedFileRequest{{Name: uploadName}}},
 		{name: "oversized", files: []domain.StagedFileRequest{{Name: uploadName, Size: 11}}},
 	} {
 		t.Run(test.name, func(t *testing.T) {

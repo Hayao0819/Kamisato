@@ -1,7 +1,9 @@
 package client
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -116,11 +118,13 @@ func uploadStagedPackage(ctx context.Context, requester *requester, repo, pkg st
 	}
 
 	reqFiles := make([]stagedFileRequest, 0, len(names))
+	sizes := make(map[string]int64, len(names))
 	for _, name := range names {
 		info, statErr := os.Stat(paths[name])
 		if statErr != nil {
 			return false, errors.WrapErr(statErr, "stat "+paths[name])
 		}
+		sizes[name] = info.Size()
 		reqFiles = append(reqFiles, stagedFileRequest{Name: name, Size: info.Size()})
 	}
 
@@ -152,7 +156,7 @@ func uploadStagedPackage(ctx context.Context, requester *requester, repo, pkg st
 		if !granted {
 			return false, errors.NewErr("presign response is missing a URL for " + name)
 		}
-		if err := putStagedFile(ctx, requester.transport, rawURL, paths[name]); err != nil {
+		if err := putStagedFile(ctx, requester.transport, rawURL, paths[name], sizes[name]); err != nil {
 			return false, err
 		}
 	}
@@ -162,22 +166,42 @@ func uploadStagedPackage(ctx context.Context, requester *requester, repo, pkg st
 		entry.Signature = names[1]
 	}
 	err = requester.execute(ctx, func() error {
-		return requester.transport.doJSON(
-			ctx,
-			noRetry,
-			http.MethodPost,
-			requester.transport.endpoint("api", "unstable", "repos", repo, "packages", "commit"),
-			true,
-			struct {
-				ID    string              `json:"id"`
-				Files []stagedCommitEntry `json:"files"`
-			}{ID: grant.ID, Files: []stagedCommitEntry{entry}},
-			nil,
-			http.StatusOK,
-			"commit staged upload",
-		)
+		return commitStagedUpload(ctx, requester.transport, repo, grant.ID, entry)
 	})
 	return false, err
+}
+
+// commitStagedUpload deliberately skips the per-attempt timeout: server-side
+// commit work scales with package size, and abandoning a commit that then
+// succeeds would turn its retry into a version-gate rejection.
+func commitStagedUpload(ctx context.Context, t *transport, repo, id string, entry stagedCommitEntry) error {
+	payload, err := json.Marshal(struct {
+		ID    string              `json:"id"`
+		Files []stagedCommitEntry `json:"files"`
+	}{ID: id, Files: []stagedCommitEntry{entry}})
+	if err != nil {
+		return errors.WrapErr(err, "encode commit request")
+	}
+	req, err := t.newRequest(
+		ctx,
+		http.MethodPost,
+		t.endpoint("api", "unstable", "repos", repo, "packages", "commit"),
+		bytes.NewReader(payload),
+		true,
+	)
+	if err != nil {
+		return errors.WrapErr(err, "create commit request")
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := t.http.Do(req)
+	if err != nil {
+		return errors.WrapErr(err, "commit staged upload")
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return responseError(resp, "commit staged upload")
+	}
+	return nil
 }
 
 // stagedProtocolUnavailable recognizes a server that either predates the
@@ -193,7 +217,7 @@ func stagedProtocolUnavailable(err error) bool {
 
 // putStagedFile streams path's bytes to a presigned URL with no credential:
 // the URL itself is the authorization.
-func putStagedFile(ctx context.Context, t *transport, rawURL, path string) error {
+func putStagedFile(ctx context.Context, t *transport, rawURL, path string, size int64) error {
 	target, err := url.Parse(rawURL)
 	if err != nil {
 		return errors.WrapErr(err, "parse presigned URL")
@@ -209,9 +233,8 @@ func putStagedFile(ctx context.Context, t *transport, rawURL, path string) error
 		return errors.WrapErr(err, "create staged put request")
 	}
 	req.Header.Set("Content-Type", "application/octet-stream")
-	if info, statErr := file.Stat(); statErr == nil {
-		req.ContentLength = info.Size()
-	}
+	// The presigned URL signs this exact length; storage rejects a mismatch.
+	req.ContentLength = size
 	resp, err := t.http.Do(req)
 	if err != nil {
 		return errors.WrapErr(err, "put staged file "+filepath.Base(path))

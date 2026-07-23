@@ -36,10 +36,7 @@ type commitRequest struct {
 	Files []commitFileEntry `json:"files"`
 }
 
-// PresignUploadHandler grants presigned staging PUTs for a package upload,
-// letting the bytes go client -> object storage directly instead of through
-// the Cloudflare zone proxy's request-body cap. CommitUploadHandler then
-// validates and publishes from storage.
+// PresignUploadHandler grants presigned staging PUTs for a repo.
 func (h *PublicationHandler) PresignUploadHandler(ctx *gin.Context) {
 	repoName := ctx.Param("repo")
 	if repoName == "" {
@@ -63,8 +60,7 @@ func (h *PublicationHandler) PresignUploadHandler(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, presignResponse{ID: grant.ID, TTLSeconds: grant.TTLSeconds, URLs: grant.URLs})
 }
 
-// CommitUploadHandler validates and publishes every file of a staged intent
-// through the same pipeline as the multipart upload endpoint.
+// CommitUploadHandler publishes staged files through the upload pipeline.
 func (h *PublicationHandler) CommitUploadHandler(ctx *gin.Context) {
 	repoName := ctx.Param("repo")
 	if repoName == "" {

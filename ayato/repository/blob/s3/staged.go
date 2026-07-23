@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	awss3 "github.com/aws/aws-sdk-go-v2/service/s3"
 
 	"github.com/Hayao0819/Kamisato/ayato/platform"
@@ -28,27 +27,23 @@ func stagedKey(id, name string) (string, error) {
 	return stagingPrefix + "/" + id + "/" + name, nil
 }
 
-func (s *S3) PresignStagedPut(id, name string, ttl time.Duration) (string, error) {
-	result, err := s.presignStagedPut(id, name, ttl)
+func (s *S3) PresignStagedPut(id, name string, size int64, ttl time.Duration) (string, error) {
+	k, err := stagedKey(id, name)
 	if err != nil {
 		return "", err
 	}
-	return result.URL, nil
-}
-
-func (s *S3) presignStagedPut(id, name string, ttl time.Duration) (*v4.PresignedHTTPRequest, error) {
-	k, err := stagedKey(id, name)
-	if err != nil {
-		return nil, err
-	}
+	input := s.putObjectInput(k, nil)
+	// Signing Content-Length makes storage reject a PUT larger than declared,
+	// so the presign-time size check cannot be bypassed.
+	input.ContentLength = aws.Int64(size)
 	presignClient := awss3.NewPresignClient(s.storage)
-	result, err := presignClient.PresignPutObject(s.ctx, s.putObjectInput(k, nil), func(po *awss3.PresignOptions) {
+	result, err := presignClient.PresignPutObject(s.ctx, input, func(po *awss3.PresignOptions) {
 		po.Expires = ttl
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to create staged presigned PUT for %s: %w", k, err)
+		return "", fmt.Errorf("failed to create staged presigned PUT for %s: %w", k, err)
 	}
-	return result, nil
+	return result.URL, nil
 }
 
 func (s *S3) FetchStaged(id, name string) (platform.File, error) {

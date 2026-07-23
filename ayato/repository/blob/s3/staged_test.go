@@ -29,16 +29,17 @@ func offlineStore(t *testing.T) *S3 {
 func TestPresignStagedPutIsAnOfflinePUTIntoTheStagingPrefix(t *testing.T) {
 	store := offlineStore(t)
 
-	result, err := store.presignStagedPut("abc123", "pkg-1-1-x86_64.pkg.tar.zst", time.Hour)
+	url, err := store.PresignStagedPut("abc123", "pkg-1-1-x86_64.pkg.tar.zst", 42, time.Hour)
 	if err != nil {
-		t.Fatalf("presignStagedPut: %v", err)
-	}
-	if result.Method != "PUT" {
-		t.Fatalf("Method = %q, want PUT", result.Method)
+		t.Fatalf("PresignStagedPut: %v", err)
 	}
 	// '$' is percent-encoded in the URL path.
-	if !strings.Contains(result.URL, "/%24staging/abc123/pkg-1-1-x86_64.pkg.tar.zst") {
-		t.Fatalf("URL = %q, want it to contain the staging key", result.URL)
+	if !strings.Contains(url, "/%24staging/abc123/pkg-1-1-x86_64.pkg.tar.zst") {
+		t.Fatalf("URL = %q, want it to contain the staging key", url)
+	}
+	// The declared size must be part of the signature, so storage enforces it.
+	if !strings.Contains(url, "content-length") {
+		t.Fatalf("URL = %q, want content-length among the signed headers", url)
 	}
 }
 

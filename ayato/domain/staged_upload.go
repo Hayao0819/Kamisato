@@ -4,21 +4,18 @@ package domain
 // under a staged-upload intent.
 type StagedFileRequest struct {
 	Name string
-	// Size is a client-declared hint; zero means unknown. The pipeline still
-	// re-validates the real bytes at commit time.
+	// Size is signed into the presigned PUT, so storage enforces it.
 	Size int64
 }
 
-// StagedUploadGrant is the presigned destination for a staged-upload intent:
-// one URL per requested file name, valid for TTLSeconds.
+// StagedUploadGrant is the presigned destination for a staged-upload intent.
 type StagedUploadGrant struct {
 	ID         string
 	TTLSeconds int
 	URLs       map[string]string
 }
 
-// StagedCommitEntry pairs a staged package with its optional staged signature,
-// both looked up by name under the same intent.
+// StagedCommitEntry pairs a staged package with its optional staged signature.
 type StagedCommitEntry struct {
 	Package   string
 	Signature string

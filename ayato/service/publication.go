@@ -1,12 +1,14 @@
 package service
 
 import (
+	"fmt"
 	"io"
 	"os"
 	"path"
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
 
+	"github.com/Hayao0819/Kamisato/ayato/domain"
 	"github.com/Hayao0819/Kamisato/ayato/platform"
 	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
 )
@@ -105,13 +107,12 @@ func (s *Service) spoolRepositoryFile(
 	if err != nil {
 		return nil, nil, err
 	}
-	return spoolSource(source, filename)
+	return spoolSource(source, filename, 0)
 }
 
-// spoolSource copies source to a temp file and closes source; it is shared by
-// every path that turns a blob.Store read into a re-seekable local file
-// (publication, promotion, arch backfill, rollback, and staged-upload commit).
-func spoolSource(source platform.File, filename string) (platform.SeekFile, func(), error) {
+// spoolSource copies source to a temp file and closes source. maxBytes > 0
+// bounds the copy so an oversized storage object cannot exhaust local disk.
+func spoolSource(source platform.File, filename string, maxBytes int64) (platform.SeekFile, func(), error) {
 	defer source.Close()
 
 	tmp, err := os.CreateTemp("", "ayato-publication-")
@@ -122,9 +123,18 @@ func spoolSource(source platform.File, filename string) (platform.SeekFile, func
 		_ = tmp.Close()
 		_ = os.Remove(tmp.Name())
 	}
-	if _, err := io.Copy(tmp, source); err != nil {
+	var reader io.Reader = source
+	if maxBytes > 0 {
+		reader = io.LimitReader(source, maxBytes+1)
+	}
+	written, err := io.Copy(tmp, reader)
+	if err != nil {
 		cleanup()
 		return nil, nil, errors.WrapErr(err, "spool file")
+	}
+	if maxBytes > 0 && written > maxBytes {
+		cleanup()
+		return nil, nil, fmt.Errorf("%w: %s exceeds its size limit", domain.ErrInvalidUpload, filename)
 	}
 	if err := platform.Rewind(tmp); err != nil {
 		cleanup()

@@ -116,11 +116,10 @@ func WithUpstreamRepos(names []string) BinaryRepoOption {
 // probing it here would always report the capability absent.
 func WithStagedUploads(rawStore blob.Store) BinaryRepoOption {
 	return func(repository *binaryRepository) {
-		repository.staged, _ = blob.StagedUploads(rawStore)
+		repository.staged, _ = rawStore.(blob.StagedUploader)
 	}
 }
 
-// StagedUploads reports the capability probed by WithStagedUploads.
 func (r *binaryRepository) StagedUploads() (blob.StagedUploader, bool) {
 	return r.staged, r.staged != nil
 }

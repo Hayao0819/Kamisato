@@ -272,18 +272,18 @@ func (mr *MockStagedUploaderMockRecorder) ListStagedIntents() *gomock.Call {
 }
 
 // PresignStagedPut mocks base method.
-func (m *MockStagedUploader) PresignStagedPut(id, name string, ttl time.Duration) (string, error) {
+func (m *MockStagedUploader) PresignStagedPut(id, name string, size int64, ttl time.Duration) (string, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "PresignStagedPut", id, name, ttl)
+	ret := m.ctrl.Call(m, "PresignStagedPut", id, name, size, ttl)
 	ret0, _ := ret[0].(string)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // PresignStagedPut indicates an expected call of PresignStagedPut.
-func (mr *MockStagedUploaderMockRecorder) PresignStagedPut(id, name, ttl any) *gomock.Call {
+func (mr *MockStagedUploaderMockRecorder) PresignStagedPut(id, name, size, ttl any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PresignStagedPut", reflect.TypeOf((*MockStagedUploader)(nil).PresignStagedPut), id, name, ttl)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PresignStagedPut", reflect.TypeOf((*MockStagedUploader)(nil).PresignStagedPut), id, name, size, ttl)
 }
 
 // MockBlobStore is a mock of Store interface.

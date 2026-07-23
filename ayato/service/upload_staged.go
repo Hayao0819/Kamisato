@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
@@ -18,9 +19,9 @@ import (
 )
 
 const (
-	// stagedUploadTTL is how long a presigned staging PUT stays valid.
 	stagedUploadTTL = time.Hour
-	// stagedUploadGCCutoff abandons an intent that was never committed.
+	// stagedUploadGCCutoff abandons an intent that was never committed. It must
+	// dwarf stagedUploadTTL so gc can never reclaim an in-flight upload.
 	stagedUploadGCCutoff = 24 * time.Hour
 )
 
@@ -42,6 +43,9 @@ func (s *Service) PresignUpload(repo string, files []domain.StagedFileRequest) (
 	if len(files) == 0 {
 		return nil, fmt.Errorf("%w: at least one file is required", domain.ErrInvalidUpload)
 	}
+	if len(files) > limits.BatchPackages(s.batchPackagesLimit()) {
+		return nil, fmt.Errorf("%w: too many files in one staged upload", domain.ErrInvalidUpload)
+	}
 
 	id, err := newStagedIntentID()
 	if err != nil {
@@ -58,16 +62,14 @@ func (s *Service) PresignUpload(repo string, files []domain.StagedFileRequest) (
 			return nil, fmt.Errorf("%w: duplicate file %q", domain.ErrInvalidUpload, file.Name)
 		}
 		seen[file.Name] = struct{}{}
-		if file.Size > 0 && limits.Exceeds(file.Size, s.maxPackageSize()) {
-			return nil, fmt.Errorf(
-				"%w: %q exceeds max_size (%d > %d bytes)",
-				domain.ErrInvalidUpload,
-				file.Name,
-				file.Size,
-				limits.PackageBytes(s.maxPackageSize()),
-			)
+		// Size is mandatory: it is signed into the PUT so storage enforces it.
+		if file.Size <= 0 {
+			return nil, fmt.Errorf("%w: %q needs a positive size", domain.ErrInvalidUpload, file.Name)
 		}
-		url, err := staged.PresignStagedPut(id, file.Name, stagedUploadTTL)
+		if err := s.checkStagedSize(file.Name, file.Size); err != nil {
+			return nil, err
+		}
+		url, err := staged.PresignStagedPut(id, file.Name, file.Size, stagedUploadTTL)
 		if err != nil {
 			return nil, errors.WrapErr(err, "presign staged upload for "+file.Name)
 		}
@@ -97,8 +99,11 @@ func (s *Service) CommitUpload(repo, id string, entries []domain.StagedCommitEnt
 	if len(entries) == 0 {
 		return fmt.Errorf("%w: commit requires at least one file", domain.ErrInvalidUpload)
 	}
+	if len(entries) > limits.BatchPackages(s.batchPackagesLimit()) {
+		return fmt.Errorf("%w: too many files in one commit", domain.ErrInvalidUpload)
+	}
 
-	files, cleanup, err := spoolStagedEntries(staged, id, entries)
+	files, cleanup, err := spoolStagedEntries(staged, id, entries, s.maxPackageSize())
 	defer cleanup()
 	if err != nil {
 		return err
@@ -118,6 +123,7 @@ func spoolStagedEntries(
 	staged blob.StagedUploader,
 	id string,
 	entries []domain.StagedCommitEntry,
+	maxPackage int,
 ) ([]*domain.UploadFiles, func(), error) {
 	files := make([]*domain.UploadFiles, 0, len(entries))
 	var cleanups []func()
@@ -127,14 +133,14 @@ func spoolStagedEntries(
 		}
 	}
 	for _, entry := range entries {
-		pkgFile, pkgCleanup, err := spoolStagedFile(staged, id, entry.Package)
+		pkgFile, pkgCleanup, err := spoolStagedFile(staged, id, entry.Package, limits.PackageBytes(maxPackage))
 		if err != nil {
 			return nil, cleanup, err
 		}
 		cleanups = append(cleanups, pkgCleanup)
 		upload := &domain.UploadFiles{PkgFile: pkgFile}
 		if entry.Signature != "" {
-			sigFile, sigCleanup, err := spoolStagedFile(staged, id, entry.Signature)
+			sigFile, sigCleanup, err := spoolStagedFile(staged, id, entry.Signature, limits.MaxSignatureBytes)
 			if err != nil {
 				return nil, cleanup, err
 			}
@@ -146,7 +152,9 @@ func spoolStagedEntries(
 	return files, cleanup, nil
 }
 
-func spoolStagedFile(staged blob.StagedUploader, id, name string) (platform.SeekFile, func(), error) {
+// spoolStagedFile bounds the spool: the staged object was size-checked at
+// presign, but the local temp copy must not trust storage state.
+func spoolStagedFile(staged blob.StagedUploader, id, name string, maxBytes int64) (platform.SeekFile, func(), error) {
 	if err := validateStagedFileName(name); err != nil {
 		return nil, nil, err
 	}
@@ -157,7 +165,7 @@ func spoolStagedFile(staged blob.StagedUploader, id, name string) (platform.Seek
 		}
 		return nil, nil, errors.WrapErr(err, "fetch staged file "+name)
 	}
-	return spoolSource(source, name)
+	return spoolSource(source, name, maxBytes)
 }
 
 // gcStagedUploads best-effort expires abandoned staged intents; it piggybacks
@@ -177,6 +185,27 @@ func (s *Service) gcStagedUploads(staged blob.StagedUploader) {
 			slog.Warn("failed to delete expired staged upload", "id", intent.ID, "error", err)
 		}
 	}
+}
+
+func (s *Service) checkStagedSize(name string, size int64) error {
+	limit := limits.PackageBytes(s.maxPackageSize())
+	if strings.HasSuffix(name, ".sig") {
+		limit = limits.MaxSignatureBytes
+	}
+	if size > limit {
+		return fmt.Errorf(
+			"%w: %q exceeds its size limit (%d > %d bytes)",
+			domain.ErrInvalidUpload, name, size, limit,
+		)
+	}
+	return nil
+}
+
+func (s *Service) batchPackagesLimit() int {
+	if s.cfg != nil {
+		return s.cfg.MaxBatchPackages
+	}
+	return 0
 }
 
 func (s *Service) maxPackageSize() int {

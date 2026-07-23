@@ -23,7 +23,6 @@ func TestUnsafePresignProtocolIsDisabled(t *testing.T) {
 		name string
 		path string
 	}{
-		{name: "presign", path: "/api/unstable/repos/core/packages/presign"},
 		{name: "finalize", path: "/api/unstable/repos/core/packages/finalize"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
