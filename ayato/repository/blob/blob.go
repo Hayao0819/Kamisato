@@ -113,6 +113,32 @@ type ObjectMover interface {
 	DeleteObject(objKey string) error
 }
 
+// StagedIntent is one staged-upload id with its most recent object
+// modification time, so GC can expire abandoned uploads.
+type StagedIntent struct {
+	ID      string
+	ModTime time.Time
+}
+
+// StagedUploader is an optional Store capability for direct-to-storage
+// uploads: presigned PUTs land in a staging prefix invisible to the serving
+// key layout, and become live only after server-side validation promotes them.
+type StagedUploader interface {
+	PresignStagedPut(id, name string, ttl time.Duration) (string, error)
+	FetchStaged(id, name string) (platform.File, error)
+	// DeleteStaged removes every object under the intent; missing is not an error.
+	DeleteStaged(id string) error
+	// ListStagedIntents returns intent ids with their newest modification time,
+	// for expiring abandoned uploads.
+	ListStagedIntents() ([]StagedIntent, error)
+}
+
+// StagedUploads type-asserts the optional StagedUploader capability.
+func StagedUploads(store Store) (StagedUploader, bool) {
+	uploader, ok := store.(StagedUploader)
+	return uploader, ok
+}
+
 // Store is pure byte/file IO and knows nothing about pacman repositories: the
 // repo-DB read-modify-write lives in the domain layer (ayato/repository) that
 // composes it.

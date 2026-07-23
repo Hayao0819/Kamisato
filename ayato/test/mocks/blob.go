@@ -203,6 +203,89 @@ func (mr *MockObjectMoverMockRecorder) ListObjects(prefix any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListObjects", reflect.TypeOf((*MockObjectMover)(nil).ListObjects), prefix)
 }
 
+// MockStagedUploader is a mock of StagedUploader interface.
+type MockStagedUploader struct {
+	ctrl     *gomock.Controller
+	recorder *MockStagedUploaderMockRecorder
+	isgomock struct{}
+}
+
+// MockStagedUploaderMockRecorder is the mock recorder for MockStagedUploader.
+type MockStagedUploaderMockRecorder struct {
+	mock *MockStagedUploader
+}
+
+// NewMockStagedUploader creates a new mock instance.
+func NewMockStagedUploader(ctrl *gomock.Controller) *MockStagedUploader {
+	mock := &MockStagedUploader{ctrl: ctrl}
+	mock.recorder = &MockStagedUploaderMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockStagedUploader) EXPECT() *MockStagedUploaderMockRecorder {
+	return m.recorder
+}
+
+// DeleteStaged mocks base method.
+func (m *MockStagedUploader) DeleteStaged(id string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteStaged", id)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteStaged indicates an expected call of DeleteStaged.
+func (mr *MockStagedUploaderMockRecorder) DeleteStaged(id any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteStaged", reflect.TypeOf((*MockStagedUploader)(nil).DeleteStaged), id)
+}
+
+// FetchStaged mocks base method.
+func (m *MockStagedUploader) FetchStaged(id, name string) (platform.File, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FetchStaged", id, name)
+	ret0, _ := ret[0].(platform.File)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FetchStaged indicates an expected call of FetchStaged.
+func (mr *MockStagedUploaderMockRecorder) FetchStaged(id, name any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FetchStaged", reflect.TypeOf((*MockStagedUploader)(nil).FetchStaged), id, name)
+}
+
+// ListStagedIntents mocks base method.
+func (m *MockStagedUploader) ListStagedIntents() ([]blob.StagedIntent, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListStagedIntents")
+	ret0, _ := ret[0].([]blob.StagedIntent)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListStagedIntents indicates an expected call of ListStagedIntents.
+func (mr *MockStagedUploaderMockRecorder) ListStagedIntents() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListStagedIntents", reflect.TypeOf((*MockStagedUploader)(nil).ListStagedIntents))
+}
+
+// PresignStagedPut mocks base method.
+func (m *MockStagedUploader) PresignStagedPut(id, name string, ttl time.Duration) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "PresignStagedPut", id, name, ttl)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// PresignStagedPut indicates an expected call of PresignStagedPut.
+func (mr *MockStagedUploaderMockRecorder) PresignStagedPut(id, name, ttl any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PresignStagedPut", reflect.TypeOf((*MockStagedUploader)(nil).PresignStagedPut), id, name, ttl)
+}
+
 // MockBlobStore is a mock of Store interface.
 type MockBlobStore struct {
 	ctrl     *gomock.Controller

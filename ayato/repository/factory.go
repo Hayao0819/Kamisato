@@ -46,6 +46,7 @@ func New(cfg *conf.AyatoConfig) (
 		binOpts = append(binOpts, WithSigningTool(signer))
 	}
 	binOpts = append(binOpts, WithUpstreamRepos(stores.catalog.UpstreamPhysicalNames()))
+	binOpts = append(binOpts, WithStagedUploads(stores.binary))
 
 	// Package files are stored directly under (repo, arch, filename); serializing
 	// keeps per-(repo, arch) writes serialized.

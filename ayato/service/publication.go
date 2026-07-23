@@ -105,6 +105,13 @@ func (s *Service) spoolRepositoryFile(
 	if err != nil {
 		return nil, nil, err
 	}
+	return spoolSource(source, filename)
+}
+
+// spoolSource copies source to a temp file and closes source; it is shared by
+// every path that turns a blob.Store read into a re-seekable local file
+// (publication, promotion, arch backfill, rollback, and staged-upload commit).
+func spoolSource(source platform.File, filename string) (platform.SeekFile, func(), error) {
 	defer source.Close()
 
 	tmp, err := os.CreateTemp("", "ayato-publication-")
@@ -117,7 +124,7 @@ func (s *Service) spoolRepositoryFile(
 	}
 	if _, err := io.Copy(tmp, source); err != nil {
 		cleanup()
-		return nil, nil, errors.WrapErr(err, "spool repository file")
+		return nil, nil, errors.WrapErr(err, "spool file")
 	}
 	if err := platform.Rewind(tmp); err != nil {
 		cleanup()

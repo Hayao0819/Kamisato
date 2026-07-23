@@ -18,7 +18,10 @@ func setPublicationRoutes(
 		middlewares.RequireCI(),
 	)
 	upload.POST("/repos/:repo/packages", publications.BatchUploadHandler)
-	upload.POST("/repos/:repo/packages/presign", publications.StagedUploadUnavailableHandler)
+	upload.POST("/repos/:repo/packages/presign", publications.PresignUploadHandler)
+	upload.POST("/repos/:repo/packages/commit", publications.CommitUploadHandler)
+	// finalize belonged to the retired direct-final-key protocol; it stays
+	// tombstoned rather than being repurposed for staging-intent commits.
 	upload.POST("/repos/:repo/packages/finalize", publications.StagedUploadUnavailableHandler)
 
 	remove := api.Group("")

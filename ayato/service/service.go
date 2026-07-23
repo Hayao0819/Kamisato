@@ -55,6 +55,11 @@ type Uploader interface {
 	// dryRun reports without deleting.
 	ReconcileOrphans(repo string, olderThan time.Duration, dryRun bool) ([]OrphanObject, error)
 	RemovePkg(rname string, arch string, pkgname string) error
+	// PresignUpload grants presigned staging PUTs for repo; CommitUpload then
+	// validates and publishes from storage. Both return domain.ErrNotImplemented
+	// when the blob backend has no staging capability (e.g. localfs).
+	PresignUpload(repo string, files []domain.StagedFileRequest) (*domain.StagedUploadGrant, error)
+	CommitUpload(repo, id string, entries []domain.StagedCommitEntry) error
 }
 
 // AdminService manages the admin allowlist. Adds take a numeric id, resolving a

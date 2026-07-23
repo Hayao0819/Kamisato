@@ -310,6 +310,10 @@ func TestMultipartUploadReconstructedAfterExplicitExpiry(t *testing.T) {
 	source := &rotatingTokenSource{token: "old-token"}
 	var uploads [][]string
 	httpClient := testHTTPClient(func(req *http.Request) (*http.Response, error) {
+		// Tombstone the staged-protocol probe so the flow under test stays multipart.
+		if strings.HasSuffix(req.URL.Path, "/packages/presign") {
+			return testResponse(http.StatusNotImplemented, `{"error":"presigned upload is disabled"}`), nil
+		}
 		mediaType, params, err := mime.ParseMediaType(req.Header.Get("Content-Type"))
 		if err != nil || mediaType != "multipart/form-data" {
 			t.Fatalf("content type = %q: %v", mediaType, err)

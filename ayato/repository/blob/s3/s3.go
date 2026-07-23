@@ -18,8 +18,9 @@ import (
 )
 
 var (
-	_ blob.Store       = (*S3)(nil)
-	_ blob.ObjectMover = (*S3)(nil)
+	_ blob.Store          = (*S3)(nil)
+	_ blob.ObjectMover    = (*S3)(nil)
+	_ blob.StagedUploader = (*S3)(nil)
 )
 
 // Config contains transport settings only, keeping this adapter independent of

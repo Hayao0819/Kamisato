@@ -204,6 +204,35 @@ func (m *MockUploader) EXPECT() *MockUploaderMockRecorder {
 	return m.recorder
 }
 
+// CommitUpload mocks base method.
+func (m *MockUploader) CommitUpload(repo, id string, entries []domain.StagedCommitEntry) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CommitUpload", repo, id, entries)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// CommitUpload indicates an expected call of CommitUpload.
+func (mr *MockUploaderMockRecorder) CommitUpload(repo, id, entries any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CommitUpload", reflect.TypeOf((*MockUploader)(nil).CommitUpload), repo, id, entries)
+}
+
+// PresignUpload mocks base method.
+func (m *MockUploader) PresignUpload(repo string, files []domain.StagedFileRequest) (*domain.StagedUploadGrant, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "PresignUpload", repo, files)
+	ret0, _ := ret[0].(*domain.StagedUploadGrant)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// PresignUpload indicates an expected call of PresignUpload.
+func (mr *MockUploaderMockRecorder) PresignUpload(repo, files any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PresignUpload", reflect.TypeOf((*MockUploader)(nil).PresignUpload), repo, files)
+}
+
 // ReconcileOrphans mocks base method.
 func (m *MockUploader) ReconcileOrphans(repo string, olderThan time.Duration, dryRun bool) ([]service.OrphanObject, error) {
 	m.ctrl.T.Helper()
@@ -628,6 +657,20 @@ func (mr *MockServicerMockRecorder) Arches(repo any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Arches", reflect.TypeOf((*MockServicer)(nil).Arches), repo)
 }
 
+// CommitUpload mocks base method.
+func (m *MockServicer) CommitUpload(repo, id string, entries []domain.StagedCommitEntry) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CommitUpload", repo, id, entries)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// CommitUpload indicates an expected call of CommitUpload.
+func (mr *MockServicerMockRecorder) CommitUpload(repo, id, entries any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CommitUpload", reflect.TypeOf((*MockServicer)(nil).CommitUpload), repo, id, entries)
+}
+
 // ConsumeRefreshToken mocks base method.
 func (m *MockServicer) ConsumeRefreshToken(jti string, ttl time.Duration) (bool, error) {
 	m.ctrl.T.Helper()
@@ -790,6 +833,21 @@ func (m *MockServicer) Pkgs(repo, arch string) (*domain.PacmanPkgs, error) {
 func (mr *MockServicerMockRecorder) Pkgs(repo, arch any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Pkgs", reflect.TypeOf((*MockServicer)(nil).Pkgs), repo, arch)
+}
+
+// PresignUpload mocks base method.
+func (m *MockServicer) PresignUpload(repo string, files []domain.StagedFileRequest) (*domain.StagedUploadGrant, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "PresignUpload", repo, files)
+	ret0, _ := ret[0].(*domain.StagedUploadGrant)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// PresignUpload indicates an expected call of PresignUpload.
+func (mr *MockServicerMockRecorder) PresignUpload(repo, files any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PresignUpload", reflect.TypeOf((*MockServicer)(nil).PresignUpload), repo, files)
 }
 
 // PromotePackage mocks base method.

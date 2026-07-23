@@ -67,6 +67,9 @@ type BinaryRepository interface {
 	RemoteRepo(name, arch string) (*pacmanrepo.RemoteRepo, error)
 	PkgFiles(repoName, archName, pkgName string) ([]string, error)
 	VerifyPkgRepo(name string) error
+	// StagedUploads exposes the optional staging-intent upload capability, present
+	// only when the underlying blob.Store supports it (S3/R2, not localfs).
+	StagedUploads() (blob.StagedUploader, bool)
 }
 
 // binaryRepository composes the raw blob adapter with pacman-domain operations.
@@ -79,6 +82,10 @@ type binaryRepository struct {
 	dbSigner *openpgp.Entity
 	// upstream marks repositories whose public DB is a merged view.
 	upstream map[string]bool
+	// staged is nil unless the raw store (pre-serialization wrapper) supports
+	// blob.StagedUploader; staged uploads bypass the serializing wrapper because
+	// their key layout is not (repo, arch) and does not need that mutex.
+	staged blob.StagedUploader
 }
 
 type BinaryRepoOption func(*binaryRepository)
@@ -102,6 +109,20 @@ func WithUpstreamRepos(names []string) BinaryRepoOption {
 			repository.upstream[name] = true
 		}
 	}
+}
+
+// WithStagedUploads probes rawStore for blob.StagedUploader. Pass the store
+// from before serialization wrapping: the wrapper only forwards blob.Store, so
+// probing it here would always report the capability absent.
+func WithStagedUploads(rawStore blob.Store) BinaryRepoOption {
+	return func(repository *binaryRepository) {
+		repository.staged, _ = blob.StagedUploads(rawStore)
+	}
+}
+
+// StagedUploads reports the capability probed by WithStagedUploads.
+func (r *binaryRepository) StagedUploads() (blob.StagedUploader, bool) {
+	return r.staged, r.staged != nil
 }
 
 func NewBinaryRepository(

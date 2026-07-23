@@ -111,8 +111,25 @@ func (s *S3) DeleteFile(repo string, arch string, name string) error {
 	return nil
 }
 
+// RepoNames excludes the staging prefix: it is a top-level "directory" like any
+// repo, but not one a repo-name-validated caller ever chose.
 func (s *S3) RepoNames() ([]string, error) {
-	return s.listDirs("")
+	dirs, err := s.listDirs("")
+	if err != nil {
+		return nil, err
+	}
+	return excludeStagingPrefix(dirs), nil
+}
+
+func excludeStagingPrefix(dirs []string) []string {
+	names := make([]string, 0, len(dirs))
+	for _, dir := range dirs {
+		if dir == stagingPrefix {
+			continue
+		}
+		names = append(names, dir)
+	}
+	return names
 }
 
 func (s *S3) Arches(repo string) ([]string, error) {

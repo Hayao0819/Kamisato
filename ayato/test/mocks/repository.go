@@ -367,6 +367,21 @@ func (mr *MockBinaryRepositoryMockRecorder) RepoRemoveIfMatch(name, arch, pkg, e
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RepoRemoveIfMatch", reflect.TypeOf((*MockBinaryRepository)(nil).RepoRemoveIfMatch), name, arch, pkg, expectedVersion, expectedFile, useSignedDB, gnupgDir)
 }
 
+// StagedUploads mocks base method.
+func (m *MockBinaryRepository) StagedUploads() (blob.StagedUploader, bool) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "StagedUploads")
+	ret0, _ := ret[0].(blob.StagedUploader)
+	ret1, _ := ret[1].(bool)
+	return ret0, ret1
+}
+
+// StagedUploads indicates an expected call of StagedUploads.
+func (mr *MockBinaryRepositoryMockRecorder) StagedUploads() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StagedUploads", reflect.TypeOf((*MockBinaryRepository)(nil).StagedUploads))
+}
+
 // StoreFile mocks base method.
 func (m *MockBinaryRepository) StoreFile(arg0, arch string, file platform.SeekFile) error {
 	m.ctrl.T.Helper()
