@@ -1,0 +1,54 @@
+name: Plan builds
+description: Compute the CI build/prune job matrices and pkgrel bump targets across every source repo and arch (ayaka ci matrix). Requires ayaka on PATH and the source repo checked out.
+
+inputs:
+  server:
+    description: ayato base URL for version diffs, e.g. https://repo.example.com. Empty falls back to each repo.json url.
+    default: ""
+  packages:
+    description: Force mode; skip planning and build these space-separated packages in every repo/arch.
+    default: ""
+  all:
+    description: When "true", force mode; skip planning and rebuild every package in every repo/arch.
+    default: "false"
+  workers:
+    description: Split each build set into at most N cost-balanced buckets.
+    default: "4"
+
+outputs:
+  build_matrix:
+    description: 'GitHub job matrix of build buckets: {include:[{repo,arch,pkgs}]}.'
+    value: ${{ steps.gen.outputs.build_matrix }}
+  prune_matrix:
+    description: 'GitHub job matrix of every repo/arch pair: {include:[{repo,arch}]}.'
+    value: ${{ steps.gen.outputs.prune_matrix }}
+  bumps:
+    description: JSON map of repo name to space-separated pkgrel bump targets.
+    value: ${{ steps.gen.outputs.bumps }}
+  any_build:
+    description: '"true" when at least one build bucket exists.'
+    value: ${{ steps.gen.outputs.any_build }}
+
+runs:
+  using: composite
+  steps:
+    - id: gen
+      shell: bash
+      env:
+        IN_SERVER: ${{ inputs.server }}
+        IN_PACKAGES: ${{ inputs.packages }}
+        IN_ALL: ${{ inputs.all }}
+        IN_WORKERS: ${{ inputs.workers }}
+      run: |
+        set -euo pipefail
+        args=(--format github --workers "$IN_WORKERS")
+        if [ -n "$IN_SERVER" ]; then
+          args+=(--server "$IN_SERVER")
+        fi
+        if [ "$IN_ALL" = "true" ]; then
+          args+=(--all)
+        fi
+        if [ -n "$IN_PACKAGES" ]; then
+          args+=(--packages "$IN_PACKAGES")
+        fi
+        ayaka ci matrix "${args[@]}"

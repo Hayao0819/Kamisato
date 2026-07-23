@@ -1,0 +1,48 @@
+name: Build and publish
+description: Build packages with ayaka and publish each one to ayato right after it is built, so later builds in the same run can depend on it. Requires ayaka on PATH and the source repo checked out.
+
+inputs:
+  server:
+    description: ayato base URL packages are published to, e.g. https://repo.example.com
+    required: true
+  repo:
+    description: Source/ayato repository name (they share one name), e.g. alterlinux
+    required: true
+  arch:
+    description: Architecture to build for.
+    default: x86_64
+  pkgs:
+    description: Space-separated pkgbases to build. Empty builds the whole repo.
+    default: ""
+  api_key:
+    description: Publish API key. Pass a secret.
+    required: true
+  executor:
+    description: ayaka build executor.
+    default: container
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        IN_SERVER: ${{ inputs.server }}
+        IN_REPO: ${{ inputs.repo }}
+        IN_ARCH: ${{ inputs.arch }}
+        IN_PKGS: ${{ inputs.pkgs }}
+        IN_EXECUTOR: ${{ inputs.executor }}
+        AYAKA_PUBLISH_API_KEY: ${{ inputs.api_key }}
+      run: |
+        set -euo pipefail
+
+        # Never send a publish credential over cleartext. Require https; allow
+        # http only for an anchored localhost (testing).
+        case "$IN_SERVER" in
+          https://*) ;;
+          http://localhost | http://localhost:* | http://127.0.0.1 | http://127.0.0.1:*) ;;
+          *) echo "::error::server must use https (http is allowed only for localhost)"; exit 1 ;;
+        esac
+
+        # shellcheck disable=SC2086 # IN_PKGS is a space-separated package list
+        ayaka build "$IN_REPO" $IN_PKGS --arch "$IN_ARCH" --executor "$IN_EXECUTOR" \
+          --publish --publish-url "$IN_SERVER"

@@ -1,0 +1,57 @@
+name: Bump pkgrel
+description: Raise pkgrel for cascade rebuild targets and commit the change. Needs root in a container with base-devel, git, sudo, jq and ayaka on PATH; makepkg refuses root, so the bumps run as a scratch user.
+
+inputs:
+  bumps:
+    description: JSON map of repo name to space-separated pkgbases, as produced by the plan action.
+    required: true
+  push:
+    description: When "true", push the bump commit to ref.
+    default: "true"
+  ref:
+    description: Remote ref the bump commit is pushed to.
+    default: master
+  message:
+    description: Commit message for the bump commit.
+    default: "chore: bump pkgrel for dependency rebuilds"
+
+outputs:
+  sha:
+    description: SHA of the bump commit; build jobs should check out this ref.
+    value: ${{ steps.commit.outputs.sha }}
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        IN_BUMPS: ${{ inputs.bumps }}
+      run: |
+        set -euo pipefail
+        # sudo resets PATH, so give the scratch user a fixed ayaka location.
+        install -m 0755 "$(command -v ayaka)" /usr/local/bin/ayaka
+        id builder >/dev/null 2>&1 || useradd -m builder
+        chown -R builder: .
+        for repo in $(jq -rn --argjson m "$IN_BUMPS" '$m | keys[]'); do
+          pkgs=$(jq -rn --argjson m "$IN_BUMPS" --arg r "$repo" '$m[$r]')
+          echo "bumping in $repo: $pkgs"
+          # shellcheck disable=SC2086 # pkgs is a space-separated package list
+          sudo -u builder ayaka src bump "$repo" $pkgs --no-commit
+        done
+    - id: commit
+      shell: bash
+      env:
+        IN_PUSH: ${{ inputs.push }}
+        IN_REF: ${{ inputs.ref }}
+        IN_MESSAGE: ${{ inputs.message }}
+      run: |
+        set -euo pipefail
+        git config --global --add safe.directory "$GITHUB_WORKSPACE"
+        git config user.name "github-actions[bot]"
+        git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        git add -u .
+        git commit -m "$IN_MESSAGE"
+        if [ "$IN_PUSH" = "true" ]; then
+          git push origin "HEAD:$IN_REF"
+        fi
+        echo "sha=$(git rev-parse HEAD)" >>"$GITHUB_OUTPUT"
