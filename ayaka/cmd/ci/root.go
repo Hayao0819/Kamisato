@@ -6,6 +6,7 @@ package cicmd
 import (
 	"github.com/spf13/cobra"
 
+	matrixcmd "github.com/Hayao0819/Kamisato/ayaka/cmd/ci/matrix"
 	plancmd "github.com/Hayao0819/Kamisato/ayaka/cmd/ci/plan"
 )
 
@@ -17,6 +18,7 @@ func Cmd() *cobra.Command {
 	}
 	cmd.AddCommand(
 		plancmd.Cmd(),
+		matrixcmd.Cmd(),
 	)
 	return cmd
 }
