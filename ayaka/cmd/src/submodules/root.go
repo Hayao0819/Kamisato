@@ -18,8 +18,8 @@ func Cmd() *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:     "update-submodules",
-		Aliases: []string{"usm"},
+		Use:     "submodules",
+		Aliases: []string{"update-submodules", "usm"},
 		Short:   "Update git submodules in the repository",
 		Long:    "Pull and update all git submodules in the repository directories.",
 		RunE: func(cmd *cobra.Command, args []string) error {

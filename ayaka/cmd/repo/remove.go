@@ -3,7 +3,7 @@ package repocmd
 import (
 	"github.com/spf13/cobra"
 
-	prunecmd "github.com/Hayao0819/Kamisato/ayaka/cmd/prune"
+	prunecmd "github.com/Hayao0819/Kamisato/ayaka/cmd/repo/prune"
 	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
 	"github.com/Hayao0819/Kamisato/internal/errors"
 )

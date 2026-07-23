@@ -38,7 +38,7 @@ func ParseCascadeMode(s string) (CascadeMode, error) {
 	return "", errors.NewErr("invalid cascade mode: " + s + " (off, makedepends, soname or both)")
 }
 
-// Plan is the machine-readable result of `ayaka plan`: what to build this run,
+// Plan is the machine-readable result of `ayaka ci plan`: what to build this run,
 // in which order, and which packages need a pkgrel bump because they rebuild
 // without a source change of their own.
 type Plan struct {

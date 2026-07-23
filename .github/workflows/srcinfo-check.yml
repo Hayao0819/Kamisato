@@ -2,7 +2,7 @@ name: Check .SRCINFO
 
 # Reusable check for repos built with ayaka: the build pipeline reads committed
 # .SRCINFO (the runners have no makepkg), so a stale one silently hides a
-# version bump from ayaka plan/build. Regenerate with ayaka and fail when the
+# version bump from ayaka ci plan / ayaka build. Regenerate with ayaka and fail when the
 # result differs from what is committed.
 on:
   workflow_call:
@@ -46,13 +46,13 @@ jobs:
           useradd -m builder
           chown -R builder: .
           for repo in $REPOS; do
-            sudo -u builder ayaka srcinfo "$repo"
+            sudo -u builder ayaka src srcinfo "$repo"
           done
       - name: Fail on stale .SRCINFO
         run: |
           set -euo pipefail
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
           if ! git diff --exit-code --ignore-submodules=dirty; then
-            echo "::error::.SRCINFO is out of date; run 'ayaka srcinfo' and commit the result"
+            echo "::error::.SRCINFO is out of date; run 'ayaka src srcinfo' and commit the result"
             exit 1
           fi

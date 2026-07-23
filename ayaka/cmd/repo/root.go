@@ -2,6 +2,8 @@ package repocmd
 
 import (
 	"github.com/spf13/cobra"
+
+	prunecmd "github.com/Hayao0819/Kamisato/ayaka/cmd/repo/prune"
 )
 
 // Cmd groups the commands that publish to and prune the ayato distribution repo,
@@ -15,6 +17,7 @@ func Cmd() *cobra.Command {
 	cmd.AddCommand(
 		repoAddCmd(),
 		repoRemoveCmd(),
+		prunecmd.Cmd(),
 	)
 	return cmd
 }

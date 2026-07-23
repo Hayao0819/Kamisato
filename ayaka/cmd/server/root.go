@@ -3,6 +3,7 @@ package servercmd
 import (
 	"github.com/spf13/cobra"
 
+	admincmd "github.com/Hayao0819/Kamisato/ayaka/cmd/server/admin"
 	"github.com/Hayao0819/Kamisato/internal/serverstore"
 )
 
@@ -25,6 +26,7 @@ func Cmd() *cobra.Command {
 		RevokeCmd(),
 		RemoveCmd(),
 		SetDefaultCmd(),
+		admincmd.Cmd(),
 	)
 
 	return cmd

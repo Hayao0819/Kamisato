@@ -7,27 +7,39 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/Hayao0819/Kamisato/ayaka/app"
-	admincmd "github.com/Hayao0819/Kamisato/ayaka/cmd/admin"
-	aurcmd "github.com/Hayao0819/Kamisato/ayaka/cmd/aur"
 	buildcmd "github.com/Hayao0819/Kamisato/ayaka/cmd/build"
-	bumpcmd "github.com/Hayao0819/Kamisato/ayaka/cmd/bump"
+	cicmd "github.com/Hayao0819/Kamisato/ayaka/cmd/ci"
 	hookcmd "github.com/Hayao0819/Kamisato/ayaka/cmd/hook"
 	initcmd "github.com/Hayao0819/Kamisato/ayaka/cmd/init"
 	keycmd "github.com/Hayao0819/Kamisato/ayaka/cmd/key"
 	keyringcmd "github.com/Hayao0819/Kamisato/ayaka/cmd/keyring"
-	listcmd "github.com/Hayao0819/Kamisato/ayaka/cmd/list"
 	mikocmd "github.com/Hayao0819/Kamisato/ayaka/cmd/miko"
-	plancmd "github.com/Hayao0819/Kamisato/ayaka/cmd/plan"
-	prunecmd "github.com/Hayao0819/Kamisato/ayaka/cmd/prune"
 	repocmd "github.com/Hayao0819/Kamisato/ayaka/cmd/repo"
+	prunecmd "github.com/Hayao0819/Kamisato/ayaka/cmd/repo/prune"
 	servercmd "github.com/Hayao0819/Kamisato/ayaka/cmd/server"
-	srcinfocmd "github.com/Hayao0819/Kamisato/ayaka/cmd/srcinfo"
-	statuscmd "github.com/Hayao0819/Kamisato/ayaka/cmd/status"
-	submodulescmd "github.com/Hayao0819/Kamisato/ayaka/cmd/submodules"
+	srccmd "github.com/Hayao0819/Kamisato/ayaka/cmd/src"
+	bumpcmd "github.com/Hayao0819/Kamisato/ayaka/cmd/src/bump"
+	srcinfocmd "github.com/Hayao0819/Kamisato/ayaka/cmd/src/srcinfo"
 	"github.com/Hayao0819/Kamisato/internal/cliutil"
 	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/internal/version"
 )
+
+// grouped assigns cmds to the root help section id and returns them.
+func grouped(id string, cmds ...*cobra.Command) []*cobra.Command {
+	for _, c := range cmds {
+		c.GroupID = id
+	}
+	return cmds
+}
+
+// deprecatedStub hides cmd at its old top-level path and points at the new one;
+// it still runs, so existing scripts keep working for one transition release.
+func deprecatedStub(cmd *cobra.Command, newPath string) *cobra.Command {
+	cmd.Hidden = true
+	cmd.Deprecated = "use '" + newPath + "'"
+	return cmd
+}
 
 func RootCmd() *cobra.Command {
 	cmd := cobra.Command{
@@ -61,25 +73,24 @@ func RootCmd() *cobra.Command {
 	cliutil.SetVersion(&cmd)
 	cliutil.AddNoColorFlag(&cmd)
 
+	cmd.AddGroup(
+		&cobra.Group{ID: "src", Title: "Source repository:"},
+		&cobra.Group{ID: "build", Title: "Build:"},
+		&cobra.Group{ID: "ayato", Title: "Ayato server:"},
+		&cobra.Group{ID: "signing", Title: "Signing:"},
+		&cobra.Group{ID: "ci", Title: "CI:"},
+	)
+
 	subCmds := cobrautils.Registory{}
+	subCmds.Add(grouped("src", initcmd.Cmd(), srccmd.Cmd())...)
+	subCmds.Add(grouped("build", buildcmd.Cmd(), mikocmd.Cmd())...)
+	subCmds.Add(grouped("ayato", repocmd.Cmd(), servercmd.Cmd(), hookcmd.Cmd())...)
+	subCmds.Add(grouped("signing", keycmd.Cmd(), keyringcmd.Cmd())...)
+	subCmds.Add(grouped("ci", cicmd.Cmd())...)
 	subCmds.Add(
-		repocmd.Cmd(),
-		aurcmd.Cmd(),
-		buildcmd.Cmd(),
-		plancmd.Cmd(),
-		bumpcmd.Cmd(),
-		prunecmd.Cmd(),
-		mikocmd.Cmd(),
-		hookcmd.Cmd(),
-		admincmd.Cmd(),
-		statuscmd.Cmd(),
-		srcinfocmd.Cmd(),
-		listcmd.Cmd(),
-		initcmd.Cmd(),
-		submodulescmd.Cmd(),
-		servercmd.Cmd(),
-		keycmd.Cmd(),
-		keyringcmd.Cmd(),
+		deprecatedStub(bumpcmd.Cmd(), "ayaka src bump"),
+		deprecatedStub(srcinfocmd.Cmd(), "ayaka src srcinfo"),
+		deprecatedStub(prunecmd.Cmd(), "ayaka repo prune"),
 		version.Command(),
 	)
 	subCmds.Bind(&cmd)
