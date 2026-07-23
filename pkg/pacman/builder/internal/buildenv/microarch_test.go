@@ -69,6 +69,7 @@ func TestMakepkgOverrideLines(t *testing.T) {
 		Microarch:    "x86_64_v3",
 		CFlagsAppend: "-O3",
 		Options:      []string{"!strip", "ccache", "x'); touch /tmp/injected; ('"},
+		CompressZst:  "zstd -c -T0 --ultra -20 -",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -78,6 +79,7 @@ func TestMakepkgOverrideLines(t *testing.T) {
 		"-march=x86-64-v3",
 		"CFLAGS+=' -O3'",
 		"CXXFLAGS+=' -O3'",
+		"COMPRESSZST=('zstd' '-c' '-T0' '--ultra' '-20' '-')",
 		"OPTIONS+=('!strip' 'ccache' 'x'\\''); touch /tmp/injected; ('\\''')",
 	} {
 		if !strings.Contains(got, want) {

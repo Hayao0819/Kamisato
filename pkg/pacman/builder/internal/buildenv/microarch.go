@@ -51,6 +51,13 @@ func MakepkgOverrideLines(s builder.MakepkgConfig) (string, error) {
 		}
 		fmt.Fprintf(&b, "OPTIONS+=(%s)\n", strings.Join(options, " "))
 	}
+	if s.CompressZst != "" {
+		words := strings.Fields(s.CompressZst)
+		for i, word := range words {
+			words[i] = shellutil.Quote(word)
+		}
+		fmt.Fprintf(&b, "COMPRESSZST=(%s)\n", strings.Join(words, " "))
+	}
 	return b.String(), nil
 }
 

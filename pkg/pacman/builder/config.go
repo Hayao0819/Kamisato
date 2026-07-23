@@ -26,10 +26,14 @@ type MakepkgConfig struct {
 	Microarch    string   `koanf:"microarch" json:"microarch,omitempty"`
 	CFlagsAppend string   `koanf:"cflags_append" json:"cflags_append,omitempty"`
 	Options      []string `koanf:"options" json:"options,omitempty"`
+	// CompressZst overrides COMPRESSZST (e.g. "zstd -c -T0 --ultra -20 -"):
+	// build images may default to zstd's weak level 3, which pushes a kernel
+	// package past proxy upload limits.
+	CompressZst string `koanf:"compresszst" json:"compresszst,omitempty"`
 }
 
 func (c MakepkgConfig) IsZero() bool {
-	return c.Packager == "" && c.Microarch == "" && c.CFlagsAppend == "" && len(c.Options) == 0
+	return c.Packager == "" && c.Microarch == "" && c.CFlagsAppend == "" && len(c.Options) == 0 && c.CompressZst == ""
 }
 
 // ProjectConfig omits host paths and daemon endpoints because repo.json is not trusted host configuration.
