@@ -1,4 +1,4 @@
-package cmd
+package apikeycmd
 
 import (
 	"crypto/rand"
@@ -16,16 +16,16 @@ import (
 	"github.com/Hayao0819/Kamisato/pkg/safefile"
 )
 
-func apikeyCmd() *cobra.Command {
+func Cmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "apikey",
 		Short: "Manage miko API keys",
 	}
-	cmd.AddCommand(apikeyGenerateCmd())
+	cmd.AddCommand(generateCmd())
 	return cmd
 }
 
-func apikeyGenerateCmd() *cobra.Command {
+func generateCmd() *cobra.Command {
 	var scopes []string
 	var principal string
 	cmd := &cobra.Command{

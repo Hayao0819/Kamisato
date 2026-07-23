@@ -1,4 +1,4 @@
-package cmd
+package auditcmd
 
 import (
 	"github.com/spf13/cobra"
@@ -9,7 +9,7 @@ import (
 	"github.com/Hayao0819/Kamisato/kayo/trust"
 )
 
-func auditCmd() *cobra.Command {
+func Cmd() *cobra.Command {
 	var ref string
 	var llm bool
 	cmd := &cobra.Command{

@@ -1,4 +1,4 @@
-package cmd
+package updatecmd
 
 import (
 	"context"
@@ -14,7 +14,7 @@ import (
 	"github.com/Hayao0819/Kamisato/kayo/trust"
 )
 
-func updateCmd() *cobra.Command {
+func Cmd() *cobra.Command {
 	var approve, force bool
 	cmd := &cobra.Command{
 		Use:   "update <package|git-url>",

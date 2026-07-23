@@ -18,10 +18,13 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/internal/ginutil"
 	"github.com/Hayao0819/Kamisato/internal/version"
+	auditcmd "github.com/Hayao0819/Kamisato/kayo/cmd/audit"
 	ayatocmd "github.com/Hayao0819/Kamisato/kayo/cmd/ayato"
 	hookcmd "github.com/Hayao0819/Kamisato/kayo/cmd/hook"
 	"github.com/Hayao0819/Kamisato/kayo/cmd/shared"
 	trustcmd "github.com/Hayao0819/Kamisato/kayo/cmd/trust"
+	updatecmd "github.com/Hayao0819/Kamisato/kayo/cmd/update"
+	verifycmd "github.com/Hayao0819/Kamisato/kayo/cmd/verify"
 	"github.com/Hayao0819/Kamisato/kayo/federate"
 	"github.com/Hayao0819/Kamisato/kayo/gitserve"
 	"github.com/Hayao0819/Kamisato/kayo/trust"
@@ -41,7 +44,7 @@ func RootCmd() *cobra.Command {
 	cliutil.AddNoColorFlag(&cmd)
 	cmd.SilenceErrors = true
 	cmd.SilenceUsage = true
-	cmd.AddCommand(auditCmd(), trustcmd.Cmd(), updateCmd(), verifyCmd(), hookcmd.Cmd(), ayatocmd.Cmd(), version.Command())
+	cmd.AddCommand(auditcmd.Cmd(), trustcmd.Cmd(), updatecmd.Cmd(), verifycmd.Cmd(), hookcmd.Cmd(), ayatocmd.Cmd(), version.Command())
 	return &cmd
 }
 

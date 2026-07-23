@@ -1,4 +1,4 @@
-package cmd
+package shared
 
 import (
 	"github.com/Hayao0819/Kamisato/internal/client"
@@ -8,7 +8,7 @@ import (
 	"github.com/Hayao0819/Kamisato/pkg/httpx"
 )
 
-func serviceDependencies(cfg *conf.MikoConfig) ([]service.ServiceOption, error) {
+func ServiceDependencies(cfg *conf.MikoConfig) ([]service.ServiceOption, error) {
 	httpClient := httpx.Default()
 	options := []service.ServiceOption{service.WithOutboundHTTPClient(httpClient)}
 	if cfg.Ayato.URL == "" {

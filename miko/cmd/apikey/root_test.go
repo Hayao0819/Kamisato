@@ -1,4 +1,4 @@
-package cmd
+package apikeycmd
 
 import (
 	"encoding/json"

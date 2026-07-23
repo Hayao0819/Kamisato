@@ -1,4 +1,4 @@
-package cmd
+package nvcheckcmd
 
 import (
 	"fmt"
@@ -7,6 +7,7 @@ import (
 
 	"github.com/Hayao0819/Kamisato/internal/cliutil"
 	"github.com/Hayao0819/Kamisato/internal/conf"
+	"github.com/Hayao0819/Kamisato/miko/cmd/shared"
 	"github.com/Hayao0819/Kamisato/miko/service"
 )
 
@@ -19,7 +20,7 @@ type nvcheckRow struct {
 
 const nvcheckDefaultFmt = "table {{.Pkgbase}}\t{{.Published}}\t{{.Upstream}}\t{{.Status}}"
 
-func nvcheckCmd() *cobra.Command {
+func Cmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "nvcheck",
 		Short: "Check monitored packages for newer upstream versions",
@@ -36,7 +37,7 @@ func nvcheckCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			serviceOptions, err := serviceDependencies(cfg)
+			serviceOptions, err := shared.ServiceDependencies(cfg)
 			if err != nil {
 				return err
 			}

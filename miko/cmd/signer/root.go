@@ -1,4 +1,4 @@
-package cmd
+package signercmd
 
 import (
 	"fmt"
@@ -15,12 +15,13 @@ import (
 
 	"github.com/Hayao0819/Kamisato/internal/cliutil"
 	"github.com/Hayao0819/Kamisato/internal/conf"
+	"github.com/Hayao0819/Kamisato/miko/cmd/shared"
 	"github.com/Hayao0819/Kamisato/miko/signer"
 )
 
-// signerCmd runs the dedicated signer tier: it holds the host signing key and
+// Cmd runs the dedicated signer tier: it holds the host signing key and
 // signs the packages build workers POST to it, so those workers can run keyless.
-func signerCmd() *cobra.Command {
+func Cmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "signer",
 		Short: "Run the package signing service (holds the key so build workers stay keyless)",
@@ -41,7 +42,7 @@ func signerCmd() *cobra.Command {
 				gin.SetMode(gin.ReleaseMode)
 			}
 
-			hostSigner, err := buildHostSigner(cmd.Context(), cfg)
+			hostSigner, err := shared.BuildHostSigner(cmd.Context(), cfg)
 			if err != nil {
 				return errors.WrapErr(err, "failed to set up host signing key")
 			}
@@ -49,7 +50,7 @@ func signerCmd() *cobra.Command {
 				return errors.NewErr("signer service needs a signing key: set signing.key_dir or data_dir")
 			}
 
-			verifier := serviceKeyVerifier(cfg)
+			verifier := shared.ServiceKeyVerifier(cfg)
 			if !verifier.Enabled() && !cfg.AllowUnauthenticated {
 				return errors.NewErr("signer service requires api_keys; set one or explicitly set allow_unauthenticated=true")
 			}

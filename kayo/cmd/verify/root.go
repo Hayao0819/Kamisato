@@ -1,4 +1,4 @@
-package cmd
+package verifycmd
 
 import (
 	"context"
@@ -75,9 +75,9 @@ func reportCloneDrift(ctx context.Context, w io.Writer, store *trust.Store, root
 	return drifted
 }
 
-// verifyCmd is the install-time backstop the pacman PreTransaction hook calls.
+// Cmd is the install-time backstop the pacman PreTransaction hook calls.
 // Official-repo packages are not ours to gate, so they are skipped.
-func verifyCmd() *cobra.Command {
+func Cmd() *cobra.Command {
 	var strict bool
 	cmd := &cobra.Command{
 		Use:   "verify [pkgname...]",
