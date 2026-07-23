@@ -26,8 +26,10 @@ func TestBlinkyImportsAreCompatibilityTestsOnly(t *testing.T) {
 			return walkErr
 		}
 		if entry.IsDir() {
-			switch entry.Name() {
-			case ".git", "node_modules", "vendor":
+			name := entry.Name()
+			// Hidden dirs can hold git worktree checkouts of the whole module.
+			if name == "node_modules" || name == "vendor" ||
+				(strings.HasPrefix(name, ".") && path != root) {
 				return filepath.SkipDir
 			}
 			return nil
