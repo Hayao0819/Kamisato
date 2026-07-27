@@ -167,6 +167,63 @@ func SyncHard(ctx context.Context, dir, ref string) error {
 	return nil
 }
 
+// OriginURL returns the configured URL of dir's origin remote.
+func OriginURL(dir string) (string, error) {
+	repo, err := git.PlainOpen(dir)
+	if err != nil {
+		return "", errors.WrapErr(err, "open repo "+dir)
+	}
+	remote, err := repo.Remote("origin")
+	if err != nil {
+		return "", errors.WrapErr(err, "origin remote of "+dir)
+	}
+	urls := remote.Config().URLs
+	if len(urls) == 0 {
+		return "", errors.NewErr("origin remote of " + dir + " has no url")
+	}
+	return urls[0], nil
+}
+
+// OriginHead resolves origin's default branch from the advertised HEAD symref,
+// so callers need no local branch (CI submodule checkouts are detached).
+func OriginHead(ctx context.Context, dir string) (string, error) {
+	repo, err := git.PlainOpen(dir)
+	if err != nil {
+		return "", errors.WrapErr(err, "open repo "+dir)
+	}
+	remote, err := repo.Remote("origin")
+	if err != nil {
+		return "", errors.WrapErr(err, "origin remote of "+dir)
+	}
+	refs, err := remote.ListContext(ctx, &git.ListOptions{})
+	if err != nil {
+		return "", errors.WrapErr(err, "list origin refs of "+dir)
+	}
+	for _, ref := range refs {
+		if ref.Name() == plumbing.HEAD && ref.Type() == plumbing.SymbolicReference {
+			return ref.Target().Short(), nil
+		}
+	}
+	return "", errors.NewErr("origin of " + dir + " does not advertise HEAD")
+}
+
+// IsClean reports whether dir's worktree has no local modifications.
+func IsClean(dir string) (bool, error) {
+	repo, err := git.PlainOpen(dir)
+	if err != nil {
+		return false, errors.WrapErr(err, "open repo "+dir)
+	}
+	wt, err := repo.Worktree()
+	if err != nil {
+		return false, errors.WrapErr(err, "open worktree")
+	}
+	status, err := wt.Status()
+	if err != nil {
+		return false, errors.WrapErr(err, "git status")
+	}
+	return status.IsClean(), nil
+}
+
 // CommitUnix returns the HEAD commit time as a unix timestamp, or 0 on failure.
 func CommitUnix(_ context.Context, dir string) int64 {
 	repo, err := git.PlainOpen(dir)
