@@ -9,6 +9,7 @@ import type {
     Features as GeneratedFeatures,
     Job,
     PackageInfo,
+    PackageSignature,
     PacmanPkgsResponse,
 } from "./types";
 
@@ -101,6 +102,18 @@ export class APIClient {
             this.endpoints.packageDetail(repo, arch, pkgbase),
         );
         if (!res.ok) throw new Error("パッケージ情報の取得に失敗しました");
+        return res.json();
+    }
+
+    async fetchPkgSignature(
+        repo: string,
+        arch: string,
+        pkgbase: string,
+    ): Promise<PackageSignature> {
+        const res = await this.authedFetch(
+            this.endpoints.pkgSignature(repo, arch, pkgbase),
+        );
+        if (!res.ok) throw new Error("署名情報の取得に失敗しました");
         return res.json();
     }
 
@@ -412,6 +425,10 @@ class APIEndpoints {
     }
     get authMe() {
         return () => `${this.apiUnstableUrl}/auth/me`;
+    }
+    get pkgSignature() {
+        return (repo: string, arch: string, pkgbase: string) =>
+            `${this.apiUnstableUrl}/repos/${segment(repo)}/${segment(arch)}/packages/${segment(pkgbase)}/signature`;
     }
     get allPkgs() {
         return (repo: string, arch: string) =>

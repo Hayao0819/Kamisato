@@ -67,3 +67,20 @@ export interface PackageMetadata {
 export interface PacmanPackage extends PackageMetadata {
   filename: string;
 }
+
+//////////
+// source: signature.go
+
+/**
+ * PackageSignature describes the detached PGP signature stored next to a
+ * package object, read without verification.
+ */
+export interface PackageSignature {
+  present: boolean;
+  filename?: string;
+  key_id?: string;
+  fingerprint?: string;
+  created_at?: number /* int64 */;
+  hash?: string;
+  pubkey_algo?: string;
+}

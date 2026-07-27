@@ -8,6 +8,7 @@ import { useAPIClient, useFeatures } from "@/components/lumine-provider";
 import { PageContainer } from "@/components/page-container";
 import { PageHeader } from "@/components/page-header";
 import { PkgDepSection } from "@/components/pkg-dep-section";
+import { PkgSignatureSection } from "@/components/pkg-signature-section";
 import { Button } from "@/components/ui/button";
 import type { PackageInfo } from "@/lib/types";
 import { formatBuildDate, formatBytes } from "@/lib/utils";
@@ -219,6 +220,12 @@ export default function ClientPackageDetailPage() {
                         </tbody>
                     </table>
                 </div>
+
+                <PkgSignatureSection
+                    repo={repo}
+                    arch={arch}
+                    pkgname={pkg.pkgname}
+                />
 
                 <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
                     <PkgDepSection

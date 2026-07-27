@@ -3,6 +3,7 @@
 // (config: tygo.yaml). Only client-only refinements live here by hand.
 import type {
     Features,
+    PackageSignature,
     PacmanPackage,
     PacmanPkgs,
 } from "./generated/ayato_domain";
@@ -15,7 +16,7 @@ import type {
 
 export type PackageInfo = PacmanPackage;
 export type PacmanPkgsResponse = PacmanPkgs;
-export type { BuildStats, Features, GitSource };
+export type { BuildStats, Features, GitSource, PackageSignature };
 
 // miko serializes install_pkgs unconditionally, but a client may omit it on
 // submit and let the server apply defaults; relax just that field.
