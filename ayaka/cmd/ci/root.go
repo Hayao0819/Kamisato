@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 
 	matrixcmd "github.com/Hayao0819/Kamisato/ayaka/cmd/ci/matrix"
+	nvcheckcmd "github.com/Hayao0819/Kamisato/ayaka/cmd/ci/nvcheck"
 	plancmd "github.com/Hayao0819/Kamisato/ayaka/cmd/ci/plan"
 )
 
@@ -14,11 +15,12 @@ import (
 func Cmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "ci",
-		Short: "Commands for CI pipelines (plan, matrix)",
+		Short: "Commands for CI pipelines (plan, matrix, nvcheck)",
 	}
 	cmd.AddCommand(
 		plancmd.Cmd(),
 		matrixcmd.Cmd(),
+		nvcheckcmd.Cmd(),
 	)
 	return cmd
 }

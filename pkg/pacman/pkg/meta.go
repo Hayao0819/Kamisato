@@ -13,6 +13,12 @@ func (p *SourcePackage) Version() string {
 	return p.info.Version()
 }
 
+// Pkgver returns the bare pkgver, without epoch or pkgrel (for comparing
+// against upstream versions).
+func (p *SourcePackage) Pkgver() string {
+	return p.info.PkgVer
+}
+
 // Names returns the pkgbase and each sub-package name.
 func (p *SourcePackage) Names() []string {
 	names := []string{p.info.PkgBase}
