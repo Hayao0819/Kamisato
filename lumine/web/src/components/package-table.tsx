@@ -43,29 +43,55 @@ interface PackageTableProps {
     onSetPageSize: (v: number) => void;
 }
 
+// Fixed column widths + table-fixed let the description column absorb the rest,
+// so the table never outgrows the page container on desktop.
 const COLUMNS: {
     key: SortKey | null;
     label: string;
     title: string;
+    width?: string;
     className?: string;
 }[] = [
     {
         key: "pkgname",
         label: "パッケージ名",
         title: "パッケージ名で並び替え",
+        width: "w-[220px]",
     },
-    { key: "pkgver", label: "バージョン", title: "バージョンで並び替え" },
+    {
+        key: "pkgver",
+        label: "バージョン",
+        title: "バージョンで並び替え",
+        width: "w-[120px]",
+    },
     { key: null, label: "説明", title: "説明" },
-    { key: "arch", label: "アーキ", title: "アーキテクチャで並び替え" },
-    { key: null, label: "グループ", title: "グループ" },
+    {
+        key: "arch",
+        label: "アーキ",
+        title: "アーキテクチャで並び替え",
+        width: "w-[88px]",
+    },
+    { key: null, label: "グループ", title: "グループ", width: "w-[130px]" },
     {
         key: "size",
         label: "サイズ",
         title: "サイズで並び替え",
+        width: "w-[104px]",
         className: "text-right",
     },
-    { key: "builddate", label: "ビルド日", title: "ビルド日で並び替え" },
-    { key: null, label: "操作", title: "操作", className: "text-right" },
+    {
+        key: "builddate",
+        label: "ビルド日",
+        title: "ビルド日で並び替え",
+        width: "w-[116px]",
+    },
+    {
+        key: null,
+        label: "操作",
+        title: "操作",
+        width: "w-[96px]",
+        className: "text-right",
+    },
 ];
 
 export function PackageTable({
@@ -245,7 +271,7 @@ export function PackageTable({
                 </div>
             ) : (
                 <div className="overflow-x-auto rounded-sm border border-border bg-card">
-                    <table className="arch-table w-full text-[15px]">
+                    <table className="arch-table w-full min-w-[1000px] table-fixed text-[15px]">
                         <thead>
                             <tr>
                                 {COLUMNS.map((col) => {
@@ -257,6 +283,7 @@ export function PackageTable({
                                             title={col.title}
                                             className={cn(
                                                 "whitespace-nowrap px-4 py-2.5 text-[14px] font-semibold",
+                                                col.width,
                                                 col.className,
                                             )}
                                         >
@@ -299,7 +326,10 @@ export function PackageTable({
                                 const groups = pkg.group ?? [];
                                 return (
                                     <tr key={pkg.pkgname} className="group">
-                                        <td className="whitespace-nowrap px-4 py-3">
+                                        <td
+                                            className="truncate px-4 py-3"
+                                            title={pkg.pkgname}
+                                        >
                                             <Link
                                                 href={detailHref(pkg)}
                                                 className="font-medium text-link hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -307,16 +337,22 @@ export function PackageTable({
                                                 {pkg.pkgname}
                                             </Link>
                                         </td>
-                                        <td className="whitespace-nowrap px-4 py-3 font-mono text-[14px] tabular-nums text-muted-foreground">
+                                        <td
+                                            className="truncate px-4 py-3 font-mono text-[14px] tabular-nums text-muted-foreground"
+                                            title={pkg.pkgver}
+                                        >
                                             {pkg.pkgver}
                                         </td>
-                                        <td className="max-w-md truncate px-4 py-3 text-muted-foreground">
+                                        <td
+                                            className="truncate px-4 py-3 text-muted-foreground"
+                                            title={pkg.pkgdesc}
+                                        >
                                             {pkg.pkgdesc}
                                         </td>
-                                        <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
+                                        <td className="truncate px-4 py-3 text-muted-foreground">
                                             {pkg.arch}
                                         </td>
-                                        <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
+                                        <td className="truncate px-4 py-3 text-muted-foreground">
                                             {groups.length === 0 ? (
                                                 <span className="text-muted-foreground/50">
                                                     —
