@@ -18,7 +18,8 @@ const aurBase = "https://aur.archlinux.org"
 
 // AddAUR clones (or re-clones with force) each named AUR package into repoDir,
 // as a submodule when repoDir is inside a git repo. Failures are collected so
-// one bad package does not stop the rest.
+// one bad package does not stop the rest. Updating a tracked package is
+// PullPackages' job (`ayaka src pull`).
 func AddAUR(ctx context.Context, repoDir string, names []string, force bool) error {
 	return eachAUR("one or more AUR adds failed:\n", names, func(name string) error {
 		gitDir := filepath.Join(repoDir, name, ".git")
@@ -30,18 +31,7 @@ func AddAUR(ctx context.Context, repoDir string, names []string, force bool) err
 				return errors.WrapErr(err, "failed to remove "+name)
 			}
 		}
-		return checkoutAUR(ctx, repoDir, name, false)
-	})
-}
-
-// UpdateAUR pulls each tracked AUR package in repoDir from upstream.
-func UpdateAUR(ctx context.Context, repoDir string, names []string, force bool) error {
-	return eachAUR("one or more AUR updates failed:\n", names, func(name string) error {
-		gitDir := filepath.Join(repoDir, name, ".git")
-		if _, err := os.Stat(gitDir); err != nil {
-			return errors.NewErrf("package %q is not tracked; use 'aur add' to clone it first", name)
-		}
-		return checkoutAUR(ctx, repoDir, name, force)
+		return checkoutAUR(ctx, repoDir, name)
 	})
 }
 
@@ -58,31 +48,15 @@ func eachAUR(errorPrefix string, names []string, run func(name string) error) er
 	return nil
 }
 
-// checkoutAUR materializes one AUR package: pull when already a git checkout,
-// else add it as a submodule (git parent) or plain clone (non-git parent).
-func checkoutAUR(ctx context.Context, repoDir, name string, force bool) error {
+// checkoutAUR materializes one AUR package as a submodule (git parent) or
+// plain clone (non-git parent); the caller has already cleared any existing
+// checkout.
+func checkoutAUR(ctx context.Context, repoDir, name string) error {
 	if !aurPkgNameRe.MatchString(name) {
 		return errors.NewErrf("invalid AUR package name %q", name)
 	}
 
 	targetDir := filepath.Join(repoDir, name)
-	gitDir := filepath.Join(targetDir, ".git")
-
-	if _, err := os.Stat(gitDir); err == nil {
-		slog.Info("updating existing AUR repo", "name", name, "dir", targetDir)
-		if err := gitcmd.Pull(ctx, targetDir); err != nil {
-			return errors.WrapErr(err, "failed to pull AUR package "+name)
-		}
-		return nil
-	}
-
-	if force {
-		slog.Info("force remove non-git directory", "name", name, "dir", targetDir)
-		if err := os.RemoveAll(targetDir); err != nil {
-			return errors.WrapErr(err, "failed to remove existing directory for "+name)
-		}
-	}
-
 	url := aurBase + "/" + name + ".git"
 
 	root, err := gitcmd.RepoRoot(repoDir)

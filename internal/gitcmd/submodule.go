@@ -2,7 +2,6 @@ package gitcmd
 
 import (
 	"context"
-	"path/filepath"
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
 
@@ -26,11 +25,10 @@ func AddSubmodule(ctx context.Context, dir, url, path string) error {
 	return nil
 }
 
-// UpdateSubmodules updates the submodules of the repo at dir via go-git — the
-// equivalent of `git submodule update` with the given flags. remote advances each
-// checked-out submodule to the tip of its configured branch (or origin's default
-// when unset) instead of the pinned commit.
-func UpdateSubmodules(ctx context.Context, dir string, init, recursive, remote bool) error {
+// UpdateSubmodules checks out the submodules of the repo at dir via go-git at
+// their recorded commits — the equivalent of `git submodule update`. Advancing
+// a checkout to its origin is PullPackages' job.
+func UpdateSubmodules(ctx context.Context, dir string, init, recursive bool) error {
 	repo, err := git.PlainOpen(dir)
 	if err != nil {
 		return errors.WrapErr(err, "open repo "+dir)
@@ -49,25 +47,6 @@ func UpdateSubmodules(ctx context.Context, dir string, init, recursive, remote b
 	}
 	if err := subs.UpdateContext(ctx, &git.SubmoduleUpdateOptions{Init: init, RecurseSubmodules: recurse}); err != nil {
 		return errors.WrapErr(err, "git submodule update")
-	}
-	if !remote {
-		return nil
-	}
-	for _, s := range subs {
-		c := s.Config()
-		subdir := filepath.Join(dir, c.Path)
-		if _, err := git.PlainOpen(subdir); err != nil {
-			continue // not checked out yet; skip
-		}
-		if c.Branch != "" {
-			if err := SyncHard(ctx, subdir, c.Branch); err != nil {
-				return errors.WrapErr(err, "update submodule "+c.Name+" to remote")
-			}
-			continue
-		}
-		if err := Pull(ctx, subdir); err != nil {
-			return errors.WrapErr(err, "update submodule "+c.Name+" to remote")
-		}
 	}
 	return nil
 }

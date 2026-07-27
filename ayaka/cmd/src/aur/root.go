@@ -14,7 +14,6 @@ import (
 // aurManager is the slice of service/source this command drives.
 type aurManager interface {
 	Add(ctx context.Context, repoDir string, names []string, force bool) error
-	Update(ctx context.Context, repoDir string, names []string, force bool) error
 }
 
 type sourceAurManager struct{}
@@ -23,21 +22,16 @@ func (sourceAurManager) Add(ctx context.Context, repoDir string, names []string,
 	return source.AddAUR(ctx, repoDir, names, force)
 }
 
-func (sourceAurManager) Update(ctx context.Context, repoDir string, names []string, force bool) error {
-	return source.UpdateAUR(ctx, repoDir, names, force)
-}
-
 func Cmd() *cobra.Command { return newCommand(sourceAurManager{}) }
 
 func newCommand(svc aurManager) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "aur",
 		Short: "Manage PKGBUILDs taken from the AUR",
-		Long:  "Add AUR packages to a source repository and update them from upstream.",
+		Long:  "Add AUR packages to a source repository; keep them current with 'ayaka src pull'.",
 	}
 	cmd.AddCommand(
 		aurAddCmd(svc),
-		aurUpdateCmd(svc),
 	)
 	return cmd
 }

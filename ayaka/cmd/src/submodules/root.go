@@ -14,14 +14,13 @@ func Cmd() *cobra.Command {
 	var (
 		init      bool
 		recursive bool
-		remote    bool
 	)
 
 	cmd := &cobra.Command{
 		Use:     "submodules",
 		Aliases: []string{"update-submodules", "usm"},
-		Short:   "Update git submodules in the repository",
-		Long:    "Pull and update all git submodules in the repository directories.",
+		Short:   "Check out git submodules at their recorded commits",
+		Long:    "Sync all git submodules in the repository directories to the commits the parent records; advancing a mirror to its origin is 'ayaka src pull'.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			for _, r := range app.From(cmd).Config.Repos {
 				root, err := gitcmd.RepoRoot(r.Dir)
@@ -32,7 +31,7 @@ func Cmd() *cobra.Command {
 
 				slog.Info("updating submodules", "repo", root)
 
-				if err := gitcmd.UpdateSubmodules(cmd.Context(), root, init, recursive, remote); err != nil {
+				if err := gitcmd.UpdateSubmodules(cmd.Context(), root, init, recursive); err != nil {
 					return errors.WrapErr(err, "failed to update submodules in "+root)
 				}
 
@@ -44,7 +43,6 @@ func Cmd() *cobra.Command {
 
 	cmd.Flags().BoolVarP(&init, "init", "i", false, "Initialize submodules before update")
 	cmd.Flags().BoolVarP(&recursive, "recursive", "r", false, "Update submodules recursively")
-	cmd.Flags().BoolVarP(&remote, "remote", "", false, "Update submodules to latest commit on remote branch")
 
 	return cmd
 }
