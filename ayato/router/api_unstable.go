@@ -108,6 +108,10 @@ func setPublicRoutes(
 	api.GET("/repos/:repo/:arch/packages", repositories.AllPkgsHandler)
 	api.GET("/repos/:repo/:arch/packages/:name", repositories.PkgDetailHandler)
 	api.GET("/repos/:repo/:arch/packages/:name/files", repositories.PkgFilesHandler)
+	api.GET(
+		"/repos/:repo/:arch/packages/:name/signature",
+		repositories.PkgSignatureHandler,
+	)
 	api.GET("/repos/:repo/:arch/signed-url", repositories.SignedURLHandler)
 	api.GET("/features", handlers.System.FeaturesHandler)
 	api.POST(

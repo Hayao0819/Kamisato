@@ -53,6 +53,38 @@ func (h *RepositoryHandler) PkgDetailHandler(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, pkgDetail)
 }
 
+func (h *RepositoryHandler) PkgSignatureHandler(ctx *gin.Context) {
+	repoName, archName, pkgName, ok := pkgRouteParams(ctx)
+	if !ok {
+		return
+	}
+	signature, err := h.reader.PkgSignature(repoName, archName, pkgName)
+	if err != nil {
+		respondServiceError(ctx, "get package signature", "failed to get package signature", err)
+		return
+	}
+	ctx.JSON(http.StatusOK, signature)
+}
+
+func pkgRouteParams(ctx *gin.Context) (repo, arch, name string, ok bool) {
+	repo = ctx.Param("repo")
+	arch = ctx.Param("arch")
+	name = ctx.Param("name")
+	if repo == "" {
+		respondError(ctx, http.StatusBadRequest, "repository name is required")
+		return "", "", "", false
+	}
+	if arch == "" {
+		respondError(ctx, http.StatusBadRequest, "architecture name is required")
+		return "", "", "", false
+	}
+	if name == "" {
+		respondError(ctx, http.StatusBadRequest, "package name is required")
+		return "", "", "", false
+	}
+	return repo, arch, name, true
+}
+
 func (h *RepositoryHandler) PkgFilesHandler(ctx *gin.Context) {
 	repoName := ctx.Param("repo")
 	archName := ctx.Param("arch")

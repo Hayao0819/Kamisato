@@ -41,6 +41,7 @@ type RepoReader interface {
 	Pkgs(repo, arch string) (*domain.PacmanPkgs, error)
 	PkgDetail(repo, arch, pkgname string) (*domain.PacmanPackage, error)
 	PkgFiles(repo, arch, pkg string) ([]string, error)
+	PkgSignature(repo, arch, pkgname string) (*domain.PackageSignature, error)
 	RepoFileList(repo, arch string) ([]string, error)
 	GetFileWithMeta(repoName, archName, name string) (platform.File, domain.FileMeta, error)
 	SignedURL(repo string, arch string, name string) (string, error)

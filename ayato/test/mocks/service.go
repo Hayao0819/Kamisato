@@ -105,6 +105,21 @@ func (mr *MockRepoReaderMockRecorder) PkgFiles(repo, arch, pkg any) *gomock.Call
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PkgFiles", reflect.TypeOf((*MockRepoReader)(nil).PkgFiles), repo, arch, pkg)
 }
 
+// PkgSignature mocks base method.
+func (m *MockRepoReader) PkgSignature(repo, arch, pkgname string) (*domain.PackageSignature, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "PkgSignature", repo, arch, pkgname)
+	ret0, _ := ret[0].(*domain.PackageSignature)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// PkgSignature indicates an expected call of PkgSignature.
+func (mr *MockRepoReaderMockRecorder) PkgSignature(repo, arch, pkgname any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PkgSignature", reflect.TypeOf((*MockRepoReader)(nil).PkgSignature), repo, arch, pkgname)
+}
+
 // Pkgs mocks base method.
 func (m *MockRepoReader) Pkgs(repo, arch string) (*domain.PacmanPkgs, error) {
 	m.ctrl.T.Helper()
@@ -818,6 +833,21 @@ func (m *MockServicer) PkgFiles(repo, arch, pkg string) ([]string, error) {
 func (mr *MockServicerMockRecorder) PkgFiles(repo, arch, pkg any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PkgFiles", reflect.TypeOf((*MockServicer)(nil).PkgFiles), repo, arch, pkg)
+}
+
+// PkgSignature mocks base method.
+func (m *MockServicer) PkgSignature(repo, arch, pkgname string) (*domain.PackageSignature, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "PkgSignature", repo, arch, pkgname)
+	ret0, _ := ret[0].(*domain.PackageSignature)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// PkgSignature indicates an expected call of PkgSignature.
+func (mr *MockServicerMockRecorder) PkgSignature(repo, arch, pkgname any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PkgSignature", reflect.TypeOf((*MockServicer)(nil).PkgSignature), repo, arch, pkgname)
 }
 
 // Pkgs mocks base method.
