@@ -8,7 +8,7 @@ import (
 
 	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/miko/domain"
-	"github.com/Hayao0819/Kamisato/miko/nvcheck"
+	"github.com/Hayao0819/Kamisato/pkg/nvcheck"
 )
 
 // nvcheckInterval is how often the periodic monitor runs when enabled; a single

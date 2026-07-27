@@ -7,7 +7,7 @@ import (
 
 	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/miko/domain"
-	"github.com/Hayao0819/Kamisato/miko/nvcheck"
+	"github.com/Hayao0819/Kamisato/pkg/nvcheck"
 	ppkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
 	"github.com/Hayao0819/Kamisato/pkg/raiou"
