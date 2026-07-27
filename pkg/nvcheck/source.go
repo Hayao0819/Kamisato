@@ -26,10 +26,19 @@ type VersionSource interface {
 type Spec struct {
 	Kind    string
 	Repo    string // owner/name for github kinds
-	Package string // project name for pypi
-	URL     string // fetch target for the http kind
+	Package string // project name for pypi and archpkg
+	URL     string // fetch target for the http and git kinds
 	Regex   string // capture group 1 is the version, for the http kind
 	Prefix  string // stripped from the matched version
+	// UseMaxTag selects the highest tag instead of the latest release for the
+	// github kind (nvchecker's use_max_tag).
+	UseMaxTag bool
+	// StripRelease drops the -pkgrel suffix from the archpkg kind's result.
+	StripRelease bool
+	// FromPattern/ToPattern rewrite the fetched version (nvchecker's
+	// from_pattern/to_pattern, a regexp replace).
+	FromPattern string
+	ToPattern   string
 }
 
 // NewSource builds the VersionSource for spec, fetching through client. The
@@ -38,10 +47,40 @@ func NewSource(spec Spec, client *http.Client) (VersionSource, error) {
 	if client == nil {
 		return nil, fmt.Errorf("nvcheck: nil http client")
 	}
+	src, err := newBaseSource(spec, client)
+	if err != nil {
+		return nil, err
+	}
+	if spec.FromPattern != "" {
+		if spec.ToPattern == "" {
+			return nil, fmt.Errorf("nvcheck: from_pattern needs a to_pattern")
+		}
+		re, err := regexp.Compile(spec.FromPattern)
+		if err != nil {
+			return nil, fmt.Errorf("nvcheck: invalid from_pattern: %w", err)
+		}
+		src = &transformSource{inner: src, re: re, to: goReplacement(spec.ToPattern)}
+	}
+	return src, nil
+}
+
+var backrefRe = regexp.MustCompile(`\\(\d+)`)
+
+// goReplacement converts nvchecker's Python-style to_pattern backreferences
+// (\1) into Go's ${1} template form.
+func goReplacement(to string) string {
+	to = strings.ReplaceAll(to, "$", "$$")
+	return backrefRe.ReplaceAllString(to, "${$1}")
+}
+
+func newBaseSource(spec Spec, client *http.Client) (VersionSource, error) {
 	switch spec.Kind {
 	case "github":
 		if spec.Repo == "" {
 			return nil, fmt.Errorf("nvcheck: github source needs a repo")
+		}
+		if spec.UseMaxTag {
+			return &githubTagSource{repo: spec.Repo, prefix: spec.Prefix, base: githubAPIBase, client: client}, nil
 		}
 		return &githubReleaseSource{repo: spec.Repo, prefix: spec.Prefix, base: githubAPIBase, client: client}, nil
 	case "github_tag":
@@ -54,9 +93,9 @@ func NewSource(spec Spec, client *http.Client) (VersionSource, error) {
 			return nil, fmt.Errorf("nvcheck: pypi source needs a package")
 		}
 		return &pypiSource{pkg: spec.Package, prefix: spec.Prefix, base: pypiBase, client: client}, nil
-	case "http":
+	case "http", "regex":
 		if spec.URL == "" || spec.Regex == "" {
-			return nil, fmt.Errorf("nvcheck: http source needs a url and regex")
+			return nil, fmt.Errorf("nvcheck: %s source needs a url and regex", spec.Kind)
 		}
 		re, err := regexp.Compile(spec.Regex)
 		if err != nil {
@@ -66,14 +105,41 @@ func NewSource(spec Spec, client *http.Client) (VersionSource, error) {
 			return nil, fmt.Errorf("nvcheck: regex must have a capture group for the version")
 		}
 		return &httpRegexSource{url: spec.URL, re: re, prefix: spec.Prefix, client: client}, nil
+	case "git":
+		if spec.URL == "" {
+			return nil, fmt.Errorf("nvcheck: git source needs a url")
+		}
+		return &gitTagSource{url: spec.URL, prefix: spec.Prefix}, nil
+	case "archpkg":
+		if spec.Package == "" {
+			return nil, fmt.Errorf("nvcheck: archpkg source needs a package")
+		}
+		return &archpkgSource{pkg: spec.Package, stripRelease: spec.StripRelease, base: archwebBase, client: client}, nil
 	default:
 		return nil, fmt.Errorf("nvcheck: unknown source kind %q", spec.Kind)
 	}
 }
 
+// transformSource applies the from_pattern/to_pattern rewrite on top of any
+// base source.
+type transformSource struct {
+	inner VersionSource
+	re    *regexp.Regexp
+	to    string
+}
+
+func (t *transformSource) Latest(ctx context.Context) (string, error) {
+	v, err := t.inner.Latest(ctx)
+	if err != nil {
+		return "", err
+	}
+	return t.re.ReplaceAllString(v, t.to), nil
+}
+
 const (
 	githubAPIBase = "https://api.github.com"
 	pypiBase      = "https://pypi.org"
+	archwebBase   = "https://archlinux.org"
 )
 
 type githubReleaseSource struct {
