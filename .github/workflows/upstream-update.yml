@@ -1,0 +1,50 @@
+name: Update upstream versions
+
+# Reusable update pass for repos built with ayaka: check every package holding
+# a .nvchecker.toml against its upstream, bump the outdated ones (pkgver,
+# checksums, .SRCINFO), push and dispatch the build workflow. The caller needs
+# contents and actions write.
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: "Kamisato ref to install ayaka from"
+        default: master
+        type: string
+      ref:
+        description: "Remote ref the update commit is pushed to"
+        default: master
+        type: string
+      build_workflow:
+        description: "Workflow file dispatched after pushing"
+        default: build.yml
+        type: string
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    # updpkgsums and makepkg (.SRCINFO regen) need Arch tooling and refuse
+    # root; the update action drops to an unprivileged user itself.
+    container: archlinux:latest
+    steps:
+      - name: Install tooling
+        run: pacman -Syu --noconfirm base-devel git go sudo jq pacman-contrib github-cli
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
+          # Dumb-HTTP submodule hosts reject shallow clones; full depth makes
+          # checkout clone submodules without --depth.
+          fetch-depth: 0
+      - uses: Hayao0819/Kamisato/actions/install@master
+        with:
+          ayaka: "true"
+          version: ${{ inputs.version }}
+      - uses: Hayao0819/Kamisato/actions/update@master
+        with:
+          ref: ${{ inputs.ref }}
+          build_workflow: ${{ inputs.build_workflow }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
