@@ -8,6 +8,7 @@ import (
 	aurcmd "github.com/Hayao0819/Kamisato/ayaka/cmd/src/aur"
 	bumpcmd "github.com/Hayao0819/Kamisato/ayaka/cmd/src/bump"
 	listcmd "github.com/Hayao0819/Kamisato/ayaka/cmd/src/list"
+	nvbumpcmd "github.com/Hayao0819/Kamisato/ayaka/cmd/src/nvbump"
 	srcinfocmd "github.com/Hayao0819/Kamisato/ayaka/cmd/src/srcinfo"
 	statuscmd "github.com/Hayao0819/Kamisato/ayaka/cmd/src/status"
 	submodulescmd "github.com/Hayao0819/Kamisato/ayaka/cmd/src/submodules"
@@ -24,6 +25,7 @@ func Cmd() *cobra.Command {
 		statuscmd.Cmd(),
 		srcinfocmd.Cmd(),
 		bumpcmd.Cmd(),
+		nvbumpcmd.Cmd(),
 		aurcmd.Cmd(),
 		submodulescmd.Cmd(),
 	)
