@@ -44,6 +44,26 @@ func TestArchpkgSource(t *testing.T) {
 	}
 }
 
+func TestAurSource(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/rpc/v5/info" || r.URL.Query()["arg[]"][0] != "ckbcomp" {
+			http.NotFound(w, r)
+			return
+		}
+		_, _ = w.Write([]byte(`{"results":[{"Version":"1.249-1"}]}`))
+	}))
+	defer srv.Close()
+
+	src := &aurSource{pkg: "ckbcomp", base: srv.URL, client: srv.Client()}
+	got, err := src.Latest(context.Background())
+	if err != nil {
+		t.Fatalf("Latest: %v", err)
+	}
+	if got != "1.249-1" {
+		t.Errorf("got %q, want 1.249-1", got)
+	}
+}
+
 func TestGitTagSource(t *testing.T) {
 	if _, err := exec.LookPath("git"); err != nil {
 		t.Skip("git not installed")

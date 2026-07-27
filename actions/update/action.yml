@@ -46,6 +46,8 @@ runs:
         id builder >/dev/null 2>&1 || useradd -m builder
         chown -R builder: .
         updated=()
+        # Owned packages get their PKGBUILD rewritten; AUR mirrors are advanced
+        # to origin with src pull (one call per repo) and land as gitlink moves.
         while IFS= read -r row; do
           repo=$(jq -r .repo <<<"$row")
           base=$(jq -r .pkgbase <<<"$row")
@@ -53,7 +55,15 @@ runs:
           echo "updating $repo/$base to $ver"
           sudo -u builder ayaka src nvbump "$repo" "$base" "$ver" --no-commit
           updated+=("$base@$ver")
-        done <outdated.jsonl
+        done < <(jq -c 'select(.method == "nvbump")' outdated.jsonl)
+        for repo in $(jq -r 'select(.method == "pull") | .repo' outdated.jsonl | sort -u); do
+          mapfile -t pkgs < <(jq -r --arg r "$repo" 'select(.method == "pull" and .repo == $r) | .pkgbase' outdated.jsonl)
+          echo "pulling in $repo: ${pkgs[*]}"
+          sudo -u builder ayaka src pull "$repo" "${pkgs[@]}"
+          while IFS= read -r ver_row; do
+            updated+=("$(jq -r .pkgbase <<<"$ver_row")@$(jq -r .latest <<<"$ver_row")")
+          done < <(jq -c --arg r "$repo" 'select(.method == "pull" and .repo == $r)' outdated.jsonl)
+        done
         echo "updated=${updated[*]}" >>"$GITHUB_OUTPUT"
 
     - id: commit

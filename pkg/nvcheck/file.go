@@ -22,6 +22,7 @@ type rawEntry struct {
 	Git          string `toml:"git"`
 	Pypi         string `toml:"pypi"`
 	Archpkg      string `toml:"archpkg"`
+	Aur          string `toml:"aur"`
 	StripRelease bool   `toml:"strip_release"`
 	URL          string `toml:"url"`
 	Regex        string `toml:"regex"`
@@ -74,6 +75,8 @@ func ParseFile(path string, data []byte) (File, error) {
 		spec.Package = orDefault(e.Pypi, pkgbase)
 	case "archpkg":
 		spec.Package = orDefault(e.Archpkg, pkgbase)
+	case "aur":
+		spec.Package = orDefault(e.Aur, pkgbase)
 	}
 	return File{Pkgbase: pkgbase, Spec: spec}, nil
 }

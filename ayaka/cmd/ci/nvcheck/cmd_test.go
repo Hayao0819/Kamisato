@@ -9,16 +9,17 @@ import (
 	"testing"
 
 	"github.com/Hayao0819/Kamisato/ayaka/app"
+	"github.com/Hayao0819/Kamisato/ayaka/service/source"
 	"github.com/Hayao0819/Kamisato/pkg/nvcheck"
 	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
 )
 
 type fakeNvChecker struct {
-	results map[string][]nvcheck.Result
+	results map[string][]source.CheckResult
 	calls   int
 }
 
-func (f *fakeNvChecker) RunNvCheck(_ context.Context, srcrepo *repo.SourceRepo, _ *http.Client) []nvcheck.Result {
+func (f *fakeNvChecker) RunNvCheck(_ context.Context, srcrepo *repo.SourceRepo, _ *http.Client) []source.CheckResult {
 	f.calls++
 	return f.results[srcrepo.Config.Name]
 }
@@ -31,9 +32,9 @@ func testApp() *app.App {
 }
 
 func TestNvcheckWalksEveryRepo(t *testing.T) {
-	fake := &fakeNvChecker{results: map[string][]nvcheck.Result{
-		"alpha": {{Pkgbase: "foo", Current: "1.0", Latest: "1.0"}},
-		"beta":  {{Pkgbase: "bar", Current: "1.0", Latest: "1.0"}},
+	fake := &fakeNvChecker{results: map[string][]source.CheckResult{
+		"alpha": {{Result: nvcheck.Result{Pkgbase: "foo", Current: "1.0", Latest: "1.0"}, Method: source.MethodNvBump}},
+		"beta":  {{Result: nvcheck.Result{Pkgbase: "bar", Current: "1.0", Latest: "1.0"}, Method: source.MethodPull}},
 	}}
 	cmd := newCommand(fake)
 	cmd.SetContext(app.WithContext(t.Context(), testApp()))
@@ -53,8 +54,8 @@ func TestNvcheckWalksEveryRepo(t *testing.T) {
 }
 
 func TestNvcheckOutdatedExitsNonZero(t *testing.T) {
-	fake := &fakeNvChecker{results: map[string][]nvcheck.Result{
-		"alpha": {{Pkgbase: "foo", Current: "1.0", Latest: "2.0", Outdated: true}},
+	fake := &fakeNvChecker{results: map[string][]source.CheckResult{
+		"alpha": {{Result: nvcheck.Result{Pkgbase: "foo", Current: "1.0", Latest: "2.0", Outdated: true}, Method: source.MethodNvBump}},
 	}}
 	cmd := newCommand(fake)
 	cmd.SetContext(app.WithContext(t.Context(), testApp()))
@@ -67,10 +68,10 @@ func TestNvcheckOutdatedExitsNonZero(t *testing.T) {
 }
 
 func TestNvcheckJSONRows(t *testing.T) {
-	fake := &fakeNvChecker{results: map[string][]nvcheck.Result{
+	fake := &fakeNvChecker{results: map[string][]source.CheckResult{
 		"alpha": {
-			{Pkgbase: "foo", Current: "1.0", Latest: "2.0", Outdated: true},
-			{Pkgbase: "bad", Err: errors.New("boom")},
+			{Result: nvcheck.Result{Pkgbase: "foo", Current: "1.0", Latest: "2.0", Outdated: true}, Method: source.MethodPull},
+			{Result: nvcheck.Result{Pkgbase: "bad", Err: errors.New("boom")}, Method: source.MethodNvBump},
 		},
 	}}
 	cmd := newCommand(fake)
@@ -83,7 +84,7 @@ func TestNvcheckJSONRows(t *testing.T) {
 	_ = cmd.Execute()
 
 	for _, want := range []string{
-		`"repo":"alpha"`, `"pkgbase":"foo"`, `"status":"OUTDATED"`, `"status":"error: boom"`,
+		`"repo":"alpha"`, `"pkgbase":"foo"`, `"status":"OUTDATED"`, `"status":"error: boom"`, `"method":"pull"`,
 	} {
 		if !strings.Contains(out.String(), want) {
 			t.Errorf("json output misses %s: %q", want, out.String())

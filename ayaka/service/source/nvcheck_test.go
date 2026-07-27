@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 
@@ -29,15 +30,37 @@ func writeNvCheckFixture(t *testing.T, srcinfo, nvchecker string) *pkg.SourcePac
 	return p
 }
 
+// makeAURCheckout turns the fixture dir into a git checkout whose origin points
+// at aur.archlinux.org, which is what marks a package as an AUR mirror.
+func makeAURCheckout(t *testing.T, p *pkg.SourcePackage) {
+	t.Helper()
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not installed")
+	}
+	for _, args := range [][]string{
+		{"init", "-q"},
+		{"remote", "add", "origin", "https://aur.archlinux.org/" + p.Base() + ".git"},
+	} {
+		cmd := exec.Command("git", args...)
+		cmd.Dir = p.Dir()
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v: %s", args, err, out)
+		}
+	}
+}
+
 const fooSrcinfo = "pkgbase = foo\n\tpkgver = 1.0\n\tpkgrel = 2\n\tepoch = 1\n\tarch = any\n\npkgname = foo\n"
 
 func TestRunNvCheck(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/pypi/foo/json" {
+		switch r.URL.Path {
+		case "/pypi/foo/json":
+			_, _ = w.Write([]byte(`{"info":{"version":"2.0"}}`))
+		case "/rpc/v5/info":
+			_, _ = w.Write([]byte(`{"results":[{"Version":"1.249-1"}]}`))
+		default:
 			http.NotFound(w, r)
-			return
 		}
-		_, _ = w.Write([]byte(`{"info":{"version":"2.0"}}`))
 	}))
 	defer srv.Close()
 
@@ -50,20 +73,23 @@ func TestRunNvCheck(t *testing.T) {
 	broken := writeNvCheckFixture(t,
 		"pkgbase = baz\n\tpkgver = 1.0\n\tpkgrel = 1\n\tarch = any\n\npkgname = baz\n",
 		"[unclosed\n")
+	// The bundled .nvchecker.toml is the AUR maintainer's upstream watch and
+	// must lose to the mirror's own AUR RPC comparison.
+	mirror := writeNvCheckFixture(t,
+		"pkgbase = ckbcomp\n\tpkgver = 1.248\n\tpkgrel = 1\n\tarch = any\n\npkgname = ckbcomp\n",
+		"[ckbcomp]\nsource = \"git\"\ngit = \"https://salsa.debian.org/x.git\"\n")
+	makeAURCheckout(t, mirror)
 
-	// The pypi source hits the real host unless redirected; point the fixture's
-	// spec at the test server by rewriting the entry post-collection is not
-	// possible, so use the test server via the http transport override below.
 	src := &repo.SourceRepo{
 		Config: &repo.SrcConfig{Name: "test"},
-		Pkgs:   []*pkg.SourcePackage{monitored, unmonitored, unsupported, broken},
+		Pkgs:   []*pkg.SourcePackage{monitored, unmonitored, unsupported, broken, mirror},
 	}
 
 	client := &http.Client{Transport: rewriteHost(srv)}
 	results := RunNvCheck(t.Context(), src, client)
 
-	if len(results) != 3 {
-		t.Fatalf("results = %d, want 3 (monitored, unsupported, broken)", len(results))
+	if len(results) != 4 {
+		t.Fatalf("results = %d, want 4 (monitored, unsupported, broken, mirror)", len(results))
 	}
 	byPkg := map[string]int{}
 	for i, r := range results {
@@ -71,8 +97,12 @@ func TestRunNvCheck(t *testing.T) {
 	}
 
 	foo := results[byPkg["foo"]]
-	if foo.Err != nil || !foo.Outdated || foo.Latest != "2.0" || foo.Current != "1.0" {
-		t.Errorf("foo = %+v, want outdated 1.0 -> 2.0 (epoch/pkgrel excluded)", foo)
+	if foo.Err != nil || !foo.Outdated || foo.Latest != "2.0" || foo.Current != "1.0" || foo.Method != MethodNvBump {
+		t.Errorf("foo = %+v, want nvbump-outdated 1.0 -> 2.0 (epoch/pkgrel excluded)", foo)
+	}
+	ckb := results[byPkg["ckbcomp"]]
+	if ckb.Err != nil || !ckb.Outdated || ckb.Latest != "1.249-1" || ckb.Current != "1.248-1" || ckb.Method != MethodPull {
+		t.Errorf("ckbcomp = %+v, want pull-outdated 1.248-1 -> 1.249-1 via AUR RPC", ckb)
 	}
 	if chrome := results[byPkg["chrome"]]; chrome.Err == nil {
 		t.Error("unsupported source should surface as an error result")

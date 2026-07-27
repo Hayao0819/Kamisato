@@ -18,12 +18,12 @@ import (
 
 // nvChecker is the slice of service/source this command drives.
 type nvChecker interface {
-	RunNvCheck(ctx context.Context, srcrepo *repo.SourceRepo, client *http.Client) []nvcheck.Result
+	RunNvCheck(ctx context.Context, srcrepo *repo.SourceRepo, client *http.Client) []source.CheckResult
 }
 
 type sourceNvChecker struct{}
 
-func (sourceNvChecker) RunNvCheck(ctx context.Context, srcrepo *repo.SourceRepo, client *http.Client) []nvcheck.Result {
+func (sourceNvChecker) RunNvCheck(ctx context.Context, srcrepo *repo.SourceRepo, client *http.Client) []source.CheckResult {
 	return source.RunNvCheck(ctx, srcrepo, client)
 }
 
@@ -32,10 +32,11 @@ type row struct {
 	Pkgbase string `json:"pkgbase"`
 	Current string `json:"current"`
 	Latest  string `json:"latest"`
+	Method  string `json:"method"`
 	Status  string `json:"status"`
 }
 
-const defaultFmt = "table {{.Repo}}\t{{.Pkgbase}}\t{{.Current}}\t{{.Latest}}\t{{.Status}}"
+const defaultFmt = "table {{.Repo}}\t{{.Pkgbase}}\t{{.Current}}\t{{.Latest}}\t{{.Method}}\t{{.Status}}"
 
 // Cmd checks every package holding a .nvchecker.toml against its upstream, so
 // a scheduled CI run can bump and rebuild what moved. Exits non-zero when any
@@ -74,12 +75,13 @@ func newCommand(svc nvChecker) *cobra.Command {
 						Pkgbase: r.Pkgbase,
 						Current: dashIfEmpty(r.Current),
 						Latest:  dashIfEmpty(r.Latest),
+						Method:  string(r.Method),
 						Status:  status,
 					})
 				}
 			}
 
-			header := row{Repo: "REPO", Pkgbase: "PKGBASE", Current: "CURRENT", Latest: "LATEST", Status: "STATUS"}
+			header := row{Repo: "REPO", Pkgbase: "PKGBASE", Current: "CURRENT", Latest: "LATEST", Method: "METHOD", Status: "STATUS"}
 			if err := cliutil.RenderList(cmd.OutOrStdout(), format, header, rows); err != nil {
 				return err
 			}

@@ -115,6 +115,11 @@ func newBaseSource(spec Spec, client *http.Client) (VersionSource, error) {
 			return nil, fmt.Errorf("nvcheck: archpkg source needs a package")
 		}
 		return &archpkgSource{pkg: spec.Package, stripRelease: spec.StripRelease, base: archwebBase, client: client}, nil
+	case "aur":
+		if spec.Package == "" {
+			return nil, fmt.Errorf("nvcheck: aur source needs a package")
+		}
+		return &aurSource{pkg: spec.Package, base: aurRPCBase, client: client}, nil
 	default:
 		return nil, fmt.Errorf("nvcheck: unknown source kind %q", spec.Kind)
 	}
@@ -140,6 +145,7 @@ const (
 	githubAPIBase = "https://api.github.com"
 	pypiBase      = "https://pypi.org"
 	archwebBase   = "https://archlinux.org"
+	aurRPCBase    = "https://aur.archlinux.org"
 )
 
 type githubReleaseSource struct {
