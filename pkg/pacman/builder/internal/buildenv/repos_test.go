@@ -39,11 +39,13 @@ func TestExtraReposScript(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.HasPrefix(s, "cat >> /etc/pacman.conf <<'KAMISATO_EXTRA_REPO_EOF'\n") {
-		t.Errorf("script should append via a quoted heredoc, got:\n%s", s)
+	if !strings.HasPrefix(s, "cat > /run/kamisato-extra-repos.conf <<'KAMISATO_EXTRA_REPO_EOF'\n") {
+		t.Errorf("script should stage stanzas via a quoted heredoc, got:\n%s", s)
 	}
-	if !strings.HasSuffix(s, "KAMISATO_EXTRA_REPO_EOF") {
-		t.Errorf("heredoc not terminated:\n%s", s)
+	// Prepended, not appended: alpm resolves names by repo order without
+	// backtracking, so an appended repo can never override core/extra.
+	if !strings.Contains(s, "mv /run/kamisato-pacman.conf /etc/pacman.conf") {
+		t.Errorf("script should rewrite pacman.conf with the repos in front:\n%s", s)
 	}
 	if !strings.Contains(s, "[ayato]") {
 		t.Errorf("script missing repo stanza:\n%s", s)

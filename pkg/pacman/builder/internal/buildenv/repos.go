@@ -30,7 +30,10 @@ func SubstituteBuildPlaceholders(script, reposScript, installScript string) stri
 	return script
 }
 
-// ExtraReposScript quotes the heredoc marker so pacman, not the shell, expands variables.
+// ExtraReposScript quotes the heredoc marker so pacman, not the shell, expands
+// variables. The stanzas go in front of the first repo section, not appended:
+// alpm resolves names by repo order without backtracking, so an appended repo
+// can never override a same-named package in the distro's own core/extra.
 func ExtraReposScript(repos []builder.PacmanRepository) (string, error) {
 	stanzas, err := PacmanRepoStanzas(repos)
 	if err != nil {
@@ -39,5 +42,11 @@ func ExtraReposScript(repos []builder.PacmanRepository) (string, error) {
 	if strings.TrimSpace(stanzas) == "" {
 		return "", nil
 	}
-	return "cat >> /etc/pacman.conf <<'KAMISATO_EXTRA_REPO_EOF'\n" + stanzas + "KAMISATO_EXTRA_REPO_EOF", nil
+	return "cat > /run/kamisato-extra-repos.conf <<'KAMISATO_EXTRA_REPO_EOF'\n" + stanzas + "KAMISATO_EXTRA_REPO_EOF\n" +
+		`awk 'FNR == NR { extra[++n] = $0; next }
+  !done && /^\[/ && $0 != "[options]" { for (i = 1; i <= n; i++) print extra[i]; print ""; done = 1 }
+  { print }
+  END { if (!done) for (i = 1; i <= n; i++) print extra[i] }' \
+  /run/kamisato-extra-repos.conf /etc/pacman.conf > /run/kamisato-pacman.conf
+mv /run/kamisato-pacman.conf /etc/pacman.conf`, nil
 }
