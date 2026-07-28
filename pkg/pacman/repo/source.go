@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io/fs"
 	"log/slog"
+	"os"
 	"path/filepath"
 
 	"github.com/Hayao0819/Kamisato/pkg/pacman/builder"
@@ -37,7 +38,14 @@ func GetSrcDirs(repodir string) ([]string, error) {
 		if err != nil {
 			return err
 		}
-		if !d.IsDir() {
+		// WalkDir reports a symlinked dir as a non-dir; resolve it so a
+		// package dir linked from another repo (e.g. a submodule) loads too.
+		if d.Type()&fs.ModeSymlink != 0 {
+			st, serr := os.Stat(path)
+			if serr != nil || !st.IsDir() {
+				return nil
+			}
+		} else if !d.IsDir() {
 			return nil
 		}
 
