@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"os"
 	"path"
+	"path/filepath"
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
 
@@ -41,7 +42,13 @@ func Package(p *pkg.SourcePackage, target *Target, dest string) error {
 		return err
 	}
 	slog.Info("tempdir", "dir", tmpdir)
-	if err := copy.Copy(p.Dir(), tmpdir); err != nil {
+	// The package dir itself may be a symlink (e.g. into a submodule); copy
+	// resolves it or the tempdir would become a dangling link copy.
+	srcdir, err := filepath.EvalSymlinks(p.Dir())
+	if err != nil {
+		return err
+	}
+	if err := copy.Copy(srcdir, tmpdir); err != nil {
 		return err
 	}
 	// The output is moved to OutDir(=dest), so discard tmpdir holding the source copy.
