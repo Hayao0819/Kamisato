@@ -3,18 +3,16 @@ package service
 import (
 	"context"
 	"log/slog"
-	"strings"
 	"time"
 
-	"github.com/Hayao0819/Kamisato/internal/conf"
+	"github.com/Hayao0819/Kamisato/internal/nvcheck"
 	"github.com/Hayao0819/Kamisato/miko/domain"
-	"github.com/Hayao0819/Kamisato/pkg/nvcheck"
 )
 
 // nvcheckInterval is how often the periodic monitor runs when enabled; a single
 // loop is shared across worker goroutines.
 func (s *Service) nvcheckInterval() time.Duration {
-	return time.Duration(s.cfg.NvCheck.IntervalMin) * time.Minute
+	return s.settings.VersionCheckInterval
 }
 
 // CheckUpstreamVersions runs one version-check pass, enqueuing a
@@ -31,7 +29,7 @@ func (s *Service) CheckUpstreamVersionsDryRun(ctx context.Context) []nvcheck.Res
 }
 
 func (s *Service) runNvCheck(ctx context.Context, enq nvcheck.Enqueuer) []nvcheck.Result {
-	entries := nvcheckEntries(s.cfg)
+	entries := s.settings.VersionCheckEntries
 	if len(entries) == 0 {
 		return nil
 	}
@@ -57,7 +55,7 @@ func (s *Service) runNvCheck(ctx context.Context, enq nvcheck.Enqueuer) []nvchec
 // nvcheckLoop runs CheckUpstreamVersions on a ticker until ctx is cancelled. It
 // is gated by nvcheck.interval_min and started once even with several workers.
 func (s *Service) nvcheckLoop(ctx context.Context, interval time.Duration) {
-	slog.Info("upstream version monitor started", "interval", interval, "entries", len(s.cfg.NvCheck.Entries))
+	slog.Info("upstream version monitor started", "interval", interval, "entries", len(s.settings.VersionCheckEntries))
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 	for {
@@ -68,33 +66,6 @@ func (s *Service) nvcheckLoop(ctx context.Context, interval time.Duration) {
 			s.CheckUpstreamVersions(ctx)
 		}
 	}
-}
-
-// nvcheckEntries maps the config monitor entries to the nvcheck domain type,
-// filling the clone URL default from aur_git_base.
-func nvcheckEntries(cfg *conf.MikoConfig) []nvcheck.Entry {
-	out := make([]nvcheck.Entry, 0, len(cfg.NvCheck.Entries))
-	for _, e := range cfg.NvCheck.Entries {
-		git := e.Git
-		if git == "" {
-			git = strings.TrimRight(cfg.AURGitBase, "/") + "/" + e.Pkgbase + ".git"
-		}
-		out = append(out, nvcheck.Entry{
-			Pkgbase: e.Pkgbase,
-			Source: nvcheck.Spec{
-				Kind:    e.Kind,
-				Repo:    e.Repo,
-				Package: e.Package,
-				URL:     e.URL,
-				Regex:   e.Regex,
-				Prefix:  e.Prefix,
-			},
-			Repo: e.BuildRepo,
-			Arch: e.Arch,
-			Git:  git,
-		})
-	}
-	return out
 }
 
 // versionUpdateEnqueuer enqueues a monitored rebuild through the service, tagged
@@ -121,7 +92,7 @@ func (e *versionUpdateEnqueuer) EnqueueVersionUpdate(entry nvcheck.Entry, newVer
 // and malformed-database failures remain visible instead of looking outdated.
 func (s *Service) publishedVersion() nvcheck.CurrentFunc {
 	return func(ctx context.Context, entry nvcheck.Entry) (string, error) {
-		if s.cfg.Ayato.URL == "" || entry.Repo == "" || entry.Arch == "" {
+		if s.settings.AyatoURL == "" || entry.Repo == "" || entry.Arch == "" {
 			return "", nil
 		}
 		rr, err := s.repositoryDB(ctx, entry.Repo, entry.Arch)

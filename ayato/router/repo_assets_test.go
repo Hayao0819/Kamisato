@@ -10,7 +10,6 @@ import (
 	"github.com/Hayao0819/Kamisato/ayato/handler"
 	"github.com/Hayao0819/Kamisato/ayato/middleware"
 	"github.com/Hayao0819/Kamisato/ayato/router"
-	"github.com/Hayao0819/Kamisato/internal/conf"
 )
 
 // The /repo index page's CSS/JS were externalized so the strict CSP allows them.
@@ -19,10 +18,9 @@ import (
 func TestRepoIndexAssets(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	cfg := &conf.AyatoConfig{}
 	e := gin.New()
-	h := handler.New(nil, cfg)
-	m := middleware.New(cfg)
+	h := handler.New(nil, handler.Settings{})
+	m := middleware.New(middleware.Settings{})
 	if err := router.SetRoute(e, h, m); err != nil {
 		t.Fatalf("SetRoute: %v", err)
 	}

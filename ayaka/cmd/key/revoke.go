@@ -5,9 +5,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
+	"github.com/Hayao0819/Kamisato/ayaka/cli"
 	"github.com/Hayao0819/Kamisato/internal/errors"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/sign"
+	"github.com/Hayao0819/Kamisato/internal/pacman/sign"
 )
 
 func revokeCmd() *cobra.Command {
@@ -29,7 +29,7 @@ func revokeCmd() *cobra.Command {
 			if !yes {
 				return errors.NewErr("refusing to revoke the primary key without --yes")
 			}
-			k, pass, err := shared.LoadSigningKey(cmd)
+			k, pass, err := cli.LoadSigningKey(cmd)
 			if err != nil {
 				return err
 			}

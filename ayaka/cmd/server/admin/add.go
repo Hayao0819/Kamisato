@@ -5,7 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
+	"github.com/Hayao0819/Kamisato/ayaka/cli"
 	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
@@ -15,12 +15,12 @@ func adminAddCmd() *cobra.Command {
 		Short: "Add an ayato admin by GitHub login or numeric id",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			srv, err := shared.ServerFromFlag(cmd)
+			srv, err := cli.ServerFromFlag(cmd)
 			if err != nil {
 				return err
 			}
 			id, login := parseLoginOrID(args[0])
-			api, err := shared.AyatoClient(srv)
+			api, err := cli.AyatoClient(srv)
 			if err != nil {
 				return err
 			}

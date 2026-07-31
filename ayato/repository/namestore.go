@@ -2,6 +2,7 @@ package repository
 
 import (
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
+	"github.com/Hayao0819/Kamisato/ayato/service"
 )
 
 //go:generate mockgen -source=namestore.go -destination=../test/mocks/namestore.go -package=mocks
@@ -11,20 +12,8 @@ import (
 // same package name distinct across the tiers of a tiered repo (staging/testing/
 // stable are separate physical repos), and by arch keeps it distinct across arches
 // (pacman identity is the (pkgname, arch) tuple).
-type NameStore interface {
-	PackageFile(repo, arch, name string) (string, error)
-	StorePackageFile(repo, arch, packageName, filePath string) error
-	// StorePackageFiles records many entries under one repo in a single backend
-	// write when the store supports it, so a batch publish spends one request
-	// instead of one per package. Entries never expire, like StorePackageFile.
-	StorePackageFiles(repo string, entries []PackageFileEntry) error
-	DeletePackageFileEntry(repo, arch, packageName string) error
-}
-
-// PackageFileEntry is one (arch, name) -> file-name mapping for a batched write.
-type PackageFileEntry struct {
-	Arch, Name, FileName string
-}
+type NameStore = service.NameStore
+type PackageFileEntry = service.PackageFileEntry
 
 type packageMetadataRepo struct {
 	kv kv.Store

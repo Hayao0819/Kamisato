@@ -14,6 +14,7 @@ import (
 	"encoding/base64"
 	"fmt"
 
+	"github.com/Hayao0819/Kamisato/ayato/domain"
 	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
@@ -76,9 +77,9 @@ func randomBytes(length int) ([]byte, error) {
 // Device authorization outcomes (RFC 8628 polling states) shared by the device
 // repository and the handlers so the two never drift on the wire strings.
 const (
-	DevicePending  = "pending"
-	DeviceApproved = "approved"
-	DeviceDenied   = "denied"
+	DevicePending  = domain.DevicePending
+	DeviceApproved = domain.DeviceApproved
+	DeviceDenied   = domain.DeviceDenied
 )
 
 // HashHex returns the hex SHA-256 of s, used to bind the OAuth state token to a

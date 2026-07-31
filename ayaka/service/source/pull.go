@@ -9,15 +9,15 @@ import (
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
 	"github.com/Hayao0819/Kamisato/internal/gitcmd"
-	pkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
+	pkg "github.com/Hayao0819/Kamisato/internal/pacman"
+	"github.com/Hayao0819/Kamisato/internal/pacman/source"
 )
 
 const aurHost = "aur.archlinux.org"
 
 // MirrorPackages returns the packages whose directory is its own git checkout
 // (a submodule or plain clone tracking an origin).
-func MirrorPackages(src *repo.SourceRepo) []*pkg.SourcePackage {
+func MirrorPackages(src *source.SourceRepo) []*pkg.SourcePackage {
 	var mirrors []*pkg.SourcePackage
 	for _, p := range src.Pkgs {
 		if isGitCheckout(p.Dir()) {
@@ -64,7 +64,7 @@ func isAURURL(raw string) bool {
 // detached-HEAD checkouts (CI submodules) and refuses a dirty worktree unless
 // force discards it. Per-package failures are collected so one bad mirror does
 // not stop the rest.
-func PullPackages(ctx context.Context, src *repo.SourceRepo, names []string, force bool) ([]*pkg.SourcePackage, error) {
+func PullPackages(ctx context.Context, src *source.SourceRepo, names []string, force bool) ([]*pkg.SourcePackage, error) {
 	targets, err := pullTargets(src, names)
 	if err != nil {
 		return nil, err
@@ -86,7 +86,7 @@ func PullPackages(ctx context.Context, src *repo.SourceRepo, names []string, for
 	return pulled, nil
 }
 
-func pullTargets(src *repo.SourceRepo, names []string) ([]*pkg.SourcePackage, error) {
+func pullTargets(src *source.SourceRepo, names []string) ([]*pkg.SourcePackage, error) {
 	if len(names) == 0 {
 		return MirrorPackages(src), nil
 	}

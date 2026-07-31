@@ -6,8 +6,6 @@ package version
 import (
 	"fmt"
 	"runtime/debug"
-
-	"github.com/spf13/cobra"
 )
 
 var (
@@ -50,16 +48,4 @@ func BuildInfo() (version, commit, date string) {
 func String() string {
 	v, c, d := BuildInfo()
 	return fmt.Sprintf("%s (%s, %s)", v, c, d)
-}
-
-// Command is the shared `version` subcommand every CLI mounts on its root.
-func Command() *cobra.Command {
-	return &cobra.Command{
-		Use:   "version",
-		Short: "Print build version information",
-		Run: func(cmd *cobra.Command, _ []string) {
-			v, c, d := BuildInfo()
-			fmt.Fprintf(cmd.OutOrStdout(), "%s version %s\ncommit: %s\nbuilt:  %s\n", cmd.Root().Name(), v, c, d)
-		},
-	}
 }

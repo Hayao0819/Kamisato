@@ -24,7 +24,7 @@ pkgname = foo
 	depends = glibc
 	depends = bar>=2.0
 `
-	got, err := srcinfoBuildDeps([]byte(srcinfo), "x86_64")
+	got, err := srcinfoBuildDeps([]byte(srcinfo), "x86_64", nil)
 	if err != nil {
 		t.Fatalf("x86_64 parse: %v", err)
 	}
@@ -32,9 +32,17 @@ pkgname = foo
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("x86_64 deps:\n got %q\nwant %q", got, want)
 	}
+	runCheck := false
+	withoutCheck, err := srcinfoBuildDeps([]byte(srcinfo), "x86_64", &runCheck)
+	if err != nil {
+		t.Fatalf("x86_64 nocheck parse: %v", err)
+	}
+	if want := []string{"cmake", "git", "glibc", "bar>=2.0", "lib32-glibc"}; !reflect.DeepEqual(withoutCheck, want) {
+		t.Errorf("x86_64 nocheck deps:\n got %q\nwant %q", withoutCheck, want)
+	}
 
 	// A different arch picks its own arch-specific deps and drops the other's.
-	gotArm, err := srcinfoBuildDeps([]byte(srcinfo), "aarch64")
+	gotArm, err := srcinfoBuildDeps([]byte(srcinfo), "aarch64", nil)
 	if err != nil {
 		t.Fatalf("aarch64 parse: %v", err)
 	}
@@ -53,7 +61,7 @@ pkgname = foo
 
 func TestSrcinfoBuildDepsEmpty(t *testing.T) {
 	srcinfo := "pkgbase = x\n\tpkgver = 1\n\tpkgrel = 1\n\tarch = x86_64\npkgname = x\n"
-	got, err := srcinfoBuildDeps([]byte(srcinfo), "x86_64")
+	got, err := srcinfoBuildDeps([]byte(srcinfo), "x86_64", nil)
 	if err != nil {
 		t.Fatalf("parse: %v", err)
 	}
@@ -75,7 +83,7 @@ pkgname = x
 	depends =
 	depends_x86_64 =
 `
-	got, err := srcinfoBuildDeps([]byte(srcinfo), "x86_64")
+	got, err := srcinfoBuildDeps([]byte(srcinfo), "x86_64", nil)
 	if err != nil {
 		t.Fatalf("parse: %v", err)
 	}

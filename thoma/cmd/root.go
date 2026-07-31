@@ -10,13 +10,13 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"syscall"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
 	"github.com/Hayao0819/Kamisato/internal/version"
+	"github.com/Hayao0819/Kamisato/thoma/build"
 )
 
 // RootCmd builds the thoma command. The makepkg flags thoma reacts to are
@@ -24,7 +24,7 @@ import (
 // on because thoma is a shim: it must hand the whole, unreordered argv to the
 // real makepkg on passthrough, and let query flags such as --help/--version and
 // makepkg's own flags fall through untouched. run therefore parses the flags
-// explicitly (whitelisting makepkg's as unknown) and reads them via cmd.Flags().
+// explicitly and reads them via cmd.Flags().
 func RootCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:                "thoma [makepkg args...]",
@@ -45,7 +45,36 @@ func RootCmd() *cobra.Command {
 	f.BoolP("version", "V", false, "makepkg --version")
 	f.BoolP("help", "h", false, "makepkg --help")
 	f.String("config", "", "makepkg --config")
-	f.ParseErrorsAllowlist.UnknownFlags = true
+	f.StringP("buildscript", "p", "PKGBUILD", "makepkg --buildscript")
+	f.StringP("dir", "D", "", "makepkg --dir")
+	f.BoolP("ignorearch", "A", false, "makepkg --ignorearch")
+	f.Bool("check", false, "makepkg --check")
+	f.Bool("nocheck", false, "makepkg --nocheck")
+	f.Bool("noverify", false, "makepkg --noverify")
+	f.Bool("skipchecksums", false, "makepkg --skipchecksums")
+	f.Bool("skipinteg", false, "makepkg --skipinteg")
+	f.Bool("skippgpcheck", false, "makepkg --skippgpcheck")
+	f.BoolP("install", "i", false, "makepkg --install")
+	f.Bool("sign", false, "makepkg --sign")
+	f.Bool("nosign", false, "makepkg --nosign")
+	f.String("key", "", "makepkg --key")
+	f.BoolP("nodeps", "d", false, "makepkg --nodeps")
+	f.BoolP("clean", "c", false, "makepkg --clean")
+	f.BoolP("cleanbuild", "C", false, "makepkg --cleanbuild")
+	f.BoolP("force", "f", false, "makepkg --force")
+	f.BoolP("noextract", "e", false, "makepkg --noextract")
+	f.BoolP("log", "L", false, "makepkg --log")
+	f.BoolP("nocolor", "m", false, "makepkg --nocolor")
+	f.Bool("noprepare", false, "makepkg --noprepare")
+	f.Bool("holdver", false, "makepkg --holdver")
+	f.BoolP("rmdeps", "r", false, "makepkg --rmdeps")
+	f.BoolP("syncdeps", "s", false, "makepkg --syncdeps")
+	f.Bool("asdeps", false, "makepkg --asdeps")
+	f.Bool("needed", false, "makepkg --needed")
+	f.Bool("noconfirm", false, "makepkg --noconfirm")
+	f.Bool("noprogressbar", false, "makepkg --noprogressbar")
+	f.BoolP("repackage", "R", false, "makepkg --repackage")
+	f.Bool("noarchive", false, "makepkg --noarchive")
 	f.SetOutput(io.Discard)
 	return cmd
 }
@@ -54,68 +83,77 @@ func run(cmd *cobra.Command, args []string) error {
 	// DisableFlagParsing rules out a cobra `version` subcommand, so intercept the
 	// bare verb here; makepkg never takes a "version" positional.
 	if len(args) == 1 && args[0] == "version" {
-		fmt.Printf("thoma version %s\n", version.String())
+		fmt.Fprintf(cmd.OutOrStdout(), "thoma version %s\n", version.String())
 		return nil
 	}
 	// Parse the raw argv into the command's own flags for classification; makepkg's
-	// flags are whitelisted as unknown and args stays intact for passthrough.
+	// args stays intact for passthrough.
 	f := cmd.Flags()
-	_ = f.Parse(args)
+	if err := f.Parse(args); err != nil {
+		return err
+	}
 	if isRemoteBuild(f) {
-		config, _ := f.GetString("config")
-		return remoteBuild(config)
+		options, err := remoteBuildOptions(f)
+		if err != nil {
+			return err
+		}
+		if err := rejectRoot(os.Geteuid()); err != nil {
+			return err
+		}
+		return build.Run(cmd.Context(), cmd.OutOrStdout(), cmd.ErrOrStderr(), options)
 	}
 	return passthrough(args)
 }
 
-// realMakepkg resolves the makepkg binary thoma delegates pass-through
-// invocations to, trying in order: the explicit THOMA_MAKEPKG / config override,
-// $PATH, then the canonical /usr/bin/makepkg. A candidate that is the same file
-// as this executable is skipped: when thoma is installed *as* makepkg
-// (makepkgbin=thoma with /usr/bin/makepkg symlinked to thoma), delegating to it
-// would loop forever through syscall.Exec.
-func realMakepkg(configured string) string {
-	self, _ := os.Executable()
-	var candidates []string
-	if p := os.Getenv("THOMA_MAKEPKG"); p != "" {
-		candidates = append(candidates, p)
-	}
-	if configured != "" {
-		candidates = append(candidates, configured)
-	}
-	if p, err := exec.LookPath("makepkg"); err == nil {
-		candidates = append(candidates, p)
-	}
-	candidates = append(candidates, "/usr/bin/makepkg")
-	for _, c := range candidates {
-		if self != "" && sameFile(c, self) {
-			continue
+func remoteBuildOptions(f *pflag.FlagSet) (build.Options, error) {
+	for _, name := range []string{"install", "sign", "nosign", "key", "nodeps", "log"} {
+		if f.Changed(name) {
+			return build.Options{}, fmt.Errorf("thoma remote build does not support --%s", name)
 		}
-		return c
 	}
-	return "/usr/bin/makepkg"
+	check, _ := f.GetBool("check")
+	nocheck, _ := f.GetBool("nocheck")
+	if check && nocheck {
+		return build.Options{}, fmt.Errorf("--check and --nocheck are mutually exclusive")
+	}
+	var runCheck *bool
+	if check || nocheck {
+		value := check
+		runCheck = &value
+	}
+	var runVerify *bool
+	if f.Changed("noverify") {
+		value := false
+		runVerify = &value
+	}
+	skipInteg, _ := f.GetBool("skipinteg")
+	skipChecksums, _ := f.GetBool("skipchecksums")
+	skipPGP, _ := f.GetBool("skippgpcheck")
+	config, _ := f.GetString("config")
+	buildscript, _ := f.GetString("buildscript")
+	dir, _ := f.GetString("dir")
+	ignoreArch, _ := f.GetBool("ignorearch")
+	return build.Options{
+		Config:        config,
+		Buildscript:   buildscript,
+		Dir:           dir,
+		IgnoreArch:    ignoreArch,
+		RunCheck:      runCheck,
+		RunVerify:     runVerify,
+		SkipChecksums: skipInteg || skipChecksums,
+		SkipPGPCheck:  skipInteg || skipPGP,
+	}, nil
 }
 
-// sameFile reports whether a and b resolve to the same on-disk file, following
-// symlinks — so a /usr/bin/makepkg symlink pointing back at the thoma binary is
-// caught even though the two paths differ.
-func sameFile(a, b string) bool {
-	fa, err := os.Stat(a) //nolint:gosec // a is a resolved makepkg binary path (LookPath/hardcoded), not attacker input
-	if err != nil {
-		return false
+func rejectRoot(euid int) error {
+	if euid == 0 {
+		return fmt.Errorf("running makepkg as root is not allowed as it can cause permanent, catastrophic damage to your system")
 	}
-	fb, err := os.Stat(b)
-	if err != nil {
-		return false
-	}
-	return os.SameFile(fa, fb)
+	return nil
 }
 
-// passthrough replaces the process with the real makepkg, preserving args, env,
-// cwd, stdio and exit code exactly — used for every invocation that is not the
-// heavy compile (source download, --nobuild, --packagelist, --printsrcinfo, …).
 func passthrough(args []string) error {
-	bin := realMakepkg("")
+	bin := build.RealMakepkg("")
 	return syscall.Exec(bin, append([]string{bin}, args...), os.Environ()) //nolint:gosec // bin is a resolved makepkg path, not attacker input
 }
 
@@ -124,7 +162,7 @@ func passthrough(args []string) error {
 // deliberately excluded: it can accompany a real build.
 var nonBuildFlags = []string{
 	"nobuild", "verifysource", "packagelist", "printsrcinfo",
-	"source", "allsource", "geninteg", "version", "help",
+	"source", "allsource", "geninteg", "version", "help", "repackage", "noarchive",
 }
 
 // isRemoteBuild reports whether the invocation is the actual compile+package

@@ -6,20 +6,19 @@ import (
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
 
-	"github.com/Hayao0819/Kamisato/ayato/platform"
-	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
-	pacmanrepo "github.com/Hayao0819/Kamisato/pkg/pacman/repo"
+	"github.com/Hayao0819/Kamisato/ayato/blob"
+	pacmanrepo "github.com/Hayao0819/Kamisato/internal/pacman/repo"
 )
 
 // storeIfMatch publishes one local artifact under its bare repository name.
 func (r *binaryRepository) storeIfMatch(
 	repo, arch, dir, name, etag string,
 ) error {
-	object, err := platform.OpenFileWithType(path.Join(dir, name))
+	object, err := blob.OpenFileWithType(path.Join(dir, name))
 	if err != nil {
 		return errors.WrapErr(err, "failed to open artifact "+name)
 	}
-	named := platform.NewFileStream(name, object.ContentType(), object)
+	named := blob.NewFileStream(name, object.ContentType(), object)
 	storeErr := r.Store.StoreFileIfMatch(repo, arch, named, etag)
 	_ = object.Close()
 	return storeErr

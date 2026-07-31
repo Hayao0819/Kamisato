@@ -7,13 +7,11 @@ import (
 
 	"go.uber.org/mock/gomock"
 
-	"github.com/Hayao0819/Kamisato/ayato/platform"
-	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
+	"github.com/Hayao0819/Kamisato/ayato/blob"
 	"github.com/Hayao0819/Kamisato/ayato/service"
 	"github.com/Hayao0819/Kamisato/ayato/test/mocks"
-	"github.com/Hayao0819/Kamisato/internal/conf"
-	pacmanpkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
+	pacmanpkg "github.com/Hayao0819/Kamisato/internal/pacman"
+	"github.com/Hayao0819/Kamisato/internal/pacman/repo"
 	"github.com/Hayao0819/Kamisato/pkg/raiou"
 )
 
@@ -30,8 +28,8 @@ func sigTestRemote() *repo.RemoteRepo {
 	}}
 }
 
-func fileFromBytes(name string, data []byte) platform.File {
-	return platform.NewFileStream(
+func fileFromBytes(name string, data []byte) blob.File {
+	return blob.NewFileStream(
 		name,
 		"application/octet-stream",
 		bufferToReadSeekCloser(bytes.NewBuffer(data)),
@@ -46,7 +44,7 @@ func TestPkgSignature_Unsigned(t *testing.T) {
 		FetchFile("myrepo", "x86_64", sigTestFilename+".sig").
 		Return(nil, blob.ErrNotFound)
 
-	svc := service.New(mocks.NewMockNameStore(ctrl), bin, nil, nil, &conf.AyatoConfig{})
+	svc := service.New(mocks.NewMockNameStore(ctrl), bin, nil, nil, service.Settings{})
 	got, err := svc.PkgSignature("myrepo", "x86_64", "demo")
 	if err != nil {
 		t.Fatalf("PkgSignature: %v", err)
@@ -67,7 +65,7 @@ func TestPkgSignature_Present(t *testing.T) {
 		FetchFile("myrepo", "x86_64", sigTestFilename+".sig").
 		Return(fileFromBytes(sigTestFilename+".sig", sig), nil)
 
-	svc := service.New(mocks.NewMockNameStore(ctrl), bin, nil, nil, &conf.AyatoConfig{})
+	svc := service.New(mocks.NewMockNameStore(ctrl), bin, nil, nil, service.Settings{})
 	got, err := svc.PkgSignature("myrepo", "x86_64", "demo")
 	if err != nil {
 		t.Fatalf("PkgSignature: %v", err)

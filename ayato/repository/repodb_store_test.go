@@ -8,8 +8,7 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/Hayao0819/Kamisato/ayato/platform"
-	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
+	"github.com/Hayao0819/Kamisato/ayato/blob"
 )
 
 type memStore struct {
@@ -45,14 +44,14 @@ func (store *memStore) put(repoName, arch, name string, body []byte) {
 	store.versions[key] = fmt.Sprintf("v%d", store.nextVersion)
 }
 
-func readAllSeek(file platform.SeekFile) ([]byte, error) {
+func readAllSeek(file blob.SeekFile) ([]byte, error) {
 	if _, err := file.Seek(0, io.SeekStart); err != nil {
 		return nil, err
 	}
 	return io.ReadAll(file)
 }
 
-func (store *memStore) StoreFile(repoName, arch string, file platform.SeekFile) error {
+func (store *memStore) StoreFile(repoName, arch string, file blob.SeekFile) error {
 	body, err := readAllSeek(file)
 	if err != nil {
 		return err
@@ -67,7 +66,7 @@ func (store *memStore) FetchFileWithETag(
 	repoName,
 	arch,
 	name string,
-) (platform.File, string, error) {
+) (blob.File, string, error) {
 	store.mu.Lock()
 	key := store.key(repoName, arch, name)
 	body, ok := store.files[key]
@@ -85,7 +84,7 @@ func (store *memStore) FetchFileWithETag(
 	if !ok {
 		return nil, "", blob.ErrNotFound
 	}
-	return platform.NewFileStream(
+	return blob.NewFileStream(
 		name,
 		"application/octet-stream",
 		nopSeekCloser{bytes.NewReader(body)},
@@ -95,7 +94,7 @@ func (store *memStore) FetchFileWithETag(
 func (store *memStore) StoreFileIfMatch(
 	repoName,
 	arch string,
-	file platform.SeekFile,
+	file blob.SeekFile,
 	etag string,
 ) error {
 	body, err := readAllSeek(file)
@@ -143,14 +142,14 @@ func (store *memStore) DeleteFile(repoName, arch, name string) error {
 	return nil
 }
 
-func (store *memStore) FetchFile(repoName, arch, name string) (platform.File, error) {
+func (store *memStore) FetchFile(repoName, arch, name string) (blob.File, error) {
 	store.mu.Lock()
 	body, ok := store.files[store.key(repoName, arch, name)]
 	store.mu.Unlock()
 	if !ok {
 		return nil, blob.ErrNotFound
 	}
-	return platform.NewFileStream(
+	return blob.NewFileStream(
 		name,
 		"application/octet-stream",
 		nopSeekCloser{bytes.NewReader(body)},

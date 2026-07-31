@@ -7,8 +7,7 @@ import (
 	"testing/synctest"
 	"time"
 
-	"github.com/Hayao0819/Kamisato/ayato/platform"
-	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
+	"github.com/Hayao0819/Kamisato/ayato/blob"
 )
 
 // concurrencyProbe is a blob.Store whose StoreFile records peak in-flight calls,
@@ -34,7 +33,7 @@ func (p *concurrencyProbe) leave() {
 	p.mu.Unlock()
 }
 
-func (p *concurrencyProbe) StoreFile(string, string, platform.SeekFile) error {
+func (p *concurrencyProbe) StoreFile(string, string, blob.SeekFile) error {
 	p.enter()
 	time.Sleep(2 * time.Millisecond)
 	p.leave()
@@ -45,18 +44,18 @@ func (p *concurrencyProbe) StoreFileWithSignedURL(string, string, string) (strin
 	return "", nil
 }
 
-func (p *concurrencyProbe) DeleteFile(string, string, string) error                 { return nil }
-func (p *concurrencyProbe) FetchFile(string, string, string) (platform.File, error) { return nil, nil }
-func (p *concurrencyProbe) RepoNames() ([]string, error)                            { return nil, nil }
-func (p *concurrencyProbe) Files(string, string) ([]string, error)                  { return nil, nil }
-func (p *concurrencyProbe) FilesWithMeta(string, string) ([]blob.FileInfo, error)   { return nil, nil }
-func (p *concurrencyProbe) Arches(string) ([]string, error)                         { return nil, nil }
+func (p *concurrencyProbe) DeleteFile(string, string, string) error               { return nil }
+func (p *concurrencyProbe) FetchFile(string, string, string) (blob.File, error)   { return nil, nil }
+func (p *concurrencyProbe) RepoNames() ([]string, error)                          { return nil, nil }
+func (p *concurrencyProbe) Files(string, string) ([]string, error)                { return nil, nil }
+func (p *concurrencyProbe) FilesWithMeta(string, string) ([]blob.FileInfo, error) { return nil, nil }
+func (p *concurrencyProbe) Arches(string) ([]string, error)                       { return nil, nil }
 
-func (p *concurrencyProbe) FetchFileWithETag(string, string, string) (platform.File, string, error) {
+func (p *concurrencyProbe) FetchFileWithETag(string, string, string) (blob.File, string, error) {
 	return nil, "", nil
 }
 
-func (p *concurrencyProbe) StoreFileIfMatch(string, string, platform.SeekFile, string) error {
+func (p *concurrencyProbe) StoreFileIfMatch(string, string, blob.SeekFile, string) error {
 	p.enter()
 	time.Sleep(2 * time.Millisecond)
 	p.leave()
@@ -140,11 +139,11 @@ type repoAddProbe struct {
 	concurrencyProbe
 }
 
-func (p *repoAddProbe) FetchFile(string, string, string) (platform.File, error) {
+func (p *repoAddProbe) FetchFile(string, string, string) (blob.File, error) {
 	return nil, errProbeMiss
 }
 
-func (p *repoAddProbe) FetchFileWithETag(string, string, string) (platform.File, string, error) {
+func (p *repoAddProbe) FetchFileWithETag(string, string, string) (blob.File, string, error) {
 	return nil, "", errProbeMiss
 }
 

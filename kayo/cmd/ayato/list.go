@@ -6,9 +6,9 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/Hayao0819/Kamisato/internal/cliutil"
-	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/kayo/ayatosrc"
-	"github.com/Hayao0819/Kamisato/kayo/cmd/shared"
+	"github.com/Hayao0819/Kamisato/kayo/cli"
+	kayoconfig "github.com/Hayao0819/Kamisato/kayo/config"
 )
 
 const ayatoListDefaultFmt = "table {{.Kind}}\t{{.Name}}\t{{.URL}}\t{{.Mode}}\t{{.KeyID}}\t{{.LastIssued}}"
@@ -28,7 +28,7 @@ func ayatoListCmd() *cobra.Command {
 		Short: "List configured ayato sources and pinned keys",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			cfg, err := shared.LoadConfig(cmd)
+			cfg, err := cli.LoadConfig(cmd)
 			if err != nil {
 				return err
 			}
@@ -58,7 +58,7 @@ func ayatoListCmd() *cobra.Command {
 	return cmd
 }
 
-func sourceMode(a conf.AyatoSource) string {
+func sourceMode(a kayoconfig.AyatoSource) string {
 	switch {
 	case a.Insecure:
 		return "insecure"

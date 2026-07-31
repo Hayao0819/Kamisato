@@ -5,14 +5,13 @@ import (
 
 	"go.uber.org/mock/gomock"
 
+	"github.com/Hayao0819/Kamisato/ayato/blob"
 	"github.com/Hayao0819/Kamisato/ayato/domain"
-	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
 	"github.com/Hayao0819/Kamisato/ayato/service"
 	"github.com/Hayao0819/Kamisato/ayato/test/mocks"
-	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/internal/errors"
-	pacmanpkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
+	pacmanpkg "github.com/Hayao0819/Kamisato/internal/pacman"
+	"github.com/Hayao0819/Kamisato/internal/pacman/repo"
 	"github.com/Hayao0819/Kamisato/pkg/raiou"
 )
 
@@ -32,7 +31,7 @@ func TestPackageQueriesIncludeCanonicalFilename(t *testing.T) {
 	}}
 	binaryRepo.EXPECT().RemoteRepo("core", "x86_64").Return(remote, nil).Times(2)
 
-	svc := service.New(nameRepo, binaryRepo, nil, nil, &conf.AyatoConfig{})
+	svc := service.New(nameRepo, binaryRepo, nil, nil, service.Settings{})
 	packages, err := svc.Pkgs("core", "x86_64")
 	if err != nil {
 		t.Fatal(err)
@@ -65,7 +64,7 @@ func TestPkgDetailUsesPackageNameForSplitPackages(t *testing.T) {
 	}}
 	binaryRepo.EXPECT().RemoteRepo("core", "x86_64").Return(remote, nil).Times(2)
 
-	svc := service.New(nameRepo, binaryRepo, nil, nil, &conf.AyatoConfig{})
+	svc := service.New(nameRepo, binaryRepo, nil, nil, service.Settings{})
 	detail, err := svc.PkgDetail("core", "x86_64", "demo-headers")
 	if err != nil {
 		t.Fatal(err)
@@ -89,7 +88,7 @@ func TestRepositoryQueriesClassifyStorageMisses(t *testing.T) {
 	binaryRepo.EXPECT().Files("missing", "x86_64").Return(nil, blob.ErrNotFound)
 	binaryRepo.EXPECT().Arches("missing").Return(nil, blob.ErrNotFound)
 
-	svc := service.New(nameRepo, binaryRepo, nil, nil, &conf.AyatoConfig{})
+	svc := service.New(nameRepo, binaryRepo, nil, nil, service.Settings{})
 	checks := []struct {
 		name string
 		run  func() error

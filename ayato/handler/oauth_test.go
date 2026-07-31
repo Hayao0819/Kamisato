@@ -10,10 +10,10 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/Hayao0819/Kamisato/ayato/auth"
+	ayatoconfig "github.com/Hayao0819/Kamisato/ayato/config"
 	"github.com/Hayao0819/Kamisato/ayato/repository"
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv/badgerkv"
 	"github.com/Hayao0819/Kamisato/ayato/service"
-	"github.com/Hayao0819/Kamisato/internal/conf"
 )
 
 func testHandler(t *testing.T) (*AuthHandler, *auth.Signer) {
@@ -25,20 +25,20 @@ func testHandler(t *testing.T) (*AuthHandler, *auth.Signer) {
 	}
 	t.Cleanup(func() { _ = store.Close() })
 
-	cfg := &conf.AyatoConfig{}
+	cfg := &ayatoconfig.AyatoConfig{}
 	cfg.Auth.GitHub.ClientID = "cid"
 	cfg.Auth.GitHub.ClientSecret = "secret"
 	cfg.Auth.PublicOrigin = "https://repo.example.com"
 
 	// The handler reaches the allowlist through the service, so back it with a
 	// real service over a badgerkv AuthRepository.
-	svc := service.New(nil, nil, repository.NewAuthRepository(store), nil, cfg)
+	svc := service.New(nil, nil, repository.NewAuthRepository(store), nil, service.Settings{})
 	signer, err := auth.NewSigner([]string{testSecret})
 	if err != nil {
 		t.Fatalf("NewSigner: %v", err)
 	}
 
-	h := NewAuthHandler(svc, svc, cfg).WithSigner(signer)
+	h := NewAuthHandler(svc, svc, testSettings(cfg)).WithSigner(signer)
 	return h, signer
 }
 

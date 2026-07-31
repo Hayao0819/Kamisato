@@ -6,8 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/Hayao0819/Kamisato/internal/conf"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/sign"
+	"github.com/Hayao0819/Kamisato/internal/pacman/sign"
 )
 
 type memSignerRepo struct{ m map[string][]byte }
@@ -39,9 +38,7 @@ func newServiceWithMaster(t *testing.T, ks *sign.Keystore) (*Service, *memSigner
 		t.Fatal(err)
 	}
 	repo := newMemSignerRepo()
-	cfg := &conf.AyatoConfig{}
-	cfg.Verify.MasterKeys = []string{master}
-	return New(nil, nil, nil, repo, cfg), repo
+	return New(nil, nil, nil, repo, Settings{MasterVerificationKeys: []string{master}}), repo
 }
 
 func TestRegisterSignerAcceptsCertifiedWorker(t *testing.T) {
@@ -119,10 +116,10 @@ func TestRegisteredWorkerBypassesAllowlist(t *testing.T) {
 		t.Fatal(err)
 	}
 	master, _ := ks.MasterPublicArmored()
-	cfg := &conf.AyatoConfig{}
-	cfg.Verify.MasterKeys = []string{master}
-	cfg.Verify.TrustedKeys = []string{"0000000000000000000000000000000000000000"}
-	svc := New(nil, nil, nil, newMemSignerRepo(), cfg)
+	svc := New(nil, nil, nil, newMemSignerRepo(), Settings{
+		MasterVerificationKeys:  []string{master},
+		TrustedVerificationKeys: []string{"0000000000000000000000000000000000000000"},
+	})
 
 	cert, _ := ks.WorkerCertArmored()
 	if _, err := svc.RegisterSigner([]byte(cert)); err != nil {

@@ -12,7 +12,6 @@ import (
 	"github.com/Hayao0819/Kamisato/ayato/repository/aurrepo"
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv/badgerkv"
 	ayatoaur "github.com/Hayao0819/Kamisato/ayato/service/aur"
-	"github.com/Hayao0819/Kamisato/internal/client"
 )
 
 // TestAgainstRealAyatoHandler drives kayo's Source against ayato's actual gin
@@ -39,8 +38,8 @@ func TestAgainstRealAyatoHandler(t *testing.T) {
 	svc := ayatoaur.NewService(aurrepo.NewBackend(store, "maint"), time.Hour).WithSigner(signer)
 	h := handler.NewAURHandler(svc)
 	r := gin.New()
-	r.GET(client.CatalogPath, h.CatalogHandler)
-	r.GET(client.CatalogPublicKeyPath, h.PubkeyHandler)
+	r.GET(catalogPath, h.CatalogHandler)
+	r.GET(catalogPublicKeyPath, h.PubkeyHandler)
 	ts := httptest.NewServer(r)
 	defer ts.Close()
 

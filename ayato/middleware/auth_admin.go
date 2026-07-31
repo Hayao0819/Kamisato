@@ -6,7 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/Hayao0819/Kamisato/ayato/auth"
-	"github.com/Hayao0819/Kamisato/ayato/platform"
+	"github.com/Hayao0819/Kamisato/ayato/httpapi"
 )
 
 // accessTokenExpiredHeader tells a CLI that refreshing can recover the request.
@@ -86,12 +86,12 @@ func abortUnauthorized(c *gin.Context) {
 
 // sameOriginRequest is the CSRF gate for cookie-authenticated requests.
 func (m *Middleware) sameOriginRequest(c *gin.Context) bool {
-	if m.cfg == nil {
-		return platform.SameOrigin(c.Request)
+	if m.settings.PublicOrigin == "" && m.settings.SelfOrigin == "" {
+		return httpapi.SameOrigin(c.Request)
 	}
-	return platform.SameOrigin(
+	return httpapi.SameOrigin(
 		c.Request,
-		m.cfg.Auth.PublicOrigin,
-		m.cfg.Auth.SelfOrigin,
+		m.settings.PublicOrigin,
+		m.settings.SelfOrigin,
 	)
 }

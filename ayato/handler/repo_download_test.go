@@ -10,10 +10,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"go.uber.org/mock/gomock"
 
+	"github.com/Hayao0819/Kamisato/ayato/blob"
 	"github.com/Hayao0819/Kamisato/ayato/domain"
-	"github.com/Hayao0819/Kamisato/ayato/platform"
 	"github.com/Hayao0819/Kamisato/ayato/test/mocks"
-	"github.com/Hayao0819/Kamisato/internal/conf"
 )
 
 func TestRepoFileHandlerRedirectsToPresignedURL(t *testing.T) {
@@ -49,7 +48,7 @@ func TestRepoFileHandlerStreamsWhenPresignUnavailable(t *testing.T) {
 	defer controller.Finish()
 
 	const body = "package-bytes"
-	file := platform.NewFileStream(
+	file := blob.NewFileStream(
 		"foo.pkg.tar.zst",
 		"application/octet-stream",
 		bufferToReadSeekCloser(bytes.NewBufferString(body)),
@@ -166,13 +165,13 @@ func TestRepoFileHandlerStreamsWhenRedirectDisabled(t *testing.T) {
 	service := mocks.NewMockServicer(controller)
 
 	const body = "package-bytes"
-	file := platform.NewFileStream(
+	file := blob.NewFileStream(
 		"foo.pkg.tar.zst",
 		"application/octet-stream",
 		bufferToReadSeekCloser(bytes.NewBufferString(body)),
 	)
 	disabled := false
-	handlers := New(service, &conf.AyatoConfig{RedirectDownloads: &disabled})
+	handlers := New(service, Settings{DisableRedirectDownloads: !disabled})
 	service.EXPECT().
 		GetFileWithMeta("myrepo", "x86_64", "foo.pkg.tar.zst").
 		Return(file, domain.FileMeta{}, nil)

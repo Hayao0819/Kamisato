@@ -4,8 +4,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Hayao0819/Kamisato/ayato/platform"
-	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
+	"github.com/Hayao0819/Kamisato/ayato/blob"
 )
 
 type keyedMutex struct {
@@ -18,7 +17,7 @@ type keyedMutex struct {
 // section blocks on blob.Store (S3) I/O.
 //
 // The acquire is deliberately NOT context-aware: ayato threads no request context
-// into the repository/blob layer (the S3 backend runs on context.Background()), so
+// into the blob layer (the S3 backend runs on context.Background()), so
 // there is no deadline to select on and a waiter blocks until the holder finishes.
 // Making it cancellable would mean threading context.Context through blob.Store,
 // BinaryRepository, and the service layer; the hold time is instead bounded by the
@@ -48,7 +47,7 @@ func newSerializingStore(s blob.Store) blob.Store {
 	return &serializingStore{Store: s}
 }
 
-func (s *serializingStore) StoreFile(repo, arch string, file platform.SeekFile) error {
+func (s *serializingStore) StoreFile(repo, arch string, file blob.SeekFile) error {
 	defer s.mu.lock(repo + "/" + arch)()
 	return s.Store.StoreFile(repo, arch, file)
 }
@@ -72,6 +71,6 @@ func (s *serializingStore) LockPublication(repo string) (func(), error) {
 // this the type assertion in binaryRepository misses and conditional-GET
 // validators silently degrade to a full body on every request. Reads are not
 // serialized against writes (same as the embedded FetchFile).
-func (s *serializingStore) FetchFileWithMeta(repo, arch, file string) (platform.File, blob.FileMeta, error) {
+func (s *serializingStore) FetchFileWithMeta(repo, arch, file string) (blob.File, blob.FileMeta, error) {
 	return blob.FetchFileWithMeta(s.Store, repo, arch, file)
 }

@@ -52,7 +52,7 @@ in
         };
       };
       description = ''
-        miko_config.json contents (schema: internal/conf/miko.go). The default
+        miko_config.json contents (schema: miko/config). The default
         builder backend "container" talks to the Docker daemon. Secrets (e.g.
         the ayato password via MIKO_AYATO_PASSWORD) belong in environmentFile.
       '';

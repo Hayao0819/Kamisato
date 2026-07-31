@@ -16,7 +16,7 @@ import (
 	"time"
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
-	"github.com/Hayao0819/Kamisato/pkg/safefile"
+	"github.com/Hayao0819/Kamisato/internal/safefile"
 )
 
 // TrustedMaintainer is a maintainer account the user explicitly vouches for,

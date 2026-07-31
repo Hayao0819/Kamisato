@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/Hayao0819/Kamisato/internal/client"
+	"github.com/Hayao0819/Kamisato/internal/ayatoapi"
 	"github.com/Hayao0819/Kamisato/internal/errors"
 	"github.com/Hayao0819/Kamisato/internal/limits"
 )
@@ -21,14 +21,14 @@ type Uploader interface {
 }
 
 type ayatoUploader struct {
-	client *client.Publisher
+	client *ayatoapi.Publisher
 }
 
 func NewAyatoUploader(rawURL, apiKey string) (Uploader, error) {
 	if rawURL == "" {
 		return nil, nil
 	}
-	publisher, err := client.NewPublisher(rawURL, apiKey)
+	publisher, err := ayatoapi.NewPublisher(rawURL, apiKey)
 	if err != nil {
 		return nil, err
 	}
@@ -59,8 +59,8 @@ func (s *Service) signAndUpload(ctx context.Context, repo string, packages []str
 		if err != nil {
 			return errors.WrapErr(err, "failed to inspect package: "+pkgPath)
 		}
-		if limits.Exceeds(info.Size(), s.cfg.MaxSize) {
-			return fmt.Errorf("package %s exceeds max_size (%d > %d bytes)", pkgPath, info.Size(), limits.PackageBytes(s.cfg.MaxSize))
+		if limits.Exceeds(info.Size(), s.settings.MaxPackageSize) {
+			return fmt.Errorf("package %s exceeds max_size (%d > %d bytes)", pkgPath, info.Size(), limits.PackageBytes(s.settings.MaxPackageSize))
 		}
 	}
 

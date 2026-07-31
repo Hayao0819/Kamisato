@@ -1,13 +1,11 @@
 package repository
 
 import (
-	stderrors "errors"
 	"time"
 
-	"github.com/Hayao0819/Kamisato/internal/errors"
+	"github.com/Hayao0819/Kamisato/ayato/service"
 
-	"github.com/Hayao0819/Kamisato/ayato/platform"
-	pacmanrepo "github.com/Hayao0819/Kamisato/pkg/pacman/repo"
+	pacmanrepo "github.com/Hayao0819/Kamisato/internal/pacman/repo"
 )
 
 // repoDBTool runs pacman repository mutations against a local database path.
@@ -55,29 +53,16 @@ func derivedArtifacts(repoName string, useSignedDB bool) []string {
 // RepoAddItem is one package and its optional detached signature in a batch.
 // Conditional fields protect a publish from replacing a concurrently changed
 // package while still allowing an idempotent retry of the intended version.
-type RepoAddItem struct {
-	Pkg                    platform.SeekFile
-	Sig                    platform.SeekFile
-	CheckCurrent           bool
-	ExpectedName           string
-	ExpectedCurrentVersion string
-	ExpectedCurrentFile    string
-	IntendedVersion        string
-	IntendedFile           string
-}
+type RepoAddItem = service.RepoAddItem
 
 // ErrPackageChanged means the package no longer matches the caller's snapshot.
-var ErrPackageChanged = errors.New("repository package changed concurrently")
+var ErrPackageChanged = service.ErrPackageChanged
 
 // CanonicalCommitError reports a failure after the canonical database may have
 // been committed. Callers must reconcile rather than blindly roll back package
 // objects when this marker is present.
-type CanonicalCommitError struct{ Err error }
-
-func (e *CanonicalCommitError) Error() string { return e.Err.Error() }
-func (e *CanonicalCommitError) Unwrap() error { return e.Err }
+type CanonicalCommitError = service.CanonicalCommitError
 
 func CanonicalCommitted(err error) bool {
-	var committed *CanonicalCommitError
-	return stderrors.As(err, &committed)
+	return service.CanonicalCommitted(err)
 }

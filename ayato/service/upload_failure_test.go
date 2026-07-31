@@ -6,13 +6,12 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/errors"
 	"go.uber.org/mock/gomock"
 
+	"github.com/Hayao0819/Kamisato/ayato/blob"
 	"github.com/Hayao0819/Kamisato/ayato/domain"
-	"github.com/Hayao0819/Kamisato/ayato/platform"
 	"github.com/Hayao0819/Kamisato/ayato/repository"
-	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
 	"github.com/Hayao0819/Kamisato/ayato/service"
 	"github.com/Hayao0819/Kamisato/ayato/test/mocks"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
+	"github.com/Hayao0819/Kamisato/internal/pacman/repo"
 )
 
 func TestUploadFile_NameStoreFailureRestoresPreviousVersion(t *testing.T) {
@@ -30,7 +29,7 @@ func TestUploadFile_NameStoreFailureRestoresPreviousVersion(t *testing.T) {
 
 	storeCalls := 0
 	bin.EXPECT().StoreFileImmutable("myrepo", "x86_64", gomock.Any()).DoAndReturn(
-		func(_ string, _ string, file platform.SeekFile) (bool, error) {
+		func(_ string, _ string, file blob.SeekFile) (bool, error) {
 			storeCalls++
 			wantName := uploadName
 			if storeCalls == 2 {

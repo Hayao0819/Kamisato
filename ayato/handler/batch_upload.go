@@ -10,7 +10,7 @@ import (
 
 	"github.com/Hayao0819/Kamisato/ayato/domain"
 	"github.com/Hayao0819/Kamisato/internal/limits"
-	pacmanpkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
+	pacmanpkg "github.com/Hayao0819/Kamisato/internal/pacman"
 )
 
 // BatchUploadHandler publishes several packages atomically (one RepoAddBatch per
@@ -24,7 +24,7 @@ func (h *PublicationHandler) BatchUploadHandler(ctx *gin.Context) {
 	}
 	form, ok := parseUploadForm(
 		ctx,
-		limits.BatchMultipartBytes(h.cfg.MaxBatchBytes, h.cfg.MaxSize),
+		limits.BatchMultipartBytes(h.settings.MaxBatchBytes, h.settings.MaxSize),
 		"batch upload exceeds max_batch_bytes",
 	)
 	if !ok {
@@ -35,7 +35,7 @@ func (h *PublicationHandler) BatchUploadHandler(ctx *gin.Context) {
 		respondError(ctx, http.StatusBadRequest, "no package files found in the request")
 		return
 	}
-	if len(form.File["package"]) > limits.BatchPackages(h.cfg.MaxBatchPackages) {
+	if len(form.File["package"]) > limits.BatchPackages(h.settings.MaxBatchPackages) {
 		respondError(ctx, http.StatusRequestEntityTooLarge, "too many packages in one batch")
 		return
 	}
@@ -113,12 +113,12 @@ func (h *PublicationHandler) BatchUploadHandler(ctx *gin.Context) {
 			return
 		}
 	}
-	if aggregate > limits.BatchBytes(h.cfg.MaxBatchBytes, h.cfg.MaxSize) {
+	if aggregate > limits.BatchBytes(h.settings.MaxBatchBytes, h.settings.MaxSize) {
 		respondError(ctx, http.StatusRequestEntityTooLarge, "batch file data exceeds max_batch_bytes")
 		return
 	}
 
-	files, closers, ok := openBatchFiles(ctx, form.File["package"], sigByArchive, h.cfg.MaxSize)
+	files, closers, ok := openBatchFiles(ctx, form.File["package"], sigByArchive, h.settings.MaxSize)
 	defer closeAll(closers)
 	if !ok {
 		return

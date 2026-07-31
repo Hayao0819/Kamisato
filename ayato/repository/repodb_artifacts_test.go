@@ -11,8 +11,8 @@ import (
 
 	"github.com/klauspost/compress/zstd"
 
-	"github.com/Hayao0819/Kamisato/ayato/platform"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
+	"github.com/Hayao0819/Kamisato/ayato/blob"
+	"github.com/Hayao0819/Kamisato/internal/pacman/repo"
 )
 
 func makePkg(t *testing.T, dir, name, version string) string {
@@ -53,9 +53,9 @@ func makePkg(t *testing.T, dir, name, version string) string {
 	return output
 }
 
-func openSeek(t *testing.T, path string) platform.SeekFile {
+func openSeek(t *testing.T, path string) blob.SeekFile {
 	t.Helper()
-	file, err := platform.OpenFileWithType(path)
+	file, err := blob.OpenFileWithType(path)
 	if err != nil {
 		t.Fatal(err)
 	}

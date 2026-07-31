@@ -8,8 +8,8 @@ import (
 
 func TestLogTokenConsumeIsAtomic(t *testing.T) {
 	repository := NewLogTokenRepository(newTestKV(t))
-	token, err := repository.Mint("job-1", time.Minute)
-	if err != nil {
+	const token = "test-token"
+	if err := repository.StoreLogToken(token, "job-1", time.Minute); err != nil {
 		t.Fatal(err)
 	}
 

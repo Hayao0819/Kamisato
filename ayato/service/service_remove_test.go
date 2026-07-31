@@ -5,11 +5,11 @@ import (
 
 	"go.uber.org/mock/gomock"
 
+	ayatoconfig "github.com/Hayao0819/Kamisato/ayato/config"
 	"github.com/Hayao0819/Kamisato/ayato/service"
 	"github.com/Hayao0819/Kamisato/ayato/test/mocks"
-	"github.com/Hayao0819/Kamisato/internal/conf"
-	pkgpkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
+	pkgpkg "github.com/Hayao0819/Kamisato/internal/pacman"
+	"github.com/Hayao0819/Kamisato/internal/pacman/repo"
 	"github.com/Hayao0819/Kamisato/pkg/raiou"
 )
 
@@ -104,6 +104,6 @@ func TestServiceRemoveAnyPackageFromOneArchKeepsSharedFile(t *testing.T) {
 	}
 }
 
-func repoConfig() *conf.AyatoConfig {
-	return &conf.AyatoConfig{Repos: []conf.BinRepoConfig{{Name: "myrepo"}}}
+func repoConfig() service.Settings {
+	return settingsFromConfig(&ayatoconfig.AyatoConfig{Repos: []ayatoconfig.BinRepoConfig{{Name: "myrepo"}}})
 }

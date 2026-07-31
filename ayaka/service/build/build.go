@@ -16,11 +16,12 @@ import (
 
 	"github.com/otiai10/copy"
 
-	"github.com/Hayao0819/Kamisato/pkg/pacman/builder"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/builder/factory"
-	pkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/sign"
+	pkg "github.com/Hayao0819/Kamisato/internal/pacman"
+	"github.com/Hayao0819/Kamisato/internal/pacman/builder"
+	"github.com/Hayao0819/Kamisato/internal/pacman/builder/factory"
+	"github.com/Hayao0819/Kamisato/internal/pacman/repo"
+	"github.com/Hayao0819/Kamisato/internal/pacman/sign"
+	"github.com/Hayao0819/Kamisato/internal/pacman/source"
 )
 
 // Target keeps signing and publishing outside backend configuration.
@@ -41,6 +42,7 @@ func Package(p *pkg.SourcePackage, target *Target, dest string) error {
 	if err != nil {
 		return err
 	}
+	defer func() { _ = os.RemoveAll(tmpdir) }()
 	slog.Info("tempdir", "dir", tmpdir)
 	// The package dir itself may be a symlink (e.g. into a submodule); copy
 	// resolves it or the tempdir would become a dangling link copy.
@@ -51,9 +53,6 @@ func Package(p *pkg.SourcePackage, target *Target, dest string) error {
 	if err := copy.Copy(srcdir, tmpdir); err != nil {
 		return err
 	}
-	// The output is moved to OutDir(=dest), so discard tmpdir holding the source copy.
-	defer func() { _ = os.RemoveAll(tmpdir) }()
-
 	backend, err := factory.New(target.Config)
 	if err != nil {
 		return errors.WrapErr(err, "failed to create build backend")
@@ -88,23 +87,23 @@ func Package(p *pkg.SourcePackage, target *Target, dest string) error {
 }
 
 // Repo builds the named packages in r (all of them when none are named).
-func Repo(r *repo.SourceRepo, t *Target, dest string, pkgs ...string) error {
+func Repo(r *source.SourceRepo, t *Target, dest string, pkgs ...string) error {
 	fulldstdir := path.Join(dest, t.Arch)
 	var errs []error
 	if err := os.MkdirAll(fulldstdir, 0o755); err != nil { //nolint:gosec // published pacman repo output dir is world-readable by design
 		return err
 	}
 
-	targetPkgs := repo.SelectPackages(r.Pkgs, pkgs)
+	targetPkgs := source.SelectPackages(r.Pkgs, pkgs)
 	if len(targetPkgs) == 0 {
 		return fmt.Errorf("no packages found")
 	}
-	targetPkgs = repo.FilterByArch(targetPkgs, t.Arch)
+	targetPkgs = source.FilterByArch(targetPkgs, t.Arch)
 	if len(targetPkgs) == 0 {
 		slog.Info("No packages to build for arch", "arch", t.Arch)
 		return nil
 	}
-	targetPkgs = repo.OrderByDeps(targetPkgs, t.Arch)
+	targetPkgs = source.OrderByDeps(targetPkgs, t.Arch)
 
 	for _, p := range targetPkgs {
 		slog.Info("building package", "pkg", p.Names())
@@ -122,16 +121,16 @@ func Repo(r *repo.SourceRepo, t *Target, dest string, pkgs ...string) error {
 }
 
 // Diff builds only the packages in s that are newer than (or missing from) the remote repo rr.
-func Diff(s *repo.SourceRepo, t *Target, rr *repo.RemoteRepo, dest string, pkgs ...string) error {
+func Diff(s *source.SourceRepo, t *Target, rr *repo.RemoteRepo, dest string, pkgs ...string) error {
 	toBuild := repo.DiffPackages(s.Pkgs, rr)
-	toBuild = repo.SelectPackages(toBuild, pkgs)
-	toBuild = repo.FilterByArch(toBuild, t.Arch)
+	toBuild = source.SelectPackages(toBuild, pkgs)
+	toBuild = source.FilterByArch(toBuild, t.Arch)
 
 	if len(toBuild) == 0 {
 		slog.Info("No packages to build")
 		return nil
 	}
-	toBuild = repo.OrderByDeps(toBuild, t.Arch)
+	toBuild = source.OrderByDeps(toBuild, t.Arch)
 
 	outDir := path.Join(dest, t.Arch)
 	var errs []error

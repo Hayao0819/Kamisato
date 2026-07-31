@@ -4,16 +4,14 @@ import (
 	"context"
 	"net/http"
 	"testing"
-
-	"github.com/Hayao0819/Kamisato/internal/conf"
 )
 
-func apiKeyAuthorizer(keys ...conf.CIAPIKey) *CIAuthorizer {
+func apiKeyAuthorizer(keys ...CIAPIKey) *CIAuthorizer {
 	return &CIAuthorizer{apikey: newAPIKeyAuth(keys)}
 }
 
 func TestAPIKeyAuthorize(t *testing.T) {
-	a := newAPIKeyAuth([]conf.CIAPIKey{
+	a := newAPIKeyAuth([]CIAPIKey{
 		{Name: "alter", Key: "secret-1", PublishRepos: []string{"alterlinux"}},
 		{Name: "any", Key: "secret-2", PublishRepos: []string{"*"}},
 	})
@@ -38,7 +36,7 @@ func TestAPIKeyAuthorize(t *testing.T) {
 }
 
 func TestAuthorizeRouting(t *testing.T) {
-	a := apiKeyAuthorizer(conf.CIAPIKey{Name: "k", Key: "secret", PublishRepos: []string{"alterlinux"}})
+	a := apiKeyAuthorizer(CIAPIKey{Name: "k", Key: "secret", PublishRepos: []string{"alterlinux"}})
 	for _, test := range []struct {
 		name    string
 		headers http.Header
@@ -81,9 +79,9 @@ func TestAuthorizeRouting(t *testing.T) {
 
 func TestAuthorizeServiceScope(t *testing.T) {
 	a := apiKeyAuthorizer(
-		conf.CIAPIKey{Name: "publisher", Key: "publish-only", PublishRepos: []string{"core"}},
-		conf.CIAPIKey{Name: "signer", Key: "signer-key", Scopes: []string{"signer:register"}},
-		conf.CIAPIKey{Name: "root-service", Key: "wildcard", Scopes: []string{"*"}},
+		CIAPIKey{Name: "publisher", Key: "publish-only", PublishRepos: []string{"core"}},
+		CIAPIKey{Name: "signer", Key: "signer-key", Scopes: []string{"signer:register"}},
+		CIAPIKey{Name: "root-service", Key: "wildcard", Scopes: []string{"*"}},
 	)
 
 	cases := []struct {

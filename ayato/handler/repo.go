@@ -11,7 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/Hayao0819/Kamisato/ayato/domain"
-	pacmanpkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
+	pacmanpkg "github.com/Hayao0819/Kamisato/internal/pacman"
 )
 
 func (h *RepositoryHandler) ReposHandler(ctx *gin.Context) {
@@ -47,7 +47,7 @@ func (h *RepositoryHandler) RepoFileHandler(ctx *gin.Context) {
 	// Redirect to a presigned GET when the backend can presign, so package bytes never
 	// transit ayato (Cloud Run bills egress); a backend that cannot (localfs) returns
 	// "" and we fall through to streaming.
-	if h.cfg == nil || h.cfg.RedirectDownloadsEnabled() {
+	if !h.settings.DisableRedirectDownloads {
 		if url, err := h.reader.SignedURL(repoName, arch, fileName); err == nil && url != "" {
 			ctx.Redirect(http.StatusFound, url)
 			return

@@ -8,10 +8,10 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
-	"github.com/Hayao0819/Kamisato/internal/client"
+	"github.com/Hayao0819/Kamisato/ayaka/cli"
 	"github.com/Hayao0819/Kamisato/internal/cliutil"
 	"github.com/Hayao0819/Kamisato/internal/errors"
+	"github.com/Hayao0819/Kamisato/internal/mikoapi"
 )
 
 func mikoStatsCmd() *cobra.Command {
@@ -20,12 +20,12 @@ func mikoStatsCmd() *cobra.Command {
 		Short: "Show build service statistics",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			srv, err := shared.ServerFromFlag(cmd)
+			srv, err := cli.ServerFromFlag(cmd)
 			if err != nil {
 				return err
 			}
 
-			api, err := shared.AyatoClient(srv)
+			api, err := cli.AyatoClient(srv)
 			if err != nil {
 				return err
 			}
@@ -50,7 +50,7 @@ func mikoStatsCmd() *cobra.Command {
 				fmt.Fprintln(out, string(b))
 				return nil
 			case format != "":
-				return cliutil.RenderList(out, format, client.Stats{}, []client.Stats{*stats})
+				return cliutil.RenderList(out, format, mikoapi.Stats{}, []mikoapi.Stats{*stats})
 			}
 
 			w := tabwriter.NewWriter(out, 0, 4, 2, ' ', 0)

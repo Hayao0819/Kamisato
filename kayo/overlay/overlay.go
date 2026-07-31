@@ -15,9 +15,9 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/internal/errors"
 	"github.com/Hayao0819/Kamisato/internal/gitcmd"
+	kayoconfig "github.com/Hayao0819/Kamisato/kayo/config"
 	"github.com/Hayao0819/Kamisato/kayo/pkgindex"
 	"github.com/Hayao0819/Kamisato/pkg/aurweb"
 	"github.com/Hayao0819/Kamisato/pkg/raiou"
@@ -29,14 +29,14 @@ type Registry struct {
 	*pkgindex.Index
 
 	cacheDir string
-	overlays []conf.OverlayConfig
+	overlays []kayoconfig.OverlayConfig
 
 	mu   sync.RWMutex
 	dirs map[string]string // pkgbase -> local working tree, for serving pinned commits
 }
 
 // New builds an empty Registry. Call Sync before serving.
-func New(cacheDir string, overlays []conf.OverlayConfig) *Registry {
+func New(cacheDir string, overlays []kayoconfig.OverlayConfig) *Registry {
 	return &Registry{
 		Index:    pkgindex.New(),
 		cacheDir: cacheDir,
@@ -109,7 +109,7 @@ func (r *Registry) Sync(ctx context.Context) error {
 	return nil
 }
 
-func fetchOverlay(ctx context.Context, dir string, o conf.OverlayConfig) error {
+func fetchOverlay(ctx context.Context, dir string, o kayoconfig.OverlayConfig) error {
 	_, err := os.Stat(filepath.Join(dir, ".git"))
 	exists := err == nil
 

@@ -6,14 +6,18 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"strconv"
+	"time"
 
 	"github.com/Hayao0819/Kamisato/ayato/domain"
-	pacmanrepo "github.com/Hayao0819/Kamisato/pkg/pacman/repo"
+	pacmanrepo "github.com/Hayao0819/Kamisato/internal/pacman/repo"
 )
 
 // Repository databases are normally far smaller than this. Bounding the body
 // prevents a broken or hostile configured mirror from exhausting ayato's heap.
 const maxUpstreamDBBytes = 512 << 20
+
+const upstreamGETAttempts = 4
 
 // Syncer refreshes an upstream-layered repo from its upstream database.
 type Syncer interface {
@@ -111,7 +115,7 @@ func (s *Service) conditionalGet(ctx context.Context, url, etag, lastMod string)
 	if lastMod != "" {
 		req.Header.Set("If-Modified-Since", lastMod)
 	}
-	resp, err := s.upstreamClient.Do(req)
+	resp, err := doUpstreamGET(s.upstreamClient, req)
 	if err != nil {
 		return nil, "", "", false, err
 	}
@@ -134,6 +138,66 @@ func (s *Service) conditionalGet(ctx context.Context, url, etag, lastMod string)
 		return nil, "", "", false, fmt.Errorf("upstream response exceeds %d bytes for %s", maxUpstreamDBBytes, url)
 	}
 	return b, resp.Header.Get("ETag"), resp.Header.Get("Last-Modified"), true, nil
+}
+
+func doUpstreamGET(client *http.Client, req *http.Request) (*http.Response, error) {
+	var lastErr error
+	for attempt := range upstreamGETAttempts {
+		resp, err := client.Do(req.Clone(req.Context())) //nolint:gosec // Repository config owns the upstream URL.
+		if err == nil && (!retryableUpstreamStatus(resp.StatusCode) || attempt+1 == upstreamGETAttempts) {
+			return resp, nil
+		}
+		if resp != nil {
+			_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 32<<10))
+			_ = resp.Body.Close()
+		}
+		if err != nil {
+			lastErr = err
+			if attempt+1 == upstreamGETAttempts {
+				return nil, err
+			}
+		}
+		if ctxErr := req.Context().Err(); ctxErr != nil {
+			return nil, ctxErr
+		}
+		if err := waitUpstreamRetry(req.Context(), upstreamRetryAfter(resp, attempt)); err != nil {
+			return nil, err
+		}
+	}
+	return nil, lastErr
+}
+
+func retryableUpstreamStatus(status int) bool {
+	return status == http.StatusTooManyRequests || status >= http.StatusInternalServerError
+}
+
+func upstreamRetryAfter(resp *http.Response, attempt int) time.Duration {
+	if resp != nil {
+		value := resp.Header.Get("Retry-After")
+		if seconds, err := strconv.ParseInt(value, 10, 64); err == nil && seconds >= 0 {
+			if seconds >= 30 {
+				return 30 * time.Second
+			}
+			return time.Duration(seconds) * time.Second
+		}
+		if date, err := http.ParseTime(value); err == nil {
+			if delay := time.Until(date); delay > 0 {
+				return min(delay, 30*time.Second)
+			}
+		}
+	}
+	return 100 * time.Millisecond * time.Duration(1<<attempt)
+}
+
+func waitUpstreamRetry(ctx context.Context, delay time.Duration) error {
+	timer := time.NewTimer(delay)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
+	}
 }
 
 func (s *Service) isUpstreamRepo(repo string) bool {

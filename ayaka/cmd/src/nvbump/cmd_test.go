@@ -7,8 +7,8 @@ import (
 	"testing"
 
 	"github.com/Hayao0819/Kamisato/ayaka/app"
-	pkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
+	pkg "github.com/Hayao0819/Kamisato/internal/pacman"
+	"github.com/Hayao0819/Kamisato/internal/pacman/source"
 )
 
 type recordingNvBumper struct {
@@ -17,7 +17,7 @@ type recordingNvBumper struct {
 	messages []string
 }
 
-func (r *recordingNvBumper) NvBump(src *repo.SourceRepo, name, newVersion string, _ io.Writer) (*pkg.SourcePackage, error) {
+func (r *recordingNvBumper) NvBump(src *source.SourceRepo, name, newVersion string, _ io.Writer) (*pkg.SourcePackage, error) {
 	r.name = name
 	r.version = newVersion
 	return src.Pkgs[0], nil
@@ -39,8 +39,8 @@ func testApp(t *testing.T) *app.App {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return &app.App{SrcRepos: []*repo.SourceRepo{{
-		Config: &repo.SrcConfig{Name: "test"},
+	return &app.App{SrcRepos: []*source.SourceRepo{{
+		Config: &source.SrcConfig{Name: "test"},
 		Pkgs:   []*pkg.SourcePackage{p},
 		Dir:    dir,
 	}}}
@@ -48,8 +48,7 @@ func testApp(t *testing.T) *app.App {
 
 func TestNvBumpArgsReachService(t *testing.T) {
 	rec := &recordingNvBumper{}
-	cmd := newCommand(rec)
-	cmd.SetContext(app.WithContext(t.Context(), testApp(t)))
+	cmd := newCommand(rec, app.StaticRuntime(testApp(t)))
 	cmd.SetArgs([]string{"test", "foo", "2.0"})
 	if err := cmd.Execute(); err != nil {
 		t.Fatal(err)
@@ -64,8 +63,7 @@ func TestNvBumpArgsReachService(t *testing.T) {
 
 func TestNvBumpCustomMessage(t *testing.T) {
 	rec := &recordingNvBumper{}
-	cmd := newCommand(rec)
-	cmd.SetContext(app.WithContext(t.Context(), testApp(t)))
+	cmd := newCommand(rec, app.StaticRuntime(testApp(t)))
 	cmd.SetArgs([]string{"test", "foo", "2.0", "--message", "custom"})
 	if err := cmd.Execute(); err != nil {
 		t.Fatal(err)
@@ -77,8 +75,7 @@ func TestNvBumpCustomMessage(t *testing.T) {
 
 func TestNvBumpNoCommitSkipsCommit(t *testing.T) {
 	rec := &recordingNvBumper{}
-	cmd := newCommand(rec)
-	cmd.SetContext(app.WithContext(t.Context(), testApp(t)))
+	cmd := newCommand(rec, app.StaticRuntime(testApp(t)))
 	cmd.SetArgs([]string{"test", "foo", "2.0", "--no-commit"})
 	if err := cmd.Execute(); err != nil {
 		t.Fatal(err)
@@ -89,8 +86,7 @@ func TestNvBumpNoCommitSkipsCommit(t *testing.T) {
 }
 
 func TestNvBumpUnknownRepoFails(t *testing.T) {
-	cmd := newCommand(&recordingNvBumper{})
-	cmd.SetContext(app.WithContext(t.Context(), testApp(t)))
+	cmd := newCommand(&recordingNvBumper{}, app.StaticRuntime(testApp(t)))
 	cmd.SetArgs([]string{"nope", "foo", "2.0"})
 	cmd.SilenceUsage = true
 	cmd.SilenceErrors = true

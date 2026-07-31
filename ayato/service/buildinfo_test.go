@@ -7,20 +7,20 @@ import (
 
 	"go.uber.org/mock/gomock"
 
+	ayatoconfig "github.com/Hayao0819/Kamisato/ayato/config"
 	"github.com/Hayao0819/Kamisato/ayato/domain"
 	"github.com/Hayao0819/Kamisato/ayato/repository"
 	"github.com/Hayao0819/Kamisato/ayato/service"
 	"github.com/Hayao0819/Kamisato/ayato/test/mocks"
-	"github.com/Hayao0819/Kamisato/internal/conf"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
+	"github.com/Hayao0819/Kamisato/internal/pacman/repo"
 )
 
-func provenanceConfig() *conf.AyatoConfig {
-	cfg := &conf.AyatoConfig{
+func provenanceConfig() service.Settings {
+	cfg := &ayatoconfig.AyatoConfig{
 		RequireBuildinfoProvenance: true,
-		Repos:                      []conf.BinRepoConfig{{Name: "myrepo", Arches: []string{"x86_64"}}},
+		Repos:                      []ayatoconfig.BinRepoConfig{{Name: "myrepo", Arches: []string{"x86_64"}}},
 	}
-	return cfg
+	return settingsFromConfig(cfg)
 }
 
 func TestUploadFile_BuildinfoProvenanceAccepts(t *testing.T) {

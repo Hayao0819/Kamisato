@@ -20,7 +20,6 @@ linters:
         - fmt.Fprintf
         - fmt.Fprintln
         - os.RemoveAll
-        - (*github.com/Hayao0819/Kamisato/ayato/stream.FileStream).Close
         - (*github.com/docker/docker/client.Client).Close
     gosec:
       # G304 (file inclusion via variable) is not taint-aware and fires on every

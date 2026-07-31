@@ -2,17 +2,20 @@ package auth
 
 import (
 	"context"
+	"io"
+	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/coreos/go-oidc/v3/oidc"
 
-	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/internal/errors"
-	"github.com/Hayao0819/Kamisato/pkg/httpx"
 )
 
 const githubOIDCIssuer = "https://token.actions.githubusercontent.com"
+
+const oidcGETAttempts = 4
 
 type oidcAuth struct {
 	verifier   *oidc.IDTokenVerifier
@@ -26,8 +29,11 @@ type oidcPublisher struct {
 	repos        map[string]bool
 }
 
-func newOIDCAuth(ctx context.Context, cfg conf.CIGitHubOIDC) (*oidcAuth, error) {
-	client := httpx.New(10*time.Second, 3)
+func newOIDCAuth(ctx context.Context, cfg CIGitHubOIDC) (*oidcAuth, error) {
+	client := &http.Client{
+		Transport: oidcGETRetryTransport{base: http.DefaultTransport},
+		Timeout:   10 * time.Second,
+	}
 	provider, err := oidc.NewProvider(oidc.ClientContext(ctx, client), githubOIDCIssuer)
 	if err != nil {
 		return nil, errors.WrapErr(err, "discover github oidc issuer")
@@ -45,7 +51,76 @@ func newOIDCAuth(ctx context.Context, cfg conf.CIGitHubOIDC) (*oidcAuth, error) 
 	}, nil
 }
 
-func compileOIDCPublishers(config []conf.CIOIDCPublisher) []oidcPublisher {
+type oidcGETRetryTransport struct {
+	base http.RoundTripper
+}
+
+func (t oidcGETRetryTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	base := t.base
+	if base == nil {
+		base = http.DefaultTransport
+	}
+	if req.Method != http.MethodGet || req.Body != nil {
+		return base.RoundTrip(req) //nolint:gosec // OIDC supplies the discovery and JWKS URLs to this dedicated client.
+	}
+
+	var lastErr error
+	for attempt := range oidcGETAttempts {
+		resp, err := base.RoundTrip(req.Clone(req.Context())) //nolint:gosec // Only replayable OIDC GET requests reach this transport.
+		if err == nil && (!retryableOIDCStatus(resp.StatusCode) || attempt+1 == oidcGETAttempts) {
+			return resp, nil
+		}
+		if resp != nil {
+			_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 32<<10))
+			_ = resp.Body.Close()
+		}
+		if err != nil {
+			lastErr = err
+			if attempt+1 == oidcGETAttempts {
+				return nil, err
+			}
+		}
+		if err := waitOIDCRetry(req.Context(), oidcRetryAfter(resp, attempt)); err != nil {
+			return nil, err
+		}
+	}
+	return nil, lastErr
+}
+
+func retryableOIDCStatus(status int) bool {
+	return status == http.StatusTooManyRequests || status >= http.StatusInternalServerError
+}
+
+func oidcRetryAfter(resp *http.Response, attempt int) time.Duration {
+	if resp != nil {
+		value := resp.Header.Get("Retry-After")
+		if seconds, err := strconv.ParseInt(value, 10, 64); err == nil && seconds >= 0 {
+			if seconds >= 30 {
+				return 30 * time.Second
+			}
+			return time.Duration(seconds) * time.Second
+		}
+		if date, err := http.ParseTime(value); err == nil {
+			if delay := time.Until(date); delay > 0 {
+				return min(delay, 30*time.Second)
+			}
+		}
+	}
+	return 100 * time.Millisecond * time.Duration(1<<attempt)
+}
+
+func waitOIDCRetry(ctx context.Context, delay time.Duration) error {
+	timer := time.NewTimer(delay)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
+	}
+}
+
+func compileOIDCPublishers(config []CIOIDCPublisher) []oidcPublisher {
 	publishers := make([]oidcPublisher, 0, len(config))
 	for _, p := range config {
 		e := oidcPublisher{

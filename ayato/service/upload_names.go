@@ -4,19 +4,17 @@ import (
 	"log/slog"
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
-
-	"github.com/Hayao0819/Kamisato/ayato/repository"
 )
 
 func (p *uploadPublication) storePackageNames() error {
-	entries := make([]repository.PackageFileEntry, 0, len(p.uploads))
+	entries := make([]PackageFileEntry, 0, len(p.uploads))
 	for _, upload := range p.uploads {
 		// Skipped as already published on every target arch; its name entry is
 		// already in place.
 		if len(upload.dbArches) == 0 {
 			continue
 		}
-		entries = append(entries, repository.PackageFileEntry{
+		entries = append(entries, PackageFileEntry{
 			Arch:     upload.storeArch,
 			Name:     upload.pkgName,
 			FileName: upload.storedName,
@@ -83,10 +81,10 @@ func (r *publicationRollback) restoreNames(protected map[archKey]bool) {
 }
 
 func (r *publicationRollback) restoreOldNameEntries(keys []archKey) {
-	entries := make([]repository.PackageFileEntry, 0, len(keys))
+	entries := make([]PackageFileEntry, 0, len(keys))
 	for _, key := range keys {
 		if fileName, exists := r.oldNames[key]; exists {
-			entries = append(entries, repository.PackageFileEntry{
+			entries = append(entries, PackageFileEntry{
 				Arch:     key.arch,
 				Name:     key.key,
 				FileName: fileName,

@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/Hayao0819/Kamisato/internal/client"
 	"github.com/Hayao0819/Kamisato/internal/errors"
 	"github.com/Hayao0819/Kamisato/internal/kayoproto"
 	"github.com/Hayao0819/Kamisato/pkg/aurweb"
@@ -16,7 +15,7 @@ import (
 // and only then swaps in a fresh index. Any verification error returns before the
 // swap, so the last-good catalog survives (fail-closed).
 func (s *Source) Sync(ctx context.Context) error {
-	body, err := s.catalog.Fetch(ctx)
+	body, err := s.catalog.fetch(ctx)
 	if err != nil {
 		return errors.WrapErr(err, "ayato catalog: "+s.name)
 	}
@@ -141,11 +140,11 @@ func (s *Source) resolveVerifier(ctx context.Context) (*Verifier, error) {
 // for an operator converting a TOFU pin into a hard config pin. The key is
 // unauthenticated on its own — verify the key_id out of band before trusting it.
 func FetchPubkey(ctx context.Context, baseURL string) (pubkey, keyID string, err error) {
-	catalog, err := client.NewCatalog(baseURL)
+	catalog, err := newCatalogClient(baseURL)
 	if err != nil {
 		return "", "", err
 	}
-	body, err := catalog.FetchPublicKey(ctx)
+	body, err := catalog.fetchPublicKey(ctx)
 	if err != nil {
 		return "", "", err
 	}
@@ -160,7 +159,7 @@ func FetchPubkey(ctx context.Context, baseURL string) (pubkey, keyID string, err
 }
 
 func (s *Source) fetchPubkey(ctx context.Context) (string, error) {
-	body, err := s.catalog.FetchPublicKey(ctx)
+	body, err := s.catalog.fetchPublicKey(ctx)
 	if err != nil {
 		return "", errors.WrapErr(err, "ayato catalog public key: "+s.name)
 	}

@@ -37,7 +37,7 @@ in
         auth.github.client_id = "Iv1.xxxx";
       };
       description = ''
-        ayato_config.json contents (schema: internal/conf/ayato.go). Point local
+        ayato_config.json contents (schema: ayato/config). Point local
         store paths under /var/lib/ayato (the StateDirectory); secrets go in
         environmentFile.
       '';

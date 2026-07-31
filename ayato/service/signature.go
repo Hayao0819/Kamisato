@@ -5,10 +5,10 @@ import (
 	"io"
 	"log/slog"
 
+	"github.com/Hayao0819/Kamisato/ayato/blob"
 	"github.com/Hayao0819/Kamisato/ayato/domain"
-	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
 	"github.com/Hayao0819/Kamisato/internal/errors"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/sign"
+	"github.com/Hayao0819/Kamisato/internal/pacman/sign"
 )
 
 // maxSignatureBytes bounds a stored .sig read; a detached PGP signature is a

@@ -38,7 +38,7 @@ in
         upstream.enabled = true;
       };
       description = ''
-        kayo_config.toml contents (schema: internal/conf/kayo.go). cache_dir and
+        kayo_config.toml contents (schema: kayo/config). cache_dir and
         trust_store are injected from the cacheDir/trustStore options; LLM API keys
         go in environmentFile.
       '';

@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	"github.com/Hayao0819/Kamisato/ayaka/app"
-	pkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
+	pkg "github.com/Hayao0819/Kamisato/internal/pacman"
+	"github.com/Hayao0819/Kamisato/internal/pacman/source"
 )
 
 type recordingPuller struct {
@@ -15,7 +15,7 @@ type recordingPuller struct {
 	calls int
 }
 
-func (r *recordingPuller) Pull(_ context.Context, src *repo.SourceRepo, names []string, force bool) ([]*pkg.SourcePackage, error) {
+func (r *recordingPuller) Pull(_ context.Context, src *source.SourceRepo, names []string, force bool) ([]*pkg.SourcePackage, error) {
 	r.names = names
 	r.force = force
 	r.calls++
@@ -23,13 +23,12 @@ func (r *recordingPuller) Pull(_ context.Context, src *repo.SourceRepo, names []
 }
 
 func testApp() *app.App {
-	return &app.App{SrcRepos: []*repo.SourceRepo{{Config: &repo.SrcConfig{Name: "test"}}}}
+	return &app.App{SrcRepos: []*source.SourceRepo{{Config: &source.SrcConfig{Name: "test"}}}}
 }
 
 func TestPullFlagsReachService(t *testing.T) {
 	rec := &recordingPuller{}
-	cmd := newCommand(rec)
-	cmd.SetContext(app.WithContext(t.Context(), testApp()))
+	cmd := newCommand(rec, app.StaticRuntime(testApp()))
 	cmd.SetArgs([]string{"test", "ckbcomp", "foo", "--force"})
 	if err := cmd.Execute(); err != nil {
 		t.Fatal(err)
@@ -41,8 +40,7 @@ func TestPullFlagsReachService(t *testing.T) {
 
 func TestPullAllMirrorsWithNoNames(t *testing.T) {
 	rec := &recordingPuller{}
-	cmd := newCommand(rec)
-	cmd.SetContext(app.WithContext(t.Context(), testApp()))
+	cmd := newCommand(rec, app.StaticRuntime(testApp()))
 	cmd.SetArgs([]string{"test"})
 	if err := cmd.Execute(); err != nil {
 		t.Fatal(err)
@@ -53,8 +51,7 @@ func TestPullAllMirrorsWithNoNames(t *testing.T) {
 }
 
 func TestPullUnknownRepoFails(t *testing.T) {
-	cmd := newCommand(&recordingPuller{})
-	cmd.SetContext(app.WithContext(t.Context(), testApp()))
+	cmd := newCommand(&recordingPuller{}, app.StaticRuntime(testApp()))
 	cmd.SetArgs([]string{"nope"})
 	cmd.SilenceUsage = true
 	cmd.SilenceErrors = true

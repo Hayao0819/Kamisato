@@ -1,37 +1,34 @@
 // Package app is ayaka's per-invocation composition root: the loaded config
-// plus the source repositories it declares, threaded through the command
-// context so the cobra layer stays wiring-only.
+// plus the source repositories it declares.
 package app
 
 import (
-	"context"
+	"sync"
 
 	"github.com/samber/lo"
-	"github.com/spf13/cobra"
 
-	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/internal/errors"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
+	"github.com/Hayao0819/Kamisato/internal/pacman/source"
 )
 
-// App is the per-invocation dependency set threaded via the command context,
-// so commands read deps from here instead of mutable package globals.
+// App is the dependency set shared by one Ayaka command invocation.
 type App struct {
-	Config   *conf.AyakaConfig
-	SrcRepos []*repo.SourceRepo
+	Config   *AyakaConfig
+	SrcRepos []*source.SourceRepo
 }
 
-type ctxKey struct{}
-
 // New loads the source repositories declared in cfg and returns the App.
-func New(cfg *conf.AyakaConfig) (*App, error) {
+func New(cfg *AyakaConfig) (*App, error) {
 	app := &App{Config: cfg}
 	for _, r := range cfg.Repos {
-		repoconfig, err := conf.LoadSrcRepoConfig(r.Dir)
+		repoconfig, err := source.LoadConfig(r.Dir)
 		if err != nil {
 			return nil, errors.WrapErr(err, "failed to load source repository config "+r.Dir)
 		}
-		sr, err := repo.GetSrcRepo(r.Dir, SrcConfigFromConf(repoconfig))
+		if repoconfig.Build.Makepkg.Packager == "" {
+			repoconfig.Build.Makepkg.Packager = repoconfig.Maintainer
+		}
+		sr, err := source.GetSrcRepo(r.Dir, repoconfig)
 		if err != nil {
 			return nil, errors.WrapErr(err, "failed to load source repository "+r.Dir)
 		}
@@ -42,47 +39,51 @@ func New(cfg *conf.AyakaConfig) (*App, error) {
 	return app, nil
 }
 
-// WithContext stores app in ctx for From / FromContext to retrieve.
-func WithContext(ctx context.Context, app *App) context.Context {
-	return context.WithValue(ctx, ctxKey{}, app)
+type Runtime struct {
+	load        func() (*App, error)
+	once        sync.Once
+	mu          sync.RWMutex
+	app         *App
+	err         error
+	initialized bool
 }
 
-// From returns the App from the command context, or an empty App during
-// shell completion (which runs before the App is built) to avoid a nil panic.
-func From(cmd *cobra.Command) *App {
-	return FromContext(cmd.Context())
+func NewRuntime(load func() (*App, error)) *Runtime {
+	return &Runtime{load: load}
 }
 
-// FromContext returns the App carried by ctx, or an empty App when none is set.
-func FromContext(ctx context.Context) *App {
-	if app, ok := ctx.Value(ctxKey{}).(*App); ok && app != nil {
-		return app
-	}
-	return &App{}
+func StaticRuntime(a *App) *Runtime {
+	return NewRuntime(func() (*App, error) { return a, nil })
 }
 
-// SrcConfigFromConf adapts conf.SrcRepoConfig to the conf-free repo.SrcConfig the domain layer uses.
-func SrcConfigFromConf(c *conf.SrcRepoConfig) *repo.SrcConfig {
-	if c == nil {
-		return nil
-	}
-	sc := &repo.SrcConfig{
-		Name:       c.Name,
-		Maintainer: c.Maintainer,
-		URL:        c.URL,
-		Build:      c.Build,
-	}
-	// The repo maintainer is the natural PACKAGER when the build config leaves it
-	// unset, matching how a hand-run makepkg picks up the packager's identity.
-	if sc.Build.Makepkg.Packager == "" {
-		sc.Build.Makepkg.Packager = c.Maintainer
-	}
-	sc.InstallPkgs.Files = c.InstallPkgs.Files
-	sc.InstallPkgs.Names = c.InstallPkgs.Names
-	return sc
+func (r *Runtime) App() (*App, error) {
+	r.once.Do(func() {
+		var loaded *App
+		var loadErr error
+		if r.load == nil {
+			loadErr = errors.New("ayaka application loader is not configured")
+		} else {
+			loaded, loadErr = r.load()
+			if loadErr == nil && loaded == nil {
+				loadErr = errors.New("ayaka application loader returned nil")
+			}
+		}
+		r.mu.Lock()
+		r.app, r.err, r.initialized = loaded, loadErr, true
+		r.mu.Unlock()
+	})
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.app, r.err
 }
 
-func (a *App) GetSrcRepo(name string) *repo.SourceRepo {
+func (r *Runtime) LoadedApp() (*App, bool) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.app, r.initialized && r.err == nil
+}
+
+func (a *App) GetSrcRepo(name string) *source.SourceRepo {
 	for _, r := range a.SrcRepos {
 		if r.Config.Name == name {
 			return r
@@ -92,7 +93,7 @@ func (a *App) GetSrcRepo(name string) *repo.SourceRepo {
 }
 
 func (a *App) GetSrcRepoNames() []string {
-	return lo.Map(a.SrcRepos, func(r *repo.SourceRepo, _ int) string {
+	return lo.Map(a.SrcRepos, func(r *source.SourceRepo, _ int) string {
 		return r.Config.Name
 	})
 }

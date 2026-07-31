@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"math"
 	"net/http"
 	"strconv"
 	"time"
@@ -8,15 +9,13 @@ import (
 	"github.com/gin-gonic/gin"
 	"golang.org/x/time/rate"
 
-	"github.com/Hayao0819/Kamisato/ayato/platform"
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
-	sharedlimit "github.com/Hayao0819/Kamisato/pkg/ratelimit"
 )
 
 // WithRateLimiter wires the shared kv-backed limiter so limits hold across
 // replicas. An unwired Middleware leaves RateLimit as a pass-through.
 func (m *Middleware) WithRateLimiter(store kv.Store) *Middleware {
-	m.limiter = platform.NewRateLimiter(store, kv.ErrNotFound)
+	m.limiter = NewRateLimiter(store, kv.ErrNotFound)
 	return m
 }
 
@@ -27,7 +26,7 @@ func (m *Middleware) WithRateLimiter(store kv.Store) *Middleware {
 // equivalent fixed window (see fixedWindow), and each call site gets a distinct
 // scope so independent route limiters keep independent counters.
 func (m *Middleware) RateLimit(r rate.Limit, burst int) gin.HandlerFunc {
-	policy := fixedWindow(r, burst)
+	limit, window := fixedWindow(r, burst)
 	scope := "mw" + strconv.FormatInt(m.rlScope.Add(1), 10)
 
 	return func(c *gin.Context) {
@@ -35,26 +34,34 @@ func (m *Middleware) RateLimit(r rate.Limit, burst int) gin.HandlerFunc {
 			c.Next()
 			return
 		}
-		decision := m.limiter.Allow(scope, c.ClientIP(), policy)
-		if decision.Allowed {
+		allowed, retry := m.limiter.Allow(scope, c.ClientIP(), limit, window)
+		if allowed {
 			c.Next()
 			return
 		}
-		c.Header("Retry-After", sharedlimit.RetryAfterValue(decision.RetryAfter))
+		c.Header("Retry-After", retryAfterValue(retry))
 		c.AbortWithStatus(http.StatusTooManyRequests)
 	}
+}
+
+func retryAfterValue(retry time.Duration) string {
+	seconds := int64(math.Ceil(retry.Seconds()))
+	if seconds < 1 {
+		seconds = 1
+	}
+	return strconv.FormatInt(seconds, 10)
 }
 
 // fixedWindow maps a token-bucket (rate r tokens/sec, burst) to a fixed window of
 // `burst` requests per burst/r seconds. A non-positive or infinite rate means no
 // limit.
-func fixedWindow(r rate.Limit, burst int) sharedlimit.Policy {
+func fixedWindow(r rate.Limit, burst int) (int, time.Duration) {
 	if burst <= 0 || r <= 0 || r >= rate.Inf {
-		return sharedlimit.Policy{}
+		return 0, 0
 	}
 	window := time.Duration(float64(burst) / float64(r) * float64(time.Second))
 	if window <= 0 {
 		window = time.Second
 	}
-	return sharedlimit.Policy{Limit: burst, Window: window}
+	return burst, window
 }

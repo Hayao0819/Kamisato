@@ -5,9 +5,8 @@ import (
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
 
+	"github.com/Hayao0819/Kamisato/ayato/blob"
 	"github.com/Hayao0819/Kamisato/ayato/domain"
-	"github.com/Hayao0819/Kamisato/ayato/platform"
-	"github.com/Hayao0819/Kamisato/ayato/repository"
 )
 
 func (p *uploadPublication) storeObjects() error {
@@ -21,7 +20,7 @@ func (p *uploadPublication) storeObjects() error {
 		objects := []struct {
 			kind string
 			name string
-			file platform.SeekFile
+			file blob.SeekFile
 		}{
 			{kind: "package", name: upload.storedName, file: upload.pkgStream},
 			{kind: "signature", name: upload.sigName, file: upload.sigStream},
@@ -42,16 +41,16 @@ func (p *uploadPublication) storeObjects() error {
 
 func (p *uploadPublication) storeObject(
 	arch, kind, name string,
-	file platform.SeekFile,
+	file blob.SeekFile,
 ) error {
 	if file == nil {
 		return nil
 	}
 	if file.FileName() != name {
-		file = platform.NewFileStream(name, file.ContentType(), file)
+		file = blob.NewFileStream(name, file.ContentType(), file)
 	}
 	if err := p.service.storeImmutableFile(p.repo, arch, file); err != nil {
-		if errors.Is(err, repository.ErrImmutableObjectConflict) {
+		if errors.Is(err, ErrImmutableObjectConflict) {
 			return fmt.Errorf(
 				"%w: %s object %q already exists with different content",
 				domain.ErrConflict,
@@ -80,7 +79,7 @@ func (p *uploadPublication) buildArchBatches() {
 
 func (p *uploadPublication) commitDatabases() error {
 	for _, arch := range p.archOrder {
-		items := make([]repository.RepoAddItem, 0, len(p.byArch[arch]))
+		items := make([]RepoAddItem, 0, len(p.byArch[arch]))
 		for _, index := range p.byArch[arch] {
 			items = append(items, p.uploads[index].repoAddItem(arch))
 		}
@@ -95,11 +94,11 @@ func (p *uploadPublication) commitDatabases() error {
 			p.rollback.committedArches = append(p.rollback.committedArches, arch)
 			continue
 		}
-		if repository.CanonicalCommitted(err) {
+		if CanonicalCommitted(err) {
 			p.rollback.committedArches = append(p.rollback.committedArches, arch)
 			p.rollback.needsReconcile[arch] = true
 		}
-		if errors.Is(err, repository.ErrPackageChanged) {
+		if errors.Is(err, ErrPackageChanged) {
 			return fmt.Errorf("%w: package changed during publish", domain.ErrConflict)
 		}
 		return errors.WrapErr(err, "failed to add to repo database")
@@ -107,8 +106,8 @@ func (p *uploadPublication) commitDatabases() error {
 	return nil
 }
 
-func (p preparedUpload) repoAddItem(arch string) repository.RepoAddItem {
-	item := repository.RepoAddItem{
+func (p preparedUpload) repoAddItem(arch string) RepoAddItem {
+	item := RepoAddItem{
 		Pkg:             p.pkgStream,
 		Sig:             p.sigStream,
 		CheckCurrent:    true,

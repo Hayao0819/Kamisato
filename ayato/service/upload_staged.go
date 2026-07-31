@@ -11,11 +11,10 @@ import (
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
 
+	"github.com/Hayao0819/Kamisato/ayato/blob"
 	"github.com/Hayao0819/Kamisato/ayato/domain"
-	"github.com/Hayao0819/Kamisato/ayato/platform"
-	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
 	"github.com/Hayao0819/Kamisato/internal/limits"
-	pacmanpkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
+	pacmanpkg "github.com/Hayao0819/Kamisato/internal/pacman"
 )
 
 const (
@@ -154,7 +153,7 @@ func spoolStagedEntries(
 
 // spoolStagedFile bounds the spool: the staged object was size-checked at
 // presign, but the local temp copy must not trust storage state.
-func spoolStagedFile(staged blob.StagedUploader, id, name string, maxBytes int64) (platform.SeekFile, func(), error) {
+func spoolStagedFile(staged blob.StagedUploader, id, name string, maxBytes int64) (blob.SeekFile, func(), error) {
 	if err := validateStagedFileName(name); err != nil {
 		return nil, nil, err
 	}
@@ -202,17 +201,11 @@ func (s *Service) checkStagedSize(name string, size int64) error {
 }
 
 func (s *Service) batchPackagesLimit() int {
-	if s.cfg != nil {
-		return s.cfg.MaxBatchPackages
-	}
-	return 0
+	return s.settings.MaxBatchPackages
 }
 
 func (s *Service) maxPackageSize() int {
-	if s.cfg != nil {
-		return s.cfg.MaxSize
-	}
-	return 0
+	return s.settings.MaxPackageSize
 }
 
 func validateStagedFileName(name string) error {

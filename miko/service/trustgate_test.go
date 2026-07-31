@@ -7,9 +7,8 @@ import (
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
 
-	"github.com/Hayao0819/Kamisato/internal/conf"
+	depend "github.com/Hayao0819/Kamisato/internal/pacman"
 	"github.com/Hayao0819/Kamisato/pkg/aurweb"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/depend"
 )
 
 // fakeAURInfo answers Info from a fixed name->maintainer table so the trust gate
@@ -35,9 +34,9 @@ func (f fakeAURInfo) Info(_ context.Context, names []string) ([]aurweb.Pkg, erro
 	return out, nil
 }
 
-func newTrustService(t *testing.T, trust conf.AURTrustConfig) *Service {
+func newTrustService(t *testing.T, settings Settings) *Service {
 	t.Helper()
-	return New(&conf.MikoConfig{AURTrust: trust})
+	return New(settings)
 }
 
 func TestCheckDepTrust(t *testing.T) {
@@ -46,45 +45,45 @@ func TestCheckDepTrust(t *testing.T) {
 
 	tests := []struct {
 		name      string
-		trust     conf.AURTrustConfig
+		trust     Settings
 		lookup    maintainerLookup
 		wantBlock bool
 	}{
 		{
 			name:   "trusted maintainer builds",
-			trust:  conf.AURTrustConfig{TrustedMaintainers: []string{"alice"}},
+			trust:  Settings{TrustedAURMaintainers: []string{"alice"}},
 			lookup: lookup,
 		},
 		{
 			name:   "trusted maintainer is case-insensitive",
-			trust:  conf.AURTrustConfig{TrustedMaintainers: []string{"ALICE"}},
+			trust:  Settings{TrustedAURMaintainers: []string{"ALICE"}},
 			lookup: lookup,
 		},
 		{
 			name:   "trusted pkgbase builds",
-			trust:  conf.AURTrustConfig{TrustedPkgbases: []string{"foo"}},
+			trust:  Settings{TrustedAURPackages: []string{"foo"}},
 			lookup: lookup,
 		},
 		{
 			name:      "untrusted with allow_untrusted=false is blocked",
-			trust:     conf.AURTrustConfig{TrustedMaintainers: []string{"bob"}},
+			trust:     Settings{TrustedAURMaintainers: []string{"bob"}},
 			lookup:    lookup,
 			wantBlock: true,
 		},
 		{
 			name:   "untrusted with allow_untrusted=true is allowed",
-			trust:  conf.AURTrustConfig{AllowUntrusted: true},
+			trust:  Settings{AllowUntrustedAURPackages: true},
 			lookup: lookup,
 		},
 		{
 			name:      "orphaned dep is blocked",
-			trust:     conf.AURTrustConfig{TrustedMaintainers: []string{"alice"}},
+			trust:     Settings{TrustedAURMaintainers: []string{"alice"}},
 			lookup:    fakeAURInfo{maintainers: map[string]string{"foo": ""}},
 			wantBlock: true,
 		},
 		{
 			name:   "orphaned dep passes via pkgbase allowlist",
-			trust:  conf.AURTrustConfig{TrustedPkgbases: []string{"foo"}},
+			trust:  Settings{TrustedAURPackages: []string{"foo"}},
 			lookup: fakeAURInfo{maintainers: map[string]string{"foo": ""}},
 		},
 	}
@@ -112,7 +111,7 @@ func TestCheckDepTrust(t *testing.T) {
 // A missing AUR record (package gone from the AUR) is treated as orphaned and
 // blocked under the secure default, not silently allowed.
 func TestCheckDepTrustMissingRecordBlocked(t *testing.T) {
-	s := newTrustService(t, conf.AURTrustConfig{TrustedMaintainers: []string{"alice"}})
+	s := newTrustService(t, Settings{TrustedAURMaintainers: []string{"alice"}})
 	dep := depend.Pkg{Name: "ghost", PackageBase: "ghost"}
 	if err := s.checkDepTrust(context.Background(), fakeAURInfo{maintainers: map[string]string{}}, dep); err == nil {
 		t.Fatal("a dep with no AUR record must be blocked, got nil")
@@ -121,7 +120,7 @@ func TestCheckDepTrustMissingRecordBlocked(t *testing.T) {
 
 // A lookup error must fail the build closed, not pass.
 func TestCheckDepTrustLookupError(t *testing.T) {
-	s := newTrustService(t, conf.AURTrustConfig{AllowUntrusted: true})
+	s := newTrustService(t, Settings{AllowUntrustedAURPackages: true})
 	dep := depend.Pkg{Name: "foo", PackageBase: "foo"}
 	if err := s.checkDepTrust(context.Background(), fakeAURInfo{err: errors.New("boom")}, dep); err == nil {
 		t.Fatal("a lookup error must stop the build, got nil")

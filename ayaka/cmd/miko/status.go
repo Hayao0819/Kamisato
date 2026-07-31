@@ -3,10 +3,10 @@ package mikocmd
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
-	"github.com/Hayao0819/Kamisato/internal/client"
+	"github.com/Hayao0819/Kamisato/ayaka/cli"
 	"github.com/Hayao0819/Kamisato/internal/cliutil"
 	"github.com/Hayao0819/Kamisato/internal/errors"
+	"github.com/Hayao0819/Kamisato/internal/mikoapi"
 )
 
 func mikoStatusCmd() *cobra.Command {
@@ -15,12 +15,12 @@ func mikoStatusCmd() *cobra.Command {
 		Short: "Show the status of a build job",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			srv, err := shared.ServerFromFlag(cmd)
+			srv, err := cli.ServerFromFlag(cmd)
 			if err != nil {
 				return err
 			}
 
-			api, err := shared.AyatoClient(srv)
+			api, err := cli.AyatoClient(srv)
 			if err != nil {
 				return err
 			}
@@ -31,11 +31,11 @@ func mikoStatusCmd() *cobra.Command {
 
 			// status shows a single job as one row of the same table as `jobs`;
 			// --json / --format reach the full record for scripting.
-			format, err := cliutil.ResolveFormat(cmd, jobTableFormat)
+			format, err := cliutil.ResolveFormat(cmd, cli.JobTableFormat)
 			if err != nil {
 				return err
 			}
-			return cliutil.RenderList(cmd.OutOrStdout(), format, jobHeader, []client.Job{*job})
+			return cliutil.RenderList(cmd.OutOrStdout(), format, cli.JobHeader, []mikoapi.Job{*job})
 		},
 	}
 	cliutil.AddFormatFlags(cmd)

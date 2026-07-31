@@ -1,27 +1,22 @@
-// Package signer is miko's optional remote-signing tier. The RemoteSigner is the
-// worker-side client that offloads package signing to a dedicated signer service,
-// and Handler is that service: it holds the private key and returns detached
-// signatures, so build workers can run keyless. RemoteSigner implements
-// pkg/pacman/sign.Signer, so the worker's publish path is unchanged.
 package signer
 
 import (
 	"context"
 
-	"github.com/Hayao0819/Kamisato/internal/client"
 	"github.com/Hayao0819/Kamisato/internal/errors"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/sign"
-	"github.com/Hayao0819/Kamisato/pkg/safefile"
+	"github.com/Hayao0819/Kamisato/internal/mikoapi"
+	"github.com/Hayao0819/Kamisato/internal/pacman/sign"
+	"github.com/Hayao0819/Kamisato/internal/safefile"
 )
 
 // SignPath is the signer service's detach-sign endpoint, shared by client and
 // server so the two cannot drift.
-const SignPath = client.SignPath
+const SignPath = mikoapi.SignPath
 
 // RemoteSigner POSTs a built package to the signer service and writes the returned
 // detached signature next to it, so the build worker holds no private key.
 type RemoteSigner struct {
-	client *client.Signer
+	client *mikoapi.Signer
 }
 
 var _ sign.Signer = (*RemoteSigner)(nil)
@@ -29,7 +24,7 @@ var _ sign.Signer = (*RemoteSigner)(nil)
 // NewRemoteSigner returns a Signer that calls the signer service at baseURL,
 // authenticating with apiKey.
 func NewRemoteSigner(baseURL, apiKey string) (*RemoteSigner, error) {
-	api, err := client.NewSigner(baseURL, apiKey)
+	api, err := mikoapi.NewSigner(baseURL, apiKey)
 	if err != nil {
 		return nil, err
 	}

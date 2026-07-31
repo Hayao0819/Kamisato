@@ -9,26 +9,47 @@ import (
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
 
+	"github.com/Hayao0819/Kamisato/ayato/blob"
 	"github.com/Hayao0819/Kamisato/ayato/domain"
-	"github.com/Hayao0819/Kamisato/ayato/platform"
-	"github.com/Hayao0819/Kamisato/ayato/repository"
-	"github.com/Hayao0819/Kamisato/internal/conf"
-	"github.com/Hayao0819/Kamisato/pkg/httpx"
 )
 
 type Service struct {
-	pkgNameRepo   repository.NameStore
-	pkgBinaryRepo repository.BinaryRepository
-	authRepo      repository.AuthRepository
-	signerRepo    repository.SignerRepository
-	denylistRepo  repository.DenylistRepository // nil when per-token revocation is not wired
-	cfg           *conf.AyatoConfig
+	pkgNameRepo   NameStore
+	pkgBinaryRepo BinaryRepository
+	authRepo      AuthRepository
+	signerRepo    SignerRepository
+	denylistRepo  DenylistRepository // nil when per-token revocation is not wired
+	settings      Settings
 	catalog       *domain.RepositoryCatalog
 	catalogErr    error
-	// upstreamClient fetches upstream repo databases for the overlay/merge sync,
-	// with the shared retry/timeout policy of pkg/httpx.
+	// upstreamClient fetches upstream repo databases for the overlay/merge sync.
 	upstreamClient *http.Client
 	verifier       signatureTrust
+}
+
+type Settings struct {
+	Catalog                    *domain.RepositoryCatalog
+	CatalogError               error
+	RequireSign                bool
+	RequireBuildinfoProvenance bool
+	ExpectedBuildDir           string
+	ProtectedNames             []string
+	MaxBatchPackages           int
+	MaxPackageSize             int
+	SignDatabase               bool
+	VerificationKeyring        string
+	TrustedVerificationKeys    []string
+	MasterVerificationKeys     []string
+}
+
+func (settings Settings) normalized() Settings {
+	if settings.Catalog == nil {
+		settings.Catalog, _ = domain.NewRepositoryCatalog(nil, nil)
+	}
+	if settings.ExpectedBuildDir == "" {
+		settings.ExpectedBuildDir = "/build"
+	}
+	return settings
 }
 
 //go:generate mockgen -source=service.go -destination=../test/mocks/service.go -package=mocks
@@ -43,7 +64,7 @@ type RepoReader interface {
 	PkgFiles(repo, arch, pkg string) ([]string, error)
 	PkgSignature(repo, arch, pkgname string) (*domain.PackageSignature, error)
 	RepoFileList(repo, arch string) ([]string, error)
-	GetFileWithMeta(repoName, archName, name string) (platform.File, domain.FileMeta, error)
+	GetFileWithMeta(repoName, archName, name string) (blob.File, domain.FileMeta, error)
 	SignedURL(repo string, arch string, name string) (string, error)
 }
 
@@ -114,31 +135,24 @@ type Servicer interface {
 }
 
 func New(
-	pkgNameRepo repository.NameStore,
-	pkgBinaryRepo repository.BinaryRepository,
-	authRepo repository.AuthRepository,
-	signerRepo repository.SignerRepository,
-	config *conf.AyatoConfig,
+	pkgNameRepo NameStore,
+	pkgBinaryRepo BinaryRepository,
+	authRepo AuthRepository,
+	signerRepo SignerRepository,
+	settings Settings,
 ) *Service {
-	catalog, _ := domain.NewRepositoryCatalog(nil, nil)
+	settings = settings.normalized()
 	s := &Service{
 		pkgNameRepo:    pkgNameRepo,
 		pkgBinaryRepo:  pkgBinaryRepo,
 		authRepo:       authRepo,
 		signerRepo:     signerRepo,
-		cfg:            config,
-		catalog:        catalog,
-		upstreamClient: httpx.Default(),
+		settings:       settings,
+		catalog:        settings.Catalog,
+		catalogErr:     settings.CatalogError,
+		upstreamClient: &http.Client{Timeout: 30 * time.Second},
 	}
-	if config == nil {
-		return s
-	}
-	if configuredCatalog, err := config.RepositoryCatalog(); err != nil {
-		s.catalogErr = err
-	} else {
-		s.catalog = configuredCatalog
-	}
-	s.verifier = loadSignatureTrust(config)
+	s.verifier = loadSignatureTrust(settings)
 	return s
 }
 

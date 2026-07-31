@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/Hayao0819/Kamisato/ayato/blob/localfs"
 	"github.com/Hayao0819/Kamisato/ayato/migrate"
-	"github.com/Hayao0819/Kamisato/ayato/repository/blob/localfs"
 )
 
 func TestUnpool(t *testing.T) {

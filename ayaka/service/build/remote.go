@@ -8,11 +8,11 @@ import (
 	"slices"
 	"time"
 
-	"github.com/Hayao0819/Kamisato/internal/client"
+	"github.com/Hayao0819/Kamisato/internal/ayatoapi"
 	"github.com/Hayao0819/Kamisato/internal/errors"
-	pkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/sign"
+	pkg "github.com/Hayao0819/Kamisato/internal/pacman"
+	"github.com/Hayao0819/Kamisato/internal/pacman/sign"
+	"github.com/Hayao0819/Kamisato/internal/pacman/source"
 )
 
 type RemoteBuildOpts struct {
@@ -27,7 +27,7 @@ type RemoteBuildOpts struct {
 
 // RunRemoteBuild submits a build to ayato and returns the job id. The source is
 // --git, else the local PKGBUILD of the named package in srcrepo.
-func RunRemoteBuild(ctx context.Context, api *client.Ayato, srcrepo *repo.SourceRepo, o RemoteBuildOpts) (string, error) {
+func RunRemoteBuild(ctx context.Context, api *ayatoapi.Ayato, srcrepo *source.SourceRepo, o RemoteBuildOpts) (string, error) {
 	req, err := buildRequest(srcrepo, o)
 	if err != nil {
 		return "", err
@@ -43,19 +43,19 @@ func RunRemoteBuild(ctx context.Context, api *client.Ayato, srcrepo *repo.Source
 
 // buildRequest assembles the build request from opts: a git source, else the
 // local PKGBUILD of the named source package.
-func buildRequest(srcrepo *repo.SourceRepo, o RemoteBuildOpts) (*client.BuildRequest, error) {
+func buildRequest(srcrepo *source.SourceRepo, o RemoteBuildOpts) (*ayatoapi.BuildRequest, error) {
 	arch := o.Arch
 	if arch == "" {
 		arch = "x86_64"
 	}
-	req := &client.BuildRequest{
+	req := &ayatoapi.BuildRequest{
 		Repo:        o.Repo,
 		Arch:        arch,
 		InstallPkgs: o.Pkgs,
 		Timeout:     o.Timeout,
 	}
 	if o.GitURL != "" {
-		req.Git = &client.GitSource{URL: o.GitURL, Ref: o.GitRef, Subdir: o.GitSubdir}
+		req.Git = &ayatoapi.GitSource{URL: o.GitURL, Ref: o.GitRef, Subdir: o.GitSubdir}
 		return req, nil
 	}
 	pkgbuild, files, err := readLocalSource(srcrepo, o.Pkgs)
@@ -72,7 +72,7 @@ func buildRequest(srcrepo *repo.SourceRepo, o RemoteBuildOpts) (*client.BuildReq
 
 // RunRemoteBuildLocalSign builds on miko without server-side signing, downloads
 // the artifacts, signs them locally with keyPath, and uploads them to ayato.
-func RunRemoteBuildLocalSign(ctx context.Context, api *client.Ayato, srcrepo *repo.SourceRepo, o RemoteBuildOpts, keyPath, passphrase string) error {
+func RunRemoteBuildLocalSign(ctx context.Context, api *ayatoapi.Ayato, srcrepo *source.SourceRepo, o RemoteBuildOpts, keyPath, passphrase string) error {
 	signer, err := sign.NewLocalSigner(keyPath, passphrase)
 	if err != nil {
 		return errors.WrapErr(err, "failed to load local signing key")
@@ -138,7 +138,7 @@ func RunRemoteBuildLocalSign(ctx context.Context, api *client.Ayato, srcrepo *re
 		if cerr := f.Close(); cerr != nil {
 			return cerr
 		}
-		sigPath, serr := signer.Sign(context.Background(), pkgPath)
+		sigPath, serr := signer.Sign(ctx, pkgPath)
 		if serr != nil {
 			return errors.WrapErr(serr, "failed to sign "+name)
 		}
@@ -156,7 +156,7 @@ const clientBuildTimeout = 2 * time.Hour
 
 // readLocalSource reads the PKGBUILD and files of a source package in srcrepo.
 // With one named package that one is used, else the repo must hold exactly one.
-func readLocalSource(srcrepo *repo.SourceRepo, pkgs []string) (string, map[string]string, error) {
+func readLocalSource(srcrepo *source.SourceRepo, pkgs []string) (string, map[string]string, error) {
 	if srcrepo == nil {
 		return "", nil, errors.NewErr("no source repository given")
 	}
@@ -172,7 +172,7 @@ func readLocalSource(srcrepo *repo.SourceRepo, pkgs []string) (string, map[strin
 
 // selectSourcePkg picks the source package to submit: with none named the repo
 // must hold exactly one, else it matches one by pkgbase or package name.
-func selectSourcePkg(srcrepo *repo.SourceRepo, pkgs []string) (*pkg.SourcePackage, error) {
+func selectSourcePkg(srcrepo *source.SourceRepo, pkgs []string) (*pkg.SourcePackage, error) {
 	if len(pkgs) == 0 {
 		switch len(srcrepo.Pkgs) {
 		case 0:

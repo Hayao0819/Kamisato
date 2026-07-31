@@ -9,14 +9,13 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/errors"
 	"go.uber.org/mock/gomock"
 
+	"github.com/Hayao0819/Kamisato/ayato/blob"
+	"github.com/Hayao0819/Kamisato/ayato/blob/localfs"
+	ayatoconfig "github.com/Hayao0819/Kamisato/ayato/config"
 	"github.com/Hayao0819/Kamisato/ayato/domain"
-	"github.com/Hayao0819/Kamisato/ayato/platform"
 	"github.com/Hayao0819/Kamisato/ayato/repository"
-	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
-	"github.com/Hayao0819/Kamisato/ayato/repository/blob/localfs"
 	"github.com/Hayao0819/Kamisato/ayato/service"
 	"github.com/Hayao0819/Kamisato/ayato/test/mocks"
-	"github.com/Hayao0819/Kamisato/internal/conf"
 )
 
 type readSeekCloser struct{ *bytes.Reader }
@@ -34,7 +33,7 @@ func TestServiceRepoNames(t *testing.T) {
 	bin := mocks.NewMockBinaryRepository(ctrl)
 	bin.EXPECT().RepoNames().Return([]string{"core", "extra"}, nil)
 
-	svc := service.New(mocks.NewMockNameStore(ctrl), bin, nil, nil, &conf.AyatoConfig{})
+	svc := service.New(mocks.NewMockNameStore(ctrl), bin, nil, nil, service.Settings{})
 	got, err := svc.RepoNames()
 	if err != nil {
 		t.Fatalf("RepoNames failed: %v", err)
@@ -47,9 +46,9 @@ func TestServiceRepoNames(t *testing.T) {
 func TestValidateRepoNameUsesConfiguredCatalogAsAuthority(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	bin := mocks.NewMockBinaryRepository(ctrl)
-	svc := service.New(nil, bin, nil, nil, &conf.AyatoConfig{
-		Repos: []conf.BinRepoConfig{{Name: "configured"}},
-	})
+	svc := service.New(nil, bin, nil, nil, settingsFromConfig(&ayatoconfig.AyatoConfig{
+		Repos: []ayatoconfig.BinRepoConfig{{Name: "configured"}},
+	}))
 
 	if err := svc.ValidateRepoName("leftover"); !errors.Is(err, domain.ErrNotFound) {
 		t.Fatalf("ValidateRepoName(leftover) = %v, want ErrNotFound", err)
@@ -66,7 +65,7 @@ func TestServiceArches(t *testing.T) {
 	bin := mocks.NewMockBinaryRepository(ctrl)
 	bin.EXPECT().Arches("myrepo").Return([]string{"x86_64", "aarch64"}, nil)
 
-	svc := service.New(mocks.NewMockNameStore(ctrl), bin, nil, nil, &conf.AyatoConfig{})
+	svc := service.New(mocks.NewMockNameStore(ctrl), bin, nil, nil, service.Settings{})
 	got, err := svc.Arches("myrepo")
 	if err != nil {
 		t.Fatalf("Arches failed: %v", err)
@@ -81,7 +80,7 @@ func TestServiceGetFile(t *testing.T) {
 	defer ctrl.Finish()
 
 	const want = "package-bytes"
-	file := platform.NewFileStream(
+	file := blob.NewFileStream(
 		"foo.pkg.tar.zst",
 		"application/octet-stream",
 		bufferToReadSeekCloser(bytes.NewBufferString(want)),
@@ -90,7 +89,7 @@ func TestServiceGetFile(t *testing.T) {
 	bin.EXPECT().FetchFileWithMeta("myrepo", "x86_64", "foo.pkg.tar.zst").
 		Return(file, blob.FileMeta{ETag: `"etag1"`}, nil)
 
-	svc := service.New(mocks.NewMockNameStore(ctrl), bin, nil, nil, &conf.AyatoConfig{})
+	svc := service.New(mocks.NewMockNameStore(ctrl), bin, nil, nil, service.Settings{})
 	got, metadata, err := svc.GetFileWithMeta("myrepo", "x86_64", "foo.pkg.tar.zst")
 	if err != nil {
 		t.Fatalf("GetFileWithMeta failed: %v", err)
@@ -114,7 +113,7 @@ func TestServiceSignedURL(t *testing.T) {
 	bin := mocks.NewMockBinaryRepository(ctrl)
 	bin.EXPECT().StoreFileWithSignedURL("r", "a", "n").Return("https://example.com/n", nil)
 
-	svc := service.New(mocks.NewMockNameStore(ctrl), bin, nil, nil, &conf.AyatoConfig{})
+	svc := service.New(mocks.NewMockNameStore(ctrl), bin, nil, nil, service.Settings{})
 	got, err := svc.SignedURL("r", "a", "n")
 	if err != nil {
 		t.Fatalf("SignedURL failed: %v", err)
@@ -131,7 +130,7 @@ func TestServicePkgFilesError(t *testing.T) {
 	bin := mocks.NewMockBinaryRepository(ctrl)
 	bin.EXPECT().PkgFiles("r", "a", "p").Return(nil, errors.New("boom"))
 
-	svc := service.New(mocks.NewMockNameStore(ctrl), bin, nil, nil, &conf.AyatoConfig{})
+	svc := service.New(mocks.NewMockNameStore(ctrl), bin, nil, nil, service.Settings{})
 	if _, err := svc.PkgFiles("r", "a", "p"); err == nil {
 		t.Fatal("expected error from PkgFiles")
 	}
@@ -148,11 +147,11 @@ func TestServiceLocalfsIntegration(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cfg := &conf.AyatoConfig{Repos: []conf.BinRepoConfig{{Name: "myrepo"}}}
+	cfg := &ayatoconfig.AyatoConfig{Repos: []ayatoconfig.BinRepoConfig{{Name: "myrepo"}}}
 	cfg.Store.StorageType = "localfs"
 	cfg.Store.LocalRepoDir = repoRoot
 	binRepo := repository.NewBinaryRepository(localfs.New(repoRoot, []string{"myrepo"}))
-	svc := service.New(nil, binRepo, nil, nil, cfg)
+	svc := service.New(nil, binRepo, nil, nil, settingsFromConfig(cfg))
 
 	names, err := svc.RepoNames()
 	if err != nil || len(names) != 1 || names[0] != "myrepo" {

@@ -5,7 +5,7 @@ import (
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
 
-	"github.com/Hayao0819/Kamisato/ayato/auth"
+	"github.com/Hayao0819/Kamisato/ayato/domain"
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
 )
 
@@ -27,33 +27,11 @@ var spentDeviceConsumption = consumptionPolicy{
 	errorContext: "device: consume",
 }
 
-// DeviceRepository stores RFC 8628 device-authorization requests in the shared kv
-// so the polling client and the separate approval browser can rendezvous without
-// ayato holding process-local state.
-type DeviceRepository interface {
-	// CreateDevice records a fresh pending authorization for ttl.
-	CreateDevice(deviceCode, userCode string, ttl time.Duration) error
-	// LookupByUserCode returns the status of the live record a user_code maps to;
-	// ok is false when none exists (unknown or expired code).
-	LookupByUserCode(userCode string) (status string, ok bool, err error)
-	// ApproveDevice attaches the authenticated identity and marks the record
-	// approved; ok is false when no live record matches.
-	ApproveDevice(userCode string, githubID int64, login string) (ok bool, err error)
-	// DenyDevice marks the record denied (user rejected or not allowlisted).
-	DenyDevice(userCode string) (ok bool, err error)
-	// PollDevice returns the current state a device_code polls for; ok is false
-	// when the record is absent or expired.
-	PollDevice(deviceCode string) (status string, githubID int64, login string, ok bool, err error)
-	// ConsumeDevice removes an authorization once its token has been issued so it
-	// cannot be redeemed twice.
-	ConsumeDevice(deviceCode string) (consumed bool, err error)
-}
-
 type deviceRepository struct {
 	kv kv.Store
 }
 
-func NewDeviceRepository(store kv.Store) DeviceRepository {
+func NewDeviceRepository(store kv.Store) *deviceRepository {
 	return &deviceRepository{kv: store}
 }
 
@@ -64,7 +42,7 @@ func (r *deviceRepository) CreateDevice(deviceCode, userCode string, ttl time.Du
 	rec := deviceRecord{
 		DeviceCode: deviceCode,
 		UserCode:   userCode,
-		Status:     auth.DevicePending,
+		Status:     domain.DevicePending,
 		ExpiresAt:  time.Now().Add(ttl).Unix(),
 	}
 	if err := r.putByCode(deviceCode, rec, ttl); err != nil {
@@ -86,14 +64,14 @@ func (r *deviceRepository) LookupByUserCode(userCode string) (string, bool, erro
 
 func (r *deviceRepository) ApproveDevice(userCode string, githubID int64, login string) (bool, error) {
 	return r.transition(userCode, func(rec *deviceRecord) {
-		rec.Status = auth.DeviceApproved
+		rec.Status = domain.DeviceApproved
 		rec.GitHubID = githubID
 		rec.Login = login
 	})
 }
 
 func (r *deviceRepository) DenyDevice(userCode string) (bool, error) {
-	return r.transition(userCode, func(rec *deviceRecord) { rec.Status = auth.DeviceDenied })
+	return r.transition(userCode, func(rec *deviceRecord) { rec.Status = domain.DeviceDenied })
 }
 
 func (r *deviceRepository) PollDevice(deviceCode string) (string, int64, string, bool, error) {

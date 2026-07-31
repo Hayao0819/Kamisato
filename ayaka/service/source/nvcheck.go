@@ -6,8 +6,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/Hayao0819/Kamisato/pkg/nvcheck"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
+	"github.com/Hayao0819/Kamisato/internal/nvcheck"
+	"github.com/Hayao0819/Kamisato/internal/pacman/source"
 )
 
 // CheckMethod is how an outdated package gets updated: rewriting its PKGBUILD
@@ -42,7 +42,7 @@ type CheckResult struct {
 // helps exactly when the AUR maintainer pushed); its bundled .nvchecker.toml is
 // the AUR maintainer's own upstream watch and is ignored. Other packages are
 // watched per their .nvchecker.toml, against the bare pkgver.
-func CollectNvCheckEntries(srcrepo *repo.SourceRepo) []NvCheckEntry {
+func CollectNvCheckEntries(srcrepo *source.SourceRepo) []NvCheckEntry {
 	var entries []NvCheckEntry
 	for _, p := range srcrepo.Pkgs {
 		if IsAURMirror(p.Dir()) {
@@ -72,7 +72,7 @@ func CollectNvCheckEntries(srcrepo *repo.SourceRepo) []NvCheckEntry {
 
 // RunNvCheck checks srcrepo's monitored packages against their upstreams,
 // read-only.
-func RunNvCheck(ctx context.Context, srcrepo *repo.SourceRepo, client *http.Client) []CheckResult {
+func RunNvCheck(ctx context.Context, srcrepo *source.SourceRepo, client *http.Client) []CheckResult {
 	entries := CollectNvCheckEntries(srcrepo)
 	if len(entries) == 0 {
 		return nil

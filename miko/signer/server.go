@@ -11,7 +11,7 @@ import (
 
 	"github.com/Hayao0819/Kamisato/internal/auth/apikey"
 	"github.com/Hayao0819/Kamisato/internal/limits"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/sign"
+	"github.com/Hayao0819/Kamisato/internal/pacman/sign"
 )
 
 // Handler builds the signer service: a single detach-sign endpoint guarded by the

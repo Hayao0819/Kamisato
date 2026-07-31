@@ -1,10 +1,11 @@
 package service_test
 
 import (
+	"path/filepath"
 	"testing"
 
+	ayatoconfig "github.com/Hayao0819/Kamisato/ayato/config"
 	"github.com/Hayao0819/Kamisato/ayato/domain"
-	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
@@ -25,7 +26,7 @@ type uploader interface {
 // the fan-out set comes from the declaration, not only from stored arches, so an
 // any package is installable on the very first upload.
 func TestUploadAnyFansOutToDeclaredArches(t *testing.T) {
-	svc, _, _ := newTieredService(t, []conf.BinRepoConfig{{Name: "anyrepo", Arches: []string{"x86_64", "aarch64"}}})
+	svc, _, _ := newTieredService(t, []ayatoconfig.BinRepoConfig{{Name: "anyrepo", Arches: []string{"x86_64", "aarch64"}}})
 
 	if err := uploadArch(t, svc, "anyrepo", "noarch", "any"); err != nil {
 		t.Fatalf("upload arch=any to an empty declared repo: %v", err)
@@ -41,7 +42,7 @@ func TestUploadAnyFansOutToDeclaredArches(t *testing.T) {
 // not opt into new ones rejects an upload for an arch outside the set, so a
 // mislabeled package cannot silently add an arch (e.g. x86_64 into an i686 repo).
 func TestUploadRejectsUndeclaredArch(t *testing.T) {
-	svc, _, _ := newTieredService(t, []conf.BinRepoConfig{{Name: "pinned", Arches: []string{"x86_64"}}})
+	svc, _, _ := newTieredService(t, []ayatoconfig.BinRepoConfig{{Name: "pinned", Arches: []string{"x86_64"}}})
 
 	err := uploadArch(t, svc, "pinned", "foo", "aarch64")
 	if !errors.Is(err, domain.ErrInvalidUpload) {
@@ -57,7 +58,9 @@ func TestUploadRejectsUndeclaredArch(t *testing.T) {
 // repo's already-published arch=any packages into it — an any package added before
 // the arch existed stays installable there.
 func TestAllowNewArchBackfillsAny(t *testing.T) {
-	svc, _, _ := newTieredService(t, []conf.BinRepoConfig{{Name: "growable", Arches: []string{"x86_64"}, AllowNewArch: true}})
+	tempDir := t.TempDir()
+	t.Setenv("TMPDIR", tempDir)
+	svc, _, _ := newTieredService(t, []ayatoconfig.BinRepoConfig{{Name: "growable", Arches: []string{"x86_64"}, AllowNewArch: true}})
 
 	if err := uploadArch(t, svc, "growable", "noarch", "any"); err != nil {
 		t.Fatalf("upload arch=any: %v", err)
@@ -76,6 +79,13 @@ func TestAllowNewArchBackfillsAny(t *testing.T) {
 	if !has(got, "noarch") {
 		t.Fatalf("arch=any package not backfilled into the new arch aarch64: %v", got)
 	}
+	spooled, err := filepath.Glob(filepath.Join(tempDir, "ayato-publication-*"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(spooled) != 0 {
+		t.Fatalf("backfill left publication files behind: %v", spooled)
+	}
 }
 
 // TestAllowNewArchBatchUpgradesBackfilledAny covers the state ordering inside a
@@ -83,7 +93,7 @@ func TestAllowNewArchBackfillsAny(t *testing.T) {
 // its conditional snapshot. Otherwise the backfilled old version looks like a
 // concurrent insert and the batch rejects its own work.
 func TestAllowNewArchBatchUpgradesBackfilledAny(t *testing.T) {
-	svc, _, _ := newTieredService(t, []conf.BinRepoConfig{{
+	svc, _, _ := newTieredService(t, []ayatoconfig.BinRepoConfig{{
 		Name:         "growable",
 		Arches:       []string{"x86_64"},
 		AllowNewArch: true,

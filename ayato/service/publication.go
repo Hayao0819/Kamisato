@@ -8,9 +8,8 @@ import (
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
 
+	"github.com/Hayao0819/Kamisato/ayato/blob"
 	"github.com/Hayao0819/Kamisato/ayato/domain"
-	"github.com/Hayao0819/Kamisato/ayato/platform"
-	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
 )
 
 func (s *Service) acquirePublicationLease(repo string) (func(), error) {
@@ -30,8 +29,8 @@ func (s *Service) acquirePublicationLease(repo string) (func(), error) {
 // spooledPackage owns re-seekable package bytes and its optional signature.
 // Publication, promotion, arch backfill, and rollback all need this same pair.
 type spooledPackage struct {
-	pkg      platform.SeekFile
-	sig      platform.SeekFile
+	pkg      blob.SeekFile
+	sig      blob.SeekFile
 	cleanups []func()
 }
 
@@ -67,12 +66,12 @@ func (a *spooledPackage) close() {
 
 func (s *Service) storeImmutableFile(
 	repo, arch string,
-	file platform.SeekFile,
+	file blob.SeekFile,
 ) error {
 	if file == nil {
 		return nil
 	}
-	if err := platform.Rewind(file); err != nil {
+	if err := blob.Rewind(file); err != nil {
 		return errors.WrapErr(err, "rewind immutable object")
 	}
 	_, err := s.pkgBinaryRepo.StoreFileImmutable(repo, arch, file)
@@ -83,7 +82,7 @@ func (s *Service) storeSpooledPackage(
 	repo, arch string,
 	artifact *spooledPackage,
 ) error {
-	for _, file := range []platform.SeekFile{artifact.pkg, artifact.sig} {
+	for _, file := range []blob.SeekFile{artifact.pkg, artifact.sig} {
 		if file == nil {
 			continue
 		}
@@ -102,7 +101,7 @@ func closeSpooledPackages(artifacts []*spooledPackage) {
 
 func (s *Service) spoolRepositoryFile(
 	repo, arch, filename string,
-) (platform.SeekFile, func(), error) {
+) (blob.SeekFile, func(), error) {
 	source, err := s.pkgBinaryRepo.FetchFile(repo, arch, filename)
 	if err != nil {
 		return nil, nil, err
@@ -112,7 +111,7 @@ func (s *Service) spoolRepositoryFile(
 
 // spoolSource copies source to a temp file and closes source. maxBytes > 0
 // bounds the copy so an oversized storage object cannot exhaust local disk.
-func spoolSource(source platform.File, filename string, maxBytes int64) (platform.SeekFile, func(), error) {
+func spoolSource(source blob.File, filename string, maxBytes int64) (blob.SeekFile, func(), error) {
 	defer source.Close()
 
 	tmp, err := os.CreateTemp("", "ayato-publication-")
@@ -136,11 +135,11 @@ func spoolSource(source platform.File, filename string, maxBytes int64) (platfor
 		cleanup()
 		return nil, nil, fmt.Errorf("%w: %s exceeds its size limit", domain.ErrInvalidUpload, filename)
 	}
-	if err := platform.Rewind(tmp); err != nil {
+	if err := blob.Rewind(tmp); err != nil {
 		cleanup()
 		return nil, nil, err
 	}
-	file := platform.NewFileStream(
+	file := blob.NewFileStream(
 		path.Base(filename),
 		source.ContentType(),
 		noRemoveClose{tmp},

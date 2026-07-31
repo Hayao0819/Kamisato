@@ -10,8 +10,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/samber/lo"
 
+	"github.com/Hayao0819/Kamisato/ayato/blob"
 	"github.com/Hayao0819/Kamisato/ayato/domain"
-	"github.com/Hayao0819/Kamisato/ayato/platform"
 	"github.com/Hayao0819/Kamisato/internal/limits"
 )
 
@@ -90,7 +90,7 @@ func (h *PublicationHandler) BlinkyUploadHandler(ctx *gin.Context) {
 	}
 	form, ok := parseUploadForm(
 		ctx,
-		limits.MultipartBytes(h.cfg.MaxSize),
+		limits.MultipartBytes(h.settings.MaxSize),
 		"upload exceeds max_size",
 	)
 	if !ok {
@@ -107,19 +107,19 @@ func (h *PublicationHandler) BlinkyUploadHandler(ctx *gin.Context) {
 		respondError(ctx, http.StatusBadRequest, "no package file found in the request")
 		return
 	}
-	if !lo.Contains(names, "signature") && h.cfg.RequireSign {
+	if !lo.Contains(names, "signature") && h.settings.RequireSign {
 		respondError(ctx, http.StatusBadRequest, "signature file is required")
 		return
 	}
 
-	pkgHeader, err := formFileWithValidate(ctx, "package", h.cfg.MaxSize)
+	pkgHeader, err := formFileWithValidate(ctx, "package", h.settings.MaxSize)
 	if err != nil {
 		respondError(ctx, uploadFileErrorStatus(err), "invalid package file")
 		return
 	}
 	sigHeader, err := ctx.FormFile("signature")
 	if err != nil {
-		if h.cfg.RequireSign {
+		if h.settings.RequireSign {
 			respondError(ctx, http.StatusBadRequest, "invalid signature file")
 			return
 		}
@@ -137,11 +137,11 @@ func (h *PublicationHandler) BlinkyUploadHandler(ctx *gin.Context) {
 		return
 	}
 	defer func() { _ = pkgStream.Close() }()
-	var sigStream *platform.FileStream
+	var sigStream *blob.FileStream
 	if sigHeader != nil {
 		sigStream, err = formFileStream(sigHeader)
 		if err != nil {
-			if h.cfg.RequireSign {
+			if h.settings.RequireSign {
 				respondLoggedError(ctx, http.StatusInternalServerError, "open uploaded signature", "failed to read uploaded signature", err)
 				return
 			}

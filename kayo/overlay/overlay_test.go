@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/Hayao0819/Kamisato/internal/conf"
+	kayoconfig "github.com/Hayao0819/Kamisato/kayo/config"
 )
 
 // makeOverlayRepo builds a local git repo exporting one package `name` at
@@ -39,7 +39,7 @@ func makeOverlayRepo(t *testing.T, name, version string) string {
 	return dir
 }
 
-func syncedRegistry(t *testing.T, overlays []conf.OverlayConfig) *Registry {
+func syncedRegistry(t *testing.T, overlays []kayoconfig.OverlayConfig) *Registry {
 	t.Helper()
 	r := New(t.TempDir(), overlays)
 	if err := r.Sync(context.Background()); err != nil {
@@ -58,13 +58,13 @@ func TestOverlayPriorityShadowing(t *testing.T) {
 
 	cases := []struct {
 		name     string
-		overlays []conf.OverlayConfig
+		overlays []kayoconfig.OverlayConfig
 	}{
-		{"low-then-high", []conf.OverlayConfig{
+		{"low-then-high", []kayoconfig.OverlayConfig{
 			{Name: "low", URL: low, Priority: 1},
 			{Name: "high", URL: high, Priority: 10},
 		}},
-		{"high-then-low", []conf.OverlayConfig{
+		{"high-then-low", []kayoconfig.OverlayConfig{
 			{Name: "high", URL: high, Priority: 10},
 			{Name: "low", URL: low, Priority: 1},
 		}},
@@ -84,7 +84,7 @@ func TestOverlayPriorityShadowing(t *testing.T) {
 // which the daemon needs to materialize an approved pin from the overlay tree.
 func TestSourceDirs(t *testing.T) {
 	repo := makeOverlayRepo(t, "mypkg", "1")
-	r := syncedRegistry(t, []conf.OverlayConfig{{Name: "ov", URL: repo}})
+	r := syncedRegistry(t, []kayoconfig.OverlayConfig{{Name: "ov", URL: repo}})
 
 	dirs := r.SourceDirs()
 	dir, ok := dirs["mypkg"]
@@ -107,7 +107,7 @@ func TestOverlayEqualPriorityKeepsFirst(t *testing.T) {
 	first := makeOverlayRepo(t, "shared", "1")
 	second := makeOverlayRepo(t, "shared", "2")
 
-	r := syncedRegistry(t, []conf.OverlayConfig{
+	r := syncedRegistry(t, []kayoconfig.OverlayConfig{
 		{Name: "first", URL: first, Priority: 5},
 		{Name: "second", URL: second, Priority: 5},
 	})

@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Hayao0819/Kamisato/pkg/pacman/sign"
+	"github.com/Hayao0819/Kamisato/internal/pacman/sign"
 )
 
 func TestImportFromStdin(t *testing.T) {

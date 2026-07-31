@@ -8,11 +8,11 @@ import (
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
 
+	"github.com/Hayao0819/Kamisato/ayato/blob"
 	"github.com/Hayao0819/Kamisato/ayato/domain"
-	"github.com/Hayao0819/Kamisato/ayato/platform"
 	"github.com/Hayao0819/Kamisato/internal/limits"
-	pacmanpkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/sign"
+	pacmanpkg "github.com/Hayao0819/Kamisato/internal/pacman"
+	"github.com/Hayao0819/Kamisato/internal/pacman/sign"
 	"github.com/Hayao0819/Kamisato/pkg/raiou"
 )
 
@@ -64,12 +64,12 @@ func (p *uploadPublication) batchKeyring() (*sign.Keyring, error) {
 
 func newUploadValidator(service *Service, keyring *sign.Keyring) *uploadValidator {
 	validator := &uploadValidator{service: service, keyring: keyring}
-	if service.cfg != nil {
+	if len(service.settings.ProtectedNames) > 0 {
 		validator.protectedNames = make(
 			map[string]struct{},
-			len(service.cfg.ProtectedNames),
+			len(service.settings.ProtectedNames),
 		)
-		for _, name := range service.cfg.ProtectedNames {
+		for _, name := range service.settings.ProtectedNames {
 			validator.protectedNames[name] = struct{}{}
 		}
 	}
@@ -125,7 +125,7 @@ func (v *uploadValidator) validate(files *domain.UploadFiles) (preparedUpload, e
 	return upload, nil
 }
 
-func (v *uploadValidator) checkSize(file platform.SeekFile) error {
+func (v *uploadValidator) checkSize(file blob.SeekFile) error {
 	current, err := file.Seek(0, io.SeekCurrent)
 	if err != nil {
 		return errors.WrapErr(err, "failed to inspect package size")
@@ -137,10 +137,7 @@ func (v *uploadValidator) checkSize(file platform.SeekFile) error {
 	if _, err := file.Seek(current, io.SeekStart); err != nil {
 		return errors.WrapErr(err, "failed to restore package stream")
 	}
-	maxSize := 0
-	if v.service.cfg != nil {
-		maxSize = v.service.cfg.MaxSize
-	}
+	maxSize := v.service.settings.MaxPackageSize
 	if limits.Exceeds(size, maxSize) {
 		return fmt.Errorf(
 			"%w: package exceeds max_size (%d > %d bytes)",

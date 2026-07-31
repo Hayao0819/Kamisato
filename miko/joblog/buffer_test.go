@@ -48,10 +48,24 @@ func TestBufferCapEnforced(t *testing.T) {
 	if b.Len() >= totalWritten {
 		t.Errorf("buffer len %d should be far below total written %d", b.Len(), totalWritten)
 	}
-	// Bounded by maxBytes + one full write + the marker, never the full total.
-	markerFull := "\n--- log truncated (max 64 bytes) ---\n"
-	if upper := max + len(chunk) + len(markerFull); b.Len() > upper {
-		t.Errorf("buffer len %d exceeds bound %d (cap + one write + marker)", b.Len(), upper)
+	if b.Len() > max {
+		t.Errorf("buffer len %d exceeds cap %d", b.Len(), max)
+	}
+}
+
+func TestBufferSingleWriteCannotExceedCap(t *testing.T) {
+	const max = 64
+	b := New(max)
+	p := []byte(strings.Repeat("x", 1<<20))
+	n, err := b.Write(p)
+	if err != nil || n != len(p) {
+		t.Fatalf("Write = (%d, %v), want (%d, nil)", n, err, len(p))
+	}
+	if b.Len() > max {
+		t.Fatalf("buffer len %d exceeds cap %d", b.Len(), max)
+	}
+	if !strings.Contains(b.String(), "--- log truncated") {
+		t.Fatalf("truncation marker missing: %q", b.String())
 	}
 }
 
@@ -98,6 +112,10 @@ func TestBufferBytesFromClosed(t *testing.T) {
 	b := New(0)
 	_, _ = b.Write([]byte("x"))
 	b.Close()
+	_, _ = b.Write([]byte("y"))
+	if got := b.String(); got != "x" {
+		t.Fatalf("write after close changed buffer to %q", got)
+	}
 	_, _, closed := b.BytesFrom(0)
 	if !closed {
 		t.Error("BytesFrom should report closed after Close")

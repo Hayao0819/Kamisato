@@ -10,7 +10,7 @@ import (
 
 	"github.com/Hayao0819/Kamisato/internal/auth/apikey"
 	"github.com/Hayao0819/Kamisato/internal/errors"
-	"github.com/Hayao0819/Kamisato/internal/protocol"
+	"github.com/Hayao0819/Kamisato/internal/mikoapi"
 
 	"github.com/gin-gonic/gin"
 
@@ -22,7 +22,7 @@ const maxBuildRequestBytes = 32 << 20
 // POST /api/unstable/build -> 202 {"job_id": id}
 func (h *Handler) SubmitBuildHandler(c *gin.Context) {
 	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxBuildRequestBytes)
-	var req protocol.BuildRequest
+	var req mikoapi.BuildRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		var maxErr *http.MaxBytesError
 		if stderrors.As(err, &maxErr) {
@@ -100,7 +100,7 @@ func (h *Handler) JobLogsHandler(c *gin.Context) {
 	}
 
 	// Cap concurrent SSE readers per job to bound long-lived streaming goroutines.
-	maxReaders := h.cfg.MaxLogReaders
+	maxReaders := h.settings.MaxLogReaders
 	h.logReadersMu.Lock()
 	if h.logReaders[id] >= maxReaders {
 		h.logReadersMu.Unlock()
@@ -142,7 +142,7 @@ func (h *Handler) JobLogsHandler(c *gin.Context) {
 	defer ticker.Stop()
 
 	offset := 0
-	emit := func() bool {
+	emit := func() (bool, error) {
 		// BytesFrom reads closed atomically with the bytes, so the final write isn't missed.
 		chunk, _, closed := buf.BytesFrom(offset)
 		// Hold a trailing partial line until its newline arrives, so one log line
@@ -156,23 +156,33 @@ func (h *Handler) JobLogsHandler(c *gin.Context) {
 			}
 		}
 		if len(data) > 0 {
+			if err := rc.SetWriteDeadline(time.Now().Add(flushDeadline)); err != nil && !stderrors.Is(err, http.ErrNotSupported) {
+				return false, err
+			}
 			lines := strings.Split(string(data), "\n")
 			// Drop the empty tail a chunk ending in "\n" produces.
 			if n := len(lines); n > 0 && lines[n-1] == "" {
 				lines = lines[:n-1]
 			}
 			for _, line := range lines {
-				fmt.Fprintf(c.Writer, "data: %s\n\n", line)
+				if _, err := fmt.Fprintf(c.Writer, "data: %s\n\n", line); err != nil {
+					return false, err
+				}
 			}
-			_ = rc.SetWriteDeadline(time.Now().Add(flushDeadline))
-			c.Writer.Flush()
+			if err := rc.Flush(); err != nil {
+				return false, err
+			}
+			if err := rc.SetWriteDeadline(time.Time{}); err != nil && !stderrors.Is(err, http.ErrNotSupported) {
+				return false, err
+			}
 			offset += len(data)
 		}
-		return closed
+		return closed, nil
 	}
 
 	// Flush whatever is already buffered before waiting on the ticker.
-	if emit() {
+	closed, err := emit()
+	if err != nil || closed {
 		return
 	}
 
@@ -181,7 +191,8 @@ func (h *Handler) JobLogsHandler(c *gin.Context) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			if emit() {
+			closed, err := emit()
+			if err != nil || closed {
 				return
 			}
 		}

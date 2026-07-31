@@ -9,7 +9,6 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/Hayao0819/Kamisato/ayato/auth"
-	"github.com/Hayao0819/Kamisato/internal/conf"
 )
 
 const (
@@ -47,7 +46,7 @@ func testMiddleware(t *testing.T) (*Middleware, *auth.Signer) {
 	if err != nil {
 		t.Fatalf("NewSigner: %v", err)
 	}
-	middleware := New(&conf.AyatoConfig{}).WithAuth(checker, signer)
+	middleware := New(Settings{}).WithAuth(checker, signer)
 	return middleware, signer
 }
 
@@ -93,7 +92,7 @@ func run(
 
 func TestRequireAdminFailsClosedWithoutAuth(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	middleware := New(&conf.AyatoConfig{})
+	middleware := New(Settings{})
 	for _, allowBasic := range []bool{true, false} {
 		response := run(middleware, allowBasic, func(*http.Request) {})
 		if response.Code != http.StatusServiceUnavailable {
@@ -146,7 +145,7 @@ func TestRequireAdminCookieRequiresSecFetch(t *testing.T) {
 	request := func(site string) *httptest.ResponseRecorder {
 		return run(middleware, false, func(request *http.Request) {
 			request.AddCookie(&http.Cookie{
-				Name: middleware.cfg.Auth.CookieName(), Value: token,
+				Name: middleware.sessionCookieName(), Value: token,
 			})
 			if site != "" {
 				request.Header.Set("Sec-Fetch-Site", site)
@@ -163,12 +162,12 @@ func TestRequireAdminCookieRequiresSecFetch(t *testing.T) {
 
 func TestRequireAdminCookieOriginFallback(t *testing.T) {
 	middleware, signer := testMiddleware(t)
-	middleware.cfg.Auth.PublicOrigin = "https://repo.example.com"
+	middleware.settings.PublicOrigin = "https://repo.example.com"
 	token := sessionToken(t, signer, 42, "alice")
 	withCookie := func(mutate func(*http.Request)) *httptest.ResponseRecorder {
 		return run(middleware, false, func(request *http.Request) {
 			request.AddCookie(&http.Cookie{
-				Name: middleware.cfg.Auth.CookieName(), Value: token,
+				Name: middleware.sessionCookieName(), Value: token,
 			})
 			mutate(request)
 		})

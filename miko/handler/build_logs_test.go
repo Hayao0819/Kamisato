@@ -10,7 +10,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"go.uber.org/mock/gomock"
 
-	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/miko/domain"
 	"github.com/Hayao0819/Kamisato/miko/joblog"
 	"github.com/Hayao0819/Kamisato/miko/test/mocks"
@@ -21,7 +20,7 @@ func TestJobLogsHandlerEmitsLinesOnce(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	mockSvc := mocks.NewMockServicer(ctrl)
-	h := New(mockSvc, &conf.MikoConfig{MaxLogReaders: 8})
+	h := New(mockSvc, Settings{MaxLogReaders: 8})
 
 	buf := joblog.New(0)
 	_, _ = buf.Write([]byte("line1\nline2\nline3\n"))
@@ -55,7 +54,7 @@ func TestJobLogsHandlerHoldsPartialLine(t *testing.T) {
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 		mockSvc := mocks.NewMockServicer(ctrl)
-		h := New(mockSvc, &conf.MikoConfig{MaxLogReaders: 8})
+		h := New(mockSvc, Settings{MaxLogReaders: 8})
 
 		// A chunk that does not end in a newline must be held, not framed on its own.
 		buf := joblog.New(0)
@@ -97,7 +96,7 @@ func TestJobLogsHandlerReaderCap(t *testing.T) {
 	mockSvc := mocks.NewMockServicer(ctrl)
 
 	const cap = 3
-	h := New(mockSvc, &conf.MikoConfig{MaxLogReaders: cap})
+	h := New(mockSvc, Settings{MaxLogReaders: cap})
 
 	// The reader cap rejects with 429 before the live buffer is ever consulted.
 	mockSvc.EXPECT().Status("job1").Return(&domain.BuildJob{ID: "job1"}, nil)
@@ -121,5 +120,12 @@ func TestJobLogsHandlerReaderCap(t *testing.T) {
 	h.logReadersMu.Unlock()
 	if got != cap {
 		t.Errorf("reader count = %d, want unchanged %d after 429", got, cap)
+	}
+}
+
+func TestHandlerDefaultsLogReaderCap(t *testing.T) {
+	h := New(nil, Settings{MaxLogReaders: -1})
+	if h.settings.MaxLogReaders != 8 {
+		t.Fatalf("max log readers = %d, want 8", h.settings.MaxLogReaders)
 	}
 }

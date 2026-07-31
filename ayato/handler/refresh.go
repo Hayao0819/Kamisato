@@ -12,17 +12,11 @@ import (
 const cliTokenName = "cli"
 
 func (h *AuthHandler) accessTTL() time.Duration {
-	if h.cfg != nil {
-		return h.cfg.Auth.AccessTokenTTL()
-	}
-	return time.Hour
+	return h.settings.Auth.AccessTokenTTL
 }
 
 func (h *AuthHandler) refreshTTL() time.Duration {
-	if h.cfg != nil {
-		return h.cfg.Auth.RefreshTokenTTL()
-	}
-	return 30 * 24 * time.Hour
+	return h.settings.Auth.RefreshTokenTTL
 }
 
 // issueAccessRefresh creates a CLI session family.

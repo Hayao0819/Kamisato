@@ -1,12 +1,23 @@
 package source
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 
-	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/internal/errors"
+	pacmansource "github.com/Hayao0819/Kamisato/internal/pacman/source"
 )
+
+type scaffoldConfig struct {
+	Repos []scaffoldRepoEntry `json:"repos"`
+	Debug bool                `json:"debug"`
+}
+
+type scaffoldRepoEntry struct {
+	Dir     string `json:"dir"`
+	DestDir string `json:"destdir"`
+}
 
 // Scaffolded reports where Scaffold placed the new repository's pieces.
 type Scaffolded struct {
@@ -51,14 +62,14 @@ func Scaffold(targetDir, repoName, maintainer, destDir string) (*Scaffolded, err
 		return nil, errors.WrapErr(err, "failed to compute output directory path")
 	}
 
-	ayakarc := conf.AyakaConfig{
-		Repos: []conf.RepoEntry{{
+	ayakarc := scaffoldConfig{
+		Repos: []scaffoldRepoEntry{{
 			Dir:     relRepoDir,
 			DestDir: relOutDir,
 		}},
 		Debug: false,
 	}
-	ayakarcBytes, err := ayakarc.Marshal()
+	ayakarcBytes, err := json.MarshalIndent(ayakarc, "", "  ")
 	if err != nil {
 		return nil, errors.WrapErr(err, "failed to marshal ayaka config")
 	}
@@ -73,7 +84,7 @@ func Scaffold(targetDir, repoName, maintainer, destDir string) (*Scaffolded, err
 		return nil, errors.WrapErr(err, "failed to create output directory")
 	}
 
-	repoconf := conf.SrcRepoConfig{
+	repoconf := pacmansource.SrcConfig{
 		Name:       repoName,
 		Maintainer: maintainer,
 	}

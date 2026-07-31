@@ -6,9 +6,9 @@ import (
 	"log/slog"
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
+	depend "github.com/Hayao0819/Kamisato/internal/pacman"
 	"github.com/Hayao0819/Kamisato/miko/domain"
 	"github.com/Hayao0819/Kamisato/pkg/aurweb"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/depend"
 )
 
 // maintainerLookup is the slice of the aurweb upstream the trust gate needs:

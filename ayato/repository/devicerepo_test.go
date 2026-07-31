@@ -8,7 +8,7 @@ import (
 	"github.com/Hayao0819/Kamisato/ayato/auth"
 )
 
-func newTestDeviceRepo(t *testing.T) DeviceRepository {
+func newTestDeviceRepo(t *testing.T) *deviceRepository {
 	t.Helper()
 	return NewDeviceRepository(newTestKV(t))
 }

@@ -119,7 +119,7 @@ func TestRedteam_XFFHonoredOnlyFromTrustedCIDR(t *testing.T) {
 }
 
 // TestRedteam_TrustAllSpellingHonorsForgedXFF is the runtime half of the
-// conf.TestRedteam_TrustAllSpellingBypass PoC: it proves that the any-net
+// config.TestRedteam_TrustAllSpellingBypass PoC: it proves that the any-net
 // spellings Validate fails to catch ("0000:0000::/0", "0.0.0.0/00") cause gin to
 // honor a forged X-Forwarded-For from an ARBITRARY peer, which re-enables the
 // rotating-XFF rate-limit bypass. The canonical forms ("::/0","0.0.0.0/0") behave
@@ -156,9 +156,9 @@ func TestRedteam_TrustAllSpellingHonorsForgedXFF(t *testing.T) {
 			t.Fatalf("%q: expected gin to honor forged XFF (trust-all), but ClientIP=%q", tc.cidr, got)
 		}
 		if !tc.blockedByValidate {
-			t.Logf("VULN: %q passes conf.Validate AND makes gin trust forged XFF from %s -> bypass", tc.cidr, tc.peer)
+			t.Logf("VULN: %q passes config.Validate AND makes gin trust forged XFF from %s -> bypass", tc.cidr, tc.peer)
 		} else {
-			t.Logf("(canonical) %q makes gin trust forged XFF, but conf.Validate rejects this spelling", tc.cidr)
+			t.Logf("(canonical) %q makes gin trust forged XFF, but config.Validate rejects this spelling", tc.cidr)
 		}
 	}
 }

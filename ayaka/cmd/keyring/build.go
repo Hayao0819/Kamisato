@@ -5,7 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
+	"github.com/Hayao0819/Kamisato/ayaka/cli"
 )
 
 func buildCmd() *cobra.Command {
@@ -18,7 +18,7 @@ func buildCmd() *cobra.Command {
 		Short: "Build the keyring package into a local directory",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			k, _, err := shared.LoadSigningKey(cmd)
+			k, _, err := cli.LoadSigningKey(cmd)
 			if err != nil {
 				return err
 			}

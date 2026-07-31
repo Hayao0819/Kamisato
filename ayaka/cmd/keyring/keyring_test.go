@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/sign"
+	pkg "github.com/Hayao0819/Kamisato/internal/pacman"
+	"github.com/Hayao0819/Kamisato/internal/pacman/sign"
 )
 
 func newKeyHome(t *testing.T) string {

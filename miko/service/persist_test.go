@@ -4,7 +4,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/miko/domain"
 )
 
@@ -58,7 +57,7 @@ func TestRestoreMarksInterrupted(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	s := New(&conf.MikoConfig{DataDir: dir}, WithPersister(p))
+	s := New(Settings{DataDir: dir}, WithPersister(p))
 
 	run, err := s.Status("run1")
 	if err != nil {

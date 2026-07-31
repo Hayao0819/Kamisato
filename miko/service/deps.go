@@ -9,10 +9,10 @@ import (
 	"strings"
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
+	depend "github.com/Hayao0819/Kamisato/internal/pacman"
+	"github.com/Hayao0819/Kamisato/internal/pacman/builder"
 	"github.com/Hayao0819/Kamisato/miko/domain"
 	"github.com/Hayao0819/Kamisato/pkg/aurweb"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/builder"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/depend"
 	"github.com/Hayao0819/Kamisato/pkg/raiou"
 )
 
@@ -20,7 +20,7 @@ import (
 // publishes each to ayato so the target can install it. No-op unless enabled; deps
 // are read from .SRCINFO, never by sourcing the untrusted PKGBUILD on the host.
 func (s *Service) resolveAndBuildDeps(ctx context.Context, job *domain.BuildJob, backend builder.Backend, srcDir string) error {
-	if !s.cfg.Build.ResolveAURDeps {
+	if !s.settings.ResolveAURDependencies {
 		return nil
 	}
 
@@ -29,7 +29,7 @@ func (s *Service) resolveAndBuildDeps(ctx context.Context, job *domain.BuildJob,
 		slog.Warn("resolve_aur_deps is on but the source has no .SRCINFO; skipping AUR dependency resolution", "err", err)
 		return nil
 	}
-	rootDeps, err := srcinfoBuildDeps(data, job.Request.Arch)
+	rootDeps, err := srcinfoBuildDeps(data, job.Request.Arch, job.Request.RunCheck)
 	if err != nil {
 		slog.Warn("could not parse the source .SRCINFO; skipping AUR dependency resolution", "err", err)
 		return nil
@@ -38,7 +38,7 @@ func (s *Service) resolveAndBuildDeps(ctx context.Context, job *domain.BuildJob,
 		return nil
 	}
 
-	up := aurweb.NewAURUpstream(s.cfg.Build.AURRPCURL)
+	up := aurweb.NewAURUpstream(s.settings.AURRPCURL)
 	order, err := depend.Resolve(ctx, rootDeps, NewRepoChecker(), NewAURSource(up))
 	if err != nil {
 		return errors.WrapErr(err, "failed to resolve AUR dependencies")
@@ -89,10 +89,15 @@ func (s *Service) buildAndPublishDep(ctx context.Context, job *domain.BuildJob, 
 	defer func() { _ = os.RemoveAll(depOut) }()
 
 	spec := builder.Spec{
-		SrcDir:    depSrc,
-		OutDir:    depOut,
-		Arch:      job.Request.Arch,
-		LogWriter: s.LogBuffer(job.ID),
+		SrcDir:        depSrc,
+		OutDir:        depOut,
+		Arch:          job.Request.Arch,
+		LogWriter:     s.LogBuffer(job.ID),
+		IgnoreArch:    job.Request.IgnoreArch,
+		RunCheck:      job.Request.RunCheck,
+		RunVerify:     job.Request.RunVerify,
+		SkipChecksums: job.Request.SkipChecksums,
+		SkipPGPCheck:  job.Request.SkipPGPCheck,
 	}
 	res, err := backend.Build(ctx, spec)
 	if err != nil {
@@ -104,7 +109,7 @@ func (s *Service) buildAndPublishDep(ctx context.Context, job *domain.BuildJob, 
 // srcinfoBuildDeps extracts the build-relevant dependency specs (depends,
 // makedepends, checkdepends) from .SRCINFO content, merging the arch-specific
 // variants for arch, preserving order and de-duplicating.
-func srcinfoBuildDeps(data []byte, arch string) ([]string, error) {
+func srcinfoBuildDeps(data []byte, arch string, runCheck *bool) ([]string, error) {
 	si, err := raiou.ParseSrcinfoString(string(data))
 	if err != nil {
 		return nil, err
@@ -123,7 +128,9 @@ func srcinfoBuildDeps(data []byte, arch string) ([]string, error) {
 	}
 
 	add(si.MakeDepends.ForArch(arch))
-	add(si.CheckDepends.ForArch(arch))
+	if runCheck == nil || *runCheck {
+		add(si.CheckDepends.ForArch(arch))
+	}
 	packages := si.SplitPackages()
 	if len(packages) == 0 {
 		add(si.Depends.ForArch(arch))

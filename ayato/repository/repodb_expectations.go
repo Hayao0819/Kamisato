@@ -5,7 +5,7 @@ import (
 	"path"
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
-	pacmanrepo "github.com/Hayao0819/Kamisato/pkg/pacman/repo"
+	pacmanrepo "github.com/Hayao0819/Kamisato/internal/pacman/repo"
 )
 
 func validateAddExpectations(dbPath string, items []RepoAddItem) error {

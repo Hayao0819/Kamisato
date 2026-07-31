@@ -4,14 +4,14 @@ on:
   push:
     paths:
       - 'lumine/web/**'
-      - 'internal/protocol/**'
+      - 'internal/mikoapi/**'
       - 'ayato/domain/**'
       - 'pkg/raiou/**'
       - '.github/workflows/web-test.yml'
   pull_request:
     paths:
       - 'lumine/web/**'
-      - 'internal/protocol/**'
+      - 'internal/mikoapi/**'
       - 'ayato/domain/**'
       - 'pkg/raiou/**'
       - '.github/workflows/web-test.yml'

@@ -6,7 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
+	"github.com/Hayao0819/Kamisato/ayaka/cli"
 	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
@@ -24,7 +24,7 @@ func bootstrapCmd() *cobra.Command {
 		Long:  "Emit the pacman-key/pacman-U sequence, with this key's fingerprint filled in, that a user runs to trust the repository before its keyring package can verify. Chicken-and-egg: the keyring package is signed by the very key it distributes, so the key must be trusted out of band first.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			k, _, err := shared.LoadSigningKey(cmd)
+			k, _, err := cli.LoadSigningKey(cmd)
 			if err != nil {
 				return err
 			}

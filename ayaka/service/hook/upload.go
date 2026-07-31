@@ -8,9 +8,8 @@ import (
 	"github.com/samber/lo"
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
-	"github.com/Hayao0819/Kamisato/pkg/pacman"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/makepkgconf"
-	pacmanpkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
+	pacmanpkg "github.com/Hayao0819/Kamisato/internal/pacman"
+	pacmanhost "github.com/Hayao0819/Kamisato/internal/pacman/host"
 )
 
 // CollectFiles resolves the on-disk package files for names: by default only
@@ -22,7 +21,7 @@ func CollectFiles(names []string, all bool, cacheOverride, buildDirs []string, p
 	// Target=* otherwise fires for every official-repo package, which
 	// already lives on mirrors.
 	if !all {
-		foreign, err := pacman.ForeignPackages()
+		foreign, err := pacmanhost.ForeignPackages()
 		if err != nil {
 			return nil, errors.WrapErr(err, "could not determine foreign packages; pass --all to upload every target")
 		}
@@ -40,13 +39,13 @@ func CollectFiles(names []string, all bool, cacheOverride, buildDirs []string, p
 	dirs := cacheOverride
 	if len(dirs) == 0 {
 		dirs = append([]string{}, buildDirs...)
-		if config, err := makepkgconf.Read(); err == nil && config.PKGDEST != "" {
+		if config, err := pacmanhost.Read(); err == nil && config.PKGDEST != "" {
 			dirs = append(dirs, config.PKGDEST)
 		}
-		dirs = append(dirs, pacman.CacheDirs(pacmanConf)...)
+		dirs = append(dirs, pacmanhost.CacheDirs(pacmanConf)...)
 	}
 
-	installed, err := pacman.InstalledPackages()
+	installed, err := pacmanhost.InstalledPackages()
 	if err != nil {
 		return nil, errors.WrapErr(err, "read installed package versions")
 	}

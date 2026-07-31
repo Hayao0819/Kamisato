@@ -6,7 +6,6 @@ import (
 	"github.com/Hayao0819/Kamisato/ayato/repository"
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv/badgerkv"
 	"github.com/Hayao0819/Kamisato/ayato/service"
-	"github.com/Hayao0819/Kamisato/internal/conf"
 )
 
 // newAuthService builds a real badgerkv-backed service so tests exercise the
@@ -19,7 +18,7 @@ func newAuthService(t *testing.T) service.Servicer {
 	}
 	t.Cleanup(func() { _ = store.Close() })
 	authRepo := repository.NewAuthRepository(store)
-	return service.New(nil, nil, authRepo, nil, &conf.AyatoConfig{})
+	return service.New(nil, nil, authRepo, nil, service.Settings{})
 }
 
 func TestServiceSeedBootstrapAdmin(t *testing.T) {

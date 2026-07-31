@@ -12,12 +12,12 @@ import (
 	"github.com/ProtonMail/go-crypto/openpgp/packet"
 	"go.uber.org/mock/gomock"
 
+	"github.com/Hayao0819/Kamisato/ayato/blob"
 	"github.com/Hayao0819/Kamisato/ayato/domain"
-	"github.com/Hayao0819/Kamisato/ayato/platform"
 	"github.com/Hayao0819/Kamisato/ayato/repository"
 	"github.com/Hayao0819/Kamisato/ayato/service"
 	"github.com/Hayao0819/Kamisato/ayato/test/mocks"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
+	"github.com/Hayao0819/Kamisato/internal/pacman/repo"
 )
 
 func newSigner(t *testing.T) *openpgp.Entity {
@@ -122,7 +122,7 @@ func TestUploadFile_GoodSigStoresPackageAndSignature(t *testing.T) {
 
 	var stored []string
 	bin.EXPECT().StoreFileImmutable("myrepo", "x86_64", gomock.Any()).DoAndReturn(
-		func(_, _ string, file platform.SeekFile) (bool, error) {
+		func(_, _ string, file blob.SeekFile) (bool, error) {
 			stored = append(stored, file.FileName())
 			return true, nil
 		},

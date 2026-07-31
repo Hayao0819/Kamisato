@@ -5,12 +5,12 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/Hayao0819/Kamisato/ayato/platform"
+	"github.com/Hayao0819/Kamisato/ayato/blob"
 )
 
 // onDiskSeek adds an on-disk path to a SeekFile so writeSeekFileToPath can hardlink it.
 type onDiskSeek struct {
-	platform.SeekFile
+	blob.SeekFile
 	path string
 }
 

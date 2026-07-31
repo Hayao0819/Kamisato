@@ -8,9 +8,9 @@ import (
 	"regexp"
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
-	pkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
-	"github.com/Hayao0819/Kamisato/pkg/safefile"
+	pkg "github.com/Hayao0819/Kamisato/internal/pacman"
+	"github.com/Hayao0819/Kamisato/internal/pacman/source"
+	"github.com/Hayao0819/Kamisato/internal/safefile"
 )
 
 var pkgverRe = regexp.MustCompile(`(?m)^pkgver=['"]?([^\s'"#]+)['"]?[ \t]*(?:#[^\r\n]*)?\r?$`)
@@ -18,7 +18,7 @@ var pkgverRe = regexp.MustCompile(`(?m)^pkgver=['"]?([^\s'"#]+)['"]?[ \t]*(?:#[^
 // NvBump rewrites name's pkgver to newVersion, resets pkgrel to 1, refreshes
 // the checksums with updpkgsums (which downloads the new sources) and
 // regenerates the .SRCINFO, returning the reloaded package.
-func NvBump(src *repo.SourceRepo, name, newVersion string, stderr io.Writer) (*pkg.SourcePackage, error) {
+func NvBump(src *source.SourceRepo, name, newVersion string, stderr io.Writer) (*pkg.SourcePackage, error) {
 	p := findPackage(src.Pkgs, name)
 	if p == nil {
 		return nil, errors.NewErr("package not found: " + name)
@@ -44,7 +44,7 @@ func NvBump(src *repo.SourceRepo, name, newVersion string, stderr io.Writer) (*p
 		return nil, errors.WrapErr(err, "updpkgsums failed in "+p.Dir())
 	}
 
-	if err := repo.GenerateSrcinfo(p.Dir(), stderr); err != nil {
+	if err := source.GenerateSrcinfo(p.Dir(), stderr); err != nil {
 		return nil, err
 	}
 	reloaded, err := pkg.OpenSourcePackage(p.Dir())

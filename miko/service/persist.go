@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
+	"github.com/Hayao0819/Kamisato/internal/safefile"
 	"github.com/Hayao0819/Kamisato/miko/domain"
-	"github.com/Hayao0819/Kamisato/pkg/safefile"
 )
 
 // Persister durably stores and reloads job records. The service depends on this

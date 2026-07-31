@@ -10,7 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/Hayao0819/Kamisato/internal/conf"
+	ayatoconfig "github.com/Hayao0819/Kamisato/ayato/config"
 )
 
 type proxyRoundTripFunc func(*http.Request) (*http.Response, error)
@@ -28,11 +28,11 @@ func (r *closeNotifyRecorder) CloseNotify() <-chan bool {
 // The rewrite must strip the client's Authorization and X-API-Key so a CLI
 // token never leaks to miko.
 func TestMikoProxyStripsAuthorization(t *testing.T) {
-	cfg := &conf.AyatoConfig{}
+	cfg := &ayatoconfig.AyatoConfig{}
 	cfg.Miko.URL = "http://miko.internal:8081"
 	cfg.Miko.APIKey = "shared-secret"
 
-	mp, err := NewMikoProxy(cfg)
+	mp, err := NewMikoProxy(testSettings(cfg).Miko)
 	if err != nil {
 		t.Fatalf("NewMikoProxy: %v", err)
 	}
@@ -65,10 +65,10 @@ func TestMikoProxyStripsAuthorization(t *testing.T) {
 
 func TestMikoProxyUsesSharedPrefixAndSegmentEscaping(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	cfg := &conf.AyatoConfig{}
+	cfg := &ayatoconfig.AyatoConfig{}
 	cfg.Miko.URL = "https://miko.internal/base/prefix"
 	cfg.Miko.APIKey = "proxy-key"
-	proxy, err := NewMikoProxy(cfg)
+	proxy, err := NewMikoProxy(testSettings(cfg).Miko)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -105,9 +105,9 @@ func TestMikoProxyUsesSharedPrefixAndSegmentEscaping(t *testing.T) {
 }
 
 func TestMikoProxyRejectsCredentialBearingURL(t *testing.T) {
-	cfg := &conf.AyatoConfig{}
+	cfg := &ayatoconfig.AyatoConfig{}
 	cfg.Miko.URL = "https://user:password@miko.internal"
-	if _, err := NewMikoProxy(cfg); err == nil {
+	if _, err := NewMikoProxy(testSettings(cfg).Miko); err == nil {
 		t.Fatal("credential-bearing Miko URL unexpectedly accepted")
 	}
 }

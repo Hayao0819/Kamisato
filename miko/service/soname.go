@@ -10,11 +10,10 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/Hayao0819/Kamisato/internal/pacman"
+	"github.com/Hayao0819/Kamisato/internal/pacman/repo"
+	"github.com/Hayao0819/Kamisato/internal/safefile"
 	"github.com/Hayao0819/Kamisato/miko/domain"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/depend"
-	ppkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
-	"github.com/Hayao0819/Kamisato/pkg/safefile"
 )
 
 // sonameStore records the sonames a package provided at its last successful
@@ -83,7 +82,7 @@ func (s *fileSonameStore) save(pkgbase string, sonames []string) error {
 // best-effort — errors are logged and panics recovered — so it can never fail
 // the primary build, whose status is already final by the time this runs.
 func (s *Service) maybeRebuildOnSonameBump(ctx context.Context, job *domain.BuildJob, packages []string) {
-	if !s.cfg.SonameRebuild {
+	if !s.settings.SonameRebuild {
 		return
 	}
 	if s.sonames == nil {
@@ -113,7 +112,7 @@ func (s *Service) maybeRebuildOnSonameBump(ctx context.Context, job *domain.Buil
 		if len(prev) == 0 {
 			continue // first build: record a baseline, nothing to compare against
 		}
-		bumps := ppkg.DetectBumps(prev, current)
+		bumps := pacman.DetectBumps(prev, current)
 		if len(bumps) == 0 {
 			continue
 		}
@@ -125,7 +124,7 @@ func (s *Service) maybeRebuildOnSonameBump(ctx context.Context, job *domain.Buil
 // triggerReverseDepRebuilds enqueues the bumped package's reverse-dependency
 // chain in dependency order, each tagged ReasonSonameRebuild.
 func (s *Service) triggerReverseDepRebuilds(ctx context.Context, job *domain.BuildJob, bumped string) {
-	if s.cfg.Ayato.URL == "" || job.Repo == "" || job.Arch == "" {
+	if s.settings.AyatoURL == "" || job.Repo == "" || job.Arch == "" {
 		slog.Warn("cannot resolve reverse deps without a published repo; skipping soname rebuilds", "pkgbase", bumped)
 		return
 	}
@@ -161,7 +160,7 @@ type sonameRebuildEnqueuer struct {
 }
 
 func (e *sonameRebuildEnqueuer) enqueueRebuild(pkgbase string) error {
-	git := strings.TrimRight(e.s.cfg.AURGitBase, "/") + "/" + pkgbase + ".git"
+	git := strings.TrimRight(e.s.settings.AURGitBase, "/") + "/" + pkgbase + ".git"
 	req := &domain.BuildRequest{
 		Repo: e.repo,
 		Arch: e.arch,
@@ -178,7 +177,7 @@ func (e *sonameRebuildEnqueuer) enqueueRebuild(pkgbase string) error {
 // enqueueRebuildChain enqueues the transitive reverse-dependency chain of bumped
 // in dependency order (a dependency rebuilds before its dependents), so a chain
 // of rebuilds resolves against freshly-built links.
-func enqueueRebuildChain(g *depend.DepGraph, bumped string, enq rebuildEnqueuer) ([]string, error) {
+func enqueueRebuildChain(g *pacman.DepGraph, bumped string, enq rebuildEnqueuer) ([]string, error) {
 	chain, err := rebuildChain(g, bumped)
 	if err != nil {
 		return nil, err
@@ -194,7 +193,7 @@ func enqueueRebuildChain(g *depend.DepGraph, bumped string, enq rebuildEnqueuer)
 // rebuildChain returns the transitive dependents of bumped, ordered by the
 // graph's topological build order so dependencies precede the packages that
 // depend on them. bumped itself is excluded — it was just built.
-func rebuildChain(g *depend.DepGraph, bumped string) ([]string, error) {
+func rebuildChain(g *pacman.DepGraph, bumped string) ([]string, error) {
 	affected := map[string]bool{}
 	queue := slices.Clone(g.Dependents(bumped))
 	for _, d := range queue {
@@ -230,7 +229,7 @@ func rebuildChain(g *depend.DepGraph, bumped string) ([]string, error) {
 // package's %DEPENDS% (including soname deps like "libfoo.so=1-64") is resolved
 // to the pkgbase that provides it (by pkgname or a %PROVIDES% entry), so the
 // reverse map answers "who links against this package".
-func repoDepGraph(rr *repo.RemoteRepo) *depend.DepGraph {
+func repoDepGraph(rr *repo.RemoteRepo) *pacman.DepGraph {
 	provider := map[string]string{}
 	bases := map[string]struct{}{}
 	baseOf := func(p *ppkgBinary) string {
@@ -242,16 +241,16 @@ func repoDepGraph(rr *repo.RemoteRepo) *depend.DepGraph {
 	for _, p := range rr.Pkgs {
 		base := baseOf(p)
 		bases[base] = struct{}{}
-		provider[depend.Parse(p.Name()).Name] = base
+		provider[pacman.Parse(p.Name()).Name] = base
 		for _, pr := range p.PKGINFO().Provides {
-			provider[depend.Parse(pr).Name] = base
+			provider[pacman.Parse(pr).Name] = base
 		}
 	}
 	deps := map[string][]string{}
 	for _, p := range rr.Pkgs {
 		base := baseOf(p)
 		for _, d := range p.PKGINFO().Depend {
-			if prov, ok := provider[depend.Parse(d).Name]; ok && prov != base {
+			if prov, ok := provider[pacman.Parse(d).Name]; ok && prov != base {
 				deps[base] = append(deps[base], prov)
 			}
 		}
@@ -260,12 +259,12 @@ func repoDepGraph(rr *repo.RemoteRepo) *depend.DepGraph {
 	for b := range bases {
 		nodes = append(nodes, b)
 	}
-	return depend.NewDepGraph(nodes, deps)
+	return pacman.NewDepGraph(nodes, deps)
 }
 
 // ppkgBinary is the concrete binary-package type; aliased so repoDepGraph reads
 // cleanly without importing the name into the whole file.
-type ppkgBinary = ppkg.BinaryPackage
+type ppkgBinary = pacman.BinaryPackage
 
 // sonamesByPkgbase reads each built package's pkgbase and the sonames it ships,
 // merging the sonames of every subpackage under one pkgbase.
@@ -276,7 +275,7 @@ func sonamesByPkgbase(packages []string) (map[string][]string, error) {
 		if err != nil {
 			return nil, err
 		}
-		sonames, err := ppkg.SonamesOf(p)
+		sonames, err := pacman.SonamesOf(p)
 		if err != nil {
 			return nil, err
 		}
@@ -307,7 +306,7 @@ func pkgbaseOf(pkgFile string) (string, error) {
 		return "", err
 	}
 	defer func() { _ = f.Close() }()
-	bp, err := ppkg.ReadBinaryPackage(pkgFile, f)
+	bp, err := pacman.ReadBinaryPackage(pkgFile, f)
 	if err != nil {
 		return "", err
 	}

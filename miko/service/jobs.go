@@ -11,9 +11,9 @@ import (
 	"time"
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
+	"github.com/Hayao0819/Kamisato/internal/pacman"
+	"github.com/Hayao0819/Kamisato/internal/pacman/builder"
 	"github.com/Hayao0819/Kamisato/miko/domain"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/builder"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/reponame"
 )
 
 // allowedArches are the architectures a build may target. Arch flows into shell
@@ -30,10 +30,10 @@ func (s *Service) validateInstallPkgs(pkgs []string) error {
 	if len(pkgs) == 0 {
 		return nil
 	}
-	if s.cfg.DataDir == "" {
+	if s.settings.DataDir == "" {
 		return fmt.Errorf("%w: install_pkgs not accepted without a staging dir", ErrInvalidRequest)
 	}
-	base := filepath.Join(s.cfg.DataDir, "staging")
+	base := filepath.Join(s.settings.DataDir, "staging")
 	for _, p := range pkgs {
 		abs, err := filepath.Abs(p)
 		if err != nil {
@@ -62,7 +62,7 @@ func (s *Service) submitWithReason(req *domain.BuildRequest, reason domain.Build
 		return "", fmt.Errorf("%w: unsupported arch %q", ErrInvalidRequest, req.Arch)
 	}
 	if req.Repo != "" {
-		if err := reponame.Validate(req.Repo); err != nil {
+		if err := pacman.ValidateRepositoryName(req.Repo); err != nil {
 			return "", fmt.Errorf("%w: invalid repo name %q: %v", ErrInvalidRequest, req.Repo, err)
 		}
 	}
@@ -186,7 +186,7 @@ func (s *Service) Stats() domain.BuildStats {
 	total := len(s.store)
 	s.mu.Unlock()
 
-	workers := s.cfg.Concurrency
+	workers := s.settings.Workers
 	success := counts[domain.JobStatusSuccess]
 	failed := counts[domain.JobStatusFailed]
 	var rate float64
@@ -221,8 +221,8 @@ func (s *Service) Run(ctx context.Context) {
 		start(func() { s.nvcheckLoop(ctx, interval) })
 	}
 
-	workers := max(s.cfg.Concurrency, 1)
-	slog.Info("Build service started", "executor", s.cfg.Executor, "workers", workers)
+	workers := s.settings.Workers
+	slog.Info("Build service started", "executor", s.settings.Executor, "workers", workers)
 	for range workers {
 		start(func() { s.runWorker(ctx) })
 	}

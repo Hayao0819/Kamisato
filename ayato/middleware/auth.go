@@ -4,9 +4,21 @@ import (
 	"sync/atomic"
 
 	"github.com/Hayao0819/Kamisato/ayato/auth"
-	"github.com/Hayao0819/Kamisato/ayato/platform"
-	"github.com/Hayao0819/Kamisato/internal/conf"
 )
+
+type Settings struct {
+	CookieName             string
+	PublicOrigin           string
+	SelfOrigin             string
+	AllowLegacySignerBasic bool
+}
+
+func (settings Settings) normalized() Settings {
+	if settings.CookieName == "" {
+		settings.CookieName = "__Host-ayato_session"
+	}
+	return settings
+}
 
 // adminChecker keeps HTTP authentication independent of the allowlist storage.
 type adminChecker interface {
@@ -19,7 +31,7 @@ type logTokenConsumer interface {
 }
 
 type Middleware struct {
-	cfg       *conf.AyatoConfig
+	settings  Settings
 	checker   adminChecker
 	signer    *auth.Signer
 	ci        *auth.CIAuthorizer
@@ -27,12 +39,12 @@ type Middleware struct {
 	logTokens logTokenConsumer
 
 	// Each RateLimit call site gets an independent counter namespace.
-	limiter *platform.RateLimiter
+	limiter *RateLimiter
 	rlScope atomic.Int64
 }
 
-func New(cfg *conf.AyatoConfig) *Middleware {
-	return &Middleware{cfg: cfg}
+func New(settings Settings) *Middleware {
+	return &Middleware{settings: settings.normalized()}
 }
 
 func (m *Middleware) WithAuth(checker adminChecker, signer *auth.Signer) *Middleware {
@@ -54,10 +66,7 @@ func (m *Middleware) WithLogTokens(tokens logTokenConsumer) *Middleware {
 }
 
 func (m *Middleware) sessionCookieName() string {
-	if m.cfg == nil {
-		return (conf.AuthConfig{}).CookieName()
-	}
-	return m.cfg.Auth.CookieName()
+	return m.settings.CookieName
 }
 
 func (m *Middleware) requestResolver() auth.RequestResolver {

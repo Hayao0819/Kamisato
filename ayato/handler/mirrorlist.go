@@ -7,9 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Hayao0819/Kamisato/ayato/httpapi"
 	"github.com/gin-gonic/gin"
-
-	"github.com/Hayao0819/Kamisato/ayato/platform"
 )
 
 // mirrorEntry is one Server line plus the comments rendered above it.
@@ -44,17 +43,15 @@ func (h *RepositoryHandler) MirrorlistHandler(c *gin.Context) {
 	c.String(http.StatusOK, renderMirrorlist(repoName, entries))
 }
 
-// selfMirror builds this instance's own Server entry. Precondition: h.cfg != nil
-// (MirrorlistHandler gates it).
 func (h *RepositoryHandler) selfMirror(base, repoName string) mirrorEntry {
 	seg := repoName
-	if h.cfg.Mirror.UseRepoVar {
+	if h.settings.Mirror.UseRepoVar {
 		seg = "$repo"
 	}
 	return mirrorEntry{
 		section: mirrorHost(base) + " (this instance)",
-		url:     base + h.cfg.Mirror.ServerPath() + "/" + seg + "/$arch",
-		active:  !h.cfg.Mirror.AllCommented,
+		url:     base + h.settings.Mirror.ServerPath + "/" + seg + "/$arch",
+		active:  !h.settings.Mirror.AllCommented,
 	}
 }
 
@@ -62,25 +59,20 @@ func (h *RepositoryHandler) selfMirror(base, repoName string) mirrorEntry {
 // configured origin (mirror.self_url, then auth self/public origin) rather than
 // the spoofable request Host. X-Forwarded-* is not trusted (see externalBase).
 func (h *RepositoryHandler) mirrorBase(c *gin.Context) (base string, configured bool) {
-	if h.cfg != nil {
-		if _, b, ok := platform.ParseOrigin(h.cfg.Mirror.SelfURL); ok {
-			return b, true
-		}
+	if _, b, ok := httpapi.ParseOrigin(h.settings.Mirror.SelfURL); ok {
+		return b, true
 	}
-	_, b := externalBase(h.cfg, c)
+	_, b := externalBase(h.settings.Auth, c)
 	return strings.TrimRight(b, "/"), h.hasConfiguredOrigin()
 }
 
 // hasConfiguredOrigin reports whether an auth self/public origin is set, so a base
 // derived via externalBase is stable rather than request-Host-derived.
 func (h *RepositoryHandler) hasConfiguredOrigin() bool {
-	if h.cfg == nil {
-		return false
-	}
-	if _, _, ok := platform.ParseOrigin(h.cfg.Auth.SelfOrigin); ok {
+	if _, _, ok := httpapi.ParseOrigin(h.settings.Auth.SelfOrigin); ok {
 		return true
 	}
-	_, _, ok := platform.ParseOrigin(h.cfg.Auth.PublicOrigin)
+	_, _, ok := httpapi.ParseOrigin(h.settings.Auth.PublicOrigin)
 	return ok
 }
 

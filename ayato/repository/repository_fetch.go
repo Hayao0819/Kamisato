@@ -3,17 +3,16 @@ package repository
 import (
 	"github.com/Hayao0819/Kamisato/internal/errors"
 
-	"github.com/Hayao0819/Kamisato/ayato/platform"
-	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
-	pacmanpkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
-	pacmanrepo "github.com/Hayao0819/Kamisato/pkg/pacman/repo"
+	"github.com/Hayao0819/Kamisato/ayato/blob"
+	pacmanpkg "github.com/Hayao0819/Kamisato/internal/pacman"
+	pacmanrepo "github.com/Hayao0819/Kamisato/internal/pacman/repo"
 )
 
 // FetchFile resolves public database aliases and the shared arch=any object
 // directory while keeping the blob.Store free of pacman naming knowledge.
 func (r *binaryRepository) FetchFile(
 	repo, arch, file string,
-) (platform.File, error) {
+) (blob.File, error) {
 	result, err := r.resolveFile(repo, arch, file, func(repo, arch, file string) (fileResult, error) {
 		object, err := r.Store.FetchFile(repo, arch, file)
 		return fileResult{file: object}, err
@@ -25,7 +24,7 @@ func (r *binaryRepository) FetchFile(
 // selected physical object's validators to the HTTP layer.
 func (r *binaryRepository) FetchFileWithMeta(
 	repo, arch, file string,
-) (platform.File, blob.FileMeta, error) {
+) (blob.File, blob.FileMeta, error) {
 	fetcher, ok := r.Store.(blob.MetaFetcher)
 	if !ok {
 		object, err := r.FetchFile(repo, arch, file)
@@ -39,7 +38,7 @@ func (r *binaryRepository) FetchFileWithMeta(
 }
 
 type fileResult struct {
-	file platform.File
+	file blob.File
 	meta blob.FileMeta
 }
 
@@ -103,7 +102,7 @@ func (r *binaryRepository) dbAliasTargets(repo, file string) []string {
 }
 
 type aliasFile struct {
-	platform.File
+	blob.File
 	name string
 }
 

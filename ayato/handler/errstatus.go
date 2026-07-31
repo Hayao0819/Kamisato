@@ -9,7 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/Hayao0819/Kamisato/ayato/domain"
-	"github.com/Hayao0819/Kamisato/ayato/platform"
+	"github.com/Hayao0819/Kamisato/ayato/httpapi"
 )
 
 // errToStatus maps a domain error to its HTTP status. The single place transport
@@ -33,12 +33,12 @@ func errToStatus(err error) int {
 }
 
 func respondError(ctx *gin.Context, status int, message string) {
-	ctx.JSON(status, platform.NewHTTPError(status, message))
+	ctx.JSON(status, httpapi.NewHTTPError(status, message))
 }
 
 // authErrorResponse preserves the compact error shape used by OAuth, device
 // authorization, and the existing authentication-management endpoints. Other
-// Ayato APIs use platform.HTTPErrorResponse through respondError.
+// Ayato APIs use httpapi.HTTPErrorResponse through respondError.
 type authErrorResponse struct {
 	Error string `json:"error"`
 }

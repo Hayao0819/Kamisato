@@ -7,9 +7,9 @@ import (
 	"github.com/ProtonMail/go-crypto/openpgp"
 	"github.com/spf13/cobra"
 
-	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
+	"github.com/Hayao0819/Kamisato/ayaka/cli"
 	"github.com/Hayao0819/Kamisato/internal/errors"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/keyring"
+	"github.com/Hayao0819/Kamisato/internal/pacman/keyring"
 )
 
 func filesCmd() *cobra.Command {
@@ -24,7 +24,7 @@ func filesCmd() *cobra.Command {
 		Long:  "Regenerate just the three pacman keyring files from the managed key into a directory. This suits an existing keyring source repo that keeps its own Makefile/PKGBUILD and install hook: ayaka owns the key material, the repo owns packaging and versioning.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			k, _, err := shared.LoadSigningKey(cmd)
+			k, _, err := cli.LoadSigningKey(cmd)
 			if err != nil {
 				return err
 			}

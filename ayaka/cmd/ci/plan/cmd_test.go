@@ -8,8 +8,9 @@ import (
 
 	"github.com/Hayao0819/Kamisato/ayaka/app"
 	"github.com/Hayao0819/Kamisato/ayaka/service/plan"
-	pkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
+	pkg "github.com/Hayao0819/Kamisato/internal/pacman"
+	"github.com/Hayao0819/Kamisato/internal/pacman/repo"
+	"github.com/Hayao0819/Kamisato/internal/pacman/source"
 )
 
 type recordingPlanner struct {
@@ -26,13 +27,13 @@ func (r *recordingPlanner) Compute(_ []*pkg.SourcePackage, _ *repo.RemoteRepo, a
 	return &plan.Plan{Order: []string{"foo"}, Reasons: map[string]string{"foo": "version"}, BumpTargets: []string{}}, nil
 }
 
-func (r *recordingPlanner) ReloadWithSrcinfo(srcrepo *repo.SourceRepo, _ io.Writer) (*repo.SourceRepo, error) {
+func (r *recordingPlanner) ReloadWithSrcinfo(srcrepo *source.SourceRepo, _ io.Writer) (*source.SourceRepo, error) {
 	r.reload++
 	return srcrepo, nil
 }
 
 // testApp wires the source repo's url to a local server that always answers
-// 404, so shared.RemoteRepo takes its "treat as empty" path instead of
+// 404, so cli.RemoteRepo takes its "treat as empty" path instead of
 // reaching the network.
 func testApp(t *testing.T) *app.App {
 	t.Helper()
@@ -40,15 +41,14 @@ func testApp(t *testing.T) *app.App {
 		w.WriteHeader(http.StatusNotFound)
 	}))
 	t.Cleanup(srv.Close)
-	return &app.App{SrcRepos: []*repo.SourceRepo{{
-		Config: &repo.SrcConfig{Name: "test", URL: srv.URL},
+	return &app.App{SrcRepos: []*source.SourceRepo{{
+		Config: &source.SrcConfig{Name: "test", URL: srv.URL},
 	}}}
 }
 
 func TestPlanFlagsReachService(t *testing.T) {
 	rec := &recordingPlanner{}
-	cmd := newCommand(rec)
-	cmd.SetContext(app.WithContext(t.Context(), testApp(t)))
+	cmd := newCommand(rec, app.StaticRuntime(testApp(t)))
 	cmd.SetArgs([]string{"test", "--arch", "aarch64", "--cascade", "soname", "--workers", "3", "--update-srcinfo=false"})
 	if err := cmd.Execute(); err != nil {
 		t.Fatal(err)
@@ -63,8 +63,7 @@ func TestPlanFlagsReachService(t *testing.T) {
 
 func TestPlanUpdateSrcinfoDefaultOn(t *testing.T) {
 	rec := &recordingPlanner{}
-	cmd := newCommand(rec)
-	cmd.SetContext(app.WithContext(t.Context(), testApp(t)))
+	cmd := newCommand(rec, app.StaticRuntime(testApp(t)))
 	cmd.SetArgs([]string{"test"})
 	if err := cmd.Execute(); err != nil {
 		t.Fatal(err)
@@ -75,8 +74,7 @@ func TestPlanUpdateSrcinfoDefaultOn(t *testing.T) {
 }
 
 func TestPlanUnknownRepoFails(t *testing.T) {
-	cmd := newCommand(&recordingPlanner{})
-	cmd.SetContext(app.WithContext(t.Context(), testApp(t)))
+	cmd := newCommand(&recordingPlanner{}, app.StaticRuntime(testApp(t)))
 	cmd.SetArgs([]string{"nope"})
 	cmd.SilenceUsage = true
 	cmd.SilenceErrors = true
@@ -86,9 +84,8 @@ func TestPlanUnknownRepoFails(t *testing.T) {
 }
 
 func TestPlanNoURLFails(t *testing.T) {
-	cmd := newCommand(&recordingPlanner{})
-	a := &app.App{SrcRepos: []*repo.SourceRepo{{Config: &repo.SrcConfig{Name: "test"}}}}
-	cmd.SetContext(app.WithContext(t.Context(), a))
+	a := &app.App{SrcRepos: []*source.SourceRepo{{Config: &source.SrcConfig{Name: "test"}}}}
+	cmd := newCommand(&recordingPlanner{}, app.StaticRuntime(a))
 	cmd.SetArgs([]string{"test"})
 	cmd.SilenceUsage = true
 	cmd.SilenceErrors = true

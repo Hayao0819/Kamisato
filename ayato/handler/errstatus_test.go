@@ -13,7 +13,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/Hayao0819/Kamisato/ayato/domain"
-	"github.com/Hayao0819/Kamisato/ayato/platform"
+	"github.com/Hayao0819/Kamisato/ayato/httpapi"
 )
 
 func TestErrToStatus(t *testing.T) {
@@ -45,21 +45,21 @@ func TestRespondServiceErrorUsesSafePublicEnvelope(t *testing.T) {
 		name    string
 		err     error
 		status  int
-		code    platform.HTTPErrorCode
+		code    httpapi.HTTPErrorCode
 		message string
 	}{
 		{
 			name:    "classified not found",
 			err:     fmt.Errorf("%w: storage key secret-bucket/key", domain.ErrNotFound),
 			status:  http.StatusNotFound,
-			code:    platform.HTTPCodeNotFound,
+			code:    httpapi.HTTPCodeNotFound,
 			message: "package not found",
 		},
 		{
 			name:    "unclassified internal failure",
 			err:     errors.New("database password secret-value"),
 			status:  http.StatusInternalServerError,
-			code:    platform.HTTPCodeInternal,
+			code:    httpapi.HTTPCodeInternal,
 			message: "failed to load package",
 		},
 	}
@@ -72,7 +72,7 @@ func TestRespondServiceErrorUsesSafePublicEnvelope(t *testing.T) {
 			if recorder.Code != tc.status {
 				t.Fatalf("status = %d, want %d", recorder.Code, tc.status)
 			}
-			var response platform.HTTPErrorResponse
+			var response httpapi.HTTPErrorResponse
 			if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
 				t.Fatal(err)
 			}

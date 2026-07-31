@@ -7,10 +7,8 @@ import (
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
 
+	"github.com/Hayao0819/Kamisato/ayato/blob"
 	"github.com/Hayao0819/Kamisato/ayato/domain"
-	"github.com/Hayao0819/Kamisato/ayato/platform"
-	"github.com/Hayao0819/Kamisato/ayato/repository"
-	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
 	alpm "github.com/Hayao0819/dyalpm"
 )
 
@@ -122,10 +120,10 @@ func (s *Service) promoteOneArch(src, dst, arch, storeArch, filename, pkgname, v
 		return errors.WrapErr(err, "store package in target tier")
 	}
 
-	if err := platform.Rewind(artifact.pkg); err != nil {
+	if err := blob.Rewind(artifact.pkg); err != nil {
 		return errors.WrapErr(err, "rewind package for registration")
 	}
-	item := repository.RepoAddItem{
+	item := RepoAddItem{
 		Pkg:             artifact.pkg,
 		Sig:             artifact.sig,
 		CheckCurrent:    true,
@@ -137,7 +135,7 @@ func (s *Service) promoteOneArch(src, dst, arch, storeArch, filename, pkgname, v
 		item.ExpectedCurrentVersion = current.version
 		item.ExpectedCurrentFile = current.fileName
 	}
-	if err := s.pkgBinaryRepo.RepoAddBatch(dst, arch, []repository.RepoAddItem{item}, useSignedDB, gnupgDir); err != nil {
+	if err := s.pkgBinaryRepo.RepoAddBatch(dst, arch, []RepoAddItem{item}, useSignedDB, gnupgDir); err != nil {
 		return errors.WrapErr(err, "register package in target tier db")
 	}
 	if err := s.pkgNameRepo.StorePackageFile(dst, storeArch, pkgname, filename); err != nil {

@@ -6,9 +6,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/Hayao0819/Kamisato/internal/apiclient"
 	"github.com/Hayao0819/Kamisato/internal/auth/apikey"
-	"github.com/Hayao0819/Kamisato/internal/client"
-	"github.com/Hayao0819/Kamisato/internal/conf"
 )
 
 // Reverse-proxies build/job requests to the internal miko server; clients never
@@ -20,21 +19,21 @@ type MikoProxy struct {
 
 // Returns nil when no upstream is configured so the router skips the miko routes.
 func (h *MikoHandler) Proxy() (*MikoProxy, error) {
-	return NewMikoProxy(h.cfg)
+	return NewMikoProxy(h.settings.Miko)
 }
 
 // Returns nil when no upstream is configured so the router can skip the routes.
-func NewMikoProxy(cfg *conf.AyatoConfig) (*MikoProxy, error) {
-	if cfg == nil || cfg.Miko.URL == "" {
+func NewMikoProxy(settings MikoSettings) (*MikoProxy, error) {
+	if settings.URL == "" {
 		return nil, nil
 	}
 
-	target, err := client.ParseBaseURL(cfg.Miko.URL)
+	target, err := apiclient.ParseBaseURL(settings.URL)
 	if err != nil {
 		return nil, err
 	}
 
-	apiKey := cfg.Miko.APIKey
+	apiKey := settings.APIKey
 	proxy := &httputil.ReverseProxy{
 		Rewrite: func(pr *httputil.ProxyRequest) {
 			pr.Out.URL.Scheme = target.Scheme
@@ -63,7 +62,7 @@ func (p *MikoProxy) Handler(segments ...string) gin.HandlerFunc {
 // steering the proxy at an arbitrary miko endpoint.
 func (p *MikoProxy) HandlerFunc(build func(c *gin.Context) []string) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		target := client.EndpointURL(p.target, build(c)...)
+		target := apiclient.EndpointURL(p.target, build(c)...)
 		c.Request.URL.Path = target.Path
 		c.Request.URL.RawPath = target.RawPath
 		c.Request.URL.RawQuery = ""

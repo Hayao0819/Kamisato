@@ -8,12 +8,12 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/Hayao0819/Kamisato/ayato/blob"
 	"github.com/Hayao0819/Kamisato/ayato/domain"
-	"github.com/Hayao0819/Kamisato/ayato/platform"
 )
 
 // nopSeekCloser adds a no-op Close to a bytes.Reader so it satisfies
-// io.ReadSeekCloser for platform.NewFileStream.
+// io.ReadSeekCloser for blob.NewFileStream.
 type nopSeekCloser struct{ *bytes.Reader }
 
 func (nopSeekCloser) Close() error { return nil }
@@ -45,7 +45,7 @@ func TestRepoFileCacheControl(t *testing.T) {
 			// h.cfg is nil, so the handler tries SignedURL first; return "" to fall
 			// through to the streaming path where the cache headers are set.
 			mockSvc.EXPECT().SignedURL("core", "x86_64", tc.file).Return("", nil)
-			fs := platform.NewFileStream(tc.file, "application/octet-stream", nopSeekCloser{bytes.NewReader([]byte("data"))})
+			fs := blob.NewFileStream(tc.file, "application/octet-stream", nopSeekCloser{bytes.NewReader([]byte("data"))})
 			mockSvc.EXPECT().GetFileWithMeta("core", "x86_64", tc.file).Return(fs, domain.FileMeta{ETag: `"v1"`}, nil)
 
 			r := gin.New()

@@ -9,7 +9,7 @@ import (
 // is spec-forbidden and a CSRF risk; with PublicOrigin set it allows exactly that
 // origin with credentials.
 func (m *Middleware) Cors() gin.HandlerFunc {
-	if m.cfg == nil || m.cfg.Auth.PublicOrigin == "" {
+	if m.settings.PublicOrigin == "" {
 		// No cross-origin browser access expected; emit no CORS headers.
 		return func(c *gin.Context) { c.Next() }
 	}
@@ -17,7 +17,7 @@ func (m *Middleware) Cors() gin.HandlerFunc {
 	cfg := cors.DefaultConfig()
 	cfg.AllowMethods = []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}
 	cfg.AllowHeaders = []string{"Origin", "Content-Type", "Authorization", "X-API-Key"}
-	cfg.AllowOrigins = []string{m.cfg.Auth.PublicOrigin}
+	cfg.AllowOrigins = []string{m.settings.PublicOrigin}
 	cfg.AllowCredentials = true
 	return cors.New(cfg)
 }

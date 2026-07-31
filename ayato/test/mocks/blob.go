@@ -13,8 +13,7 @@ import (
 	reflect "reflect"
 	time "time"
 
-	platform "github.com/Hayao0819/Kamisato/ayato/platform"
-	blob "github.com/Hayao0819/Kamisato/ayato/repository/blob"
+	blob "github.com/Hayao0819/Kamisato/ayato/blob"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -121,10 +120,10 @@ func (m *MockMetaFetcher) EXPECT() *MockMetaFetcherMockRecorder {
 }
 
 // FetchFileWithMeta mocks base method.
-func (m *MockMetaFetcher) FetchFileWithMeta(repo, arch, file string) (platform.File, blob.FileMeta, error) {
+func (m *MockMetaFetcher) FetchFileWithMeta(repo, arch, file string) (blob.File, blob.FileMeta, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "FetchFileWithMeta", repo, arch, file)
-	ret0, _ := ret[0].(platform.File)
+	ret0, _ := ret[0].(blob.File)
 	ret1, _ := ret[1].(blob.FileMeta)
 	ret2, _ := ret[2].(error)
 	return ret0, ret1, ret2
@@ -242,10 +241,10 @@ func (mr *MockStagedUploaderMockRecorder) DeleteStaged(id any) *gomock.Call {
 }
 
 // FetchStaged mocks base method.
-func (m *MockStagedUploader) FetchStaged(id, name string) (platform.File, error) {
+func (m *MockStagedUploader) FetchStaged(id, name string) (blob.File, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "FetchStaged", id, name)
-	ret0, _ := ret[0].(platform.File)
+	ret0, _ := ret[0].(blob.File)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -340,10 +339,10 @@ func (mr *MockBlobStoreMockRecorder) DeleteFile(repo, arch, file any) *gomock.Ca
 }
 
 // FetchFile mocks base method.
-func (m *MockBlobStore) FetchFile(repo, arch, file string) (platform.File, error) {
+func (m *MockBlobStore) FetchFile(repo, arch, file string) (blob.File, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "FetchFile", repo, arch, file)
-	ret0, _ := ret[0].(platform.File)
+	ret0, _ := ret[0].(blob.File)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -355,10 +354,10 @@ func (mr *MockBlobStoreMockRecorder) FetchFile(repo, arch, file any) *gomock.Cal
 }
 
 // FetchFileWithETag mocks base method.
-func (m *MockBlobStore) FetchFileWithETag(repo, arch, file string) (platform.File, string, error) {
+func (m *MockBlobStore) FetchFileWithETag(repo, arch, file string) (blob.File, string, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "FetchFileWithETag", repo, arch, file)
-	ret0, _ := ret[0].(platform.File)
+	ret0, _ := ret[0].(blob.File)
 	ret1, _ := ret[1].(string)
 	ret2, _ := ret[2].(error)
 	return ret0, ret1, ret2
@@ -416,7 +415,7 @@ func (mr *MockBlobStoreMockRecorder) RepoNames() *gomock.Call {
 }
 
 // StoreFile mocks base method.
-func (m *MockBlobStore) StoreFile(repo, arch string, file platform.SeekFile) error {
+func (m *MockBlobStore) StoreFile(repo, arch string, file blob.SeekFile) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "StoreFile", repo, arch, file)
 	ret0, _ := ret[0].(error)
@@ -430,7 +429,7 @@ func (mr *MockBlobStoreMockRecorder) StoreFile(repo, arch, file any) *gomock.Cal
 }
 
 // StoreFileIfMatch mocks base method.
-func (m *MockBlobStore) StoreFileIfMatch(repo, arch string, file platform.SeekFile, etag string) error {
+func (m *MockBlobStore) StoreFileIfMatch(repo, arch string, file blob.SeekFile, etag string) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "StoreFileIfMatch", repo, arch, file, etag)
 	ret0, _ := ret[0].(error)

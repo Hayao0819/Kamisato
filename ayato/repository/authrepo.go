@@ -5,6 +5,7 @@ import (
 
 	"github.com/Hayao0819/Kamisato/ayato/domain"
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
+	"github.com/Hayao0819/Kamisato/ayato/service"
 	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
@@ -16,12 +17,7 @@ type AllowedAdmin = domain.AllowedAdmin
 // an unknown id, or a non-positive id all deny.
 //
 //go:generate mockgen -source=authrepo.go -destination=../test/mocks/authrepo.go -package=mocks
-type AuthRepository interface {
-	AddAdmin(id int64, login string) error
-	RemoveAdmin(id int64) error
-	IsAdmin(id int64) bool
-	ListAdmins() ([]AllowedAdmin, error)
-}
+type AuthRepository = service.AuthRepository
 
 type authRepository struct {
 	kv kv.Store

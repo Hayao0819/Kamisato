@@ -8,8 +8,68 @@ import (
 	"github.com/Hayao0819/Kamisato/ayato/handler/bugreport"
 	"github.com/Hayao0819/Kamisato/ayato/handler/recaptcha"
 	"github.com/Hayao0819/Kamisato/ayato/service"
-	"github.com/Hayao0819/Kamisato/internal/conf"
 )
+
+type Settings struct {
+	Catalog                  *domain.RepositoryCatalog
+	DisableRedirectDownloads bool
+	MaxSize                  int
+	MaxBatchPackages         int
+	MaxBatchBytes            int64
+	RequireSign              bool
+	Miko                     MikoSettings
+	Auth                     AuthSettings
+	Mirror                   MirrorSettings
+	Recaptcha                RecaptchaSettings
+	BugReport                bugreport.Config
+}
+
+type MikoSettings struct {
+	URL    string
+	APIKey string
+}
+
+type AuthSettings struct {
+	GitHubClientID     string
+	GitHubClientSecret string
+	PublicOrigin       string
+	SelfOrigin         string
+	CookieName         string
+	AccessTokenTTL     time.Duration
+	RefreshTokenTTL    time.Duration
+}
+
+type MirrorSettings struct {
+	SelfURL      string
+	ServerPath   string
+	UseRepoVar   bool
+	AllCommented bool
+}
+
+type RecaptchaSettings struct {
+	Provider string
+	SiteKey  string
+	Secret   string
+}
+
+func (settings Settings) normalized() Settings {
+	if settings.Catalog == nil {
+		settings.Catalog, _ = domain.NewRepositoryCatalog(nil, nil)
+	}
+	if settings.Auth.CookieName == "" {
+		settings.Auth.CookieName = "__Host-ayato_session"
+	}
+	if settings.Auth.AccessTokenTTL <= 0 {
+		settings.Auth.AccessTokenTTL = time.Hour
+	}
+	if settings.Auth.RefreshTokenTTL <= 0 {
+		settings.Auth.RefreshTokenTTL = 30 * 24 * time.Hour
+	}
+	if settings.Mirror.ServerPath == "" {
+		settings.Mirror.ServerPath = "/repo"
+	}
+	return settings
+}
 
 // Set is the HTTP composition root. It contains feature-scoped handlers rather
 // than implementing every endpoint on one service-locator-style type.
@@ -25,31 +85,31 @@ type Set struct {
 }
 
 type SystemHandler struct {
-	cfg              *conf.AyatoConfig
+	settings         Settings
 	bugReportEnabled bool
 	oauthEnabled     func() bool
 }
 
 type RepositoryHandler struct {
-	cfg     *conf.AyatoConfig
-	catalog *domain.RepositoryCatalog
-	reader  service.RepoReader
+	settings Settings
+	catalog  *domain.RepositoryCatalog
+	reader   service.RepoReader
 }
 
 type PublicationHandler struct {
-	cfg      *conf.AyatoConfig
+	settings Settings
 	uploader service.Uploader
 	promoter service.Promoter
 	syncer   service.Syncer
 }
 
 type AuthHandler struct {
-	cfg     *conf.AyatoConfig
-	admins  service.AdminService
-	revoker service.Revoker
-	signer  *auth.Signer
-	replay  replayGuard
-	device  deviceStore
+	settings Settings
+	admins   service.AdminService
+	revoker  service.Revoker
+	signer   *auth.Signer
+	replay   replayGuard
+	device   deviceStore
 }
 
 type AdminHandler struct {
@@ -67,8 +127,8 @@ type BugReportHandler struct {
 }
 
 type MikoHandler struct {
-	cfg       *conf.AyatoConfig
-	logTokens logTokenMinter
+	settings  Settings
+	logTokens logTokenStore
 }
 
 // deviceStore is the RFC 8628 device-authorization rendezvous; a narrow local
@@ -86,6 +146,6 @@ type replayGuard interface {
 	Consume(id string, ttl time.Duration) (firstUse bool, err error)
 }
 
-type logTokenMinter interface {
-	Mint(jobID string, ttl time.Duration) (string, error)
+type logTokenStore interface {
+	StoreLogToken(token, jobID string, ttl time.Duration) error
 }

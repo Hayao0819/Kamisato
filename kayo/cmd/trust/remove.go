@@ -6,7 +6,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
-	"github.com/Hayao0819/Kamisato/kayo/cmd/shared"
+	"github.com/Hayao0819/Kamisato/kayo/cli"
 	"github.com/Hayao0819/Kamisato/kayo/gitserve"
 	"github.com/Hayao0819/Kamisato/kayo/trust"
 )
@@ -19,7 +19,7 @@ func trustRemoveCmd() *cobra.Command {
 		Short:   "Remove a package approval, or a maintainer with --maintainer source/account",
 		Args:    cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cfg, err := shared.LoadConfig(cmd)
+			cfg, err := cli.LoadConfig(cmd)
 			if err != nil {
 				return err
 			}

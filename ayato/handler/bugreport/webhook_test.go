@@ -80,13 +80,21 @@ func TestWebhookReport(t *testing.T) {
 }
 
 func TestWebhookReportNon2xx(t *testing.T) {
+	attempts := 0
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		attempts++
 		w.WriteHeader(http.StatusInternalServerError)
 	}))
 	defer srv.Close()
-	h := &webhookReporter{client: srv.Client(), url: srv.URL}
+	h, err := newWebhook(WebhookConfig{URL: srv.URL})
+	if err != nil {
+		t.Fatalf("newWebhook: %v", err)
+	}
 	if _, err := h.Report(context.Background(), Report{Pkgname: "foo", Description: "x"}); err == nil {
 		t.Error("a non-2xx response must surface an error")
+	}
+	if attempts != 1 {
+		t.Fatalf("webhook attempts = %d, want 1", attempts)
 	}
 }
 

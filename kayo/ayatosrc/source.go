@@ -7,7 +7,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Hayao0819/Kamisato/internal/client"
 	"github.com/Hayao0819/Kamisato/kayo/pkgindex"
 )
 
@@ -28,7 +27,7 @@ type Source struct {
 	*pkgindex.Index
 
 	name            string
-	catalog         *client.Catalog
+	catalog         *catalogClient
 	maxAge          time.Duration
 	insecure        bool
 	trustOnFirstUse bool
@@ -44,7 +43,7 @@ type Source struct {
 // New builds a Source. An explicit PubKey is a hard pin; an empty PubKey requires
 // either TrustOnFirstUse or Insecure.
 func New(o Options) (*Source, error) {
-	catalog, err := client.NewCatalog(o.BaseURL)
+	catalog, err := newCatalogClient(o.BaseURL)
 	if err != nil {
 		return nil, err
 	}

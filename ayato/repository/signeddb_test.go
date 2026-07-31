@@ -10,8 +10,8 @@ import (
 	"github.com/ProtonMail/go-crypto/openpgp"
 	"github.com/ProtonMail/go-crypto/openpgp/packet"
 
-	"github.com/Hayao0819/Kamisato/ayato/platform"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
+	"github.com/Hayao0819/Kamisato/ayato/blob"
+	"github.com/Hayao0819/Kamisato/internal/pacman/repo"
 )
 
 func newTestEntity(t *testing.T) *openpgp.Entity {
@@ -130,7 +130,7 @@ func TestBackfillSignatures(t *testing.T) {
 		t.Fatal("an unsigned publish must not produce a .sig")
 	}
 	legacyCanonical := reencodeGzipWithLegacyHeader(t, readStored(t, mem, "r.db.tar.gz"))
-	if err := mem.StoreFile("r", "x86_64", platform.NewFileStream("r.db.tar.gz", "application/octet-stream", nopSeekCloser{bytes.NewReader(legacyCanonical)})); err != nil {
+	if err := mem.StoreFile("r", "x86_64", blob.NewFileStream("r.db.tar.gz", "application/octet-stream", nopSeekCloser{bytes.NewReader(legacyCanonical)})); err != nil {
 		t.Fatal(err)
 	}
 	db, canonicalVersion, err := mem.FetchFileWithETag("r", "x86_64", "r.db.tar.gz")

@@ -7,15 +7,14 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/errors"
 	"go.uber.org/mock/gomock"
 
+	"github.com/Hayao0819/Kamisato/ayato/blob"
+	ayatoconfig "github.com/Hayao0819/Kamisato/ayato/config"
 	"github.com/Hayao0819/Kamisato/ayato/domain"
-	"github.com/Hayao0819/Kamisato/ayato/platform"
 	"github.com/Hayao0819/Kamisato/ayato/repository"
-	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
 	"github.com/Hayao0819/Kamisato/ayato/service"
 	"github.com/Hayao0819/Kamisato/ayato/test/mocks"
-	"github.com/Hayao0819/Kamisato/internal/conf"
-	pkgpkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
+	pkgpkg "github.com/Hayao0819/Kamisato/internal/pacman"
+	"github.com/Hayao0819/Kamisato/internal/pacman/repo"
 	"github.com/Hayao0819/Kamisato/pkg/raiou"
 )
 
@@ -28,8 +27,8 @@ func remoteWith(pkgname, version string) *repo.RemoteRepo {
 	}}
 }
 
-func pkgStream(name string, data []byte) *platform.FileStream {
-	return platform.NewFileStream(
+func pkgStream(name string, data []byte) *blob.FileStream {
+	return blob.NewFileStream(
 		name,
 		"application/octet-stream",
 		bufferToReadSeekCloser(bytes.NewBuffer(data)),
@@ -38,13 +37,13 @@ func pkgStream(name string, data []byte) *platform.FileStream {
 
 const uploadName = "foo-1.0-1-x86_64.pkg.tar.zst"
 
-func baseConfig(requireSign bool, keyring string) *conf.AyatoConfig {
-	cfg := &conf.AyatoConfig{
+func baseConfig(requireSign bool, keyring string) service.Settings {
+	cfg := &ayatoconfig.AyatoConfig{
 		RequireSign: requireSign,
-		Repos:       []conf.BinRepoConfig{{Name: "myrepo", Arches: []string{"x86_64"}}},
+		Repos:       []ayatoconfig.BinRepoConfig{{Name: "myrepo", Arches: []string{"x86_64"}}},
 	}
 	cfg.Verify.Keyring = keyring
-	return cfg
+	return settingsFromConfig(cfg)
 }
 
 func TestUploadFile_RejectsDowngrade(t *testing.T) {

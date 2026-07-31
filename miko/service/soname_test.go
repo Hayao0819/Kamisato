@@ -4,9 +4,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/Hayao0819/Kamisato/pkg/pacman/depend"
-	ppkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
+	"github.com/Hayao0819/Kamisato/internal/pacman"
+	"github.com/Hayao0819/Kamisato/internal/pacman/repo"
 	"github.com/Hayao0819/Kamisato/pkg/raiou"
 )
 
@@ -22,7 +21,7 @@ func (f *fakeRebuildEnqueuer) enqueueRebuild(pkgbase string) error {
 // must not rebuild the bumped package itself.
 func TestEnqueueRebuildChainUsesDependentsInTopoOrder(t *testing.T) {
 	// libbase <- a <- b, and libbase <- c.
-	g := depend.NewDepGraph(
+	g := pacman.NewDepGraph(
 		[]string{"libbase", "a", "b", "c"},
 		map[string][]string{
 			"a": {"libbase"},
@@ -52,7 +51,7 @@ func TestEnqueueRebuildChainUsesDependentsInTopoOrder(t *testing.T) {
 }
 
 func TestRebuildChainNoDependents(t *testing.T) {
-	g := depend.NewDepGraph([]string{"leaf", "other"}, map[string][]string{"other": {"unrelated"}})
+	g := pacman.NewDepGraph([]string{"leaf", "other"}, map[string][]string{"other": {"unrelated"}})
 	chain, err := rebuildChain(g, "leaf")
 	if err != nil {
 		t.Fatalf("rebuildChain: %v", err)
@@ -77,9 +76,9 @@ func TestRepoDepGraphResolvesSonameProvider(t *testing.T) {
 
 	rr := &repo.RemoteRepo{
 		Name: "extra",
-		Pkgs: []*ppkg.BinaryPackage{
-			ppkg.NewBinaryPackage("foo-1-1-x86_64.pkg.tar.zst", provider),
-			ppkg.NewBinaryPackage("bar-1-1-x86_64.pkg.tar.zst", consumer),
+		Pkgs: []*pacman.BinaryPackage{
+			pacman.NewBinaryPackage("foo-1-1-x86_64.pacman.tar.zst", provider),
+			pacman.NewBinaryPackage("bar-1-1-x86_64.pacman.tar.zst", consumer),
 		},
 	}
 

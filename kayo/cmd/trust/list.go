@@ -4,7 +4,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/Hayao0819/Kamisato/internal/cliutil"
-	"github.com/Hayao0819/Kamisato/kayo/cmd/shared"
+	"github.com/Hayao0819/Kamisato/kayo/cli"
 	"github.com/Hayao0819/Kamisato/kayo/trust"
 )
 
@@ -24,7 +24,7 @@ func trustListCmd() *cobra.Command {
 		Short: "List trusted maintainers and approved packages",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			cfg, err := shared.LoadConfig(cmd)
+			cfg, err := cli.LoadConfig(cmd)
 			if err != nil {
 				return err
 			}
@@ -43,7 +43,7 @@ func trustListCmd() *cobra.Command {
 				rows = append(rows, trustRow{Kind: "maintainer", Name: m.Account, Source: m.Source})
 			}
 			for _, a := range store.Approvals() {
-				rows = append(rows, trustRow{Kind: "package", Name: a.Pkgbase, Source: a.Source, Maintainer: a.Maintainer, Commit: shared.Short(a.Commit)})
+				rows = append(rows, trustRow{Kind: "package", Name: a.Pkgbase, Source: a.Source, Maintainer: a.Maintainer, Commit: cli.Short(a.Commit)})
 			}
 			for _, w := range store.WhitelistEntries() {
 				rows = append(rows, trustRow{Kind: "whitelist", Name: w.Pkgbase})

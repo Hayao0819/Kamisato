@@ -10,8 +10,8 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
-	"github.com/Hayao0819/Kamisato/pkg/pacman"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/hook"
+	"github.com/Hayao0819/Kamisato/internal/pacman/hook"
+	pacmanhost "github.com/Hayao0819/Kamisato/internal/pacman/host"
 )
 
 // InstallOptions parameterizes NewInstallCmd for one app's hook.
@@ -52,7 +52,7 @@ func NewInstallCmd(opts InstallOptions) *cobra.Command {
 				return err
 			}
 			if dir == "" {
-				dir = pacman.HookDir(pacmanConf)
+				dir = pacmanhost.HookDir(pacmanConf)
 			}
 			path, err := hook.Install(dir, opts.FileName, opts.Template, exec)
 			if err != nil {
@@ -79,7 +79,7 @@ func NewUninstallCmd(fileName string) *cobra.Command {
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if dir == "" {
-				dir = pacman.HookDir(pacmanConf)
+				dir = pacmanhost.HookDir(pacmanConf)
 			}
 			path, err := hook.Uninstall(dir, fileName)
 			if err != nil {

@@ -1,0 +1,39 @@
+package config
+
+import (
+	"log/slog"
+	"os"
+	"path/filepath"
+)
+
+func CommonDirs() []string {
+	pwd, _ := os.Getwd()
+	cfgdir, _ := os.UserConfigDir()
+
+	dirs := []string{}
+	if pwd != "" {
+		dirs = append(dirs, pwd)
+	}
+	if cfgdir != "" {
+		// Prefer a dedicated subdir, but keep the bare config dir for back-compat.
+		dirs = append(dirs, filepath.Join(cfgdir, "kamisato"), cfgdir)
+	}
+	return dirs
+}
+
+// FileNames returns the explicit config file when one is given, else the
+// default <base>.{json,toml,yaml} search list the server loaders share.
+func FileNames(configFile, base string) []string {
+	if configFile != "" {
+		return []string{configFile}
+	}
+	return []string{base + ".json", base + ".toml", base + ".yaml"}
+}
+
+// LoadDotEnv loads a .env file when present, logging (not failing) on error so
+// every server loader picks up env-provided secrets the same way.
+func LoadDotEnv() {
+	if err := LoadEnv(); err != nil {
+		slog.Error("Failed to load env", "error", err)
+	}
+}

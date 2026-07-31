@@ -6,9 +6,8 @@ import (
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
 
-	"github.com/Hayao0819/Kamisato/ayato/repository"
-	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
-	pacmanpkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
+	"github.com/Hayao0819/Kamisato/ayato/blob"
+	pacmanpkg "github.com/Hayao0819/Kamisato/internal/pacman"
 )
 
 // storedArches returns concrete package directories known by the blob store.
@@ -118,9 +117,9 @@ func (s *Service) backfillAnyInto(
 		return errors.WrapErr(err, "list any packages for backfill")
 	}
 	var artifacts []*spooledPackage
-	defer closeSpooledPackages(artifacts)
+	defer func() { closeSpooledPackages(artifacts) }()
 
-	items := make([]repository.RepoAddItem, 0, len(files))
+	items := make([]RepoAddItem, 0, len(files))
 	for _, filename := range files {
 		if !pacmanpkg.IsArchive(filename) {
 			continue
@@ -130,7 +129,7 @@ func (s *Service) backfillAnyInto(
 			return errors.WrapErr(err, "spool any package for backfill")
 		}
 		artifacts = append(artifacts, artifact)
-		items = append(items, repository.RepoAddItem{
+		items = append(items, RepoAddItem{
 			Pkg: artifact.pkg,
 			Sig: artifact.sig,
 		})

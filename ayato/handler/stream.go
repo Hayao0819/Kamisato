@@ -3,13 +3,13 @@ package handler
 import (
 	"mime/multipart"
 
-	"github.com/Hayao0819/Kamisato/ayato/platform"
+	"github.com/Hayao0819/Kamisato/ayato/blob"
 )
 
-func formFileStream(f *multipart.FileHeader) (*platform.FileStream, error) {
+func formFileStream(f *multipart.FileHeader) (*blob.FileStream, error) {
 	file, err := f.Open()
 	if err != nil {
 		return nil, err
 	}
-	return platform.NewFileStream(f.Filename, f.Header.Get("Content-Type"), file), nil
+	return blob.NewFileStream(f.Filename, f.Header.Get("Content-Type"), file), nil
 }

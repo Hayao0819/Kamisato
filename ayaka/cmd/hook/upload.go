@@ -8,10 +8,10 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
+	"github.com/Hayao0819/Kamisato/ayaka/cli"
 	"github.com/Hayao0819/Kamisato/ayaka/service/hook"
 	"github.com/Hayao0819/Kamisato/internal/errors"
-	pacmanhook "github.com/Hayao0819/Kamisato/pkg/pacman/hook"
+	pacmanhook "github.com/Hayao0819/Kamisato/internal/pacman/hook"
 )
 
 // hookUploadCmd is the hook's pacman entry point. pacman does not copy
@@ -42,7 +42,7 @@ func hookUploadCmd() *cobra.Command {
 				return nil
 			}
 
-			api, err := shared.RepoClient(cmd)
+			api, err := cli.RepoClient(cmd)
 			if err != nil {
 				// The hook runs as root, so this resolves against root's server db.
 				return errors.WrapErr(err, "resolving the ayato server/credentials (set up root's db with 'sudo ayaka server login')")
@@ -62,7 +62,7 @@ func hookUploadCmd() *cobra.Command {
 			return nil
 		},
 	}
-	shared.AddRepoServerFlags(cmd)
+	cli.AddRepoServerFlags(cmd)
 	cmd.Flags().StringVar(&repo, "repo", "", "target repository on ayato (required)")
 	cmd.Flags().StringVar(&pacmanConf, "pacman-config", "", "pacman.conf path for resolving CacheDir (default: pacman's own)")
 	cmd.Flags().StringArrayVar(&cacheOverride, "cache-dir", nil, "override the package cache dir(s) instead of reading pacman.conf")

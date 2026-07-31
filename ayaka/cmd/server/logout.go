@@ -5,8 +5,8 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/Hayao0819/Kamisato/internal/ayatoapi"
 	"github.com/Hayao0819/Kamisato/internal/errors"
-	"github.com/Hayao0819/Kamisato/internal/serverstore"
 )
 
 // LogoutCmd clears the locally stored CLI token but keeps the server registered.
@@ -21,7 +21,7 @@ func LogoutCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			server := args[0]
 
-			if err := serverstore.ClearCredentials(server, true); err != nil {
+			if err := ayatoapi.ClearCredentials(server, true); err != nil {
 				return errors.WrapErr(err, "local credential deletion failed; retry logout")
 			}
 

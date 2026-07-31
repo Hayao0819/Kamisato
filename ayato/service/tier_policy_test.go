@@ -8,19 +8,19 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/errors"
 	"go.uber.org/mock/gomock"
 
+	"github.com/Hayao0819/Kamisato/ayato/blob"
+	ayatoconfig "github.com/Hayao0819/Kamisato/ayato/config"
 	"github.com/Hayao0819/Kamisato/ayato/domain"
-	"github.com/Hayao0819/Kamisato/ayato/platform"
 	"github.com/Hayao0819/Kamisato/ayato/repository"
 	"github.com/Hayao0819/Kamisato/ayato/service"
 	"github.com/Hayao0819/Kamisato/ayato/test/mocks"
-	"github.com/Hayao0819/Kamisato/internal/conf"
-	pacmanpkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
-	pacmanrepo "github.com/Hayao0819/Kamisato/pkg/pacman/repo"
+	pacmanpkg "github.com/Hayao0819/Kamisato/internal/pacman"
+	pacmanrepo "github.com/Hayao0819/Kamisato/internal/pacman/repo"
 	"github.com/Hayao0819/Kamisato/pkg/raiou"
 )
 
 func TestTieredPromotionKeepInSource(t *testing.T) {
-	svc, _, _ := newTieredService(t, []conf.BinRepoConfig{{
+	svc, _, _ := newTieredService(t, []ayatoconfig.BinRepoConfig{{
 		Name: "myrepo", Tiered: true, PromotionKeepInSource: true,
 	}})
 
@@ -45,7 +45,7 @@ func TestTieredPromotionKeepInSource(t *testing.T) {
 }
 
 func TestPromotionRejectsInvalidRequests(t *testing.T) {
-	svc, _, _ := newTieredService(t, []conf.BinRepoConfig{
+	svc, _, _ := newTieredService(t, []ayatoconfig.BinRepoConfig{
 		{Name: "myrepo", Tiered: true},
 		{Name: "single"},
 	})
@@ -80,7 +80,7 @@ func TestPromotionRejectsInvalidRequests(t *testing.T) {
 }
 
 func TestTieredOffUnchanged(t *testing.T) {
-	svc, cfg, _ := newTieredService(t, []conf.BinRepoConfig{{Name: "single"}})
+	svc, cfg, _ := newTieredService(t, []ayatoconfig.BinRepoConfig{{Name: "single"}})
 	catalog, err := cfg.RepositoryCatalog()
 	if err != nil {
 		t.Fatalf("RepositoryCatalog: %v", err)
@@ -100,7 +100,7 @@ func TestPromotionRegistersCarriedPackageSignature(t *testing.T) {
 
 	bin := mocks.NewMockBinaryRepository(ctrl)
 	names := mocks.NewMockNameStore(ctrl)
-	cfg := &conf.AyatoConfig{Repos: []conf.BinRepoConfig{{
+	cfg := &ayatoconfig.AyatoConfig{Repos: []ayatoconfig.BinRepoConfig{{
 		Name:                  "myrepo",
 		Tiered:                true,
 		Arches:                []string{"x86_64"},
@@ -119,7 +119,7 @@ func TestPromotionRegistersCarriedPackageSignature(t *testing.T) {
 	bin.EXPECT().FetchFile("myrepo-staging", "x86_64", sourceName).
 		Return(pkgStream(sourceName, []byte("package")), nil)
 	bin.EXPECT().FetchFile("myrepo-staging", "x86_64", sourceName+".sig").
-		Return(platform.NewFileStream(
+		Return(blob.NewFileStream(
 			sourceName+".sig",
 			"application/pgp-signature",
 			bufferToReadSeekCloser(bytes.NewBufferString("signature")),
@@ -144,7 +144,7 @@ func TestPromotionRegistersCarriedPackageSignature(t *testing.T) {
 		"myrepo-testing", "x86_64", "foo", sourceName,
 	).Return(nil)
 
-	svc := service.New(names, bin, nil, nil, cfg)
+	svc := service.New(names, bin, nil, nil, settingsFromConfig(cfg))
 	err := svc.PromotePackage(
 		context.Background(),
 		"myrepo",

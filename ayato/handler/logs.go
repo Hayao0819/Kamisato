@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/Hayao0819/Kamisato/ayato/auth"
 	"github.com/gin-gonic/gin"
 )
 
@@ -19,7 +20,10 @@ func (h *MikoHandler) MintLogTokenHandler(c *gin.Context) {
 		respondAuthError(c, http.StatusServiceUnavailable, "log tokens not configured")
 		return
 	}
-	token, err := h.logTokens.Mint(c.Param("id"), logTokenTTL)
+	token, err := auth.NewOpaqueToken(32)
+	if err == nil {
+		err = h.logTokens.StoreLogToken(token, c.Param("id"), logTokenTTL)
+	}
 	if err != nil {
 		respondAuthError(c, http.StatusInternalServerError, "token")
 		return

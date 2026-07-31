@@ -4,8 +4,6 @@ import (
 	"log/slog"
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
-
-	"github.com/Hayao0819/Kamisato/ayato/repository"
 )
 
 type publicationRollback struct {
@@ -69,7 +67,7 @@ func (r *publicationRollback) restoreArch(arch string, protected map[archKey]boo
 	for _, uploadIndex := range r.publication.byArch[arch] {
 		upload := &r.publication.uploads[uploadIndex]
 		err := r.restorePackage(arch, upload)
-		if repository.CanonicalCommitted(err) {
+		if CanonicalCommitted(err) {
 			r.needsReconcile[arch] = true
 			err = nil
 		}
@@ -117,7 +115,7 @@ func (r *publicationRollback) restorePackage(
 	return r.publication.service.pkgBinaryRepo.RepoAddBatch(
 		r.publication.repo,
 		arch,
-		[]repository.RepoAddItem{{
+		[]RepoAddItem{{
 			Pkg:                    artifact.pkg,
 			Sig:                    artifact.sig,
 			CheckCurrent:           true,

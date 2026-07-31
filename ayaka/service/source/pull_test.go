@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	pkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
+	pkg "github.com/Hayao0819/Kamisato/internal/pacman"
+	"github.com/Hayao0819/Kamisato/internal/pacman/source"
 )
 
 func TestIsAURURL(t *testing.T) {
@@ -79,7 +79,7 @@ func TestPullPackages(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	src := &repo.SourceRepo{Config: &repo.SrcConfig{Name: "test"}, Pkgs: []*pkg.SourcePackage{p}}
+	src := &source.SourceRepo{Config: &source.SrcConfig{Name: "test"}, Pkgs: []*pkg.SourcePackage{p}}
 
 	pulled, err := PullPackages(t.Context(), src, nil, false)
 	if err != nil {
@@ -97,7 +97,7 @@ func TestPullPackagesDirtyRefusedUnlessForced(t *testing.T) {
 		t.Fatal(err)
 	}
 	writeMirrorFiles(t, clone, "9.9")
-	src := &repo.SourceRepo{Config: &repo.SrcConfig{Name: "test"}, Pkgs: []*pkg.SourcePackage{p}}
+	src := &source.SourceRepo{Config: &source.SrcConfig{Name: "test"}, Pkgs: []*pkg.SourcePackage{p}}
 
 	if _, err := PullPackages(t.Context(), src, []string{"foo"}, false); err == nil ||
 		!strings.Contains(err.Error(), "local changes") {
@@ -123,7 +123,7 @@ func TestPullPackagesRejectsNonCheckout(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	src := &repo.SourceRepo{Config: &repo.SrcConfig{Name: "test"}, Pkgs: []*pkg.SourcePackage{p}}
+	src := &source.SourceRepo{Config: &source.SrcConfig{Name: "test"}, Pkgs: []*pkg.SourcePackage{p}}
 
 	if _, err := PullPackages(t.Context(), src, []string{"foo"}, false); err == nil ||
 		!strings.Contains(err.Error(), "not a git checkout") {

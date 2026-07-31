@@ -12,7 +12,6 @@ import (
 	"go.uber.org/mock/gomock"
 
 	"github.com/Hayao0819/Kamisato/internal/auth/apikey"
-	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/miko/domain"
 	"github.com/Hayao0819/Kamisato/miko/handler"
 	"github.com/Hayao0819/Kamisato/miko/router"
@@ -41,7 +40,7 @@ func setupWithVerifier(t *testing.T, verifier *apikey.Verifier) (*gomock.Control
 	gin.SetMode(gin.TestMode)
 	ctrl := gomock.NewController(t)
 	mockSvc := mocks.NewMockServicer(ctrl)
-	h := handler.New(mockSvc, &conf.MikoConfig{})
+	h := handler.New(mockSvc, handler.Settings{})
 
 	e := gin.New()
 	if err := router.SetRoute(e, h, verifier); err != nil {

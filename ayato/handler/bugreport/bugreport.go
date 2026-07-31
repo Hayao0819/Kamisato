@@ -26,8 +26,7 @@ type Reporter interface {
 	Report(ctx context.Context, r Report) (url string, err error)
 }
 
-// Config is the bug-report backend configuration, mirrored here rather than
-// imported from internal/conf to avoid an import cycle.
+// Config contains only the settings required by bug-report backends.
 type Config struct {
 	Backends []string
 	GitHub   GitHubConfig

@@ -50,7 +50,7 @@ func (u *AURUpstream) gzipStream(ctx context.Context, rawURL string) (io.ReadClo
 	}
 	req.Header.Set("User-Agent", u.userAgent)
 
-	resp, err := u.dumpClient.Do(req) //nolint:gosec // upstream host is operator-configured; only query params vary
+	resp, err := doUpstreamGET(u.dumpClient, req) //nolint:gosec // upstream host is operator-configured; only query params vary
 	if err != nil {
 		return nil, fmt.Errorf("aurweb: upstream dump request: %w", err)
 	}

@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
-	"github.com/Hayao0819/Kamisato/pkg/safefile"
+	"github.com/Hayao0819/Kamisato/internal/safefile"
 )
 
 // pin records the TOFU-trusted public key and the anti-rollback watermark for one

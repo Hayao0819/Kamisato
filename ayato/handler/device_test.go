@@ -11,15 +11,15 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/Hayao0819/Kamisato/ayato/auth"
+	ayatoconfig "github.com/Hayao0819/Kamisato/ayato/config"
 	"github.com/Hayao0819/Kamisato/ayato/repository"
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv/badgerkv"
 	"github.com/Hayao0819/Kamisato/ayato/service"
-	"github.com/Hayao0819/Kamisato/internal/conf"
 )
 
 // deviceHandler builds a handler with a real kv-backed device store, GitHub OAuth
 // configured, and the test administrator seeded into the allowlist.
-func deviceHandler(t *testing.T) (*AuthHandler, repository.DeviceRepository, *auth.Signer) {
+func deviceHandler(t *testing.T) (*AuthHandler, deviceStore, *auth.Signer) {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
 	store, err := badgerkv.New(t.TempDir())
@@ -28,7 +28,7 @@ func deviceHandler(t *testing.T) (*AuthHandler, repository.DeviceRepository, *au
 	}
 	t.Cleanup(func() { _ = store.Close() })
 
-	cfg := &conf.AyatoConfig{}
+	cfg := &ayatoconfig.AyatoConfig{}
 	cfg.Auth.GitHub.ClientID = "cid"
 	cfg.Auth.GitHub.ClientSecret = "secret"
 	cfg.Auth.PublicOrigin = "https://repo.example.com"
@@ -38,12 +38,12 @@ func deviceHandler(t *testing.T) (*AuthHandler, repository.DeviceRepository, *au
 		t.Fatalf("AddAdmin: %v", err)
 	}
 	dev := repository.NewDeviceRepository(store)
-	svc := service.New(nil, nil, authRepo, nil, cfg)
+	svc := service.New(nil, nil, authRepo, nil, service.Settings{})
 	signer, err := auth.NewSigner([]string{testSecret})
 	if err != nil {
 		t.Fatalf("NewSigner: %v", err)
 	}
-	h := NewAuthHandler(svc, svc, cfg).WithSigner(signer).WithDeviceStore(dev)
+	h := NewAuthHandler(svc, svc, testSettings(cfg)).WithSigner(signer).WithDeviceStore(dev)
 	return h, dev, signer
 }
 

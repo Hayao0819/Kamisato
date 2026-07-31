@@ -5,6 +5,14 @@ it locally, so an underpowered machine can keep using yay. thoma offloads only
 the build itself. Source download, `--packagelist`, `.SRCINFO`, and the install
 all fall through to the real makepkg on the local box.
 
+The remote build starts from a fresh source tree, resolves dependencies without
+prompts, and removes the throwaway build environment when it finishes. Flags
+such as `--clean`, `--cleanbuild`, `--force`, `--noextract`, `--noprepare`,
+`--holdver`, `--rmdeps`, `--syncdeps`, `--noconfirm`, and `--noprogressbar` are
+therefore accepted but normalized to that behavior. Local edits under `srcdir`
+are not sent to miko. Options that require a local install, package signing,
+dependency suppression, or makepkg log files are rejected for remote builds.
+
 ## Modes
 
 `THOMA_MODE` picks where the build runs and where the finished package comes

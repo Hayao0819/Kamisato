@@ -2,8 +2,6 @@ package auth
 
 import (
 	"crypto/subtle"
-
-	"github.com/Hayao0819/Kamisato/internal/conf"
 )
 
 type apiKeyAuth struct {
@@ -24,7 +22,7 @@ const (
 	serviceGrant
 )
 
-func newAPIKeyAuth(cfg []conf.CIAPIKey) *apiKeyAuth {
+func newAPIKeyAuth(cfg []CIAPIKey) *apiKeyAuth {
 	a := &apiKeyAuth{}
 	for _, k := range cfg {
 		e := apiKeyEntry{name: k.Name, key: []byte(k.Key), repos: map[string]bool{}, scopes: map[string]bool{}}

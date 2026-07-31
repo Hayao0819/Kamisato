@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
+	"github.com/Hayao0819/Kamisato/internal/pacman/builder"
+	"github.com/Hayao0819/Kamisato/internal/pacman/builder/factory"
 	"github.com/Hayao0819/Kamisato/miko/domain"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/builder"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/builder/factory"
 )
 
 // On success it returns the output directory holding the built packages; the
@@ -44,16 +44,16 @@ func (s *Service) runBuild(ctx context.Context, job *domain.BuildJob) (*builder.
 		Timeout: timeout,
 		Makepkg: builder.MakepkgConfig{Microarch: req.Microarch},
 	}
-	if s.cfg.Build.ResolveAURDeps && req.Repo != "" && s.cfg.Ayato.URL != "" {
+	if s.settings.ResolveAURDependencies && req.Repo != "" && s.settings.AyatoURL != "" {
 		// Expose the target repo so dependencies published during this run resolve.
 		overrides.Repositories = append(overrides.Repositories, builder.PacmanRepository{
 			Name:     req.Repo,
-			Server:   strings.TrimRight(s.cfg.Ayato.URL, "/") + "/repo/$repo/$arch",
+			Server:   strings.TrimRight(s.settings.AyatoURL, "/") + "/repo/$repo/$arch",
 			SigLevel: "Optional TrustAll",
 		})
 	}
 
-	config, err := builder.Resolve(s.cfg.BuilderHostConfig(), overrides, req.Arch)
+	config, err := builder.Resolve(s.settings.Builder, overrides, req.Arch)
 	if err != nil {
 		_ = os.RemoveAll(outDir)
 		return nil, "", errors.WrapErr(err, "failed to resolve build configuration")
@@ -72,11 +72,16 @@ func (s *Service) runBuild(ctx context.Context, job *domain.BuildJob) (*builder.
 	}
 
 	spec := builder.Spec{
-		SrcDir:      srcDir,
-		OutDir:      outDir,
-		Arch:        req.Arch,
-		InstallPkgs: req.InstallPkgs,
-		LogWriter:   s.LogBuffer(job.ID),
+		SrcDir:        srcDir,
+		OutDir:        outDir,
+		Arch:          req.Arch,
+		InstallPkgs:   req.InstallPkgs,
+		LogWriter:     s.LogBuffer(job.ID),
+		IgnoreArch:    req.IgnoreArch,
+		RunCheck:      req.RunCheck,
+		RunVerify:     req.RunVerify,
+		SkipChecksums: req.SkipChecksums,
+		SkipPGPCheck:  req.SkipPGPCheck,
 	}
 
 	res, err := backend.Build(ctx, spec)

@@ -9,11 +9,11 @@ import (
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
 
-	"github.com/Hayao0819/Kamisato/internal/conf"
+	"github.com/Hayao0819/Kamisato/internal/nvcheck"
+	"github.com/Hayao0819/Kamisato/internal/pacman/builder"
+	"github.com/Hayao0819/Kamisato/internal/pacman/sign"
 	"github.com/Hayao0819/Kamisato/miko/domain"
 	"github.com/Hayao0819/Kamisato/miko/joblog"
-	"github.com/Hayao0819/Kamisato/pkg/httpx"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/sign"
 )
 
 // Sentinel errors let the handler map Submit failures to HTTP status codes.
@@ -45,7 +45,7 @@ type Servicer interface {
 }
 
 type Service struct {
-	cfg      *conf.MikoConfig
+	settings Settings
 	signer   sign.Signer // host signing key; nil disables signing
 	queue    *queue
 	persist  Persister   // durable job store; nil disables persistence
@@ -71,19 +71,58 @@ type Service struct {
 	logs   map[string]*joblog.Buffer
 }
 
-// New builds a Service from explicitly named optional collaborators.
-func New(cfg *conf.MikoConfig, options ...ServiceOption) *Service {
-	if cfg == nil {
-		cfg = &conf.MikoConfig{}
+type Settings struct {
+	Builder                   builder.HostConfig
+	ResolveAURDependencies    bool
+	AURRPCURL                 string
+	AyatoURL                  string
+	AyatoAPIKey               string
+	Workers                   int
+	Executor                  string
+	DataDir                   string
+	VersionCheckInterval      time.Duration
+	VersionCheckEntries       []nvcheck.Entry
+	AURGitBase                string
+	SonameRebuild             bool
+	MaxPackageSize            int
+	MaxRetries                int
+	RetryBackoff              time.Duration
+	MaxLogBytes               int
+	TrustedAURMaintainers     []string
+	TrustedAURPackages        []string
+	AllowUntrustedAURPackages bool
+}
+
+func (settings Settings) normalized() Settings {
+	if settings.Builder.Backend == "" {
+		settings.Builder.Backend = builder.KindContainer
 	}
-	dependencies := serviceOptions{httpClient: httpx.Default()}
+	if settings.Workers < 1 {
+		settings.Workers = 1
+	}
+	if settings.RetryBackoff == 0 {
+		settings.RetryBackoff = 5 * time.Second
+	}
+	if settings.MaxLogBytes <= 0 {
+		settings.MaxLogBytes = 16 << 20
+	}
+	if settings.AURGitBase == "" {
+		settings.AURGitBase = "https://aur.archlinux.org"
+	}
+	return settings
+}
+
+// New builds a Service from explicitly named optional collaborators.
+func New(settings Settings, options ...ServiceOption) *Service {
+	settings = settings.normalized()
+	dependencies := serviceOptions{httpClient: &http.Client{Timeout: 30 * time.Second}}
 	for _, option := range options {
 		if option != nil {
 			option(&dependencies)
 		}
 	}
 	s := &Service{
-		cfg:          cfg,
+		settings:     settings,
 		signer:       dependencies.signer,
 		queue:        newQueue(),
 		persist:      dependencies.persister,
@@ -91,9 +130,9 @@ func New(cfg *conf.MikoConfig, options ...ServiceOption) *Service {
 		httpClient:   dependencies.httpClient,
 		repositories: dependencies.repositories,
 		aurTrust: domain.NewAURTrustPolicy(domain.AURTrustPolicySpec{
-			TrustedMaintainers: cfg.AURTrust.TrustedMaintainers,
-			TrustedPkgbases:    cfg.AURTrust.TrustedPkgbases,
-			AllowUntrusted:     cfg.AURTrust.AllowUntrusted,
+			TrustedMaintainers: settings.TrustedAURMaintainers,
+			TrustedPkgbases:    settings.TrustedAURPackages,
+			AllowUntrusted:     settings.AllowUntrustedAURPackages,
 		}),
 		store:     make(map[string]*domain.BuildJob),
 		running:   make(map[string]context.CancelFunc),
@@ -105,8 +144,8 @@ func New(cfg *conf.MikoConfig, options ...ServiceOption) *Service {
 	}
 	// Soname history is small per-pkgbase state; persist it under the data dir so
 	// a bump is detected across restarts. Disabled (nil) without a data dir.
-	if cfg.DataDir != "" {
-		if st, err := newFileSonameStore(cfg.DataDir); err != nil {
+	if settings.DataDir != "" {
+		if st, err := newFileSonameStore(settings.DataDir); err != nil {
 			slog.Warn("soname history disabled", "error", err)
 		} else {
 			s.sonames = st
@@ -156,7 +195,7 @@ func (s *Service) persistRemove(id string) {
 }
 
 func (s *Service) newLogBuffer(id string) *joblog.Buffer {
-	b := joblog.New(s.cfg.MaxLogBytes)
+	b := joblog.New(s.settings.MaxLogBytes)
 	s.logsMu.Lock()
 	s.logs[id] = b
 	s.logsMu.Unlock()

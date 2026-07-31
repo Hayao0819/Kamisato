@@ -5,11 +5,10 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/Hayao0819/Kamisato/internal/conf"
+	"github.com/Hayao0819/Kamisato/internal/nvcheck"
+	ppkg "github.com/Hayao0819/Kamisato/internal/pacman"
+	"github.com/Hayao0819/Kamisato/internal/pacman/repo"
 	"github.com/Hayao0819/Kamisato/miko/domain"
-	"github.com/Hayao0819/Kamisato/pkg/nvcheck"
-	ppkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
 	"github.com/Hayao0819/Kamisato/pkg/raiou"
 )
 
@@ -36,7 +35,7 @@ func (f *fakeRepositoryDBReader) Database(
 // A monitored rebuild must enqueue a real job tagged ReasonVersionUpdate so its
 // origin is visible, reusing Submit's validation.
 func TestVersionUpdateEnqueuerTagsReason(t *testing.T) {
-	s := New(&conf.MikoConfig{})
+	s := New(Settings{})
 	enq := &versionUpdateEnqueuer{s: s}
 
 	entry := nvcheck.Entry{Pkgbase: "foo", Repo: "extra", Arch: "x86_64", Git: "https://aur.archlinux.org/foo.git"}
@@ -56,22 +55,6 @@ func TestVersionUpdateEnqueuerTagsReason(t *testing.T) {
 	}
 }
 
-// nvcheckEntries fills the clone URL from aur_git_base when an entry omits it.
-func TestNvcheckEntriesDefaultsGitURL(t *testing.T) {
-	cfg := &conf.MikoConfig{AURGitBase: "https://aur.archlinux.org"}
-	cfg.NvCheck.Entries = []conf.NvCheckEntry{
-		{Pkgbase: "foo", Kind: "github", Repo: "o/foo"},
-		{Pkgbase: "bar", Kind: "pypi", Package: "bar", Git: "https://example.com/bar.git"},
-	}
-	got := nvcheckEntries(cfg)
-	if got[0].Git != "https://aur.archlinux.org/foo.git" {
-		t.Errorf("default git = %q", got[0].Git)
-	}
-	if got[1].Git != "https://example.com/bar.git" {
-		t.Errorf("explicit git overridden: %q", got[1].Git)
-	}
-}
-
 func TestRepositoryConsumersShareInjectedReader(t *testing.T) {
 	info := raiou.NewPKGINFO()
 	info.PkgName = "foo-bin"
@@ -84,9 +67,7 @@ func TestRepositoryConsumersShareInjectedReader(t *testing.T) {
 		},
 	}
 	reader := &fakeRepositoryDBReader{database: database}
-	cfg := &conf.MikoConfig{}
-	cfg.Ayato.URL = "https://ayato.example"
-	s := New(cfg, WithRepositoryDBReader(reader))
+	s := New(Settings{AyatoURL: "https://ayato.example"}, WithRepositoryDBReader(reader))
 
 	version, err := s.publishedVersion()(context.Background(), nvcheck.Entry{
 		Pkgbase: "foo",
@@ -123,9 +104,7 @@ func TestRepositoryConsumersShareInjectedReader(t *testing.T) {
 func TestPublishedVersionPreservesRepositoryFailure(t *testing.T) {
 	wantErr := errors.New("repository unavailable")
 	reader := &fakeRepositoryDBReader{err: wantErr}
-	cfg := &conf.MikoConfig{}
-	cfg.Ayato.URL = "https://ayato.example"
-	s := New(cfg, WithRepositoryDBReader(reader))
+	s := New(Settings{AyatoURL: "https://ayato.example"}, WithRepositoryDBReader(reader))
 
 	_, err := s.publishedVersion()(context.Background(), nvcheck.Entry{
 		Pkgbase: "foo",

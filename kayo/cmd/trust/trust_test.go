@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	"github.com/Hayao0819/Kamisato/kayo/trust"
-	"github.com/spf13/cobra"
 )
 
 func seedStore(t *testing.T, dir string) {
@@ -89,24 +88,13 @@ func TestTrustListJSONOutput(t *testing.T) {
 	}
 }
 
-func TestRemoveCommands(t *testing.T) {
-	tests := []struct {
-		name, use string
-		cmd       func() *cobra.Command
-	}{
-		{"trust", "remove [<pkgname>]", trustRemoveCmd},
-		{"whitelist", "remove <pkgname>", whitelistRemoveCmd},
+func TestTrustRemoveCommand(t *testing.T) {
+	cmd := trustRemoveCmd()
+	if !slices.Contains(cmd.Aliases, "rm") {
+		t.Errorf("aliases = %v, want rm", cmd.Aliases)
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			cmd := tt.cmd()
-			if !slices.Contains(cmd.Aliases, "rm") {
-				t.Errorf("aliases = %v, want rm", cmd.Aliases)
-			}
-			if cmd.Use != tt.use {
-				t.Errorf("Use = %q, want %q", cmd.Use, tt.use)
-			}
-		})
+	if cmd.Use != "remove [<pkgname>]" {
+		t.Errorf("Use = %q, want %q", cmd.Use, "remove [<pkgname>]")
 	}
 }
 

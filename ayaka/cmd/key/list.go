@@ -5,7 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
+	"github.com/Hayao0819/Kamisato/ayaka/cli"
 	"github.com/Hayao0819/Kamisato/internal/cliutil"
 )
 
@@ -28,7 +28,7 @@ func listCmd() *cobra.Command {
 		Short: "List the signing key and its subkeys",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			k, _, err := shared.LoadSigningKey(cmd)
+			k, _, err := cli.LoadSigningKey(cmd)
 			if err != nil {
 				return err
 			}

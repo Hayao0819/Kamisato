@@ -50,7 +50,12 @@ type BuildRequest struct {
 	// requester to download and sign locally.
 	SignMode string `json:"sign_mode,omitempty"`
 	// Timeout in minutes; 0 uses the server default.
-	Timeout int `json:"timeout,omitempty"`
+	Timeout       int   `json:"timeout,omitempty"`
+	IgnoreArch    bool  `json:"ignore_arch,omitempty"`
+	RunCheck      *bool `json:"run_check,omitempty"`
+	RunVerify     *bool `json:"run_verify,omitempty"`
+	SkipChecksums bool  `json:"skip_checksums,omitempty"`
+	SkipPGPCheck  bool  `json:"skip_pgp_check,omitempty"`
 	// Requester is set from the authenticated principal.
 	Requester string `json:"-"`
 }

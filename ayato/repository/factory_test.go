@@ -7,21 +7,20 @@ import (
 
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv/badgerkv"
-	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
-func badgerConfig(t *testing.T) *conf.AyatoConfig {
+func badgerConfig(t *testing.T) Settings {
 	t.Helper()
-	cfg := &conf.AyatoConfig{}
-	cfg.Store.BadgerDB = t.TempDir()
-	cfg.Store.LocalRepoDir = t.TempDir()
-	return cfg
+	return Settings{
+		Storage: StorageSettings{LocalDir: t.TempDir()},
+		KV:      KVSettings{BadgerPath: filepath.Join(t.TempDir(), "kv-db")},
+	}
 }
 
-func assertBadgerCanReopen(t *testing.T, cfg *conf.AyatoConfig) {
+func assertBadgerCanReopen(t *testing.T, settings Settings) {
 	t.Helper()
-	store, err := badgerkv.New(cfg.DbPath())
+	store, err := badgerkv.New(settings.KV.BadgerPath)
 	if err != nil {
 		t.Fatalf("BadgerDB remained locked after constructor failure: %v", err)
 	}
@@ -44,7 +43,7 @@ func TestNewClosesKVWhenSecretDecoratorInitializationFails(t *testing.T) {
 func TestNewClosesKVWhenLaterRepositoryInitializationFails(t *testing.T) {
 	t.Setenv("AYATO_DB_SIGNING_KEY", "")
 	cfg := badgerConfig(t)
-	cfg.Sign.DB = true
+	cfg.SignDatabase = true
 
 	if _, _, _, _, err := New(cfg); err == nil {
 		t.Fatal("New() = nil error without the configured database signing key")

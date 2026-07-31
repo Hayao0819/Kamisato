@@ -4,6 +4,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/Hayao0819/Kamisato/ayaka/app"
 )
 
 func TestDurationToMinutes(t *testing.T) {
@@ -30,7 +32,7 @@ func TestDurationToMinutes(t *testing.T) {
 }
 
 func TestMikoBuildFlagShape(t *testing.T) {
-	cmd := mikoBuildCmd()
+	cmd := mikoBuildCmd(app.StaticRuntime(&app.App{}))
 	flags := cmd.Flags()
 
 	present := []string{"sign-local", "key", "passphrase-file", "git", "ref", "subdir", "arch", "timeout"}
@@ -49,7 +51,7 @@ func TestMikoBuildFlagShape(t *testing.T) {
 }
 
 func TestMikoBuildTimeoutIsDuration(t *testing.T) {
-	cmd := mikoBuildCmd()
+	cmd := mikoBuildCmd(app.StaticRuntime(&app.App{}))
 	if err := cmd.Flags().Set("timeout", "30m"); err != nil {
 		t.Fatalf("could not set --timeout to 30m: %v", err)
 	}
@@ -66,7 +68,7 @@ func TestMikoBuildRequiredTogether(t *testing.T) {
 	// --sign-local without --key must error due to MarkFlagsRequiredTogether.
 	// Pass --git to bypass the PreRunE local-repo check so cobra reaches the
 	// flag-group validation, which fires after PreRunE.
-	cmd := mikoBuildCmd()
+	cmd := mikoBuildCmd(app.StaticRuntime(&app.App{}))
 	cmd.SetArgs([]string{"--sign-local", "--git", "https://aur.archlinux.org/foo.git", "myrepo"})
 	cmd.SilenceErrors = true
 	cmd.SilenceUsage = true

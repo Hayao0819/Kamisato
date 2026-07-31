@@ -12,7 +12,9 @@ import (
 func parseArgs(t *testing.T, args []string) *pflag.FlagSet {
 	t.Helper()
 	f := RootCmd().Flags()
-	_ = f.Parse(args)
+	if err := f.Parse(args); err != nil {
+		t.Fatal(err)
+	}
 	return f
 }
 
@@ -35,6 +37,9 @@ func TestIsRemoteBuild(t *testing.T) {
 		{"version long", []string{"--version"}, false},
 		{"version short", []string{"-V"}, false},
 		{"help", []string{"--help"}, false},
+		{"repackage", []string{"--repackage"}, false},
+		{"repackage short", []string{"-R"}, false},
+		{"noarchive", []string{"--noarchive"}, false},
 
 		// paru-style bundled short flags.
 		{"paru extract -ofA", []string{"-ofA", "-C"}, false},
@@ -54,18 +59,27 @@ func TestIsRemoteBuild(t *testing.T) {
 	}
 }
 
-func TestPkgName(t *testing.T) {
-	cases := map[string]string{
-		"foo-1.0-1-x86_64.pkg.tar.zst":             "foo",
-		"foo-bar-1.0-1-x86_64.pkg.tar.zst":         "foo-bar",
-		"python-foo-1.2.3-4-any.pkg.tar.xz":        "python-foo",
-		"foo-2:1.0-1-any.pkg.tar.zst":              "foo", // epoch in version
-		"foo-git-r123.abcdef-1-x86_64.pkg.tar.zst": "foo-git",
-	}
-	for in, want := range cases {
-		if got := pkgName(in); got != want {
-			t.Errorf("pkgName(%q) = %q, want %q", in, got, want)
+func TestBuildscriptArg(t *testing.T) {
+	for _, test := range []struct {
+		args []string
+		want string
+	}{
+		{args: []string{"-p", "PKGBUILD.custom"}, want: "PKGBUILD.custom"},
+		{args: []string{"--buildscript=PKGBUILD.alt"}, want: "PKGBUILD.alt"},
+		{args: []string{"-f"}, want: "PKGBUILD"},
+	} {
+		if got, _ := parseArgs(t, test.args).GetString("buildscript"); got != test.want {
+			t.Errorf("buildscript from %v = %q, want %q", test.args, got, test.want)
 		}
+	}
+}
+
+func TestRejectRoot(t *testing.T) {
+	if err := rejectRoot(0); err == nil {
+		t.Fatal("root was accepted")
+	}
+	if err := rejectRoot(1000); err != nil {
+		t.Fatalf("non-root was rejected: %v", err)
 	}
 }
 
@@ -77,11 +91,48 @@ func TestConfigArg(t *testing.T) {
 		{[]string{"--config", "/etc/makepkg.conf", "-f"}, "/etc/makepkg.conf"},
 		{[]string{"--config=/x/makepkg.conf"}, "/x/makepkg.conf"},
 		{[]string{"-f", "--noconfirm"}, ""},
-		{[]string{"--config"}, ""}, // dangling, no value
 	}
 	for _, tc := range cases {
 		if got, _ := parseArgs(t, tc.args).GetString("config"); got != tc.want {
 			t.Errorf("--config from %v = %q, want %q", tc.args, got, tc.want)
+		}
+	}
+}
+
+func TestParseRejectsMissingFlagValue(t *testing.T) {
+	for _, arg := range []string{"--config", "--buildscript", "--dir", "--key"} {
+		flags := RootCmd().Flags()
+		if err := flags.Parse([]string{arg}); err == nil {
+			t.Errorf("%s was accepted without a value", arg)
+		}
+	}
+}
+
+func TestParseRejectsUnknownFlag(t *testing.T) {
+	flags := RootCmd().Flags()
+	if err := flags.Parse([]string{"--definitely-invalid"}); err == nil {
+		t.Fatal("unknown flag was accepted")
+	}
+}
+
+func TestRemoteBuildOptions(t *testing.T) {
+	flags := parseArgs(t, []string{"--dir", "/tmp/pkg", "--ignorearch", "--nocheck", "--noverify", "--skipinteg"})
+	options, err := remoteBuildOptions(flags)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if options.Dir != "/tmp/pkg" || !options.IgnoreArch || options.RunCheck == nil || *options.RunCheck || options.RunVerify == nil || *options.RunVerify {
+		t.Fatalf("options = %+v", options)
+	}
+	if !options.SkipChecksums || !options.SkipPGPCheck {
+		t.Fatalf("skip options = %+v", options)
+	}
+}
+
+func TestRemoteBuildRejectsUnsupportedFlags(t *testing.T) {
+	for _, arg := range []string{"--install", "--sign", "--nosign", "--key=test", "--nodeps", "--log"} {
+		if _, err := remoteBuildOptions(parseArgs(t, []string{arg})); err == nil {
+			t.Errorf("%s was accepted", arg)
 		}
 	}
 }

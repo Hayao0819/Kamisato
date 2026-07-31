@@ -11,18 +11,17 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/Hayao0819/Kamisato/ayato/auth"
-	"github.com/Hayao0819/Kamisato/internal/conf"
 )
 
 func TestRequireServiceScope(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	authorizer, err := auth.NewCIAuthorizer(context.Background(), conf.CIAuthConfig{APIKeys: []conf.CIAPIKey{
+	authorizer, err := auth.NewCIAuthorizer(context.Background(), auth.CISettings{APIKeys: []auth.CIAPIKey{
 		{Name: "signer", Key: "right-key", Scopes: []string{"signer:register"}},
 	}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	m := New(&conf.AyatoConfig{}).WithCIAuth(authorizer)
+	m := New(Settings{}).WithCIAuth(authorizer)
 	router := gin.New()
 	router.POST("/signers", m.RequireServiceScope("signer:register"), func(c *gin.Context) {
 		c.Status(http.StatusOK)
@@ -61,15 +60,13 @@ func TestSignerRegistrationLegacyBasicRequiresExplicitFlagAndNeverDowngradesAPIK
 	if err != nil {
 		t.Fatal(err)
 	}
-	authorizer, err := auth.NewCIAuthorizer(context.Background(), conf.CIAuthConfig{APIKeys: []conf.CIAPIKey{
+	authorizer, err := auth.NewCIAuthorizer(context.Background(), auth.CISettings{APIKeys: []auth.CIAPIKey{
 		{Name: "signer", Key: "service-key", Scopes: []string{"signer:register"}},
 	}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	cfg := &conf.AyatoConfig{}
-	cfg.Auth.AllowLegacySignerBasic = true
-	m := New(cfg).WithAuth(fakeChecker{allowed: map[int64]bool{42: true}}, signer).WithCIAuth(authorizer)
+	m := New(Settings{AllowLegacySignerBasic: true}).WithAuth(fakeChecker{allowed: map[int64]bool{42: true}}, signer).WithCIAuth(authorizer)
 	router := gin.New()
 	router.POST("/signers", m.RequireSignerRegistration(), func(c *gin.Context) { c.Status(http.StatusOK) })
 
@@ -92,7 +89,7 @@ func TestSignerRegistrationLegacyBasicRequiresExplicitFlagAndNeverDowngradesAPIK
 		t.Fatalf("invalid API key downgraded to Basic: status = %d", got)
 	}
 
-	cfg.Auth.AllowLegacySignerBasic = false
+	m.settings.AllowLegacySignerBasic = false
 	if got := run("", true); got == http.StatusOK {
 		t.Fatal("legacy Basic succeeded after migration flag was disabled")
 	}

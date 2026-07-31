@@ -11,8 +11,8 @@ import (
 
 	"github.com/cenkalti/backoff/v5"
 
+	"github.com/Hayao0819/Kamisato/internal/pacman/builder"
 	"github.com/Hayao0819/Kamisato/miko/domain"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/builder"
 )
 
 func (s *Service) process(ctx context.Context, job *domain.BuildJob) {
@@ -177,13 +177,13 @@ type buildOutcome struct {
 // times with exponential backoff and jitter. Cancellation is terminal and does
 // not consume a retry.
 func (s *Service) buildWithRetry(ctx context.Context, job *domain.BuildJob) (*builder.Result, string, error) {
-	maxRetries := s.cfg.MaxRetries
+	maxRetries := s.settings.MaxRetries
 	if maxRetries < 0 {
 		maxRetries = 0
 	}
 
 	exp := backoff.NewExponentialBackOff()
-	exp.InitialInterval = time.Duration(s.cfg.RetryBackoff) * time.Second
+	exp.InitialInterval = s.settings.RetryBackoff
 
 	attempt := 0
 	// notify only fires before a genuine retry (a terminal failure returns a

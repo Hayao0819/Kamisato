@@ -6,8 +6,9 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
+	"github.com/Hayao0819/Kamisato/kayo/app"
 	"github.com/Hayao0819/Kamisato/kayo/audit"
-	"github.com/Hayao0819/Kamisato/kayo/cmd/shared"
+	"github.com/Hayao0819/Kamisato/kayo/cli"
 	"github.com/Hayao0819/Kamisato/kayo/gitserve"
 	"github.com/Hayao0819/Kamisato/kayo/trust"
 )
@@ -25,12 +26,12 @@ func trustAddCmd() *cobra.Command {
 			"account; it does not auto-trust brand-new packages, which still need review.",
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cfg, err := shared.LoadConfig(cmd)
+			cfg, err := cli.LoadConfig(cmd)
 			if err != nil {
 				return err
 			}
 
-			r, cleanup, err := shared.Resolve(cmd.Context(), cfg, args[0], ref)
+			r, cleanup, err := app.Resolve(cmd.Context(), cfg, args[0], ref)
 			defer cleanup()
 			if err != nil {
 				return err
@@ -46,8 +47,8 @@ func trustAddCmd() *cobra.Command {
 			}
 
 			out := cmd.OutOrStdout()
-			shared.PrintReport(out, r, report, store.Evaluate(r.Source, r.Pkgbase, r.Maintainer))
-			shared.PrintLLMAdvisory(cmd.Context(), out, cfg, r.Dir, false)
+			cli.PrintReport(out, r, report, store.Evaluate(r.Source, r.Pkgbase, r.Maintainer))
+			cli.PrintLLMAdvisory(cmd.Context(), out, cfg, r.Dir, false)
 			if report.Max() >= audit.SevHigh && !force {
 				return errors.NewErr("refusing to trust: high-severity findings (use --force to override)")
 			}
@@ -72,7 +73,7 @@ func trustAddCmd() *cobra.Command {
 			if err := store.Save(); err != nil {
 				return err
 			}
-			fmt.Fprintf(out, "trusted and pinned %s at %s (maintainer %q)\n", r.Pkgbase, shared.Short(r.Commit), r.Maintainer)
+			fmt.Fprintf(out, "trusted and pinned %s at %s (maintainer %q)\n", r.Pkgbase, cli.Short(r.Commit), r.Maintainer)
 			return nil
 		},
 	}

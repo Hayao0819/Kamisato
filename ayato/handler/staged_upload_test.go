@@ -13,14 +13,13 @@ import (
 
 	"github.com/Hayao0819/Kamisato/ayato/domain"
 	"github.com/Hayao0819/Kamisato/ayato/test/mocks"
-	"github.com/Hayao0819/Kamisato/internal/conf"
 )
 
 func stagedUploadRouter(t *testing.T) (*gin.Engine, *mocks.MockServicer) {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
 	service := mocks.NewMockServicer(gomock.NewController(t))
-	h := NewPublicationHandler(service, service, service, &conf.AyatoConfig{})
+	h := NewPublicationHandler(service, service, service, Settings{})
 	router := gin.New()
 	router.POST("/api/unstable/repos/:repo/packages/presign", h.PresignUploadHandler)
 	router.POST("/api/unstable/repos/:repo/packages/commit", h.CommitUploadHandler)

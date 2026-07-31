@@ -9,12 +9,12 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/Hayao0819/Kamisato/internal/conf"
+	ayatoconfig "github.com/Hayao0819/Kamisato/ayato/config"
 )
 
-func mirrorlistHandler(cfg *conf.AyatoConfig) *gin.Engine {
+func mirrorlistHandler(cfg *ayatoconfig.AyatoConfig) *gin.Engine {
 	gin.SetMode(gin.TestMode)
-	h := NewRepositoryHandler(nil, cfg)
+	h := NewRepositoryHandler(nil, testSettings(cfg))
 	r := gin.New()
 	r.GET("/repo/:repo/mirrorlist", h.MirrorlistHandler)
 	return r
@@ -29,9 +29,9 @@ func getMirrorlist(r *gin.Engine, repo string) *httptest.ResponseRecorder {
 }
 
 func TestMirrorlistHandler_SelfEntry(t *testing.T) {
-	cfg := &conf.AyatoConfig{
-		Repos:  []conf.BinRepoConfig{{Name: "myrepo"}},
-		Mirror: conf.MirrorConfig{SelfURL: "https://repo.example"},
+	cfg := &ayatoconfig.AyatoConfig{
+		Repos:  []ayatoconfig.BinRepoConfig{{Name: "myrepo"}},
+		Mirror: ayatoconfig.MirrorConfig{SelfURL: "https://repo.example"},
 	}
 	w := getMirrorlist(mirrorlistHandler(cfg), "myrepo")
 	if w.Code != http.StatusOK {
@@ -72,7 +72,7 @@ func TestMirrorlistHandler_SelfEntry(t *testing.T) {
 }
 
 func TestMirrorlistHandler_UnknownRepo(t *testing.T) {
-	cfg := &conf.AyatoConfig{Repos: []conf.BinRepoConfig{{Name: "myrepo"}}}
+	cfg := &ayatoconfig.AyatoConfig{Repos: []ayatoconfig.BinRepoConfig{{Name: "myrepo"}}}
 	w := getMirrorlist(mirrorlistHandler(cfg), "nope")
 	if w.Code != http.StatusNotFound {
 		t.Fatalf("status = %d, want 404", w.Code)
@@ -80,9 +80,9 @@ func TestMirrorlistHandler_UnknownRepo(t *testing.T) {
 }
 
 func TestMirrorlistHandler_TieredPhysicalRepo(t *testing.T) {
-	cfg := &conf.AyatoConfig{
-		Repos:  []conf.BinRepoConfig{{Name: "myrepo", Tiered: true}},
-		Mirror: conf.MirrorConfig{SelfURL: "https://repo.example"},
+	cfg := &ayatoconfig.AyatoConfig{
+		Repos:  []ayatoconfig.BinRepoConfig{{Name: "myrepo", Tiered: true}},
+		Mirror: ayatoconfig.MirrorConfig{SelfURL: "https://repo.example"},
 	}
 	w := getMirrorlist(mirrorlistHandler(cfg), "myrepo-testing")
 	if w.Code != http.StatusOK {
@@ -95,7 +95,7 @@ func TestMirrorlistHandler_TieredPhysicalRepo(t *testing.T) {
 
 func TestMirrorlistHandler_HostFallback(t *testing.T) {
 	// No self_url configured: base falls back to the request host.
-	cfg := &conf.AyatoConfig{Repos: []conf.BinRepoConfig{{Name: "myrepo"}}}
+	cfg := &ayatoconfig.AyatoConfig{Repos: []ayatoconfig.BinRepoConfig{{Name: "myrepo"}}}
 	w := getMirrorlist(mirrorlistHandler(cfg), "myrepo")
 	body := w.Body.String()
 	if want := "Server = http://repo.example/repo/myrepo/$arch"; !strings.Contains(body, want) {
@@ -108,9 +108,9 @@ func TestMirrorlistHandler_HostFallback(t *testing.T) {
 }
 
 func TestMirrorlistHandler_Options(t *testing.T) {
-	cfg := &conf.AyatoConfig{
-		Repos: []conf.BinRepoConfig{{Name: "myrepo"}},
-		Mirror: conf.MirrorConfig{
+	cfg := &ayatoconfig.AyatoConfig{
+		Repos: []ayatoconfig.BinRepoConfig{{Name: "myrepo"}},
+		Mirror: ayatoconfig.MirrorConfig{
 			SelfURL:      "https://repo.example",
 			RepoPath:     "/arch",
 			UseRepoVar:   true,

@@ -6,19 +6,18 @@ import (
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
 
+	"github.com/Hayao0819/Kamisato/ayato/blob"
 	"github.com/Hayao0819/Kamisato/ayato/domain"
-	"github.com/Hayao0819/Kamisato/ayato/platform"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/depend"
-	pacmanpkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
+	"github.com/Hayao0819/Kamisato/internal/pacman"
 	"github.com/Hayao0819/Kamisato/pkg/raiou"
 )
 
 func (v *uploadValidator) verifySignature(
-	pkgFile, sigFile platform.SeekFile,
+	pkgFile, sigFile blob.SeekFile,
 	storedName string,
 ) error {
 	if sigFile == nil {
-		if v.service.cfg != nil && v.service.cfg.RequireSign {
+		if v.service.settings.RequireSign {
 			return fmt.Errorf(
 				"%w: package signature is required but none was provided",
 				domain.ErrInvalidUpload,
@@ -39,10 +38,10 @@ func (v *uploadValidator) verifySignature(
 			"package signature present but no trust root is configured to validate it",
 		)
 	}
-	if err := platform.Rewind(pkgFile); err != nil {
+	if err := blob.Rewind(pkgFile); err != nil {
 		return errors.WrapErr(err, "failed to seek package file for verification")
 	}
-	if err := platform.Rewind(sigFile); err != nil {
+	if err := blob.Rewind(sigFile); err != nil {
 		return errors.WrapErr(err, "failed to seek signature file for verification")
 	}
 	fingerprint, err := v.keyring.VerifyDetached(pkgFile, sigFile)
@@ -57,16 +56,16 @@ func (v *uploadValidator) verifySignature(
 	return nil
 }
 
-func (v *uploadValidator) checkBuildinfoProvenance(pkgFile platform.SeekFile) error {
-	if v.service.cfg == nil || !v.service.cfg.RequireBuildinfoProvenance {
+func (v *uploadValidator) checkBuildinfoProvenance(pkgFile blob.SeekFile) error {
+	if !v.service.settings.RequireBuildinfoProvenance {
 		return nil
 	}
-	if err := platform.Rewind(pkgFile); err != nil {
+	if err := blob.Rewind(pkgFile); err != nil {
 		return errors.WrapErr(err, "failed to seek package file for buildinfo check")
 	}
-	buildInfo, err := pacmanpkg.ReadBuildInfo(pkgFile)
+	buildInfo, err := pacman.ReadBuildInfo(pkgFile)
 	if err != nil {
-		if errors.Is(err, pacmanpkg.ErrBuildInfoNotFound) {
+		if errors.Is(err, pacman.ErrBuildInfoNotFound) {
 			return fmt.Errorf(
 				"%w: package has no .BUILDINFO but provenance is required",
 				domain.ErrInvalidUpload,
@@ -78,7 +77,7 @@ func (v *uploadValidator) checkBuildinfoProvenance(pkgFile platform.SeekFile) er
 			err.Error(),
 		)
 	}
-	expected := v.service.cfg.ExpectedBuildDir()
+	expected := v.service.settings.ExpectedBuildDir
 	if buildInfo.BuildDir != expected {
 		return fmt.Errorf(
 			"%w: package builddir %q is not the expected sandbox root %q",
@@ -94,10 +93,10 @@ func (v *uploadValidator) checkProtectedNames(info *raiou.PKGINFO) error {
 	candidates := make([]string, 0, 1+len(info.Provides)+len(info.Replaces)+len(info.Group))
 	candidates = append(candidates, info.PkgName)
 	for _, provided := range info.Provides {
-		candidates = append(candidates, depend.Parse(provided).Name)
+		candidates = append(candidates, pacman.Parse(provided).Name)
 	}
 	for _, replaced := range info.Replaces {
-		candidates = append(candidates, depend.Parse(replaced).Name)
+		candidates = append(candidates, pacman.Parse(replaced).Name)
 	}
 	candidates = append(candidates, info.Group...)
 	for _, candidate := range candidates {

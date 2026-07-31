@@ -8,15 +8,14 @@ import (
 
 	"github.com/samber/lo"
 
+	"github.com/Hayao0819/Kamisato/ayato/blob"
 	"github.com/Hayao0819/Kamisato/ayato/domain"
-	"github.com/Hayao0819/Kamisato/ayato/platform"
-	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
-	pacmanrepo "github.com/Hayao0819/Kamisato/pkg/pacman/repo"
+	pacmanrepo "github.com/Hayao0819/Kamisato/internal/pacman/repo"
 )
 
 func (r *binaryRepository) FetchDB(
 	repoName, archName string,
-) (platform.File, error) {
+) (blob.File, error) {
 	return r.FetchFile(
 		repoName,
 		archName,

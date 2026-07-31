@@ -7,7 +7,7 @@ import (
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
 
-	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
+	"github.com/Hayao0819/Kamisato/internal/pacman/repo"
 )
 
 func pauseCanonicalCommit(mem *memStore) (<-chan struct{}, func()) {

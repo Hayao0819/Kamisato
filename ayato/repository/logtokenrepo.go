@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/Hayao0819/Kamisato/ayato/auth"
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
 	"github.com/Hayao0819/Kamisato/internal/errors"
 )
@@ -20,42 +19,26 @@ var spentLogTokenConsumption = consumptionPolicy{
 	errorContext: "logtoken: consume",
 }
 
-// LogTokenRepository issues and redeems the one-time tokens that let a browser
-// EventSource (which cannot send a bearer) open a job's build-log stream. A token
-// is bound to one job and spent on first read, so a leaked stream URL cannot be
-// reused.
-type LogTokenRepository interface {
-	// Mint issues a fresh token bound to jobID, valid for ttl.
-	Mint(jobID string, ttl time.Duration) (string, error)
-	// ConsumeLogToken returns the job id a token was bound to and deletes it, so a
-	// second use finds nothing. A false ok means the token is unknown or spent.
-	ConsumeLogToken(token string) (jobID string, ok bool, err error)
-}
-
 type logTokenRepository struct {
 	kv kv.Store
 }
 
-func NewLogTokenRepository(store kv.Store) LogTokenRepository {
+func NewLogTokenRepository(store kv.Store) *logTokenRepository {
 	return &logTokenRepository{kv: store}
 }
 
-func (r *logTokenRepository) Mint(jobID string, ttl time.Duration) (string, error) {
-	if jobID == "" {
-		return "", errors.NewErr("logtoken: empty job id")
-	}
-	tok, err := auth.NewOpaqueToken(32)
-	if err != nil {
-		return "", errors.WrapErr(err, "logtoken: mint")
+func (r *logTokenRepository) StoreLogToken(token, jobID string, ttl time.Duration) error {
+	if token == "" || jobID == "" {
+		return errors.NewErr("logtoken: empty token or job id")
 	}
 	record, err := json.Marshal(logTokenRecord{JobID: jobID, ExpiresAt: time.Now().Add(ttl).Unix()})
 	if err != nil {
-		return "", errors.WrapErr(err, "logtoken: marshal")
+		return errors.WrapErr(err, "logtoken: marshal")
 	}
-	if err := r.kv.Set(kv.LogTokens, tok, record, ttl); err != nil {
-		return "", errors.WrapErr(err, "logtoken: store")
+	if err := r.kv.Set(kv.LogTokens, token, record, ttl); err != nil {
+		return errors.WrapErr(err, "logtoken: store")
 	}
-	return tok, nil
+	return nil
 }
 
 func (r *logTokenRepository) ConsumeLogToken(token string) (string, bool, error) {

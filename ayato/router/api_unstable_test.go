@@ -11,12 +11,12 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/Hayao0819/Kamisato/ayato/auth"
+	ayatoconfig "github.com/Hayao0819/Kamisato/ayato/config"
 	"github.com/Hayao0819/Kamisato/ayato/handler"
 	"github.com/Hayao0819/Kamisato/ayato/middleware"
 	"github.com/Hayao0819/Kamisato/ayato/repository"
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv/badgerkv"
 	"github.com/Hayao0819/Kamisato/ayato/router"
-	"github.com/Hayao0819/Kamisato/internal/conf"
 )
 
 // stubChecker satisfies the middleware's (unexported) adminChecker structurally.
@@ -38,7 +38,7 @@ func TestMikoJobReadsRequireAuth(t *testing.T) {
 	}))
 	defer upstream.Close()
 
-	cfg := &conf.AyatoConfig{}
+	cfg := &ayatoconfig.AyatoConfig{}
 	cfg.Miko.URL = upstream.URL
 	signer, err := auth.NewSigner([]string{"0123456789abcdef0123456789abcdef"})
 	if err != nil {
@@ -46,8 +46,8 @@ func TestMikoJobReadsRequireAuth(t *testing.T) {
 	}
 
 	e := gin.New()
-	h := handler.New(nil, cfg).WithAuth(signer)
-	m := middleware.New(cfg).WithAuth(stubChecker{admins: map[int64]bool{42: true}}, signer)
+	h := handler.New(nil, handler.Settings{Miko: handler.MikoSettings{URL: cfg.Miko.URL}}).WithAuth(signer)
+	m := middleware.New(middleware.Settings{}).WithAuth(stubChecker{admins: map[int64]bool{42: true}}, signer)
 	if err := router.SetRoute(e, h, m); err != nil {
 		t.Fatalf("SetRoute: %v", err)
 	}
@@ -100,7 +100,7 @@ func TestJobLogsOneTimeToken(t *testing.T) {
 	}))
 	defer upstream.Close()
 
-	cfg := &conf.AyatoConfig{}
+	cfg := &ayatoconfig.AyatoConfig{}
 	cfg.Miko.URL = upstream.URL
 	signer, err := auth.NewSigner([]string{"0123456789abcdef0123456789abcdef"})
 	if err != nil {
@@ -115,8 +115,8 @@ func TestJobLogsOneTimeToken(t *testing.T) {
 	logTokens := repository.NewLogTokenRepository(store)
 
 	e := gin.New()
-	h := handler.New(nil, cfg).WithAuth(signer).WithLogTokens(logTokens)
-	m := middleware.New(cfg).WithAuth(stubChecker{admins: map[int64]bool{42: true}}, signer).WithLogTokens(logTokens)
+	h := handler.New(nil, handler.Settings{Miko: handler.MikoSettings{URL: cfg.Miko.URL}}).WithAuth(signer).WithLogTokens(logTokens)
+	m := middleware.New(middleware.Settings{}).WithAuth(stubChecker{admins: map[int64]bool{42: true}}, signer).WithLogTokens(logTokens)
 	if err := router.SetRoute(e, h, m); err != nil {
 		t.Fatalf("SetRoute: %v", err)
 	}

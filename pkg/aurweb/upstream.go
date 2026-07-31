@@ -4,14 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"slices"
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/Hayao0819/Kamisato/pkg/httpx"
 )
 
 // defaultUserAgent is sent on every upstream request; the AUR blocks the default
@@ -22,6 +21,8 @@ const defaultAURBase = "https://aur.archlinux.org"
 
 // upstreamBatchSize bounds pkgnames per info GET to match AUR helper convention and URL length limits.
 const upstreamBatchSize = 150
+
+const upstreamGETAttempts = 4
 
 // AURUpstream calls a real aurweb instance's /rpc endpoint to satisfy packages
 // the local Backend does not manage. It implements Upstream.
@@ -34,6 +35,16 @@ type AURUpstream struct {
 }
 
 type AURUpstreamOption func(*AURUpstream)
+
+// WithHTTPClient replaces both clients used for RPC and dump requests.
+func WithHTTPClient(client *http.Client) AURUpstreamOption {
+	return func(u *AURUpstream) {
+		if client != nil {
+			u.client = client
+			u.dumpClient = client
+		}
+	}
+}
 
 // WithUserAgent overrides the request User-Agent.
 func WithUserAgent(ua string) AURUpstreamOption {
@@ -67,8 +78,8 @@ func NewAURUpstream(rpcURL string, opts ...AURUpstreamOption) *AURUpstream {
 		rpcURL:     rpcURL,
 		gitBase:    deriveOrigin(rpcURL),
 		userAgent:  defaultUserAgent,
-		client:     httpx.New(15*time.Second, 3),
-		dumpClient: httpx.New(3*time.Minute, 3),
+		client:     &http.Client{Timeout: 15 * time.Second},
+		dumpClient: &http.Client{Timeout: 3 * time.Minute},
 	}
 	for _, opt := range opts {
 		opt(u)
@@ -160,7 +171,7 @@ func (u *AURUpstream) get(ctx context.Context, v url.Values) ([]byte, error) {
 	req.Header.Set("User-Agent", u.userAgent)
 	req.Header.Set("Accept", "application/json")
 
-	resp, err := u.client.Do(req) //nolint:gosec // upstream RPC host is operator-configured; only query params vary
+	resp, err := doUpstreamGET(u.client, req) //nolint:gosec // upstream RPC host is operator-configured; only query params vary
 	if err != nil {
 		return nil, fmt.Errorf("aurweb: upstream request: %w", err)
 	}
@@ -170,6 +181,66 @@ func (u *AURUpstream) get(ctx context.Context, v url.Values) ([]byte, error) {
 		return nil, fmt.Errorf("aurweb: upstream status %d", resp.StatusCode)
 	}
 	return readAllLimited(resp.Body)
+}
+
+func doUpstreamGET(client *http.Client, req *http.Request) (*http.Response, error) {
+	var lastErr error
+	for attempt := range upstreamGETAttempts {
+		resp, err := client.Do(req.Clone(req.Context())) //nolint:gosec // The operator selects the upstream; retries only clone that request.
+		if err == nil && (!retryableUpstreamStatus(resp.StatusCode) || attempt+1 == upstreamGETAttempts) {
+			return resp, nil
+		}
+		if resp != nil {
+			_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 32<<10))
+			_ = resp.Body.Close()
+		}
+		if err != nil {
+			lastErr = err
+			if attempt+1 == upstreamGETAttempts {
+				return nil, err
+			}
+		}
+		if ctxErr := req.Context().Err(); ctxErr != nil {
+			return nil, ctxErr
+		}
+		if err := waitUpstreamRetry(req.Context(), retryAfter(resp, attempt)); err != nil {
+			return nil, err
+		}
+	}
+	return nil, lastErr
+}
+
+func retryableUpstreamStatus(status int) bool {
+	return status == http.StatusTooManyRequests || status >= http.StatusInternalServerError
+}
+
+func retryAfter(resp *http.Response, attempt int) time.Duration {
+	if resp != nil {
+		value := resp.Header.Get("Retry-After")
+		if seconds, err := strconv.ParseInt(value, 10, 64); err == nil && seconds >= 0 {
+			if seconds >= 30 {
+				return 30 * time.Second
+			}
+			return time.Duration(seconds) * time.Second
+		}
+		if date, err := http.ParseTime(value); err == nil {
+			if delay := time.Until(date); delay > 0 {
+				return min(delay, 30*time.Second)
+			}
+		}
+	}
+	return 100 * time.Millisecond * time.Duration(1<<attempt)
+}
+
+func waitUpstreamRetry(ctx context.Context, delay time.Duration) error {
+	timer := time.NewTimer(delay)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
+	}
 }
 
 func deriveOrigin(rawURL string) string {

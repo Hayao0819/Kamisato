@@ -74,7 +74,7 @@ func (m *Middleware) RequireSignerRegistration() gin.HandlerFunc {
 			m.RequireServiceScope("signer:register")(c)
 			return
 		}
-		if m.cfg != nil && m.cfg.Auth.AllowLegacySignerBasic && strings.HasPrefix(c.GetHeader("Authorization"), "Basic ") {
+		if m.settings.AllowLegacySignerBasic && strings.HasPrefix(c.GetHeader("Authorization"), "Basic ") {
 			m.RequireBlinkyAdmin()(c)
 			if !c.IsAborted() {
 				slog.Warn("Ayato accepted legacy Basic signer registration", "method", c.Request.Method, "path", c.FullPath())

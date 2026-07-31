@@ -6,8 +6,8 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/Hayao0819/Kamisato/internal/ayatoapi"
 	"github.com/Hayao0819/Kamisato/internal/cliutil"
-	"github.com/Hayao0819/Kamisato/internal/serverstore"
 )
 
 type serverRow struct {
@@ -31,12 +31,12 @@ func ListCmd() *cobra.Command {
 		Args:              cobra.ArbitraryArgs,
 		ValidArgsFunction: completeServerNames,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			endpoints, err := serverstore.ListEndpoints()
+			endpoints, err := ayatoapi.ListEndpoints()
 			if err != nil {
 				return err
 			}
 
-			byName := make(map[string]serverstore.EndpointSummary, len(endpoints))
+			byName := make(map[string]ayatoapi.EndpointSummary, len(endpoints))
 			serverNames := make([]string, 0, len(endpoints))
 			for _, endpoint := range endpoints {
 				byName[endpoint.URL] = endpoint
@@ -61,7 +61,7 @@ func ListCmd() *cobra.Command {
 					Default:  endpoint.Default,
 				}
 				if showSecret {
-					resolved, err := serverstore.Resolve(name)
+					resolved, err := ayatoapi.Resolve(name)
 					if err != nil {
 						return err
 					}

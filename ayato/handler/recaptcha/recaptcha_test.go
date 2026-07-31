@@ -72,3 +72,21 @@ func TestVerify(t *testing.T) {
 		})
 	}
 }
+
+func TestVerifyDoesNotRetry(t *testing.T) {
+	attempts := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		attempts++
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer srv.Close()
+
+	v := New("recaptcha", "secret").(*verifier)
+	v.endpoint = srv.URL
+	if err := v.Verify(context.Background(), "token", ""); err == nil {
+		t.Fatal("verification succeeded after a server error")
+	}
+	if attempts != 1 {
+		t.Fatalf("verification attempts = %d, want 1", attempts)
+	}
+}

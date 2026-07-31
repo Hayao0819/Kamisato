@@ -5,6 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/Hayao0819/Kamisato/ayaka/app"
 	"github.com/Hayao0819/Kamisato/ayaka/service/report"
 	"github.com/Hayao0819/Kamisato/internal/cliutil"
 )
@@ -42,7 +43,7 @@ func TestListFormatFlagResolution(t *testing.T) {
 
 func TestListArgsValidation(t *testing.T) {
 	// MaximumNArgs(1): two positional args should fail cobra validation.
-	cmd := Cmd()
+	cmd := Cmd(app.StaticRuntime(&app.App{}))
 	cmd.SetArgs([]string{"repo1", "repo2"})
 	if err := cmd.Execute(); err == nil {
 		t.Error("expected error for two positional args, got nil")

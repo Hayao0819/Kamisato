@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Hayao0819/Kamisato/internal/conf"
+	ayatoconfig "github.com/Hayao0819/Kamisato/ayato/config"
 )
 
 func TestUpstreamLayeringAndSync(t *testing.T) {
@@ -20,9 +20,9 @@ func TestUpstreamLayeringAndSync(t *testing.T) {
 	server := httptest.NewServer(upstream.handler())
 	defer server.Close()
 
-	svc, _, _ := newTieredService(t, []conf.BinRepoConfig{{
+	svc, _, _ := newTieredService(t, []ayatoconfig.BinRepoConfig{{
 		Name:     "myrepo",
-		Upstream: conf.UpstreamRepoConfig{DBURL: server.URL + "/extra.db"},
+		Upstream: ayatoconfig.UpstreamRepoConfig{DBURL: server.URL + "/extra.db"},
 	}})
 	ctx := context.Background()
 	uploadVersioned(t, svc, "myrepo", "bar", "2.0-1")
@@ -82,7 +82,7 @@ func TestUpstreamLayeringAndSync(t *testing.T) {
 }
 
 func TestSyncUpstreamRejectsNonUpstream(t *testing.T) {
-	svc, _, _ := newTieredService(t, []conf.BinRepoConfig{{Name: "plain"}})
+	svc, _, _ := newTieredService(t, []ayatoconfig.BinRepoConfig{{Name: "plain"}})
 	if _, err := svc.SyncUpstream(context.Background(), "plain"); err == nil {
 		t.Fatal("SyncUpstream on a non-upstream repo = nil, want error")
 	}
@@ -95,11 +95,11 @@ func TestSyncUpstreamKeepsAddressedPhysicalTier(t *testing.T) {
 	server := httptest.NewServer(upstream.handler())
 	defer server.Close()
 
-	svc, _, _ := newTieredService(t, []conf.BinRepoConfig{{
+	svc, _, _ := newTieredService(t, []ayatoconfig.BinRepoConfig{{
 		Name:     "myrepo",
 		Tiered:   true,
 		Arches:   []string{"x86_64"},
-		Upstream: conf.UpstreamRepoConfig{DBURL: server.URL + "/extra.db"},
+		Upstream: ayatoconfig.UpstreamRepoConfig{DBURL: server.URL + "/extra.db"},
 	}})
 	result, err := svc.SyncUpstream(context.Background(), "myrepo-testing")
 	if err != nil {
@@ -122,8 +122,8 @@ func TestSyncUpstreamRejectsOversizedResponse(t *testing.T) {
 		response.WriteHeader(http.StatusOK)
 	}))
 	defer server.Close()
-	svc, _, _ := newTieredService(t, []conf.BinRepoConfig{{
-		Name: "myrepo", Upstream: conf.UpstreamRepoConfig{DBURL: server.URL + "/extra.db"},
+	svc, _, _ := newTieredService(t, []ayatoconfig.BinRepoConfig{{
+		Name: "myrepo", Arches: []string{"x86_64"}, Upstream: ayatoconfig.UpstreamRepoConfig{DBURL: server.URL + "/extra.db"},
 	}})
 	uploadVersioned(t, svc, "myrepo", "local", "1.0-1")
 	result, err := svc.SyncUpstream(context.Background(), "myrepo")
@@ -132,5 +132,34 @@ func TestSyncUpstreamRejectsOversizedResponse(t *testing.T) {
 	}
 	if len(result.Arches) != 1 || !strings.Contains(result.Arches[0].Error, "exceeds") {
 		t.Fatalf("result = %+v, want oversized-response error", result)
+	}
+}
+
+func TestSyncUpstreamRetriesServerError(t *testing.T) {
+	upstream := &fakeUpstream{}
+	db, files := buildRepoDB(t, "extra", []pkgSpec{{name: "foo", ver: "1.0-1"}})
+	upstream.set(db, files, "v1")
+	attempts := 0
+	upstreamHandler := upstream.handler()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		attempts++
+		if attempts == 1 {
+			w.Header().Set("Retry-After", "0")
+			http.Error(w, "temporary", http.StatusServiceUnavailable)
+			return
+		}
+		upstreamHandler.ServeHTTP(w, r)
+	}))
+	defer server.Close()
+
+	svc, _, _ := newTieredService(t, []ayatoconfig.BinRepoConfig{{
+		Name: "myrepo", Arches: []string{"x86_64"}, Upstream: ayatoconfig.UpstreamRepoConfig{DBURL: server.URL + "/extra.db"},
+	}})
+	result, err := svc.SyncUpstream(t.Context(), "myrepo")
+	if err != nil {
+		t.Fatalf("SyncUpstream: %v", err)
+	}
+	if attempts < 2 || len(result.Arches) != 1 || result.Arches[0].Error != "" {
+		t.Fatalf("attempts = %d, result = %+v", attempts, result)
 	}
 }

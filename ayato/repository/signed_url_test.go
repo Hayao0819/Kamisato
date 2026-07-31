@@ -3,8 +3,7 @@ package repository
 import (
 	"testing"
 
-	"github.com/Hayao0819/Kamisato/ayato/platform"
-	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
+	"github.com/Hayao0819/Kamisato/ayato/blob"
 )
 
 // presignRecorder is a blob.Store that records the arch+name handed to
@@ -16,19 +15,19 @@ func (p *presignRecorder) StoreFileWithSignedURL(_, arch, name string) (string, 
 	return "https://example.com/" + name, nil
 }
 
-func (p *presignRecorder) StoreFile(string, string, platform.SeekFile) error       { return nil }
-func (p *presignRecorder) DeleteFile(string, string, string) error                 { return nil }
-func (p *presignRecorder) FetchFile(string, string, string) (platform.File, error) { return nil, nil }
-func (p *presignRecorder) RepoNames() ([]string, error)                            { return nil, nil }
-func (p *presignRecorder) Files(string, string) ([]string, error)                  { return nil, nil }
-func (p *presignRecorder) FilesWithMeta(string, string) ([]blob.FileInfo, error)   { return nil, nil }
-func (p *presignRecorder) Arches(string) ([]string, error)                         { return nil, nil }
+func (p *presignRecorder) StoreFile(string, string, blob.SeekFile) error         { return nil }
+func (p *presignRecorder) DeleteFile(string, string, string) error               { return nil }
+func (p *presignRecorder) FetchFile(string, string, string) (blob.File, error)   { return nil, nil }
+func (p *presignRecorder) RepoNames() ([]string, error)                          { return nil, nil }
+func (p *presignRecorder) Files(string, string) ([]string, error)                { return nil, nil }
+func (p *presignRecorder) FilesWithMeta(string, string) ([]blob.FileInfo, error) { return nil, nil }
+func (p *presignRecorder) Arches(string) ([]string, error)                       { return nil, nil }
 
-func (p *presignRecorder) FetchFileWithETag(string, string, string) (platform.File, string, error) {
+func (p *presignRecorder) FetchFileWithETag(string, string, string) (blob.File, string, error) {
 	return nil, "", nil
 }
 
-func (p *presignRecorder) StoreFileIfMatch(string, string, platform.SeekFile, string) error {
+func (p *presignRecorder) StoreFileIfMatch(string, string, blob.SeekFile, string) error {
 	return nil
 }
 

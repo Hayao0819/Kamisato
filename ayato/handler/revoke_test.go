@@ -109,8 +109,8 @@ func TestRevokeCLIHandler(t *testing.T) {
 	}
 
 	dl := &fakeDenylistRepo{}
-	svc := service.New(nil, nil, nil, nil, nil).WithDenylist(dl)
-	h := NewAuthHandler(svc, svc, nil).WithSigner(signer)
+	svc := service.New(nil, nil, nil, nil, service.Settings{}).WithDenylist(dl)
+	h := NewAuthHandler(svc, svc, Settings{}).WithSigner(signer)
 
 	if w := call(h, ""); w.Code != http.StatusUnauthorized {
 		t.Fatalf("no bearer: status = %d, want 401", w.Code)

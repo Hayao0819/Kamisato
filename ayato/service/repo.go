@@ -7,10 +7,10 @@ import (
 	"os"
 	"slices"
 
+	"github.com/Hayao0819/Kamisato/ayato/blob"
 	"github.com/Hayao0819/Kamisato/ayato/domain"
-	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
 	"github.com/Hayao0819/Kamisato/internal/errors"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/reponame"
+	"github.com/Hayao0819/Kamisato/internal/pacman"
 	"github.com/Hayao0819/Kamisato/pkg/raiou"
 )
 
@@ -112,7 +112,7 @@ func classifyRepositoryRead(err error) error {
 }
 
 func (s *Service) ValidateRepoName(repo string) error {
-	if err := reponame.Validate(repo); err != nil {
+	if err := pacman.ValidateRepositoryName(repo); err != nil {
 		return fmt.Errorf("%w: %v", domain.ErrInvalid, err)
 	}
 	if _, configured := s.catalog.Resolve(repo); !configured {

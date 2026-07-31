@@ -3,9 +3,9 @@ package servercmd
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
+	"github.com/Hayao0819/Kamisato/ayaka/cli"
+	"github.com/Hayao0819/Kamisato/internal/ayatoapi"
 	"github.com/Hayao0819/Kamisato/internal/errors"
-	"github.com/Hayao0819/Kamisato/internal/serverstore"
 )
 
 func SetDefaultCmd() *cobra.Command {
@@ -15,9 +15,9 @@ func SetDefaultCmd() *cobra.Command {
 		Args:              cobra.ExactArgs(1),
 		ValidArgsFunction: completeServerNames,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := serverstore.SetDefault(args[0]); err != nil {
-				if errors.Is(err, serverstore.ErrServerNotFound) {
-					return errors.WrapErr(shared.ErrServerNotFound, args[0])
+			if err := ayatoapi.SetDefault(args[0]); err != nil {
+				if errors.Is(err, ayatoapi.ErrServerNotFound) {
+					return errors.WrapErr(cli.ErrServerNotFound, args[0])
 				}
 				return err
 			}

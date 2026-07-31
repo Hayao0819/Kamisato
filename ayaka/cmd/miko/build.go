@@ -8,7 +8,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/Hayao0819/Kamisato/ayaka/app"
-	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
+	"github.com/Hayao0819/Kamisato/ayaka/cli"
 	"github.com/Hayao0819/Kamisato/ayaka/service/build"
 	"github.com/Hayao0819/Kamisato/internal/cliutil"
 	"github.com/Hayao0819/Kamisato/internal/errors"
@@ -25,7 +25,7 @@ func durationToMinutes(d time.Duration) int {
 
 // mikoBuildCmd submits a build to miko: a git/AUR repo (--git), else the local
 // PKGBUILD of the named source package.
-func mikoBuildCmd() *cobra.Command {
+func mikoBuildCmd(runtime *app.Runtime) *cobra.Command {
 	var (
 		gitURL         string
 		gitRef         string
@@ -40,27 +40,35 @@ func mikoBuildCmd() *cobra.Command {
 		Use:               "build <srcrepo> [pkgname...]",
 		Short:             "Submit a build job to miko",
 		Args:              cobra.MinimumNArgs(1),
-		ValidArgsFunction: shared.CompleteSrcRepoThenPackages,
+		ValidArgsFunction: cli.CompleteSrcRepoThenPackages(runtime),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
-			if gitURL == "" && app.From(cmd).GetSrcRepo(args[0]) == nil {
-				return errors.WrapErr(shared.ErrSourceRepoNotFound, args[0])
+			a, err := runtime.App()
+			if err != nil {
+				return err
+			}
+			if gitURL == "" && a.GetSrcRepo(args[0]) == nil {
+				return errors.WrapErr(cli.ErrSourceRepoNotFound, args[0])
 			}
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
+			a, err := runtime.App()
+			if err != nil {
+				return err
+			}
 			server, err := cmd.Flags().GetString("server")
 			if err != nil {
 				return err
 			}
-			srv, err := shared.ResolveAyatoServer(server)
+			srv, err := cli.ResolveAyatoServer(server)
 			if err != nil {
 				return err
 			}
-			api, err := shared.AyatoClient(srv)
+			api, err := cli.AyatoClient(srv)
 			if err != nil {
 				return err
 			}
-			srcrepo := app.From(cmd).GetSrcRepo(args[0])
+			srcrepo := a.GetSrcRepo(args[0])
 
 			opts := build.RemoteBuildOpts{
 				Repo:      args[0],
@@ -72,7 +80,7 @@ func mikoBuildCmd() *cobra.Command {
 				Pkgs:      args[1:],
 			}
 			if signLocal {
-				passphrase, err := cliutil.ResolveSecret(shared.PassphraseEnv, passphraseFile, nil)
+				passphrase, err := cliutil.ResolveSecret(cli.PassphraseEnv, passphraseFile, nil)
 				if err != nil {
 					return err
 				}
@@ -88,7 +96,7 @@ func mikoBuildCmd() *cobra.Command {
 	}
 	cmd.Flags().BoolVar(&signLocal, "sign-local", false, "Download the build and sign it locally instead of on miko")
 	cmd.Flags().StringVar(&localKey, "key", "", "Path to the local OpenPGP private key (with --sign-local)")
-	cmd.Flags().StringVar(&passphraseFile, "passphrase-file", "", "File containing the key passphrase; env "+shared.PassphraseEnv+" takes precedence")
+	cmd.Flags().StringVar(&passphraseFile, "passphrase-file", "", "File containing the key passphrase; env "+cli.PassphraseEnv+" takes precedence")
 	cmd.Flags().StringVar(&gitURL, "git", "", "Build from a git/AUR repository URL")
 	cmd.Flags().StringVar(&gitRef, "ref", "", "Git ref to build (with --git)")
 	cmd.Flags().StringVar(&gitSubdir, "subdir", "", "Subdirectory within the git repository (with --git)")

@@ -5,9 +5,10 @@ package report
 import (
 	"strings"
 
-	"github.com/Hayao0819/Kamisato/internal/client"
-	"github.com/Hayao0819/Kamisato/pkg/pacman"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
+	"github.com/Hayao0819/Kamisato/internal/mikoapi"
+	pacmanhost "github.com/Hayao0819/Kamisato/internal/pacman/host"
+	"github.com/Hayao0819/Kamisato/internal/pacman/repo"
+	"github.com/Hayao0819/Kamisato/internal/pacman/source"
 )
 
 // Row is one `ayaka list` row; its fields are the columns a --format template references (e.g. {{.Package}}).
@@ -27,16 +28,16 @@ const DefaultListFormat = "table {{.Package}}\t{{.Installed}}\t{{.Local}}\t{{.Re
 // and installed version are fetched only when the format references them, so a
 // local-only format stays fast and offline. fetchJobs supplies recent build
 // jobs for the Build column; nil (or an empty result) leaves it blank.
-func BuildRows(repos []*repo.SourceRepo, format string, fetchJobs func() []client.Job) []Row {
+func BuildRows(repos []*source.SourceRepo, format string, fetchJobs func() []mikoapi.Job) []Row {
 	wantRemote := formatNeeds(format, "Remote")
 	wantBuild := formatNeeds(format, "Build")
 	wantInstalled := formatNeeds(format, "Installed")
 
 	var installed map[string]string
 	if wantInstalled {
-		installed, _ = pacman.InstalledVersions()
+		installed, _ = pacmanhost.InstalledVersions()
 	}
-	var jobs []client.Job
+	var jobs []mikoapi.Job
 	if wantBuild && fetchJobs != nil {
 		jobs = fetchJobs()
 	}
@@ -96,7 +97,7 @@ func firstInstalled(installed map[string]string, names []string) string {
 // LatestJobStatus returns the status of the latest miko job for the package. A
 // job matches on repo and either a named package or a whole-repo build (no
 // packages listed).
-func LatestJobStatus(jobs []client.Job, repoName string, names []string) string {
+func LatestJobStatus(jobs []mikoapi.Job, repoName string, names []string) string {
 	want := make(map[string]bool, len(names))
 	for _, n := range names {
 		want[n] = true

@@ -5,11 +5,11 @@ import (
 
 	"github.com/ProtonMail/go-crypto/openpgp"
 
-	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
+	"github.com/Hayao0819/Kamisato/ayato/blob"
+	"github.com/Hayao0819/Kamisato/ayato/domain"
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
-	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/internal/errors"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/sign"
+	"github.com/Hayao0819/Kamisato/internal/pacman/sign"
 )
 
 func closeKVOnFailure(store kv.Store, err *error) {
@@ -21,24 +21,67 @@ func closeKVOnFailure(store kv.Store, err *error) {
 	}
 }
 
+type Settings struct {
+	Catalog      *domain.RepositoryCatalog
+	SignDatabase bool
+	Storage      StorageSettings
+	KV           KVSettings
+	Secrets      SecretSettings
+}
+
+type StorageSettings struct {
+	Backend  string
+	LocalDir string
+	S3       S3Settings
+}
+
+type S3Settings struct {
+	Bucket          string
+	Region          string
+	Endpoint        string
+	AccessKeyID     string
+	SecretAccessKey string
+	SessionToken    string
+	UsePathStyle    bool
+}
+
+type KVSettings struct {
+	Backend    string
+	BadgerPath string
+	SQLDriver  string
+	SQLDSN     string
+	Cloudflare CloudflareKVSettings
+}
+
+type CloudflareKVSettings struct {
+	AccountID string
+	Token     string
+	Namespace string
+}
+
+type SecretSettings struct {
+	AgeIdentityFile string
+	Namespaces      []string
+}
+
 // New returns the shared kv.Store alongside the repositories so other consumers
 // (e.g. the AUR backend) can partition their own namespaces instead of opening a
 // second store against the same locked BadgerDB dir; the caller closes it.
-func New(cfg *conf.AyatoConfig) (
+func New(settings Settings) (
 	nameStore NameStore,
 	binaryRepo BinaryRepository,
 	authRepo AuthRepository,
 	returnedStore kv.Store,
 	err error,
 ) {
-	stores, err := initializeStores(cfg)
+	stores, err := initializeStores(settings)
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
 	defer func() { closeKVOnFailure(stores.kv, &err) }()
 
 	var binOpts []BinaryRepoOption
-	if cfg != nil && cfg.Sign.DB {
+	if settings.SignDatabase {
 		signer, serr := loadDBSigner()
 		if serr != nil {
 			return nil, nil, nil, nil, serr
@@ -58,8 +101,8 @@ func New(cfg *conf.AyatoConfig) (
 // ObjectMover remains available. The KV store retains securekv because migrations
 // operate on logical plaintext values; securekv preserves BulkStore while sealing
 // sensitive namespaces before the backend receives a batch. The caller closes it.
-func NewMigrationStores(cfg *conf.AyatoConfig) (returnedKV kv.Store, returnedBlob blob.Store, err error) {
-	stores, err := initializeStores(cfg)
+func NewMigrationStores(settings Settings) (returnedKV kv.Store, returnedBlob blob.Store, err error) {
+	stores, err := initializeStores(settings)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -68,8 +111,8 @@ func NewMigrationStores(cfg *conf.AyatoConfig) (returnedKV kv.Store, returnedBlo
 
 // NewRawKV returns the kv store without the securekv decorator, for maintenance that
 // operates on raw keys (kv.KeyAuditor) rather than values. The caller closes it.
-func NewRawKV(cfg *conf.AyatoConfig) (kv.Store, error) {
-	return initKVStore(cfg)
+func NewRawKV(settings KVSettings) (kv.Store, error) {
+	return initKVStore(settings)
 }
 
 // loadDBSigner loads the repo-db signing key from the environment (never the config

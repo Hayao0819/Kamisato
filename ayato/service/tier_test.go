@@ -9,30 +9,40 @@ import (
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
 
+	"github.com/Hayao0819/Kamisato/ayato/blob"
+	ayatoconfig "github.com/Hayao0819/Kamisato/ayato/config"
 	"github.com/Hayao0819/Kamisato/ayato/domain"
 	"github.com/Hayao0819/Kamisato/ayato/repository"
-	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
 	"github.com/Hayao0819/Kamisato/ayato/service"
-	"github.com/Hayao0819/Kamisato/internal/conf"
 )
 
 func newTieredService(
 	t *testing.T,
-	repos []conf.BinRepoConfig,
-) (*service.Service, *conf.AyatoConfig, string) {
+	repos []ayatoconfig.BinRepoConfig,
+) (*service.Service, *ayatoconfig.AyatoConfig, string) {
 	t.Helper()
 	repoDir := t.TempDir()
-	cfg := &conf.AyatoConfig{Repos: repos}
+	cfg := &ayatoconfig.AyatoConfig{Repos: repos}
 	cfg.Store.LocalRepoDir = repoDir
 	cfg.Store.BadgerDB = t.TempDir()
 
-	name, bin, _, kvStore, err := repository.New(cfg)
+	catalog, err := cfg.RepositoryCatalog()
+	if err != nil {
+		t.Fatalf("RepositoryCatalog: %v", err)
+	}
+	name, bin, _, kvStore, err := repository.New(repository.Settings{
+		Catalog: catalog,
+		Storage: repository.StorageSettings{
+			LocalDir: repoDir,
+		},
+		KV: repository.KVSettings{BadgerPath: cfg.DbPath()},
+	})
 	if err != nil {
 		t.Fatalf("repository.New: %v", err)
 	}
 	t.Cleanup(func() { _ = kvStore.Close() })
 
-	svc := service.New(name, bin, nil, nil, cfg)
+	svc := service.New(name, bin, nil, nil, settingsFromConfig(cfg))
 	if err := svc.InitAll(); err != nil {
 		t.Fatalf("InitAll: %v", err)
 	}
@@ -95,7 +105,7 @@ func has(names []string, want string) bool {
 }
 
 func TestTieredPromotionFlow(t *testing.T) {
-	svc, _, repoDir := newTieredService(t, []conf.BinRepoConfig{
+	svc, _, repoDir := newTieredService(t, []ayatoconfig.BinRepoConfig{
 		{Name: "myrepo", Tiered: true},
 	})
 	ctx := context.Background()

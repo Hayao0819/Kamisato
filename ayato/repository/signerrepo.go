@@ -2,14 +2,11 @@ package repository
 
 import (
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
+	"github.com/Hayao0819/Kamisato/ayato/service"
 	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
-type SignerRepository interface {
-	AddSigner(fingerprint string, armoredPub []byte) error
-	ListSigners() ([][]byte, error)
-	DeleteSigner(fingerprint string) error
-}
+type SignerRepository = service.SignerRepository
 
 type signerRepository struct {
 	kv kv.Store

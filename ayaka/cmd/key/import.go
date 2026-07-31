@@ -8,9 +8,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
+	"github.com/Hayao0819/Kamisato/ayaka/cli"
 	"github.com/Hayao0819/Kamisato/internal/errors"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/sign"
+	"github.com/Hayao0819/Kamisato/internal/pacman/sign"
 )
 
 func importCmd() *cobra.Command {
@@ -21,7 +21,7 @@ func importCmd() *cobra.Command {
 		Long:  "Adopt an established signing key (e.g. 'gpg --export-secret-keys --armor <id>') instead of generating a new one, preserving the fingerprint users already trust. Reads the key from a file, or from stdin when the argument is omitted or '-'.",
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			dir, err := shared.KeyDir(cmd)
+			dir, err := cli.KeyDir(cmd)
 			if err != nil {
 				return err
 			}
@@ -37,7 +37,7 @@ func importCmd() *cobra.Command {
 			}
 
 			// The passphrase both unlocks the imported key and re-encrypts it at rest.
-			pass, err := shared.Passphrase(cmd, true)
+			pass, err := cli.Passphrase(cmd, true)
 			if err != nil {
 				return err
 			}

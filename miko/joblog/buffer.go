@@ -31,19 +31,33 @@ func New(maxBytes int) *Buffer {
 func (b *Buffer) Write(p []byte) (int, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	if b.maxBytes > 0 && b.buf.Len() >= b.maxBytes {
-		if !b.truncated {
-			b.truncated = true
-			b.buf.WriteString(fmt.Sprintf("\n--- log truncated (max %d bytes) ---\n", b.maxBytes))
-		}
-		return len(p), nil
+	requested := len(p)
+	if b.closed || b.truncated {
+		return requested, nil
 	}
-	n, _ := b.buf.Write(p)
-	return n, nil
+	if b.maxBytes <= 0 {
+		_, _ = b.buf.Write(p)
+		return requested, nil
+	}
+	marker := []byte(fmt.Sprintf("\n--- log truncated (max %d bytes) ---\n", b.maxBytes))
+	if len(marker) > b.maxBytes {
+		marker = marker[:b.maxBytes]
+	}
+	payloadLimit := b.maxBytes - len(marker)
+	remaining := payloadLimit - b.buf.Len()
+	if len(p) <= remaining {
+		_, _ = b.buf.Write(p)
+		return requested, nil
+	}
+	if remaining > 0 {
+		_, _ = b.buf.Write(p[:remaining])
+	}
+	_, _ = b.buf.Write(marker)
+	b.truncated = true
+	return requested, nil
 }
 
-// Close marks the buffer complete. Subsequent writes still append but readers
-// may stop once they observe closed.
+// Close marks the buffer complete.
 func (b *Buffer) Close() {
 	b.mu.Lock()
 	defer b.mu.Unlock()

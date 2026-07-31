@@ -11,8 +11,7 @@ import (
 	"golang.org/x/oauth2"
 	githuboauth "golang.org/x/oauth2/github"
 
-	"github.com/Hayao0819/Kamisato/ayato/platform"
-	"github.com/Hayao0819/Kamisato/internal/conf"
+	"github.com/Hayao0819/Kamisato/ayato/httpapi"
 )
 
 const (
@@ -47,7 +46,7 @@ type githubUser struct {
 
 // GitHub login needs the signer wired plus a configured client id/secret.
 func (h *AuthHandler) oauthConfigured() bool {
-	return h.signer != nil && h.cfg != nil && h.cfg.Auth.GitHub.ClientID != "" && h.cfg.Auth.GitHub.ClientSecret != ""
+	return h.signer != nil && h.settings.Auth.GitHubClientID != "" && h.settings.Auth.GitHubClientSecret != ""
 }
 
 func (h *AuthHandler) requireOAuth(c *gin.Context) bool {
@@ -71,17 +70,15 @@ func (h *AuthHandler) requireDeviceAuthorization(c *gin.Context) bool {
 // does not gate c.GetHeader, so it is spoofable; the request host is used only
 // when neither origin is configured.
 func (h *AuthHandler) externalBase(c *gin.Context) (scheme, base string) {
-	return externalBase(h.cfg, c)
+	return externalBase(h.settings.Auth, c)
 }
 
-func externalBase(cfg *conf.AyatoConfig, c *gin.Context) (scheme, base string) {
-	if cfg != nil {
-		if s, b, ok := platform.ParseOrigin(cfg.Auth.SelfOrigin); ok {
-			return s, b
-		}
-		if s, b, ok := platform.ParseOrigin(cfg.Auth.PublicOrigin); ok {
-			return s, b
-		}
+func externalBase(settings AuthSettings, c *gin.Context) (scheme, base string) {
+	if s, b, ok := httpapi.ParseOrigin(settings.SelfOrigin); ok {
+		return s, b
+	}
+	if s, b, ok := httpapi.ParseOrigin(settings.PublicOrigin); ok {
+		return s, b
 	}
 	s := "http"
 	if c.Request.TLS != nil {
@@ -92,10 +89,8 @@ func externalBase(cfg *conf.AyatoConfig, c *gin.Context) (scheme, base string) {
 
 // SPA origin (PublicOrigin) used as the exact postMessage target; empty when unset.
 func (h *AuthHandler) spaOrigin() string {
-	if h.cfg != nil {
-		if _, b, ok := platform.ParseOrigin(h.cfg.Auth.PublicOrigin); ok {
-			return b
-		}
+	if _, b, ok := httpapi.ParseOrigin(h.settings.Auth.PublicOrigin); ok {
+		return b
 	}
 	return ""
 }
@@ -103,8 +98,8 @@ func (h *AuthHandler) spaOrigin() string {
 func (h *AuthHandler) oauthConfig(c *gin.Context) *oauth2.Config {
 	_, base := h.externalBase(c)
 	return &oauth2.Config{
-		ClientID:     h.cfg.Auth.GitHub.ClientID,
-		ClientSecret: h.cfg.Auth.GitHub.ClientSecret,
+		ClientID:     h.settings.Auth.GitHubClientID,
+		ClientSecret: h.settings.Auth.GitHubClientSecret,
 		Endpoint:     githuboauth.Endpoint,
 		RedirectURL:  base + oauthCallbackURI,
 		Scopes:       []string{githubScope},
@@ -142,7 +137,7 @@ func (h *AuthHandler) clearOAuthStateCookie(c *gin.Context, secure bool) {
 func (h *AuthHandler) setSessionCookie(c *gin.Context, value string, secure bool, maxAge int) {
 	// #nosec G124 -- config validation limits insecure cookies to loopback HTTP.
 	ck := &http.Cookie{
-		Name:     h.cfg.Auth.CookieName(),
+		Name:     h.settings.Auth.CookieName,
 		Value:    value,
 		Path:     "/",
 		MaxAge:   maxAge,

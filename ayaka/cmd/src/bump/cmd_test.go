@@ -7,8 +7,8 @@ import (
 	"testing"
 
 	"github.com/Hayao0819/Kamisato/ayaka/app"
-	pkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
+	pkg "github.com/Hayao0819/Kamisato/internal/pacman"
+	"github.com/Hayao0819/Kamisato/internal/pacman/source"
 )
 
 type recordingBumper struct {
@@ -18,7 +18,7 @@ type recordingBumper struct {
 	commits int
 }
 
-func (r *recordingBumper) Bump(src *repo.SourceRepo, names []string, by string, _ io.Writer) ([]*pkg.SourcePackage, error) {
+func (r *recordingBumper) Bump(src *source.SourceRepo, names []string, by string, _ io.Writer) ([]*pkg.SourcePackage, error) {
 	r.names = names
 	r.by = by
 	return src.Pkgs, nil
@@ -41,8 +41,8 @@ func testApp(t *testing.T) *app.App {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return &app.App{SrcRepos: []*repo.SourceRepo{{
-		Config: &repo.SrcConfig{Name: "test"},
+	return &app.App{SrcRepos: []*source.SourceRepo{{
+		Config: &source.SrcConfig{Name: "test"},
 		Pkgs:   []*pkg.SourcePackage{p},
 		Dir:    dir,
 	}}}
@@ -50,8 +50,7 @@ func testApp(t *testing.T) *app.App {
 
 func TestBumpFlagsReachService(t *testing.T) {
 	rec := &recordingBumper{}
-	cmd := newCommand(rec)
-	cmd.SetContext(app.WithContext(t.Context(), testApp(t)))
+	cmd := newCommand(rec, app.StaticRuntime(testApp(t)))
 	cmd.SetArgs([]string{"test", "foo", "--by", "1", "--message", "msg"})
 	if err := cmd.Execute(); err != nil {
 		t.Fatal(err)
@@ -66,8 +65,7 @@ func TestBumpFlagsReachService(t *testing.T) {
 
 func TestBumpNoCommitSkipsCommit(t *testing.T) {
 	rec := &recordingBumper{}
-	cmd := newCommand(rec)
-	cmd.SetContext(app.WithContext(t.Context(), testApp(t)))
+	cmd := newCommand(rec, app.StaticRuntime(testApp(t)))
 	cmd.SetArgs([]string{"test", "foo", "--no-commit"})
 	if err := cmd.Execute(); err != nil {
 		t.Fatal(err)
@@ -78,8 +76,7 @@ func TestBumpNoCommitSkipsCommit(t *testing.T) {
 }
 
 func TestBumpUnknownRepoFails(t *testing.T) {
-	cmd := newCommand(&recordingBumper{})
-	cmd.SetContext(app.WithContext(t.Context(), testApp(t)))
+	cmd := newCommand(&recordingBumper{}, app.StaticRuntime(testApp(t)))
 	cmd.SetArgs([]string{"nope", "foo"})
 	cmd.SilenceUsage = true
 	cmd.SilenceErrors = true

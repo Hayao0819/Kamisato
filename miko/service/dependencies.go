@@ -5,8 +5,8 @@ import (
 	"net/http"
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/sign"
+	"github.com/Hayao0819/Kamisato/internal/pacman/repo"
+	"github.com/Hayao0819/Kamisato/internal/pacman/sign"
 )
 
 // RepositoryDBReader is the repository view Miko needs from Ayato. Keeping the

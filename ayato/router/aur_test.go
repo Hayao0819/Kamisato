@@ -10,7 +10,6 @@ import (
 	"github.com/Hayao0819/Kamisato/ayato/handler"
 	"github.com/Hayao0819/Kamisato/ayato/middleware"
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv/badgerkv"
-	"github.com/Hayao0819/Kamisato/internal/conf"
 )
 
 // The aurweb NoRoute fallback must be rate-limited: past the burst, a client is
@@ -23,7 +22,7 @@ func TestAURNoRouteRateLimited(t *testing.T) {
 		t.Fatalf("open badger: %v", err)
 	}
 	t.Cleanup(func() { _ = store.Close() })
-	m := middleware.New(&conf.AyatoConfig{}).WithRateLimiter(store)
+	m := middleware.New(middleware.Settings{}).WithRateLimiter(store)
 
 	var served int
 	srv := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {

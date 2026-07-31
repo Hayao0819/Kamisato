@@ -1,17 +1,21 @@
 package auth
 
 import (
+	"context"
+	"errors"
+	"io"
+	"net/http"
+	"strings"
 	"testing"
-
-	"github.com/Hayao0819/Kamisato/internal/conf"
+	"time"
 )
 
-func oidcWith(publishers ...conf.CIOIDCPublisher) *oidcAuth {
+func oidcWith(publishers ...CIOIDCPublisher) *oidcAuth {
 	return &oidcAuth{publishers: compileOIDCPublishers(publishers)}
 }
 
 func TestOIDCAuthorizeClaims(t *testing.T) {
-	publisher := conf.CIOIDCPublisher{
+	publisher := CIOIDCPublisher{
 		Repository:   "FascodeNet/alterlinux-repo",
 		AllowRefs:    []string{"refs/heads/main"},
 		PublishRepos: []string{"alterlinux"},
@@ -80,7 +84,7 @@ func TestOIDCAuthorizeClaims(t *testing.T) {
 }
 
 func TestOIDCWildcardPublishReposAllowsAny(t *testing.T) {
-	authorizer := oidcWith(conf.CIOIDCPublisher{
+	authorizer := oidcWith(CIOIDCPublisher{
 		Repository:   "FascodeNet/alterlinux-repo",
 		AllowRefs:    []string{"refs/heads/main"},
 		PublishRepos: []string{"*"},
@@ -103,7 +107,7 @@ func TestOIDCWildcardPublishReposAllowsAny(t *testing.T) {
 }
 
 func TestOIDCRepositoryIDExactMatch(t *testing.T) {
-	authorizer := oidcWith(conf.CIOIDCPublisher{
+	authorizer := oidcWith(CIOIDCPublisher{
 		RepositoryID: "12345",
 		AllowRefs:    []string{"refs/heads/main"},
 		PublishRepos: []string{"alterlinux"},
@@ -122,4 +126,63 @@ func TestOIDCRepositoryIDExactMatch(t *testing.T) {
 	if _, allowed := authorizer.authorizeClaims(claims, "alterlinux"); allowed {
 		t.Fatal("wrong repository_id must be rejected")
 	}
+}
+
+func TestOIDCGETRetryTransportRetriesTemporaryFailure(t *testing.T) {
+	attempts := 0
+	transport := oidcGETRetryTransport{base: oidcRoundTripFunc(func(*http.Request) (*http.Response, error) {
+		attempts++
+		if attempts == 1 {
+			return &http.Response{
+				StatusCode: http.StatusServiceUnavailable,
+				Header:     http.Header{"Retry-After": []string{"0"}},
+				Body:       io.NopCloser(strings.NewReader("temporary")),
+			}, nil
+		}
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Header:     make(http.Header),
+			Body:       io.NopCloser(strings.NewReader("ok")),
+		}, nil
+	})}
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "https://issuer.example/.well-known/openid-configuration", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp, err := transport.RoundTrip(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if attempts != 2 || resp.StatusCode != http.StatusOK {
+		t.Fatalf("attempts = %d, status = %d", attempts, resp.StatusCode)
+	}
+}
+
+func TestOIDCGETRetryTransportHonorsCancellation(t *testing.T) {
+	transport := oidcGETRetryTransport{base: oidcRoundTripFunc(func(*http.Request) (*http.Response, error) {
+		return nil, errors.New("temporary")
+	})}
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://issuer.example/.well-known/openid-configuration", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := transport.RoundTrip(req); !errors.Is(err, context.Canceled) {
+		t.Fatalf("error = %v, want context.Canceled", err)
+	}
+}
+
+func TestOIDCRetryAfterCapsBeforeDurationConversion(t *testing.T) {
+	resp := &http.Response{Header: http.Header{"Retry-After": []string{"9223372036854775807"}}}
+	if got := oidcRetryAfter(resp, 0); got != 30*time.Second {
+		t.Fatalf("retry delay = %s, want 30s", got)
+	}
+}
+
+type oidcRoundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f oidcRoundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return f(req)
 }

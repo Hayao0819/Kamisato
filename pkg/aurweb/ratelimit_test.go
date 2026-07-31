@@ -95,3 +95,46 @@ func TestRateLimitWindowReset(t *testing.T) {
 		}
 	})
 }
+
+func TestMemoryRateLimiterBoundsClients(t *testing.T) {
+	now := time.Unix(1_700_000_000, 0)
+	limiter := newMemoryRateLimiter(2)
+	limiter.now = func() time.Time { return now }
+
+	limiter.allow("oldest", 1, time.Hour)
+	now = now.Add(time.Second)
+	limiter.allow("newer", 1, time.Hour)
+	now = now.Add(time.Second)
+	limiter.allow("newest", 1, time.Hour)
+
+	if len(limiter.buckets) != 2 {
+		t.Fatalf("client count = %d, want 2", len(limiter.buckets))
+	}
+	if allowed, _ := limiter.allow("oldest", 1, time.Hour); !allowed {
+		t.Fatal("oldest client was not evicted")
+	}
+}
+
+func TestMemoryRateLimiterDisabled(t *testing.T) {
+	limiter := newMemoryRateLimiter(1)
+	if allowed, _ := limiter.allow("client", 0, time.Minute); !allowed {
+		t.Fatal("zero limit must disable limiting")
+	}
+	if allowed, _ := limiter.allow("client", 1, 0); !allowed {
+		t.Fatal("zero window must disable limiting")
+	}
+}
+
+func TestRetryAfterValue(t *testing.T) {
+	tests := map[time.Duration]string{
+		0:                              "1",
+		time.Millisecond:               "1",
+		time.Second:                    "1",
+		time.Second + time.Millisecond: "2",
+	}
+	for retry, want := range tests {
+		if got := retryAfterValue(retry); got != want {
+			t.Errorf("retryAfterValue(%v) = %q, want %q", retry, got, want)
+		}
+	}
+}

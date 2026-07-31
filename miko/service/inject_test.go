@@ -9,7 +9,6 @@ import (
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
 
-	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/miko/domain"
 )
 
@@ -74,7 +73,7 @@ func (f *fakeUploader) Upload(_ context.Context, repo string, packages []Package
 // service builds itself.
 func TestSubmitPersistsThroughInjectedPersister(t *testing.T) {
 	fp := &fakePersister{}
-	s := New(&conf.MikoConfig{}, WithPersister(fp))
+	s := New(Settings{}, WithPersister(fp))
 
 	id, err := s.Submit(&domain.BuildRequest{Arch: "x86_64", Pkgbuild: "pkgname=foo"})
 	if err != nil {
@@ -92,7 +91,7 @@ func TestSubmitPersistsThroughInjectedPersister(t *testing.T) {
 // signAndUpload must publish through the injected Uploader.
 func TestSignAndUploadUsesInjectedUploader(t *testing.T) {
 	fu := &fakeUploader{}
-	s := New(&conf.MikoConfig{}, WithUploader(fu))
+	s := New(Settings{}, WithUploader(fu))
 
 	pkgPath := filepath.Join(t.TempDir(), "foo.pkg.tar.zst")
 	if err := os.WriteFile(pkgPath, []byte("pkg"), 0o600); err != nil {
@@ -108,7 +107,7 @@ func TestSignAndUploadUsesInjectedUploader(t *testing.T) {
 
 func TestSignAndUploadPublishesSplitPackagesInOneBatch(t *testing.T) {
 	fu := &fakeUploader{}
-	s := New(&conf.MikoConfig{}, WithUploader(fu))
+	s := New(Settings{}, WithUploader(fu))
 	dir := t.TempDir()
 	paths := []string{filepath.Join(dir, "foo.pkg.tar.zst"), filepath.Join(dir, "foo-docs.pkg.tar.zst")}
 	for _, path := range paths {
@@ -127,7 +126,7 @@ func TestSignAndUploadPublishesSplitPackagesInOneBatch(t *testing.T) {
 // A signer failure must fail the publish closed: no package is uploaded unsigned.
 func TestSignAndUploadFailsClosedOnSignerError(t *testing.T) {
 	fu := &fakeUploader{}
-	s := New(&conf.MikoConfig{}, WithSigner(failingSigner{}), WithUploader(fu))
+	s := New(Settings{}, WithSigner(failingSigner{}), WithUploader(fu))
 
 	pkgPath := filepath.Join(t.TempDir(), "foo.pkg.tar.zst")
 	if err := os.WriteFile(pkgPath, []byte("pkg"), 0o600); err != nil {
@@ -143,7 +142,7 @@ func TestSignAndUploadFailsClosedOnSignerError(t *testing.T) {
 
 func TestSignAndUploadDoesNotPublishWhenLaterSignatureFails(t *testing.T) {
 	fu := &fakeUploader{}
-	s := New(&conf.MikoConfig{}, WithSigner(&failSecondSigner{}), WithUploader(fu))
+	s := New(Settings{}, WithSigner(&failSecondSigner{}), WithUploader(fu))
 	dir := t.TempDir()
 	var packages []string
 	for _, name := range []string{"foo.pkg.tar.zst", "foo-docs.pkg.tar.zst"} {
@@ -163,7 +162,7 @@ func TestSignAndUploadDoesNotPublishWhenLaterSignatureFails(t *testing.T) {
 
 func TestSignAndUploadRejectsPackageOverMaxSize(t *testing.T) {
 	fu := &fakeUploader{}
-	s := New(&conf.MikoConfig{MaxSize: 2}, WithUploader(fu))
+	s := New(Settings{MaxPackageSize: 2}, WithUploader(fu))
 	dir := t.TempDir()
 	smallPath := filepath.Join(dir, "small.pkg.tar.zst")
 	if err := os.WriteFile(smallPath, []byte("ok"), 0o600); err != nil {

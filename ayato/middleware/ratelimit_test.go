@@ -11,7 +11,6 @@ import (
 	"golang.org/x/time/rate"
 
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv/badgerkv"
-	"github.com/Hayao0819/Kamisato/internal/conf"
 )
 
 func rlEngine(m *Middleware, limit rate.Limit, burst int) *gin.Engine {
@@ -36,7 +35,7 @@ func newRLMiddleware(t *testing.T) *Middleware {
 		t.Fatalf("open badger: %v", err)
 	}
 	t.Cleanup(func() { _ = store.Close() })
-	return New(&conf.AyatoConfig{}).WithRateLimiter(store)
+	return New(Settings{}).WithRateLimiter(store)
 }
 
 func TestRateLimitBurstThen429(t *testing.T) {
@@ -71,6 +70,20 @@ func TestRateLimitPerIP(t *testing.T) {
 	}
 	if w := doReq(r, "10.0.0.2:1"); w.Code != http.StatusOK {
 		t.Fatalf("ip2 first: status = %d, want 200 (independent bucket)", w.Code)
+	}
+}
+
+func TestRetryAfterValue(t *testing.T) {
+	tests := map[time.Duration]string{
+		0:                              "1",
+		time.Millisecond:               "1",
+		time.Second:                    "1",
+		time.Second + time.Millisecond: "2",
+	}
+	for retry, want := range tests {
+		if got := retryAfterValue(retry); got != want {
+			t.Errorf("retryAfterValue(%v) = %q, want %q", retry, got, want)
+		}
 	}
 }
 

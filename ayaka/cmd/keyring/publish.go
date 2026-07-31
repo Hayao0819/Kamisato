@@ -7,7 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
+	"github.com/Hayao0819/Kamisato/ayaka/cli"
 	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
@@ -19,11 +19,11 @@ func publishCmd() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			repo := args[0]
-			k, _, err := shared.LoadSigningKey(cmd)
+			k, _, err := cli.LoadSigningKey(cmd)
 			if err != nil {
 				return err
 			}
-			client, err := shared.RepoClient(cmd)
+			client, err := cli.RepoClient(cmd)
 			if err != nil {
 				return err
 			}
@@ -46,6 +46,6 @@ func publishCmd() *cobra.Command {
 		},
 	}
 	addBuildFlags(cmd, &params)
-	shared.AddRepoServerFlags(cmd)
+	cli.AddRepoServerFlags(cmd)
 	return cmd
 }

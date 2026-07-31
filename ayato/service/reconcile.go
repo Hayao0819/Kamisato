@@ -6,9 +6,9 @@ import (
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
 
-	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
-	pacmanpkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
-	pacmanrepo "github.com/Hayao0819/Kamisato/pkg/pacman/repo"
+	"github.com/Hayao0819/Kamisato/ayato/blob"
+	pacmanpkg "github.com/Hayao0819/Kamisato/internal/pacman"
+	pacmanrepo "github.com/Hayao0819/Kamisato/internal/pacman/repo"
 )
 
 // OrphanObject is an unreferenced package object.

@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/Hayao0819/Kamisato/ayaka/app"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
+	"github.com/Hayao0819/Kamisato/internal/pacman/source"
 )
 
 func TestAurCommandsRejectInvalidArguments(t *testing.T) {
@@ -19,7 +19,7 @@ func TestAurCommandsRejectInvalidArguments(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			cmd := Cmd()
+			cmd := Cmd(app.StaticRuntime(&app.App{}))
 			cmd.SetArgs(tc.args)
 			if err := cmd.Execute(); err == nil {
 				t.Error("expected error, got nil")
@@ -41,16 +41,15 @@ func (r *recordingAurManager) Add(_ context.Context, dir string, names []string,
 
 func testApp(t *testing.T) *app.App {
 	t.Helper()
-	return &app.App{SrcRepos: []*repo.SourceRepo{{
-		Config: &repo.SrcConfig{Name: "test"},
+	return &app.App{SrcRepos: []*source.SourceRepo{{
+		Config: &source.SrcConfig{Name: "test"},
 		Dir:    "/src/test",
 	}}}
 }
 
 func TestAurAddFlagsReachService(t *testing.T) {
 	rec := &recordingAurManager{}
-	cmd := newCommand(rec)
-	cmd.SetContext(app.WithContext(t.Context(), testApp(t)))
+	cmd := newCommand(rec, app.StaticRuntime(testApp(t)))
 	cmd.SetArgs([]string{"add", "test", "yay", "yay-bin", "--force"})
 	if err := cmd.Execute(); err != nil {
 		t.Fatal(err)
@@ -61,9 +60,8 @@ func TestAurAddFlagsReachService(t *testing.T) {
 }
 
 func TestAurNoSourceDirFails(t *testing.T) {
-	cmd := newCommand(&recordingAurManager{})
-	a := &app.App{SrcRepos: []*repo.SourceRepo{{Config: &repo.SrcConfig{Name: "test"}}}}
-	cmd.SetContext(app.WithContext(t.Context(), a))
+	a := &app.App{SrcRepos: []*source.SourceRepo{{Config: &source.SrcConfig{Name: "test"}}}}
+	cmd := newCommand(&recordingAurManager{}, app.StaticRuntime(a))
 	cmd.SetArgs([]string{"add", "test", "yay"})
 	cmd.SilenceUsage = true
 	cmd.SilenceErrors = true

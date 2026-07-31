@@ -3,9 +3,8 @@ package middleware
 import (
 	"net/http"
 
+	"github.com/Hayao0819/Kamisato/ayato/httpapi"
 	"github.com/gin-gonic/gin"
-
-	"github.com/Hayao0819/Kamisato/ayato/platform"
 )
 
 type readiness interface {
@@ -27,7 +26,7 @@ func (m *Middleware) RejectMutationsWhenNotReady(state readiness) gin.HandlerFun
 		}
 		ctx.AbortWithStatusJSON(
 			http.StatusServiceUnavailable,
-			platform.NewHTTPError(http.StatusServiceUnavailable, "service is draining"),
+			httpapi.NewHTTPError(http.StatusServiceUnavailable, "service is draining"),
 		)
 	}
 }

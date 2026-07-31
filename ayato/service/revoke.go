@@ -3,13 +3,11 @@ package service
 import (
 	"fmt"
 	"time"
-
-	"github.com/Hayao0819/Kamisato/ayato/repository"
 )
 
 // WithDenylist attaches the per-token revocation store; nil (unset) means no
 // per-token revocation is wired.
-func (s *Service) WithDenylist(dl repository.DenylistRepository) *Service {
+func (s *Service) WithDenylist(dl DenylistRepository) *Service {
 	s.denylistRepo = dl
 	return s
 }

@@ -10,9 +10,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"go.uber.org/mock/gomock"
 
+	ayatoconfig "github.com/Hayao0819/Kamisato/ayato/config"
 	"github.com/Hayao0819/Kamisato/ayato/domain"
 	"github.com/Hayao0819/Kamisato/ayato/test/mocks"
-	"github.com/Hayao0819/Kamisato/internal/conf"
 )
 
 func TestUnsafePresignProtocolIsDisabled(t *testing.T) {
@@ -48,8 +48,8 @@ func TestBatchUploadAllowsAggregateLargerThanOnePackageLimit(t *testing.T) {
 		}
 		return nil
 	})
-	cfg := &conf.AyatoConfig{MaxSize: 8, MaxBatchPackages: 2, MaxBatchBytes: 32}
-	h := NewPublicationHandler(service, service, service, cfg)
+	cfg := &ayatoconfig.AyatoConfig{MaxSize: 8, MaxBatchPackages: 2, MaxBatchBytes: 32}
+	h := NewPublicationHandler(service, service, service, testSettings(cfg))
 
 	var body bytes.Buffer
 	writer := multipart.NewWriter(&body)

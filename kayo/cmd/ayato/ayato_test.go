@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Hayao0819/Kamisato/internal/conf"
+	kayoconfig "github.com/Hayao0819/Kamisato/kayo/config"
 )
 
 func TestAyatoListHasFormatFlags(t *testing.T) {
@@ -45,14 +45,14 @@ func TestAyatoListTableOutput(t *testing.T) {
 
 func TestSourceMode(t *testing.T) {
 	tests := []struct {
-		src  conf.AyatoSource
+		src  kayoconfig.AyatoSource
 		want string
 	}{
-		{conf.AyatoSource{Insecure: true}, "insecure"},
-		{conf.AyatoSource{PubKey: "abc", Trust: "delegate"}, "delegate"},
-		{conf.AyatoSource{PubKey: "abc"}, "pinned"},
-		{conf.AyatoSource{TrustOnFirstUse: true}, "first-use"},
-		{conf.AyatoSource{}, "review"},
+		{kayoconfig.AyatoSource{Insecure: true}, "insecure"},
+		{kayoconfig.AyatoSource{PubKey: "abc", Trust: "delegate"}, "delegate"},
+		{kayoconfig.AyatoSource{PubKey: "abc"}, "pinned"},
+		{kayoconfig.AyatoSource{TrustOnFirstUse: true}, "first-use"},
+		{kayoconfig.AyatoSource{}, "review"},
 	}
 	for _, tt := range tests {
 		if got := sourceMode(tt.src); got != tt.want {

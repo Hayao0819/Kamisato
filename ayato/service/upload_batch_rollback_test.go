@@ -6,15 +6,14 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/errors"
 	"go.uber.org/mock/gomock"
 
+	"github.com/Hayao0819/Kamisato/ayato/blob"
+	ayatoconfig "github.com/Hayao0819/Kamisato/ayato/config"
 	"github.com/Hayao0819/Kamisato/ayato/domain"
-	"github.com/Hayao0819/Kamisato/ayato/platform"
 	"github.com/Hayao0819/Kamisato/ayato/repository"
-	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
 	"github.com/Hayao0819/Kamisato/ayato/service"
 	"github.com/Hayao0819/Kamisato/ayato/test/mocks"
-	"github.com/Hayao0819/Kamisato/internal/conf"
-	pkgpkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
+	pkgpkg "github.com/Hayao0819/Kamisato/internal/pacman"
+	"github.com/Hayao0819/Kamisato/internal/pacman/repo"
 	"github.com/Hayao0819/Kamisato/pkg/raiou"
 )
 
@@ -24,7 +23,7 @@ func TestUploadFiles_SecondArchFailureRestoresFirstArch(t *testing.T) {
 
 	bin := mocks.NewMockBinaryRepository(ctrl)
 	name := mocks.NewMockNameStore(ctrl)
-	cfg := &conf.AyatoConfig{Repos: []conf.BinRepoConfig{{
+	cfg := &ayatoconfig.AyatoConfig{Repos: []ayatoconfig.BinRepoConfig{{
 		Name: "myrepo", Arches: []string{"x86_64", "aarch64"},
 	}}}
 	oldName := "foo-0.9-1-any.pkg.tar.zst"
@@ -44,7 +43,7 @@ func TestUploadFiles_SecondArchFailureRestoresFirstArch(t *testing.T) {
 
 	storeCalls := 0
 	bin.EXPECT().StoreFileImmutable("myrepo", "any", gomock.Any()).DoAndReturn(
-		func(_ string, _ string, file platform.SeekFile) (bool, error) {
+		func(_ string, _ string, file blob.SeekFile) (bool, error) {
 			storeCalls++
 			want := "foo-1.0-1-any.pkg.tar.zst"
 			if storeCalls == 2 {
@@ -74,7 +73,7 @@ func TestUploadFiles_SecondArchFailureRestoresFirstArch(t *testing.T) {
 	bin.EXPECT().RepoAddBatch("myrepo", "aarch64", gomock.Any(), false, gomock.Nil()).
 		Return(errors.New("aarch64 commit failed"))
 
-	svc := service.New(name, bin, nil, nil, cfg)
+	svc := service.New(name, bin, nil, nil, settingsFromConfig(cfg))
 	files := []*domain.UploadFiles{{
 		PkgFile: pkgStream(
 			"foo-1.0-1-any.pkg.tar.zst",

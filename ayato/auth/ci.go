@@ -5,9 +5,33 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/Hayao0819/Kamisato/internal/conf"
 	"github.com/Hayao0819/Kamisato/internal/errors"
 )
+
+type CISettings struct {
+	APIKeys    []CIAPIKey
+	GitHubOIDC CIGitHubOIDC
+}
+
+type CIAPIKey struct {
+	Name         string
+	Key          string
+	PublishRepos []string
+	Scopes       []string
+}
+
+type CIGitHubOIDC struct {
+	Enabled    bool
+	Audience   string
+	Publishers []CIOIDCPublisher
+}
+
+type CIOIDCPublisher struct {
+	Repository   string
+	RepositoryID string
+	AllowRefs    []string
+	PublishRepos []string
+}
 
 // CIPrincipal identifies an authorized CI caller. CI authorization admits a
 // non-interactive upload by a repository identity (not a GitHub user) scoped to
@@ -39,7 +63,7 @@ type CIAuthorizer struct {
 
 // NewCIAuthorizer performs OIDC issuer discovery when OIDC is enabled, so it makes a
 // network call and may fail at startup.
-func NewCIAuthorizer(ctx context.Context, cfg conf.CIAuthConfig) (*CIAuthorizer, error) {
+func NewCIAuthorizer(ctx context.Context, cfg CISettings) (*CIAuthorizer, error) {
 	a := &CIAuthorizer{}
 	if len(cfg.APIKeys) > 0 {
 		a.apikey = newAPIKeyAuth(cfg.APIKeys)

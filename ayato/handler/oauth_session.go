@@ -7,8 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/Hayao0819/Kamisato/ayato/auth"
-	"github.com/Hayao0819/Kamisato/ayato/platform"
-	"github.com/Hayao0819/Kamisato/internal/conf"
+	"github.com/Hayao0819/Kamisato/ayato/httpapi"
 )
 
 // MeHandler accepts a cookie session or bearer token and re-checks the admin
@@ -18,14 +17,10 @@ func (h *AuthHandler) MeHandler(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"authenticated": false})
 		return
 	}
-	cookieName := (conf.AuthConfig{}).CookieName()
-	if h.cfg != nil {
-		cookieName = h.cfg.Auth.CookieName()
-	}
 	identity, ok, err := auth.NewRequestResolver(
 		h.signer,
 		h.revoker,
-		cookieName,
+		h.settings.Auth.CookieName,
 	).Resolve(c.Request, false)
 	if err != nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{
@@ -56,10 +51,8 @@ func (h *AuthHandler) LogoutHandler(c *gin.Context) {
 			return
 		}
 	}
-	if h.cfg != nil {
-		scheme, _ := h.externalBase(c)
-		h.setSessionCookie(c, "", scheme == "https", -1)
-	}
+	scheme, _ := h.externalBase(c)
+	h.setSessionCookie(c, "", scheme == "https", -1)
 	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
 
@@ -90,19 +83,17 @@ func (h *AuthHandler) revokePresentedAccess(c *gin.Context) {
 
 func (h *AuthHandler) sameOriginRequest(c *gin.Context) bool {
 	var allowed []string
-	if h.cfg != nil {
-		allowed = append(allowed, h.cfg.Auth.SelfOrigin, h.cfg.Auth.PublicOrigin)
-	}
+	allowed = append(allowed, h.settings.Auth.SelfOrigin, h.settings.Auth.PublicOrigin)
 	if allowedOrigin(allowed) == "" {
 		_, base := h.externalBase(c)
 		allowed = append(allowed, base)
 	}
-	return platform.SameOrigin(c.Request, allowed...)
+	return httpapi.SameOrigin(c.Request, allowed...)
 }
 
 func allowedOrigin(origins []string) string {
 	for _, origin := range origins {
-		if platform.Origin(origin) != "" {
+		if httpapi.Origin(origin) != "" {
 			return origin
 		}
 	}

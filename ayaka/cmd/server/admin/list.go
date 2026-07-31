@@ -5,7 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
+	"github.com/Hayao0819/Kamisato/ayaka/cli"
 	"github.com/Hayao0819/Kamisato/internal/cliutil"
 	"github.com/Hayao0819/Kamisato/internal/errors"
 )
@@ -23,11 +23,11 @@ func adminListCmd() *cobra.Command {
 		Short: "List ayato admins",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			srv, err := shared.ServerFromFlag(cmd)
+			srv, err := cli.ServerFromFlag(cmd)
 			if err != nil {
 				return err
 			}
-			api, err := shared.AyatoClient(srv)
+			api, err := cli.AyatoClient(srv)
 			if err != nil {
 				return err
 			}

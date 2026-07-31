@@ -7,7 +7,7 @@ import (
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
 
-	"github.com/Hayao0819/Kamisato/pkg/pacman/builder"
+	"github.com/Hayao0819/Kamisato/internal/pacman/builder"
 )
 
 func TestIsRetriable(t *testing.T) {

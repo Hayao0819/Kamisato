@@ -6,9 +6,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
+	"github.com/Hayao0819/Kamisato/ayaka/cli"
 	"github.com/Hayao0819/Kamisato/internal/errors"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/sign"
+	"github.com/Hayao0819/Kamisato/internal/pacman/sign"
 )
 
 func generateCmd() *cobra.Command {
@@ -24,11 +24,11 @@ func generateCmd() *cobra.Command {
 		Long:  "Create the repository's OpenPGP identity: a primary key (the trust anchor) and a signing subkey used for package signatures. The primary fingerprint never changes as subkeys are rotated.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			dir, err := shared.KeyDir(cmd)
+			dir, err := cli.KeyDir(cmd)
 			if err != nil {
 				return err
 			}
-			pass, err := shared.Passphrase(cmd, true)
+			pass, err := cli.Passphrase(cmd, true)
 			if err != nil {
 				return err
 			}

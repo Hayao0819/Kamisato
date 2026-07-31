@@ -6,9 +6,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
+	"github.com/Hayao0819/Kamisato/ayaka/cli"
 	"github.com/Hayao0819/Kamisato/internal/errors"
-	"github.com/Hayao0819/Kamisato/pkg/safefile"
+	"github.com/Hayao0819/Kamisato/internal/safefile"
 )
 
 func exportCmd() *cobra.Command {
@@ -22,7 +22,7 @@ func exportCmd() *cobra.Command {
 		Long:  "Write the armored public key (default) for keyring distribution, or the full private key with --secret for offline backup. Handle a secret export as sensitive material.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			k, pass, err := shared.LoadSigningKey(cmd)
+			k, pass, err := cli.LoadSigningKey(cmd)
 			if err != nil {
 				return err
 			}

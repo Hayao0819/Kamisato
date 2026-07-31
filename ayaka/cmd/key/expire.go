@@ -6,9 +6,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/Hayao0819/Kamisato/ayaka/cmd/shared"
+	"github.com/Hayao0819/Kamisato/ayaka/cli"
 	"github.com/Hayao0819/Kamisato/internal/errors"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/sign"
+	"github.com/Hayao0819/Kamisato/internal/pacman/sign"
 )
 
 func expireCmd() *cobra.Command {
@@ -23,7 +23,7 @@ func expireCmd() *cobra.Command {
 		Long:  "Renew an expiring or expired key without changing its fingerprint, so users keep trusting it. By default it extends the primary; add --subkeys to also extend all signing subkeys, or --subkey <fpr> to extend one subkey only.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			k, pass, err := shared.LoadSigningKey(cmd)
+			k, pass, err := cli.LoadSigningKey(cmd)
 			if err != nil {
 				return err
 			}

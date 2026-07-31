@@ -4,65 +4,57 @@ import (
 	"log/slog"
 
 	"github.com/Hayao0819/Kamisato/ayato/auth"
-	"github.com/Hayao0819/Kamisato/ayato/domain"
 	"github.com/Hayao0819/Kamisato/ayato/handler/bugreport"
 	"github.com/Hayao0819/Kamisato/ayato/handler/recaptcha"
 	"github.com/Hayao0819/Kamisato/ayato/service"
-	"github.com/Hayao0819/Kamisato/internal/conf"
 )
 
 // New composes independently constructible feature handlers from the production
 // service. Only this boundary depends on the broad Servicer interface.
-func New(s service.Servicer, cfg *conf.AyatoConfig) *Set {
-	authHandler := NewAuthHandler(s, s, cfg)
-	bugReports := NewBugReportHandler(s, cfg)
+func New(s service.Servicer, settings Settings) *Set {
+	settings = settings.normalized()
+	authHandler := NewAuthHandler(s, s, settings)
+	bugReports := NewBugReportHandler(s, settings)
 	return &Set{
-		System:       NewSystemHandler(cfg, bugReports.reporter != nil, authHandler.oauthConfigured),
-		Repositories: NewRepositoryHandler(s, cfg),
-		Publications: NewPublicationHandler(s, s, s, cfg),
+		System:       NewSystemHandler(settings, bugReports.reporter != nil, authHandler.oauthConfigured),
+		Repositories: NewRepositoryHandler(s, settings),
+		Publications: NewPublicationHandler(s, s, s, settings),
 		Auth:         authHandler,
 		Admins:       NewAdminHandler(s),
 		Signers:      NewSignerHandler(s),
 		BugReports:   bugReports,
-		Miko:         NewMikoHandler(cfg),
+		Miko:         NewMikoHandler(settings),
 	}
 }
 
 func NewSystemHandler(
-	cfg *conf.AyatoConfig,
+	settings Settings,
 	bugReportEnabled bool,
 	oauthEnabled func() bool,
 ) *SystemHandler {
-	return &SystemHandler{cfg: cfg, bugReportEnabled: bugReportEnabled, oauthEnabled: oauthEnabled}
+	return &SystemHandler{settings: settings.normalized(), bugReportEnabled: bugReportEnabled, oauthEnabled: oauthEnabled}
 }
 
-func NewRepositoryHandler(reader service.RepoReader, cfg *conf.AyatoConfig) *RepositoryHandler {
-	catalog, _ := domain.NewRepositoryCatalog(nil, nil)
-	if cfg != nil {
-		if configured, err := cfg.RepositoryCatalog(); err == nil {
-			catalog = configured
-		} else {
-			slog.Error("invalid repository catalog", "error", err)
-		}
-	}
-	return &RepositoryHandler{cfg: cfg, catalog: catalog, reader: reader}
+func NewRepositoryHandler(reader service.RepoReader, settings Settings) *RepositoryHandler {
+	settings = settings.normalized()
+	return &RepositoryHandler{settings: settings, catalog: settings.Catalog, reader: reader}
 }
 
 func NewPublicationHandler(
 	uploader service.Uploader,
 	promoter service.Promoter,
 	syncer service.Syncer,
-	cfg *conf.AyatoConfig,
+	settings Settings,
 ) *PublicationHandler {
-	return &PublicationHandler{cfg: cfg, uploader: uploader, promoter: promoter, syncer: syncer}
+	return &PublicationHandler{settings: settings.normalized(), uploader: uploader, promoter: promoter, syncer: syncer}
 }
 
 func NewAuthHandler(
 	admins service.AdminService,
 	revoker service.Revoker,
-	cfg *conf.AyatoConfig,
+	settings Settings,
 ) *AuthHandler {
-	return &AuthHandler{cfg: cfg, admins: admins, revoker: revoker}
+	return &AuthHandler{settings: settings.normalized(), admins: admins, revoker: revoker}
 }
 
 func NewAdminHandler(admins service.AdminService) *AdminHandler {
@@ -73,39 +65,19 @@ func NewSignerHandler(signers service.SignerRegistry) *SignerHandler {
 	return &SignerHandler{signers: signers}
 }
 
-func NewBugReportHandler(reader service.RepoReader, cfg *conf.AyatoConfig) *BugReportHandler {
+func NewBugReportHandler(reader service.RepoReader, settings Settings) *BugReportHandler {
 	h := &BugReportHandler{reader: reader}
-	if cfg == nil {
-		return h
-	}
-	reporter, err := bugreport.New(bugReportConfig(cfg.BugReport))
+	reporter, err := bugreport.New(settings.BugReport)
 	if err != nil {
 		slog.Error("bug reporting disabled: invalid config", "error", err)
 	}
 	h.reporter = reporter
-	h.recaptcha = recaptcha.New(cfg.Recaptcha.Provider, cfg.Recaptcha.Secret)
+	h.recaptcha = recaptcha.New(settings.Recaptcha.Provider, settings.Recaptcha.Secret)
 	return h
 }
 
-func NewMikoHandler(cfg *conf.AyatoConfig) *MikoHandler {
-	return &MikoHandler{cfg: cfg}
-}
-
-func bugReportConfig(c conf.BugReportConfig) bugreport.Config {
-	return bugreport.Config{
-		Backends: c.Backends,
-		GitHub:   bugreport.GitHubConfig{Repo: c.GitHub.Repo, Token: c.GitHub.Token},
-		SMTP: bugreport.SMTPConfig{
-			Host:         c.SMTP.Host,
-			Port:         c.SMTP.Port,
-			Username:     c.SMTP.Username,
-			Password:     c.SMTP.Password,
-			From:         c.SMTP.From,
-			To:           c.SMTP.To,
-			ToMaintainer: c.SMTP.ToMaintainer,
-		},
-		Webhook: bugreport.WebhookConfig{URL: c.Webhook.URL},
-	}
+func NewMikoHandler(settings Settings) *MikoHandler {
+	return &MikoHandler{settings: settings.normalized()}
 }
 
 func (s *Set) WithAuth(signer *auth.Signer) *Set {
@@ -118,7 +90,7 @@ func (s *Set) WithReplayGuard(guard replayGuard) *Set {
 	return s
 }
 
-func (s *Set) WithLogTokens(tokens logTokenMinter) *Set {
+func (s *Set) WithLogTokens(tokens logTokenStore) *Set {
 	s.Miko.WithLogTokens(tokens)
 	return s
 }
@@ -143,7 +115,7 @@ func (h *AuthHandler) WithDeviceStore(store deviceStore) *AuthHandler {
 	return h
 }
 
-func (h *MikoHandler) WithLogTokens(tokens logTokenMinter) *MikoHandler {
+func (h *MikoHandler) WithLogTokens(tokens logTokenStore) *MikoHandler {
 	h.logTokens = tokens
 	return h
 }

@@ -9,13 +9,12 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/errors"
 	"go.uber.org/mock/gomock"
 
+	"github.com/Hayao0819/Kamisato/ayato/blob"
 	"github.com/Hayao0819/Kamisato/ayato/domain"
-	"github.com/Hayao0819/Kamisato/ayato/platform"
 	"github.com/Hayao0819/Kamisato/ayato/repository"
-	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
 	"github.com/Hayao0819/Kamisato/ayato/service"
 	"github.com/Hayao0819/Kamisato/ayato/test/mocks"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
+	"github.com/Hayao0819/Kamisato/internal/pacman/repo"
 )
 
 type fakeStagedUploader struct {
@@ -31,7 +30,7 @@ func (f *fakeStagedUploader) PresignStagedPut(id, name string, _ int64, _ time.D
 	return "https://storage.example/staging/" + id + "/" + name, nil
 }
 
-func (f *fakeStagedUploader) FetchStaged(id, name string) (platform.File, error) {
+func (f *fakeStagedUploader) FetchStaged(id, name string) (blob.File, error) {
 	data, ok := f.objects[id+"/"+name]
 	if !ok {
 		return nil, blob.ErrNotFound
@@ -85,7 +84,7 @@ func TestPresignUpload_ValidatesRequests(t *testing.T) {
 			bin.EXPECT().VerifyPkgRepo("myrepo").Return(nil)
 
 			cfg := baseConfig(false, "")
-			cfg.MaxSize = 10
+			cfg.MaxPackageSize = 10
 			svc := service.New(mocks.NewMockNameStore(ctrl), bin, nil, nil, cfg)
 			_, err := svc.PresignUpload("myrepo", test.files)
 			if !errors.Is(err, domain.ErrInvalidUpload) {

@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	pkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
+	pkg "github.com/Hayao0819/Kamisato/internal/pacman"
+	"github.com/Hayao0819/Kamisato/internal/pacman/source"
 )
 
 func writeNvCheckFixture(t *testing.T, srcinfo, nvchecker string) *pkg.SourcePackage {
@@ -80,8 +80,8 @@ func TestRunNvCheck(t *testing.T) {
 		"[ckbcomp]\nsource = \"git\"\ngit = \"https://salsa.debian.org/x.git\"\n")
 	makeAURCheckout(t, mirror)
 
-	src := &repo.SourceRepo{
-		Config: &repo.SrcConfig{Name: "test"},
+	src := &source.SourceRepo{
+		Config: &source.SrcConfig{Name: "test"},
 		Pkgs:   []*pkg.SourcePackage{monitored, unmonitored, unsupported, broken, mirror},
 	}
 
@@ -132,7 +132,7 @@ func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) { re
 
 func TestCollectNvCheckEntriesSkipsUnmonitored(t *testing.T) {
 	p := writeNvCheckFixture(t, fooSrcinfo, "")
-	src := &repo.SourceRepo{Config: &repo.SrcConfig{Name: "test"}, Pkgs: []*pkg.SourcePackage{p}}
+	src := &source.SourceRepo{Config: &source.SrcConfig{Name: "test"}, Pkgs: []*pkg.SourcePackage{p}}
 	if entries := CollectNvCheckEntries(src); len(entries) != 0 {
 		t.Errorf("entries = %v, want none", entries)
 	}

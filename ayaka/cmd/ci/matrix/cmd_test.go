@@ -13,9 +13,10 @@ import (
 
 	"github.com/Hayao0819/Kamisato/ayaka/app"
 	"github.com/Hayao0819/Kamisato/ayaka/service/plan"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/builder"
-	pkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
+	pkg "github.com/Hayao0819/Kamisato/internal/pacman"
+	"github.com/Hayao0819/Kamisato/internal/pacman/builder"
+	"github.com/Hayao0819/Kamisato/internal/pacman/repo"
+	"github.com/Hayao0819/Kamisato/internal/pacman/source"
 )
 
 type recordingPlanner struct {
@@ -32,13 +33,13 @@ func (r *recordingPlanner) Compute(_ []*pkg.SourcePackage, _ *repo.RemoteRepo, a
 	return &plan.Plan{Order: []string{}, Reasons: map[string]string{}, BumpTargets: []string{}}, nil
 }
 
-func (r *recordingPlanner) ReloadWithSrcinfo(srcrepo *repo.SourceRepo, _ io.Writer) (*repo.SourceRepo, error) {
+func (r *recordingPlanner) ReloadWithSrcinfo(srcrepo *source.SourceRepo, _ io.Writer) (*source.SourceRepo, error) {
 	r.reloads++
 	return srcrepo, nil
 }
 
 // testApp wires the source repo's url to a local server that always answers
-// 404, so shared.RemoteRepo takes its "treat as empty" path instead of
+// 404, so cli.RemoteRepo takes its "treat as empty" path instead of
 // reaching the network.
 func testApp(t *testing.T, arches []string) *app.App {
 	t.Helper()
@@ -46,17 +47,16 @@ func testApp(t *testing.T, arches []string) *app.App {
 		w.WriteHeader(http.StatusNotFound)
 	}))
 	t.Cleanup(srv.Close)
-	return &app.App{SrcRepos: []*repo.SourceRepo{{
-		Config: &repo.SrcConfig{Name: "test", URL: srv.URL, Build: builder.ProjectConfig{Arches: arches}},
+	return &app.App{SrcRepos: []*source.SourceRepo{{
+		Config: &source.SrcConfig{Name: "test", URL: srv.URL, Build: builder.ProjectConfig{Arches: arches}},
 	}}}
 }
 
 func run(t *testing.T, rec *recordingPlanner, a *app.App, args ...string) *Matrix {
 	t.Helper()
-	cmd := newCommand(rec)
+	cmd := newCommand(rec, app.StaticRuntime(a))
 	var out bytes.Buffer
 	cmd.SetOut(&out)
-	cmd.SetContext(app.WithContext(t.Context(), a))
 	cmd.SetArgs(args)
 	if err := cmd.Execute(); err != nil {
 		t.Fatal(err)
@@ -138,8 +138,7 @@ func TestMatrixGithubOutput(t *testing.T) {
 	rec := &recordingPlanner{plans: map[string]*plan.Plan{
 		"x86_64": {Order: []string{"a"}, Buckets: [][]string{{"a"}}, BumpTargets: []string{"a"}},
 	}}
-	cmd := newCommand(rec)
-	cmd.SetContext(app.WithContext(t.Context(), testApp(t, nil)))
+	cmd := newCommand(rec, app.StaticRuntime(testApp(t, nil)))
 	cmd.SetArgs([]string{"--update-srcinfo=false", "--format", "github"})
 	if err := cmd.Execute(); err != nil {
 		t.Fatal(err)

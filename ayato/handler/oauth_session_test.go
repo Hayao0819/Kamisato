@@ -13,10 +13,10 @@ import (
 	"golang.org/x/oauth2"
 
 	"github.com/Hayao0819/Kamisato/ayato/auth"
+	ayatoconfig "github.com/Hayao0819/Kamisato/ayato/config"
 	"github.com/Hayao0819/Kamisato/ayato/repository"
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv/badgerkv"
 	"github.com/Hayao0819/Kamisato/ayato/service"
-	"github.com/Hayao0819/Kamisato/internal/conf"
 )
 
 func denylistHandler(t *testing.T) (*AuthHandler, *fakeDenylistRepo, *auth.Signer) {
@@ -28,7 +28,7 @@ func denylistHandler(t *testing.T) (*AuthHandler, *fakeDenylistRepo, *auth.Signe
 	}
 	t.Cleanup(func() { _ = store.Close() })
 
-	cfg := &conf.AyatoConfig{}
+	cfg := &ayatoconfig.AyatoConfig{}
 	cfg.Auth.PublicOrigin = "https://repo.example.com"
 
 	authRepo := repository.NewAuthRepository(store)
@@ -36,12 +36,12 @@ func denylistHandler(t *testing.T) (*AuthHandler, *fakeDenylistRepo, *auth.Signe
 		t.Fatalf("AddAdmin: %v", err)
 	}
 	dl := &fakeDenylistRepo{}
-	svc := service.New(nil, nil, authRepo, nil, cfg).WithDenylist(dl)
+	svc := service.New(nil, nil, authRepo, nil, service.Settings{}).WithDenylist(dl)
 	signer, err := auth.NewSigner([]string{testSecret})
 	if err != nil {
 		t.Fatalf("NewSigner: %v", err)
 	}
-	return NewAuthHandler(svc, svc, cfg).WithSigner(signer), dl, signer
+	return NewAuthHandler(svc, svc, testSettings(cfg)).WithSigner(signer), dl, signer
 }
 
 func jtiOf(t *testing.T, token string) string {

@@ -3,7 +3,7 @@ package servercmd
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/Hayao0819/Kamisato/internal/serverstore"
+	"github.com/Hayao0819/Kamisato/internal/ayatoapi"
 )
 
 func RemoveCmd() *cobra.Command {
@@ -13,7 +13,7 @@ func RemoveCmd() *cobra.Command {
 		Args:              cobra.ExactArgs(1),
 		ValidArgsFunction: completeServerNames,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return serverstore.RemoveEndpoint(args[0])
+			return ayatoapi.RemoveEndpoint(args[0])
 		},
 	}
 	return cmd

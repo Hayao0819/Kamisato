@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	pkg "github.com/Hayao0819/Kamisato/pkg/pacman/pkg"
-	"github.com/Hayao0819/Kamisato/pkg/pacman/repo"
+	pkg "github.com/Hayao0819/Kamisato/internal/pacman"
+	"github.com/Hayao0819/Kamisato/internal/pacman/source"
 )
 
 func TestRewritePkgver(t *testing.T) {
@@ -55,14 +55,14 @@ func TestNvBump(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "foo.txt"), []byte("payload\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := repo.GenerateSrcinfo(dir, os.Stderr); err != nil {
+	if err := source.GenerateSrcinfo(dir, os.Stderr); err != nil {
 		t.Fatal(err)
 	}
 	p, err := pkg.OpenSourcePackage(dir)
 	if err != nil {
 		t.Fatal(err)
 	}
-	src := &repo.SourceRepo{Config: &repo.SrcConfig{Name: "test"}, Pkgs: []*pkg.SourcePackage{p}, Dir: dir}
+	src := &source.SourceRepo{Config: &source.SrcConfig{Name: "test"}, Pkgs: []*pkg.SourcePackage{p}, Dir: dir}
 
 	bumped, err := NvBump(src, "foo", "2.0", os.Stderr)
 	if err != nil {

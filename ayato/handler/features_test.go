@@ -8,16 +8,16 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	ayatoconfig "github.com/Hayao0819/Kamisato/ayato/config"
 	"github.com/Hayao0819/Kamisato/ayato/domain"
-	"github.com/Hayao0819/Kamisato/internal/conf"
 )
 
 func TestFeaturesHandler(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	cfg := &conf.AyatoConfig{}
+	cfg := &ayatoconfig.AyatoConfig{}
 	cfg.Miko.URL = "http://miko:8081"
 	cfg.Recaptcha.SiteKey = "SITE"
-	h := NewSystemHandler(cfg, true, nil)
+	h := NewSystemHandler(testSettings(cfg), true, nil)
 
 	r := gin.New()
 	r.GET("/features", h.FeaturesHandler)

@@ -7,8 +7,8 @@ import (
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
 
+	"github.com/Hayao0819/Kamisato/ayato/blob"
 	"github.com/Hayao0819/Kamisato/ayato/domain"
-	"github.com/Hayao0819/Kamisato/ayato/repository/blob"
 	alpm "github.com/Hayao0819/dyalpm"
 )
 
@@ -169,7 +169,7 @@ func (s *Service) publishedPackage(
 }
 
 func (s *Service) signedDB() bool {
-	return s.cfg != nil && s.cfg.Sign.DB
+	return s.settings.SignDatabase
 }
 
 func (s *Service) publishTarget(repo string) string {
