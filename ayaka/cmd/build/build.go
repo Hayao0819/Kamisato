@@ -2,10 +2,12 @@ package buildcmd
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"os"
+	"os/signal"
 	"path"
-	"time"
+	"syscall"
 
 	"github.com/spf13/cobra"
 
@@ -14,40 +16,59 @@ import (
 	"github.com/Hayao0819/Kamisato/ayaka/service/build"
 	"github.com/Hayao0819/Kamisato/ayaka/service/source"
 	"github.com/Hayao0819/Kamisato/internal/ayatoapi"
+	buildsetapp "github.com/Hayao0819/Kamisato/internal/buildset"
+	"github.com/Hayao0819/Kamisato/internal/cliutil"
 	"github.com/Hayao0819/Kamisato/internal/errors"
 	"github.com/Hayao0819/Kamisato/internal/pacman/builder"
 	pacmanhost "github.com/Hayao0819/Kamisato/internal/pacman/host"
 	pacmansign "github.com/Hayao0819/Kamisato/internal/pacman/sign"
 )
 
-// Cmd builds packages locally in a clean chroot. Use `ayaka miko build` to
-// submit to the remote miko build service.
 func Cmd(runtime *app.Runtime) *cobra.Command {
+	var input cli.DirectBuildFlags
 	var sign bool
 	var gpgkey string
 	var diffMode bool
-	var repo string
+	var sourceRepo string
 	var executor string
-	var arch string
 	var updateSrcinfo bool
 	var diffURL string
-	var buildTimeout time.Duration
 	var publish bool
 	var publishURL string
 	var publishServer string
+	var repoName string
+	var output string
+	var manifestPath string
+	var logDir string
 	cmd := cobra.Command{
-		Use:               "build <srcrepo> [pkgname...]",
-		Short:             "Build packages locally (--diff to build only changed packages)",
-		Args:              cobra.MinimumNArgs(1),
-		ValidArgsFunction: cli.CompleteSrcRepoThenPackages(runtime),
+		Use:               "build [pkgname...]",
+		Short:             "Build packages locally",
+		ValidArgsFunction: cli.CompleteSrcRepoPackages(runtime, func() string { return sourceRepo }),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
-			repo = args[0]
+			if executor != "" {
+				input.Backend = executor
+			}
+			if sourceRepo == "" {
+				if err := rejectChangedFlags(cmd, "direct package builds", sourceBuildFlags...); err != nil {
+					return err
+				}
+				if err := input.Validate(args); err != nil {
+					return err
+				}
+				if output == "" || manifestPath == "" {
+					return &cliutil.UsageError{Err: fmt.Errorf("--output and --manifest are required for direct package builds")}
+				}
+				return nil
+			}
+			if err := rejectChangedFlags(cmd, "--source-repo builds", directBuildFlags...); err != nil {
+				return err
+			}
 			a, err := runtime.App()
 			if err != nil {
 				return err
 			}
-			if a.GetSrcRepo(repo) == nil {
-				return errors.WrapErr(cli.ErrSourceRepoNotFound, repo)
+			if a.GetSrcRepo(sourceRepo) == nil {
+				return errors.WrapErr(cli.ErrSourceRepoNotFound, sourceRepo)
 			}
 
 			if !sign {
@@ -72,6 +93,9 @@ func Cmd(runtime *app.Runtime) *cobra.Command {
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if sourceRepo == "" {
+				return runDirectBuild(cmd, args, input, repoName, output, manifestPath, logDir)
+			}
 			a, err := runtime.App()
 			if err != nil {
 				return err
@@ -80,22 +104,19 @@ func Cmd(runtime *app.Runtime) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			var buildPkgs []string
-			if len(args) > 1 {
-				buildPkgs = args[1:]
-			}
+			buildPkgs := args
 
-			srcrepo := a.GetSrcRepo(repo)
+			srcrepo := a.GetSrcRepo(sourceRepo)
 			if srcrepo == nil {
-				return errors.WrapErr(cli.ErrSourceRepoNotFound, repo)
+				return errors.WrapErr(cli.ErrSourceRepoNotFound, sourceRepo)
 			}
 			destDir := srcrepo.DestDir
 			if destDir == "" {
-				return errors.WrapErr(cli.ErrNoDestDir, repo)
+				return errors.WrapErr(cli.ErrNoDestDir, sourceRepo)
 			}
 			srcdir := srcrepo.Dir
 			if srcdir == "" {
-				return errors.WrapErr(cli.ErrNoSourceDir, repo)
+				return errors.WrapErr(cli.ErrNoSourceDir, sourceRepo)
 			}
 
 			// Regenerate .SRCINFO first so a stale one doesn't build or skip the
@@ -117,12 +138,15 @@ func Cmd(runtime *app.Runtime) *cobra.Command {
 			if sign {
 				signKey = gpgkey
 			}
-			overrides, err := srcrepo.Config.Build.Overrides(arch)
+			overrides, err := srcrepo.Config.Build.Overrides(input.Arch)
 			if err != nil {
 				return errors.WrapErr(err, srcrepo.Config.Name)
 			}
-			if buildTimeout > 0 {
-				overrides.Timeout = buildTimeout
+			if input.Timeout > 0 {
+				overrides.Timeout = input.Timeout
+			}
+			if input.Image != "" {
+				overrides.DockerImage = input.Image
 			}
 			var host builder.HostConfig
 			if a.Config != nil {
@@ -132,10 +156,10 @@ func Cmd(runtime *app.Runtime) *cobra.Command {
 				slog.Warn("Ignoring repository-owned build.archbuild; host executable selection belongs in .ayakarc builder.devtools",
 					"archbuild", srcrepo.Config.Build.ArchBuild)
 			}
-			if executor != "" {
-				host.Backend = builder.Kind(executor)
+			if input.Backend != "" {
+				host.Backend = builder.Kind(input.Backend)
 			}
-			resolved, err := builder.Resolve(host, overrides, arch)
+			resolved, err := builder.Resolve(host, overrides, input.Arch)
 			if err != nil {
 				return errors.WrapErr(err, "failed to resolve build configuration")
 			}
@@ -143,7 +167,7 @@ func Cmd(runtime *app.Runtime) *cobra.Command {
 
 			buildTarget := build.Target{
 				Config:      resolved,
-				Arch:        arch,
+				Arch:        input.Arch,
 				SignKey:     signKey,
 				InstallPkgs: append(srcrepo.Config.InstallPkgs.Files, pkgs...),
 			}
@@ -181,6 +205,12 @@ func Cmd(runtime *app.Runtime) *cobra.Command {
 			return nil
 		},
 	}
+	input.Add(&cmd)
+	cmd.Flags().StringVar(&sourceRepo, "source-repo", "", "Configured source repository")
+	cmd.Flags().StringVar(&repoName, "repo", "ayaka-local", "Temporary repository name for direct package builds")
+	cmd.Flags().StringVar(&output, "output", "", "Completed repository directory for direct package builds")
+	cmd.Flags().StringVar(&manifestPath, "manifest", "", "Result manifest path for direct package builds")
+	cmd.Flags().StringVar(&logDir, "log-dir", "", "Directory for per-pkgbase logs")
 	cmd.Flags().BoolVar(&sign, "sign", false, "Sign built packages with the GPG key specified by --key")
 	cmd.Flags().StringVar(&gpgkey, "key", "", "GPG key ID for package signing (requires --sign)")
 	cmd.Flags().BoolVar(&diffMode, "diff", false, "Enable diff build mode (build only new packages)")
@@ -192,10 +222,63 @@ func Cmd(runtime *app.Runtime) *cobra.Command {
 	_ = cmd.Flags().MarkDeprecated("server", "use --diff-url to point diff builds at the remote repo db dir")
 	cmd.Flags().StringVar(&diffURL, "diff-url", "", "Remote repo db dir for diff builds (.../repo/<repo>/<arch>); overrides repo.json url")
 	cmd.Flags().StringVar(&executor, "executor", "", "Local build backend: chroot, container or bwrap (default: builder.backend or chroot)")
-	cmd.Flags().StringVar(&arch, "arch", "x86_64", "Target architecture for the build")
+	_ = cmd.Flags().MarkDeprecated("executor", "use --backend")
+	cmd.MarkFlagsMutuallyExclusive("executor", "backend")
 	cmd.Flags().BoolVar(&updateSrcinfo, "update-srcinfo", true, "Regenerate .SRCINFO from PKGBUILD before building (requires makepkg; skipped when absent)")
-	cmd.Flags().DurationVar(&buildTimeout, "timeout", 0, "Build timeout per package (e.g. 3h); 0 uses repo.json build.timeout or the backend default")
+	_ = cmd.RegisterFlagCompletionFunc("source-repo", cli.CompleteSrcRepoFlag(runtime))
 	return &cmd
+}
+
+var sourceBuildFlags = []string{
+	"sign", "key", "diff", "publish", "publish-url", "publish-server", "server", "diff-url",
+	"update-srcinfo", "token", "username", "password", "ask-pass",
+}
+
+var directBuildFlags = []string{
+	"local-source", "pacman-conf", "repo", "output", "manifest", "work-dir", "keep-work", "log-dir",
+}
+
+func rejectChangedFlags(command *cobra.Command, mode string, names ...string) error {
+	for _, name := range names {
+		if command.Flags().Changed(name) {
+			return &cliutil.UsageError{Err: fmt.Errorf("--%s cannot be used with %s", name, mode)}
+		}
+	}
+	return nil
+}
+
+func runDirectBuild(
+	command *cobra.Command,
+	packages []string,
+	input cli.DirectBuildFlags,
+	repoName, output, manifestPath, logDir string,
+) error {
+	configFile, err := command.Flags().GetString("config")
+	if err != nil {
+		return err
+	}
+	application, environment, err := app.NewDirectBuildApplication(input.ApplicationOptions(configFile))
+	if err != nil {
+		return err
+	}
+	ctx, stop := signal.NotifyContext(command.Context(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	manifest, err := application.Build(ctx, buildsetapp.BuildRequest{
+		PlanRequest: input.PlanRequest(packages),
+		RepoName:    repoName,
+		OutputDir:   output,
+		Manifest:    manifestPath,
+		LogDir:      logDir,
+		Environment: environment,
+	})
+	if err != nil {
+		return err
+	}
+	if manifest == nil {
+		return fmt.Errorf("direct package build completed without a manifest")
+	}
+	slog.Info("package build completed", "repository", manifest.Repository.Path, "manifest", manifestPath)
+	return nil
 }
 
 // publishAPIKeyEnv carries the CI publish credential; an env var keeps the

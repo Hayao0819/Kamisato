@@ -28,6 +28,26 @@ func CompleteSrcRepoNames(runtime *app.Runtime) func(*cobra.Command, []string, s
 	}
 }
 
+func CompleteSrcRepoFlag(runtime *app.Runtime) func(*cobra.Command, []string, string) ([]string, cobra.ShellCompDirective) {
+	return func(_ *cobra.Command, _ []string, _ string) ([]string, cobra.ShellCompDirective) {
+		a, err := runtime.App()
+		if err != nil {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+		return a.GetSrcRepoNames(), cobra.ShellCompDirectiveNoFileComp
+	}
+}
+
+func CompleteSrcRepoPackages(runtime *app.Runtime, selected func() string) func(*cobra.Command, []string, string) ([]string, cobra.ShellCompDirective) {
+	return func(_ *cobra.Command, _ []string, _ string) ([]string, cobra.ShellCompDirective) {
+		name := selected()
+		if name == "" {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+		return completeSrcRepoPackageNames(runtime, name), cobra.ShellCompDirectiveNoFileComp
+	}
+}
+
 // CompleteSrcRepoThenPackages completes the first argument with source repo
 // names and later arguments with that repo's package names.
 func CompleteSrcRepoThenPackages(runtime *app.Runtime) func(*cobra.Command, []string, string) ([]string, cobra.ShellCompDirective) {
@@ -39,17 +59,29 @@ func CompleteSrcRepoThenPackages(runtime *app.Runtime) func(*cobra.Command, []st
 		if len(args) == 0 {
 			return a.GetSrcRepoNames(), cobra.ShellCompDirectiveNoFileComp
 		}
-		sr := a.GetSrcRepo(args[0])
-		if sr == nil {
-			return nil, cobra.ShellCompDirectiveNoFileComp
-		}
-		var cands []string
-		for _, p := range sr.Pkgs {
-			cands = append(cands, p.Base())
-			cands = append(cands, p.Names()...)
-		}
-		return lo.Uniq(cands), cobra.ShellCompDirectiveNoFileComp
+		return sourceRepoPackageNames(a, args[0]), cobra.ShellCompDirectiveNoFileComp
 	}
+}
+
+func completeSrcRepoPackageNames(runtime *app.Runtime, name string) []string {
+	a, err := runtime.App()
+	if err != nil {
+		return nil
+	}
+	return sourceRepoPackageNames(a, name)
+}
+
+func sourceRepoPackageNames(a *app.App, name string) []string {
+	sr := a.GetSrcRepo(name)
+	if sr == nil {
+		return nil
+	}
+	var candidates []string
+	for _, sourcePackage := range sr.Pkgs {
+		candidates = append(candidates, sourcePackage.Base())
+		candidates = append(candidates, sourcePackage.Names()...)
+	}
+	return lo.Uniq(candidates)
 }
 
 // ResolveDiffServer picks the remote repo db dir: the explicit --diff-url, else

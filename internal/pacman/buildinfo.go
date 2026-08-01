@@ -2,9 +2,9 @@ package pacman
 
 import (
 	"archive/tar"
+	"bytes"
 	"fmt"
 	"io"
-	"strings"
 
 	"github.com/Hayao0819/Kamisato/pkg/raiou"
 )
@@ -17,17 +17,25 @@ var ErrBuildInfoNotFound = fmt.Errorf(".BUILDINFO not found")
 // ReadBuildInfo extracts and parses the .BUILDINFO member from a package archive,
 // returning ErrBuildInfoNotFound when the archive has none.
 func ReadBuildInfo(r io.Reader) (*raiou.BUILDINFO, error) {
-	var data string
+	data, err := ReadBuildInfoData(r)
+	if err != nil {
+		return nil, err
+	}
+	return raiou.ParseBuildinfo(bytes.NewReader(data))
+}
+
+func ReadBuildInfoData(r io.Reader) ([]byte, error) {
+	var data []byte
 	found := false
 	err := walkPackageTar(r, func(hdr *tar.Header, content io.Reader) (bool, error) {
 		if hdr.Name != ".BUILDINFO" {
 			return false, nil
 		}
-		buf := new(strings.Builder)
+		buf := new(bytes.Buffer)
 		if _, err := io.Copy(buf, content); err != nil {
 			return false, fmt.Errorf("failed to read .BUILDINFO: %w", err)
 		}
-		data = buf.String()
+		data = buf.Bytes()
 		found = true
 		return true, nil
 	})
@@ -37,5 +45,5 @@ func ReadBuildInfo(r io.Reader) (*raiou.BUILDINFO, error) {
 	if !found {
 		return nil, ErrBuildInfoNotFound
 	}
-	return raiou.ParseBuildinfo(strings.NewReader(data))
+	return data, nil
 }

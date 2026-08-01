@@ -12,7 +12,7 @@ const (
 	FallbackCacheDir = "/var/cache/pacman/pkg"
 )
 
-func loadConfig(path string) (*pacmanconf.Config, error) {
+func ParseConfig(path string) (*pacmanconf.Config, error) {
 	var (
 		config *pacmanconf.Config
 		stderr string
@@ -30,6 +30,10 @@ func loadConfig(path string) (*pacmanconf.Config, error) {
 		return nil, fmt.Errorf("pacman-conf: %w: %s", err, stderr)
 	}
 	return nil, fmt.Errorf("pacman-conf: %w", err)
+}
+
+func loadConfig(path string) (*pacmanconf.Config, error) {
+	return ParseConfig(path)
 }
 
 func HookDir(configPath string) string {

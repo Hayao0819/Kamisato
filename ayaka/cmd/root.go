@@ -14,6 +14,7 @@ import (
 	keycmd "github.com/Hayao0819/Kamisato/ayaka/cmd/key"
 	keyringcmd "github.com/Hayao0819/Kamisato/ayaka/cmd/keyring"
 	mikocmd "github.com/Hayao0819/Kamisato/ayaka/cmd/miko"
+	plancmd "github.com/Hayao0819/Kamisato/ayaka/cmd/plan"
 	repocmd "github.com/Hayao0819/Kamisato/ayaka/cmd/repo"
 	prunecmd "github.com/Hayao0819/Kamisato/ayaka/cmd/repo/prune"
 	servercmd "github.com/Hayao0819/Kamisato/ayaka/cmd/server"
@@ -86,7 +87,7 @@ func RootCmd() *cobra.Command {
 
 	subCmds := cobrautils.Registory{}
 	subCmds.Add(grouped("src", initcmd.Cmd(), srccmd.Cmd(runtime))...)
-	subCmds.Add(grouped("build", buildcmd.Cmd(runtime), mikocmd.Cmd(runtime))...)
+	subCmds.Add(grouped("build", buildcmd.Cmd(runtime), plancmd.Cmd(), mikocmd.Cmd(runtime))...)
 	subCmds.Add(grouped("ayato", repocmd.Cmd(runtime), servercmd.Cmd(), hookcmd.Cmd())...)
 	subCmds.Add(grouped("signing", keycmd.Cmd(), keyringcmd.Cmd())...)
 	subCmds.Add(grouped("ci", cicmd.Cmd(runtime))...)

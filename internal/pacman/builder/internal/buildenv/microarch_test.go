@@ -2,6 +2,7 @@ package buildenv
 
 import (
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -117,5 +118,17 @@ func TestStageOverrideConfMicroarch(t *testing.T) {
 	}
 	if strings.Contains(string(defData), "-march=") {
 		t.Errorf("default override must inject no -march, got:\n%s", defData)
+	}
+}
+
+func TestStageOverrideConfInUsesRequestedDirectory(t *testing.T) {
+	dir := t.TempDir()
+	path, cleanup, err := StageOverrideConfIn(dir, builder.MakepkgConfig{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cleanup()
+	if filepath.Dir(path) != dir {
+		t.Fatalf("override path = %q", path)
 	}
 }

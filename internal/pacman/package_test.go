@@ -3,6 +3,7 @@ package pacman_test
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 
 	pkg "github.com/Hayao0819/Kamisato/internal/pacman"
@@ -86,5 +87,34 @@ func TestOpenSourcePackage_NoSrcinfo(t *testing.T) {
 	dir := t.TempDir()
 	if _, err := pkg.OpenSourcePackage(dir); err != pkg.ErrSRCINFONotFound {
 		t.Errorf("OpenSourcePackage error = %v, want ErrSRCINFONotFound", err)
+	}
+}
+
+func TestSourcePackageBuildMetadataUsesTargetArchitecture(t *testing.T) {
+	dir := t.TempDir()
+	data := "pkgbase = split\n" +
+		"\tpkgver = 2\n\tpkgrel = 3\n\tarch = x86_64\n\tarch = i686\n" +
+		"\tmakedepends = make-common\n\tmakedepends_x86_64 = make-x86\n" +
+		"\tcheckdepends = check-common\n\tcheckdepends_i686 = check-i686\n" +
+		"\n" +
+		"pkgname = split-cli\n\tdepends = runtime-common\n\tdepends_x86_64 = runtime-x86\n\tprovides = command=2\n" +
+		"\n" +
+		"pkgname = split-docs\n\tarch = any\n\tdepends = docs-common\n"
+	if err := os.WriteFile(filepath.Join(dir, ".SRCINFO"), []byte(data), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	p, err := pkg.OpenSourcePackage(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := p.OutputNames("x86_64"); !slices.Equal(got, []string{"split-cli", "split-docs"}) {
+		t.Fatalf("OutputNames = %v", got)
+	}
+	wantDepends := []string{"check-common", "docs-common", "make-common", "make-x86", "runtime-common", "runtime-x86"}
+	if got := p.BuildDepends("x86_64"); !slices.Equal(got, wantDepends) {
+		t.Fatalf("BuildDepends = %v", got)
+	}
+	if got := p.OutputProvides("x86_64"); !slices.Equal(got, []string{"command=2"}) {
+		t.Fatalf("OutputProvides = %v", got)
 	}
 }

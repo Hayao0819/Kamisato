@@ -47,7 +47,24 @@ func LockContext(
 		return nil, fmt.Errorf("safefile: lock %q: %w", path, err)
 	}
 	if !acquired {
+		_ = lock.Close()
 		return nil, fmt.Errorf("safefile: lock %q was not acquired", path)
+	}
+	return finishLock(lock, path, perm)
+}
+
+func TryLock(path string, perm fs.FileMode) (*flock.Flock, error) {
+	lock, err := newLock(path, perm)
+	if err != nil {
+		return nil, err
+	}
+	acquired, err := lock.TryLock()
+	if err != nil {
+		return nil, fmt.Errorf("safefile: lock %q: %w", path, err)
+	}
+	if !acquired {
+		_ = lock.Close()
+		return nil, fmt.Errorf("safefile: lock %q is already held", path)
 	}
 	return finishLock(lock, path, perm)
 }

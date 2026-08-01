@@ -35,6 +35,9 @@ func Snapshot(dir string) (Baseline, error) {
 			if err != nil {
 				return nil, fmt.Errorf("failed to stat existing package %s: %w", entry.Name(), err)
 			}
+			if !info.Mode().IsRegular() {
+				return nil, fmt.Errorf("existing package %s is not a regular file", entry.Name())
+			}
 			set[entry.Name()] = fileState{info: info}
 		}
 	}
@@ -52,11 +55,14 @@ func Collect(dir string, baseline Baseline) ([]string, error) {
 		if entry.IsDir() || !IsPackageFile(entry.Name()) {
 			continue
 		}
+		info, err := entry.Info()
+		if err != nil {
+			return nil, fmt.Errorf("failed to stat package %s: %w", entry.Name(), err)
+		}
+		if !info.Mode().IsRegular() {
+			return nil, fmt.Errorf("package %s is not a regular file", entry.Name())
+		}
 		if previous, ok := baseline[entry.Name()]; ok {
-			info, err := entry.Info()
-			if err != nil {
-				return nil, fmt.Errorf("failed to stat package %s: %w", entry.Name(), err)
-			}
 			if os.SameFile(previous.info, info) &&
 				previous.info.Size() == info.Size() &&
 				previous.info.ModTime().Equal(info.ModTime()) {
@@ -105,9 +111,22 @@ func MoveToDir(built []string, srcDir, outDir string) ([]string, error) {
 	}
 	packages := make([]string, 0, len(built))
 	for _, path := range built {
+		signature := path + ".sig"
+		signatureInfo, signatureErr := os.Lstat(signature)
+		if signatureErr != nil && !errors.Is(signatureErr, os.ErrNotExist) {
+			return nil, fmt.Errorf("failed to inspect package signature: %w", signatureErr)
+		}
+		if signatureErr == nil && !signatureInfo.Mode().IsRegular() {
+			return nil, fmt.Errorf("package signature %s is not a regular file", signature)
+		}
 		dst := filepath.Join(absOut, filepath.Base(path))
 		if err := moveFile(path, dst); err != nil {
 			return nil, fmt.Errorf("failed to move package to output directory: %w", err)
+		}
+		if signatureErr == nil {
+			if err := moveFile(signature, dst+".sig"); err != nil {
+				return nil, fmt.Errorf("failed to move package signature to output directory: %w", err)
+			}
 		}
 		packages = append(packages, dst)
 	}

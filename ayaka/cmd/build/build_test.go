@@ -12,7 +12,10 @@ func TestBuildFlagShape(t *testing.T) {
 	cmd := Cmd(app.StaticRuntime(&app.App{}))
 	flags := cmd.Flags()
 
-	present := []string{"sign", "key", "diff", "server", "executor", "arch", "publish", "publish-url", "publish-server"}
+	present := []string{
+		"source-repo", "local-source", "pacman-conf", "repo", "output", "manifest", "backend", "image", "work-dir", "keep-work", "log-dir",
+		"sign", "key", "diff", "server", "executor", "arch", "publish", "publish-url", "publish-server",
+	}
 	for _, name := range present {
 		if flags.Lookup(name) == nil {
 			t.Errorf("flag --%s not registered", name)
@@ -38,8 +41,8 @@ func TestBuildSignRequiresKey(t *testing.T) {
 	// --diff must not exempt the key check, or --sign --diff silently builds
 	// unsigned packages.
 	for _, args := range [][]string{
-		{"--sign", "extra"},
-		{"--sign", "--diff", "extra"},
+		{"--source-repo", "extra", "--sign"},
+		{"--source-repo", "extra", "--sign", "--diff"},
 	} {
 		a := &app.App{SrcRepos: []*source.SourceRepo{
 			{Config: &source.SrcConfig{Name: "extra"}},
@@ -61,7 +64,39 @@ func TestBuildSignRequiresKey(t *testing.T) {
 
 func TestBuildUseString(t *testing.T) {
 	cmd := Cmd(app.StaticRuntime(&app.App{}))
-	if !strings.HasPrefix(cmd.Use, "build <srcrepo>") {
-		t.Errorf("Use = %q, want prefix 'build <srcrepo>'", cmd.Use)
+	if cmd.Use != "build [pkgname...]" {
+		t.Errorf("Use = %q", cmd.Use)
+	}
+}
+
+func TestBuildRejectsDirectInputsWithSourceRepo(t *testing.T) {
+	a := &app.App{SrcRepos: []*source.SourceRepo{{Config: &source.SrcConfig{Name: "extra"}}}}
+	cmd := Cmd(app.StaticRuntime(a))
+	cmd.SetArgs([]string{"--source-repo", "extra", "--local-source", "./pkg"})
+	cmd.SilenceErrors = true
+	cmd.SilenceUsage = true
+	err := cmd.Execute()
+	if err == nil || !strings.Contains(err.Error(), "--local-source cannot be used") {
+		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestBuildRejectsMissingDirectOutput(t *testing.T) {
+	cmd := Cmd(app.StaticRuntime(&app.App{}))
+	cmd.SetArgs([]string{"example", "--pacman-conf", "pacman.conf"})
+	cmd.SilenceErrors = true
+	cmd.SilenceUsage = true
+	err := cmd.Execute()
+	if err == nil || !strings.Contains(err.Error(), "--output and --manifest") {
+		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestBuildRejectsAlterisoListFlags(t *testing.T) {
+	cmd := Cmd(app.StaticRuntime(&app.App{}))
+	for _, name := range []string{"aur-list", "pkgbuild-root"} {
+		if cmd.Flags().Lookup(name) != nil {
+			t.Errorf("flag --%s should not be registered", name)
+		}
 	}
 }

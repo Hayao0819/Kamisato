@@ -92,3 +92,42 @@ func TestCollectStagedPackagesReplacesSameVersion(t *testing.T) {
 		t.Fatalf("empty staging dir error = %v, want ErrBuildFailed", err)
 	}
 }
+
+func TestLocalRepositoryMountsAreReadOnlyAndCompactNestedPaths(t *testing.T) {
+	parent := t.TempDir()
+	child := filepath.Join(parent, "nested")
+	if err := os.Mkdir(child, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	mounts, err := localRepositoryMounts([]string{child, parent, parent})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(mounts) != 1 || mounts[0].Source != parent || mounts[0].Target != parent || !mounts[0].ReadOnly {
+		t.Fatalf("mounts = %+v", mounts)
+	}
+}
+
+func TestLocalRepositoryMountsRejectControlledContainerPaths(t *testing.T) {
+	if _, err := localRepositoryMounts([]string{"/etc"}); err == nil {
+		t.Fatal("controlled container path was accepted")
+	}
+}
+
+func TestMatchingRepoDigestPrefersRequestedRepository(t *testing.T) {
+	digests := []string{
+		"mirror.example/project/image@sha256:wrong",
+		"ghcr.io/example/image@sha256:right",
+	}
+	got := matchingRepoDigest("ghcr.io/example/image:latest", digests)
+	if got != "ghcr.io/example/image@sha256:right" {
+		t.Fatalf("digest = %q", got)
+	}
+}
+
+func TestImageRepositoryKeepsRegistryPort(t *testing.T) {
+	got := imageRepository("registry.example:5000/project/image:tag")
+	if got != "registry.example:5000/project/image" {
+		t.Fatalf("repository = %q", got)
+	}
+}

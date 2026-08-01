@@ -1,6 +1,8 @@
 package pacman
 
 import (
+	"slices"
+
 	"github.com/samber/lo"
 )
 
@@ -26,6 +28,56 @@ func (p *SourcePackage) Names() []string {
 		names = append(names, pkg.PkgName)
 	}
 	return lo.Uniq(names)
+}
+
+func (p *SourcePackage) OutputNames(arch string) []string {
+	var names []string
+	for _, output := range p.info.SplitPackages() {
+		if supportsPackageArch(output.PkgArch, arch) {
+			names = append(names, output.PkgName)
+		}
+	}
+	if len(names) == 0 && len(p.info.Packages) == 0 && p.info.PkgName != "" && supportsPackageArch(p.info.PkgArch, arch) {
+		names = append(names, p.info.PkgName)
+	}
+	slices.Sort(names)
+	return slices.Compact(names)
+}
+
+func (p *SourcePackage) BuildDepends(arch string) []string {
+	deps := append([]string{}, p.info.MakeDepends.ForArch(arch)...)
+	deps = append(deps, p.info.CheckDepends.ForArch(arch)...)
+	for _, output := range p.info.SplitPackages() {
+		if supportsPackageArch(output.PkgArch, arch) {
+			deps = append(deps, output.Depends.ForArch(arch)...)
+		}
+	}
+	if len(p.info.Packages) == 0 && supportsPackageArch(p.info.PkgArch, arch) {
+		deps = append(deps, p.info.Depends.ForArch(arch)...)
+	}
+	slices.Sort(deps)
+	return slices.Compact(deps)
+}
+
+func (p *SourcePackage) OutputProvides(arch string) []string {
+	var provides []string
+	for _, output := range p.info.SplitPackages() {
+		if supportsPackageArch(output.PkgArch, arch) {
+			provides = append(provides, output.Provides.ForArch(arch)...)
+		}
+	}
+	if len(p.info.Packages) == 0 && supportsPackageArch(p.info.PkgArch, arch) {
+		provides = append(provides, p.info.Provides.ForArch(arch)...)
+	}
+	slices.Sort(provides)
+	return slices.Compact(provides)
+}
+
+func supportsPackageArch(arches []string, arch string) bool {
+	if len(arches) == 0 {
+		return true
+	}
+	return slices.Contains(arches, "any") || slices.Contains(arches, arch)
 }
 
 // Arches returns the pkgbase and sub-package arch=() values.

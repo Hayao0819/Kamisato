@@ -13,7 +13,10 @@ type Spec struct {
 	// OutDir is where built package files are collected. It may equal SrcDir.
 	OutDir string
 	// Arch is the target CARCH (x86_64, aarch64, armv7h, ...).
-	Arch string
+	Arch       string
+	PacmanConf string
+	// LocalRepositoryDirs are file:// repository roots used by PacmanConf.
+	LocalRepositoryDirs []string
 	// InstallPkgs are local package files installed before building (makechrootpkg -I / pacman -U)
 	// for not-yet-published build-chain dependencies.
 	InstallPkgs   []string
@@ -62,6 +65,19 @@ type Result struct {
 type Backend interface {
 	Name() string
 	Build(ctx context.Context, spec Spec) (*Result, error)
+}
+
+type MetadataBackend interface {
+	GenerateSRCINFO(ctx context.Context, spec Spec) ([]byte, error)
+}
+
+type BuildEnvironment struct {
+	Image  string `json:"image"`
+	Digest string `json:"digest,omitempty"`
+}
+
+type EnvironmentReporter interface {
+	BuildEnvironment() BuildEnvironment
 }
 
 // Kind identifies a build backend implementation.

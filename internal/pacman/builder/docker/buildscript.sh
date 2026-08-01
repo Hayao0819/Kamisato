@@ -4,6 +4,8 @@ set -euo pipefail
 : "${TARGET_CARCH:?TARGET_CARCH must be set by the container backend}"
 : "${TARGET_CHOST:?TARGET_CHOST must be set by the container backend}"
 
+__PACMAN_CONFIG__
+
 # Add repositories before the first sync so they participate in dependency resolution.
 __EXTRA_REPOS__
 

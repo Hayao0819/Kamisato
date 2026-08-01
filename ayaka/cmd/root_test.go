@@ -20,3 +20,17 @@ func TestVersionDoesNotLoadAyakaConfig(t *testing.T) {
 		t.Fatalf("version output = %q", output.String())
 	}
 }
+
+func TestRootHasBuildAndPlanWithoutBuildSet(t *testing.T) {
+	root := RootCmd()
+	for _, name := range []string{"build", "plan"} {
+		command, _, err := root.Find([]string{name})
+		if err != nil || command == root || command.Name() != name {
+			t.Errorf("command %q not found: command=%v error=%v", name, command, err)
+		}
+	}
+	command, _, err := root.Find([]string{"build-set"})
+	if err == nil && command != root && command.Name() == "build-set" {
+		t.Fatal("build-set command should not be registered")
+	}
+}

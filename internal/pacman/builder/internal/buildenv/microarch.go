@@ -63,11 +63,15 @@ func MakepkgOverrideLines(s builder.MakepkgConfig) (string, error) {
 
 // StageOverrideConf writes a temporary makepkg.conf for sandbox bind mounts.
 func StageOverrideConf(mk builder.MakepkgConfig) (string, func(), error) {
+	return StageOverrideConfIn("", mk)
+}
+
+func StageOverrideConfIn(dir string, mk builder.MakepkgConfig) (string, func(), error) {
 	overrides, err := MakepkgOverrideLines(mk)
 	if err != nil {
 		return "", nil, err
 	}
-	f, err := os.CreateTemp("", "makepkg-override-*.conf")
+	f, err := os.CreateTemp(dir, "makepkg-override-*.conf")
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to stage makepkg override: %w", err)
 	}
