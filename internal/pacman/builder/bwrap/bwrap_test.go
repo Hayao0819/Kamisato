@@ -49,15 +49,22 @@ func TestBwrapArgsOverlayAndUID(t *testing.T) {
 }
 
 func TestBwrapInstallBinds(t *testing.T) {
-	script, binds, err := bwrapInstall([]string{"/cache/dep-1.0-1-x86_64.pkg.tar.zst"}, nil)
+	script, binds, err := bwrapInstall([]string{
+		"/cache/dep-1.0-1-x86_64.pkg.tar.zst",
+		"/cache/consumer-1.0-1-x86_64.pkg.tar.zst",
+	}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(binds) != 1 || binds[0][0] != "/cache/dep-1.0-1-x86_64.pkg.tar.zst" {
+	if len(binds) != 2 || binds[0][0] != "/cache/dep-1.0-1-x86_64.pkg.tar.zst" {
 		t.Fatalf("unexpected binds: %v", binds)
 	}
-	if !strings.Contains(script, "pacman -U --noconfirm "+shellutil.Quote(binds[0][1])) {
+	wantInstall := "pacman -U --asdeps --noconfirm -- " + shellutil.Quote(binds[0][1]) + " " + shellutil.Quote(binds[1][1])
+	if !strings.Contains(script, wantInstall) {
 		t.Errorf("install command not substituted: %q", script)
+	}
+	if strings.Count(script, "pacman -U --asdeps --noconfirm") != 1 {
+		t.Errorf("dependencies are not installed in one transaction: %q", script)
 	}
 	if strings.Contains(script, "\n__INSTALL__\n") {
 		t.Error("__INSTALL__ placeholder line not replaced")

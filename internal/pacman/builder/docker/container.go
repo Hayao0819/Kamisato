@@ -162,7 +162,7 @@ func (b *Backend) Build(ctx context.Context, spec builder.Spec) (*builder.Result
 	}
 	installCommand := ""
 	if len(installTargets) > 0 {
-		installCommand = "pacman -U --noconfirm -- " + strings.Join(installTargets, " ")
+		installCommand = "pacman -U --asdeps --noconfirm -- " + strings.Join(installTargets, " ")
 	}
 
 	repositories := b.extraRepos

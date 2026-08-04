@@ -159,18 +159,21 @@ func (b *Backend) Build(ctx context.Context, spec builder.Spec) (*builder.Result
 }
 
 func bwrapInstall(installPkgs []string, extraRepos []builder.PacmanRepository) (script string, binds [][2]string, err error) {
-	var cmds strings.Builder
+	installPaths := make([]string, 0, len(installPkgs))
 	for i, p := range installPkgs {
 		dest := fmt.Sprintf("/build/install/%d-%s", i, filepath.Base(p))
 		binds = append(binds, [2]string{p, dest})
-		// This path enters bash -c rather than bwrap's argv.
-		fmt.Fprintf(&cmds, "pacman -U --noconfirm %s\n", shellutil.Quote(dest))
+		installPaths = append(installPaths, shellutil.Quote(dest))
+	}
+	installCommand := ""
+	if len(installPaths) > 0 {
+		installCommand = "pacman -U --asdeps --noconfirm -- " + strings.Join(installPaths, " ")
 	}
 	reposScript, err := buildenv.ExtraReposScript(extraRepos)
 	if err != nil {
 		return "", nil, err
 	}
-	script = buildenv.SubstituteBuildPlaceholders(bwrapDepsScript, reposScript, strings.TrimRight(cmds.String(), "\n"))
+	script = buildenv.SubstituteBuildPlaceholders(bwrapDepsScript, reposScript, installCommand)
 	return script, binds, nil
 }
 
