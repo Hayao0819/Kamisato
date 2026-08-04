@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/Hayao0819/Kamisato/internal/pacman/builder"
 )
 
 func TestDirectBuildConfigIsNeverDiscoveredImplicitly(t *testing.T) {
@@ -30,6 +32,16 @@ func TestDirectBuildConfigIsNeverDiscoveredImplicitly(t *testing.T) {
 	}
 	if config.Backend != "" {
 		t.Fatalf("implicit config was loaded: %+v", config)
+	}
+}
+
+func TestDirectBuildAppliesMakepkgOptions(t *testing.T) {
+	_, _, err := NewDirectBuildApplication(DirectBuildOptions{
+		Arch:    "x86_64",
+		Makepkg: builder.MakepkgConfig{Options: []string{"!debug"}},
+	})
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 

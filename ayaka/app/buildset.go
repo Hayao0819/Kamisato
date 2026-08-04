@@ -29,6 +29,7 @@ type DirectBuildOptions struct {
 	Backend    builder.Kind
 	Image      string
 	Timeout    time.Duration
+	Makepkg    builder.MakepkgConfig
 }
 
 func NewDirectBuildApplication(options DirectBuildOptions) (*buildsetapp.Application, builder.BuildEnvironment, error) {
@@ -52,7 +53,7 @@ func NewDirectBuildApplication(options DirectBuildOptions) (*buildsetapp.Applica
 	if image == "" && host.Docker.Image == "" {
 		image = defaultDirectBuildImage
 	}
-	overrides := builder.BuildOverrides{DockerImage: image, Timeout: options.Timeout}
+	overrides := builder.BuildOverrides{DockerImage: image, Timeout: options.Timeout, Makepkg: options.Makepkg}
 	resolved, err := builder.Resolve(host, overrides, options.Arch)
 	if err != nil {
 		return nil, builder.BuildEnvironment{}, fmt.Errorf("resolve direct build backend: %w", err)

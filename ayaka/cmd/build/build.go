@@ -236,6 +236,7 @@ var sourceBuildFlags = []string{
 
 var directBuildFlags = []string{
 	"local-source", "pacman-conf", "repo", "output", "manifest", "work-dir", "keep-work", "log-dir",
+	"makepkg-option",
 }
 
 func rejectChangedFlags(command *cobra.Command, mode string, names ...string) error {

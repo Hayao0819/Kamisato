@@ -16,6 +16,7 @@ func TestDirectBuildFlagsNormalizeCLIInput(t *testing.T) {
 	flags.Add(command)
 	if err := command.ParseFlags([]string{
 		"--local-source", "./one", "--local-source", "./two", "--pacman-conf", "pacman.conf", "--arch", "i486",
+		"--makepkg-option", "!debug",
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -25,6 +26,10 @@ func TestDirectBuildFlagsNormalizeCLIInput(t *testing.T) {
 	}
 	if request.Arch != "i486" || request.PacmanConf != "pacman.conf" {
 		t.Fatalf("request = %+v", request)
+	}
+	options := flags.ApplicationOptions("")
+	if !slices.Equal(options.Makepkg.Options, []string{"!debug"}) {
+		t.Fatalf("makepkg options = %v", options.Makepkg.Options)
 	}
 }
 

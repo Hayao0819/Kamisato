@@ -14,14 +14,15 @@ import (
 )
 
 type DirectBuildFlags struct {
-	Arch         string
-	LocalSources []string
-	PacmanConf   string
-	Backend      string
-	Image        string
-	Timeout      time.Duration
-	WorkDir      string
-	KeepWork     bool
+	Arch           string
+	LocalSources   []string
+	PacmanConf     string
+	Backend        string
+	Image          string
+	Timeout        time.Duration
+	WorkDir        string
+	KeepWork       bool
+	MakepkgOptions []string
 }
 
 func (o *DirectBuildFlags) Add(command *cobra.Command) {
@@ -33,6 +34,7 @@ func (o *DirectBuildFlags) Add(command *cobra.Command) {
 	command.Flags().DurationVar(&o.Timeout, "timeout", 0, "Timeout per pkgbase")
 	command.Flags().StringVar(&o.WorkDir, "work-dir", "", "Parent directory for temporary build state")
 	command.Flags().BoolVar(&o.KeepWork, "keep-work", false, "Keep temporary build state after completion")
+	command.Flags().StringArrayVar(&o.MakepkgOptions, "makepkg-option", nil, "Append an OPTIONS entry to makepkg.conf; repeat for multiple entries")
 }
 
 func (o *DirectBuildFlags) Validate(packages []string) error {
@@ -63,5 +65,6 @@ func (o *DirectBuildFlags) ApplicationOptions(configFile string) app.DirectBuild
 		Backend:    builder.Kind(o.Backend),
 		Image:      o.Image,
 		Timeout:    o.Timeout,
+		Makepkg:    builder.MakepkgConfig{Options: slices.Clone(o.MakepkgOptions)},
 	}
 }

@@ -14,7 +14,7 @@ func TestBuildFlagShape(t *testing.T) {
 
 	present := []string{
 		"source-repo", "local-source", "pacman-conf", "repo", "output", "manifest", "backend", "image", "work-dir", "keep-work", "log-dir",
-		"sign", "key", "diff", "server", "executor", "arch", "publish", "publish-url", "publish-server",
+		"makepkg-option", "sign", "key", "diff", "server", "executor", "arch", "publish", "publish-url", "publish-server",
 	}
 	for _, name := range present {
 		if flags.Lookup(name) == nil {
