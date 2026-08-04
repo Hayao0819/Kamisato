@@ -60,3 +60,83 @@ func TestPull(t *testing.T) {
 		t.Errorf("no-op Pull (already up to date) should not error: %v", err)
 	}
 }
+
+// TestIsCleanIgnoresUntracked pins the pull gate's dirtiness definition: an
+// untracked file alone is clean (SyncHard keeps it), a tracked modification is
+// not.
+func TestIsCleanIgnoresUntracked(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not available")
+	}
+
+	dir := t.TempDir()
+	runTestGit(t, dir, "init", "-b", "main")
+	if err := os.WriteFile(filepath.Join(dir, "a.txt"), []byte("one\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	runTestGit(t, dir, "add", "a.txt")
+	runTestGit(t, dir, "commit", "-m", "one")
+
+	if err := os.WriteFile(filepath.Join(dir, "note.md"), []byte("memo\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	clean, err := IsClean(dir)
+	if err != nil {
+		t.Fatalf("IsClean: %v", err)
+	}
+	if !clean {
+		t.Error("untracked file alone should be clean")
+	}
+
+	if err := os.WriteFile(filepath.Join(dir, "a.txt"), []byte("changed\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	clean, err = IsClean(dir)
+	if err != nil {
+		t.Fatalf("IsClean: %v", err)
+	}
+	if clean {
+		t.Error("tracked modification should not be clean")
+	}
+}
+
+// TestSyncHardKeepsUntracked proves the reset SyncHard performs does not delete
+// untracked files, which is what lets IsClean ignore them.
+func TestSyncHardKeepsUntracked(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not available")
+	}
+
+	origin := t.TempDir()
+	runTestGit(t, origin, "init", "-b", "main")
+	if err := os.WriteFile(filepath.Join(origin, "a.txt"), []byte("one\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	runTestGit(t, origin, "add", "a.txt")
+	runTestGit(t, origin, "commit", "-m", "one")
+
+	work := filepath.Join(t.TempDir(), "clone")
+	if _, err := git.PlainClone(work, &git.CloneOptions{URL: origin}); err != nil {
+		t.Fatalf("setup clone: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(work, "note.md"), []byte("memo\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := os.WriteFile(filepath.Join(origin, "a.txt"), []byte("two\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	runTestGit(t, origin, "add", "a.txt")
+	runTestGit(t, origin, "commit", "-m", "two")
+
+	if err := SyncHard(context.Background(), work, "main"); err != nil {
+		t.Fatalf("SyncHard: %v", err)
+	}
+	got, err := os.ReadFile(filepath.Join(work, "a.txt"))
+	if err != nil || string(got) != "two\n" {
+		t.Errorf("worktree not synced to origin: %q, %v", got, err)
+	}
+	if _, err := os.Stat(filepath.Join(work, "note.md")); err != nil {
+		t.Errorf("untracked file must survive SyncHard: %v", err)
+	}
+}

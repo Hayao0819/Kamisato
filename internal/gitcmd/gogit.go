@@ -207,7 +207,9 @@ func OriginHead(ctx context.Context, dir string) (string, error) {
 	return "", errors.NewErr("origin of " + dir + " does not advertise HEAD")
 }
 
-// IsClean reports whether dir's worktree has no local modifications.
+// IsClean reports whether dir's worktree has no local modifications to
+// tracked files. Untracked files do not count: SyncHard's hard reset leaves
+// them in place, so they are no reason to refuse an update.
 func IsClean(dir string) (bool, error) {
 	repo, err := git.PlainOpen(dir)
 	if err != nil {
@@ -221,7 +223,13 @@ func IsClean(dir string) (bool, error) {
 	if err != nil {
 		return false, errors.WrapErr(err, "git status")
 	}
-	return status.IsClean(), nil
+	for _, s := range status {
+		if s.Staging == git.Untracked && s.Worktree == git.Untracked {
+			continue
+		}
+		return false, nil
+	}
+	return true, nil
 }
 
 // CommitUnix returns the HEAD commit time as a unix timestamp, or 0 on failure.
