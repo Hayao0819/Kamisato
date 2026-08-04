@@ -245,7 +245,7 @@ func validateBuildResult(result *builder.Result, source *sourceRecord, arch, bui
 			return nil, err
 		}
 		name := metadata.Info.PkgName
-		if !slices.Contains(expected, name) {
+		if !slices.Contains(expected, name) && !slices.Contains(expected, strings.TrimSuffix(name, "-debug")) {
 			return nil, fmt.Errorf("unexpected package %q; .SRCINFO declares %v", name, expected)
 		}
 		if _, duplicate := seen[name]; duplicate {
