@@ -8,7 +8,7 @@
 services:
   ayato:
     # Expects an image whose entrypoint is the combined kamisato binary (deploy/README.md).
-    image: ghcr.io/hayao0819/kamisato:latest
+    image: "${KAMISATO_IMAGE:-ghcr.io/hayao0819/kamisato:latest}"
     restart: unless-stopped
     networks:
       - edge
@@ -41,7 +41,7 @@ services:
         exec kamisato ayato -c /tmp/ayato_config.json
 
   miko:
-    image: ghcr.io/hayao0819/kamisato:latest
+    image: "${KAMISATO_IMAGE:-ghcr.io/hayao0819/kamisato:latest}"
     restart: unless-stopped
     networks:
       - internal

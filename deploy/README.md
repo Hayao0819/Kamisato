@@ -1,9 +1,10 @@
 # Deploying Kamisato
 
-Two deployments: a single-VPS Docker Compose stack (`compose.yml`) and Google
-Cloud Run. For per-service configuration, see the ayato and miko READMEs.
+Three deployments: a single-VPS build stack (`compose.yml`), a single-VPS
+serve-only stack (`compose-serve.yml`) and Google Cloud Run. For per-service
+configuration, see the ayato and miko READMEs.
 
-## Single VPS (Docker Compose)
+## Single VPS, build stack (Docker Compose)
 
 ```sh
 export KAMISATO_BUILD_API_KEY="$(openssl rand -hex 32)"
@@ -54,6 +55,27 @@ Presigned final-key upload is intentionally disabled until a staging-intent
 protocol exists. Multipart uploads therefore traverse the ingress proxy; its
 body-size limit must be at least `max_batch_bytes` plus multipart overhead, or
 large packages must remain below the proxy's lower operational limit.
+
+## Single VPS, serve-only (ayato + lumine)
+
+When CI builds the packages and publishes them with an API key, run
+`compose-serve.yml`: ayato stores packages on local disk (BadgerDB and localfs
+under `./data/ayato`) and lumine serves the web UI, proxying `/api` and `/repo`
+to ayato same-origin. No miko runs on this host.
+
+```sh
+export KAMISATO_PUBLISH_API_KEY="$(openssl rand -hex 32)"
+export KAMISATO_REPO=myrepo
+docker compose -f deploy/compose-serve.yml up -d
+```
+
+`KAMISATO_PUBLISH_API_KEY` authorizes CI publishing to `KAMISATO_REPO` only;
+give the same value to the pipeline (the `api_key` of the build/upload/prune
+actions). Point the TLS reverse proxy at lumine (`127.0.0.1:3000`);
+`AYATO_HOST_PORT` / `LUMINE_HOST_PORT` move the loopback ports. GitHub login
+stays off until the `AYATO_AUTH_*` variables from the build stack above are
+set, plus `AYATO_AUTH_TRUSTED_PROXIES` covering both the TLS proxy and the
+compose network lumine proxies from.
 
 ## GCP (Cloud Run)
 

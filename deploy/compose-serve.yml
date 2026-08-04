@@ -1,0 +1,47 @@
+# Serve-only single-host topology: packages are built elsewhere (e.g. the
+# Kamisato GitHub actions) and published here over ayato's HTTP API, so no miko
+# runs on this host. lumine fronts ayato same-origin (cookie mode) and proxies
+# /api and /repo, so the TLS reverse proxy only needs to reach lumine. Both
+# services publish on 127.0.0.1 only — Docker's DNAT runs ahead of the host
+# firewall, so a bare "PORT:PORT" would face the internet even under ufw deny.
+#
+# GitHub login is optional: with the AYATO_AUTH_* variables unset ayato disables
+# the login flow, and lumine still serves the read-only UI and /repo.
+
+services:
+  ayato:
+    image: "${KAMISATO_IMAGE:-ghcr.io/hayao0819/kamisato:latest}"
+    command: ["kamisato", "ayato"]
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${AYATO_HOST_PORT:-9000}:9000"
+    volumes:
+      - ./data/ayato:/data
+    environment:
+      AYATO_PORT: "9000"
+      AYATO_STORE_DB_TYPE: "badgerdb"
+      AYATO_STORE_BADGERDB: "/data"
+      AYATO_STORE_STORAGE_TYPE: "localfs"
+      AYATO_STORE_LOCAL_REPO_DIR: "/data/repo"
+      AYATO_MAX_SIZE: "${KAMISATO_MAX_PACKAGE_SIZE:-0}"
+      AYATO_REPOS: '[{"name":"${KAMISATO_REPO:-aur}","arches":["x86_64"]}]'
+      AYATO_AUTH_CI_API_KEYS: '[{"name":"ci-publisher","key":"${KAMISATO_PUBLISH_API_KEY:?set KAMISATO_PUBLISH_API_KEY}","publish_repos":["${KAMISATO_REPO:-aur}"]}]'
+      AYATO_AUTH_GITHUB_CLIENT_ID: "${AYATO_AUTH_GITHUB_CLIENT_ID:-}"
+      AYATO_AUTH_GITHUB_CLIENT_SECRET: "${AYATO_AUTH_GITHUB_CLIENT_SECRET:-}"
+      AYATO_AUTH_PUBLIC_ORIGIN: "${AYATO_AUTH_PUBLIC_ORIGIN:-}"
+      AYATO_AUTH_SESSION_SECRET: "${AYATO_AUTH_SESSION_SECRET:-}"
+      AYATO_AUTH_BOOTSTRAP_ADMIN_GITHUB_ID: "${AYATO_AUTH_BOOTSTRAP_ADMIN_GITHUB_ID:-0}"
+      AYATO_AUTH_TRUSTED_PROXIES: "${AYATO_AUTH_TRUSTED_PROXIES:-}"
+
+  lumine:
+    image: "${KAMISATO_IMAGE:-ghcr.io/hayao0819/kamisato:latest}"
+    command: ["kamisato", "lumine"]
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${LUMINE_HOST_PORT:-3000}:3000"
+    environment:
+      LUMINE_ADDR: ":3000"
+      LUMINE_AYATO_URL: "http://ayato:9000"
+      LUMINE_AUTH_MODE: "cookie"
+      LUMINE_TITLE: "${LUMINE_TITLE:-}"
+      LUMINE_DESCRIPTION: "${LUMINE_DESCRIPTION:-}"
