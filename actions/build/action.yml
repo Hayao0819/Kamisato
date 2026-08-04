@@ -44,5 +44,5 @@ runs:
         esac
 
         # shellcheck disable=SC2086 # IN_PKGS is a space-separated package list
-        ayaka build "$IN_REPO" $IN_PKGS --arch "$IN_ARCH" --executor "$IN_EXECUTOR" \
+        ayaka build --source-repo "$IN_REPO" $IN_PKGS --arch "$IN_ARCH" --executor "$IN_EXECUTOR" \
           --publish --publish-url "$IN_SERVER"
