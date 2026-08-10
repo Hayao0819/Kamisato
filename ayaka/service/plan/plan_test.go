@@ -1,6 +1,7 @@
 package plan
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -68,7 +69,7 @@ func TestComputePlanMakedependsCascade(t *testing.T) {
 		remoteBin("kamisato", "0.1-1"),
 	}}
 
-	plan, err := Compute(pkgs, rr, "i686", CascadeMakeDepends, 0, nil)
+	plan, err := Compute(context.Background(), pkgs, rr, "i686", CascadeMakeDepends, 0, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -83,7 +84,7 @@ func TestComputePlanMakedependsCascade(t *testing.T) {
 	}
 
 	// On x86_64 go is external, so kamisato does not rebuild for it.
-	plan64, err := Compute(pkgs, rr, "x86_64", CascadeMakeDepends, 0, nil)
+	plan64, err := Compute(context.Background(), pkgs, rr, "x86_64", CascadeMakeDepends, 0, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -99,7 +100,7 @@ func TestComputePlanCascadeOff(t *testing.T) {
 		remoteBin("kamisato", "0.1-1"),
 	}}
 
-	plan, err := Compute(pkgs, rr, "i686", CascadeOff, 0, nil)
+	plan, err := Compute(context.Background(), pkgs, rr, "i686", CascadeOff, 0, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -126,7 +127,7 @@ pkgname = go
 		remoteBin("kamisato", "0.1-1"),
 	}}
 
-	plan, err := Compute(pkgs, rr, "i686", CascadeMakeDepends, 0, nil)
+	plan, err := Compute(context.Background(), pkgs, rr, "i686", CascadeMakeDepends, 0, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -152,7 +153,7 @@ pkgname = go
 		remoteBin("kamisato", "0.1-1"),
 	}}
 
-	plan, err := Compute(pkgs, rr, "i686", CascadeMakeDepends, 0, nil)
+	plan, err := Compute(context.Background(), pkgs, rr, "i686", CascadeMakeDepends, 0, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -178,7 +179,7 @@ func TestComputePlanSonameCascade(t *testing.T) {
 		}),
 	}}
 
-	plan, err := Compute(pkgs, rr, "x86_64", CascadeSoname, 0, nil)
+	plan, err := Compute(context.Background(), pkgs, rr, "x86_64", CascadeSoname, 0, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -211,7 +212,7 @@ func TestComputePlanCascadeBoth(t *testing.T) {
 		}),
 	}}
 
-	plan, err := Compute(pkgs, rr, "i686", CascadeBoth, 0, nil)
+	plan, err := Compute(context.Background(), pkgs, rr, "i686", CascadeBoth, 0, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -228,7 +229,7 @@ func TestComputePlanEmpty(t *testing.T) {
 	rr := &repo.RemoteRepo{Name: "test", Pkgs: []*pkg.BinaryPackage{
 		remoteBin("kamisato", "0.1-1"),
 	}}
-	plan, err := Compute(pkgs, rr, "x86_64", CascadeMakeDepends, 4, nil)
+	plan, err := Compute(context.Background(), pkgs, rr, "x86_64", CascadeMakeDepends, 4, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -249,7 +250,7 @@ func TestComputePlanBuckets(t *testing.T) {
 	}}
 
 	costs := map[string]float64{"linux-nost": 300, "go": 60, "kamisato": 5}
-	plan, err := Compute(pkgs, rr, "i686", CascadeMakeDepends, 2, costs)
+	plan, err := Compute(context.Background(), pkgs, rr, "i686", CascadeMakeDepends, 2, costs)
 	if err != nil {
 		t.Fatal(err)
 	}

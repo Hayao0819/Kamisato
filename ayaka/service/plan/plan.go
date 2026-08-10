@@ -1,10 +1,10 @@
-// Package plan computes what a run must build from the source repo and the
-// published repo db alone, so repeated runs against the same db are idempotent
-// and no server-side build state is needed.
+// Package plan computes what a run must build from source metadata, the
+// published repo db and live VCS refs without separate build state.
 package plan
 
 import (
 	"cmp"
+	"context"
 	"slices"
 	"strings"
 
@@ -48,9 +48,21 @@ type Plan struct {
 	BumpTargets []string          `json:"bump_targets"`
 }
 
-// Compute derives the build set for arch from the source packages and the
-// published db.
-func Compute(src []*pacman.SourcePackage, rr *repo.RemoteRepo, arch string, cascade CascadeMode, workers int, costs map[string]float64) (*Plan, error) {
+// Compute derives the build set for arch from source and published packages.
+func Compute(ctx context.Context, src []*pacman.SourcePackage, rr *repo.RemoteRepo, arch string, cascade CascadeMode, workers int, costs map[string]float64) (*Plan, error) {
+	return compute(ctx, src, rr, arch, cascade, workers, costs, gitRemoteCommit)
+}
+
+func compute(
+	ctx context.Context,
+	src []*pacman.SourcePackage,
+	rr *repo.RemoteRepo,
+	arch string,
+	cascade CascadeMode,
+	workers int,
+	costs map[string]float64,
+	resolve gitCommitResolver,
+) (*Plan, error) {
 	archPkgs := source.FilterByArch(src, arch)
 	byBase := lo.KeyBy(archPkgs, (*pacman.SourcePackage).Base)
 
@@ -58,14 +70,22 @@ func Compute(src []*pacman.SourcePackage, rr *repo.RemoteRepo, arch string, casc
 	for _, p := range repo.DiffPackages(archPkgs, rr) {
 		reasons[p.Base()] = "version"
 	}
+	for base := range detectVCSUpdates(ctx, archPkgs, rr, arch, resolve) {
+		if _, changed := reasons[base]; !changed || !pkgverChanged(byBase[base], rr) {
+			reasons[base] = "vcs"
+		}
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 
 	graph := source.BuildDepGraph(archPkgs, arch)
 
 	if cascade == CascadeMakeDepends || cascade == CascadeBoth {
-		// Only a pkgver change seeds the cascade: the cascaded rebuilds bump
-		// pkgrel alone, so they cannot re-trigger it and one pass suffices.
+		// VCS revisions and pkgver changes seed the cascade. Cascaded rebuilds
+		// bump pkgrel alone, so they cannot re-trigger it and one pass suffices.
 		seeds := lo.Filter(lo.Keys(reasons), func(base string, _ int) bool {
-			return pkgverChanged(byBase[base], rr)
+			return reasons[base] == "vcs" || pkgverChanged(byBase[base], rr)
 		})
 		for _, dep := range dependentsClosure(graph, seeds) {
 			if _, ok := reasons[dep]; !ok {
@@ -104,7 +124,7 @@ func Compute(src []*pacman.SourcePackage, rr *repo.RemoteRepo, arch string, casc
 	}
 	plan.Order = order
 	plan.BumpTargets = lo.Filter(order, func(n string, _ int) bool {
-		return reasons[n] != "version"
+		return reasons[n] != "version" && reasons[n] != "vcs"
 	})
 
 	if workers > 0 {

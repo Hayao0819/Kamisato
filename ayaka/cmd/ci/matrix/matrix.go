@@ -1,6 +1,7 @@
 package matrixcmd
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -23,14 +24,14 @@ import (
 
 // planner is the slice of service/plan this command drives.
 type planner interface {
-	Compute(src []*pkg.SourcePackage, rr *repo.RemoteRepo, arch string, cascade plan.CascadeMode, workers int, costs map[string]float64) (*plan.Plan, error)
+	Compute(ctx context.Context, src []*pkg.SourcePackage, rr *repo.RemoteRepo, arch string, cascade plan.CascadeMode, workers int, costs map[string]float64) (*plan.Plan, error)
 	ReloadWithSrcinfo(srcrepo *pacmansource.SourceRepo, stderr io.Writer) (*pacmansource.SourceRepo, error)
 }
 
 type sourcePlanner struct{}
 
-func (sourcePlanner) Compute(src []*pkg.SourcePackage, rr *repo.RemoteRepo, arch string, cascade plan.CascadeMode, workers int, costs map[string]float64) (*plan.Plan, error) {
-	return plan.Compute(src, rr, arch, cascade, workers, costs)
+func (sourcePlanner) Compute(ctx context.Context, src []*pkg.SourcePackage, rr *repo.RemoteRepo, arch string, cascade plan.CascadeMode, workers int, costs map[string]float64) (*plan.Plan, error) {
+	return plan.Compute(ctx, src, rr, arch, cascade, workers, costs)
 }
 
 func (sourcePlanner) ReloadWithSrcinfo(srcrepo *pacmansource.SourceRepo, stderr io.Writer) (*pacmansource.SourceRepo, error) {
@@ -126,7 +127,7 @@ func newCommand(svc planner, runtime *app.Runtime) *cobra.Command {
 					if err != nil {
 						return err
 					}
-					p, err := svc.Compute(srcrepo.Pkgs, rr, arch, mode, workers, nil)
+					p, err := svc.Compute(cmd.Context(), srcrepo.Pkgs, rr, arch, mode, workers, nil)
 					if err != nil {
 						return err
 					}

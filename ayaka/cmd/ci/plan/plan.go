@@ -1,6 +1,7 @@
 package plancmd
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -20,22 +21,22 @@ import (
 
 // planner is the slice of service/plan this command drives.
 type planner interface {
-	Compute(src []*pkg.SourcePackage, rr *repo.RemoteRepo, arch string, cascade plan.CascadeMode, workers int, costs map[string]float64) (*plan.Plan, error)
+	Compute(ctx context.Context, src []*pkg.SourcePackage, rr *repo.RemoteRepo, arch string, cascade plan.CascadeMode, workers int, costs map[string]float64) (*plan.Plan, error)
 	ReloadWithSrcinfo(srcrepo *pacmansource.SourceRepo, stderr io.Writer) (*pacmansource.SourceRepo, error)
 }
 
 type sourcePlanner struct{}
 
-func (sourcePlanner) Compute(src []*pkg.SourcePackage, rr *repo.RemoteRepo, arch string, cascade plan.CascadeMode, workers int, costs map[string]float64) (*plan.Plan, error) {
-	return plan.Compute(src, rr, arch, cascade, workers, costs)
+func (sourcePlanner) Compute(ctx context.Context, src []*pkg.SourcePackage, rr *repo.RemoteRepo, arch string, cascade plan.CascadeMode, workers int, costs map[string]float64) (*plan.Plan, error) {
+	return plan.Compute(ctx, src, rr, arch, cascade, workers, costs)
 }
 
 func (sourcePlanner) ReloadWithSrcinfo(srcrepo *pacmansource.SourceRepo, stderr io.Writer) (*pacmansource.SourceRepo, error) {
 	return source.ReloadWithSrcinfo(srcrepo, stderr)
 }
 
-// Cmd computes the build set for one run from the source repo and the published
-// repo db alone, so it is idempotent and needs no server-side build state.
+// Cmd computes the build set from source metadata, the published repo db and
+// live VCS refs without separate build state.
 func Cmd(runtime *app.Runtime) *cobra.Command { return newCommand(sourcePlanner{}, runtime) }
 
 func newCommand(svc planner, runtime *app.Runtime) *cobra.Command {
@@ -48,7 +49,7 @@ func newCommand(svc planner, runtime *app.Runtime) *cobra.Command {
 	var updateSrcinfo bool
 	cmd := cobra.Command{
 		Use:               "plan <srcrepo>",
-		Short:             "Compute which packages to build (version diff + rebuild cascade)",
+		Short:             "Compute which packages to build (version/VCS diff + rebuild cascade)",
 		Args:              cobra.ExactArgs(1),
 		ValidArgsFunction: cli.CompleteSrcRepoNames(runtime),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -95,7 +96,7 @@ func newCommand(svc planner, runtime *app.Runtime) *cobra.Command {
 				}
 			}
 
-			p, err := svc.Compute(srcrepo.Pkgs, rr, arch, mode, workers, costs)
+			p, err := svc.Compute(cmd.Context(), srcrepo.Pkgs, rr, arch, mode, workers, costs)
 			if err != nil {
 				return err
 			}

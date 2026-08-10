@@ -1,6 +1,7 @@
 package plancmd
 
 import (
+	"context"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -20,7 +21,7 @@ type recordingPlanner struct {
 	reload  int
 }
 
-func (r *recordingPlanner) Compute(_ []*pkg.SourcePackage, _ *repo.RemoteRepo, arch string, cascade plan.CascadeMode, workers int, _ map[string]float64) (*plan.Plan, error) {
+func (r *recordingPlanner) Compute(_ context.Context, _ []*pkg.SourcePackage, _ *repo.RemoteRepo, arch string, cascade plan.CascadeMode, workers int, _ map[string]float64) (*plan.Plan, error) {
 	r.arch = arch
 	r.cascade = cascade
 	r.workers = workers

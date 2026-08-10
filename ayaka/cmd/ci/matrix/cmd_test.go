@@ -2,6 +2,7 @@ package matrixcmd
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -25,7 +26,7 @@ type recordingPlanner struct {
 	reloads int
 }
 
-func (r *recordingPlanner) Compute(_ []*pkg.SourcePackage, _ *repo.RemoteRepo, arch string, _ plan.CascadeMode, _ int, _ map[string]float64) (*plan.Plan, error) {
+func (r *recordingPlanner) Compute(_ context.Context, _ []*pkg.SourcePackage, _ *repo.RemoteRepo, arch string, _ plan.CascadeMode, _ int, _ map[string]float64) (*plan.Plan, error) {
 	r.arches = append(r.arches, arch)
 	if p, ok := r.plans[arch]; ok {
 		return p, nil
