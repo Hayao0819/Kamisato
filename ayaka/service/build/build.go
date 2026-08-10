@@ -19,7 +19,6 @@ import (
 	pkg "github.com/Hayao0819/Kamisato/internal/pacman"
 	"github.com/Hayao0819/Kamisato/internal/pacman/builder"
 	"github.com/Hayao0819/Kamisato/internal/pacman/builder/factory"
-	"github.com/Hayao0819/Kamisato/internal/pacman/repo"
 	"github.com/Hayao0819/Kamisato/internal/pacman/sign"
 	"github.com/Hayao0819/Kamisato/internal/pacman/source"
 )
@@ -116,36 +115,6 @@ func Repo(r *source.SourceRepo, t *Target, dest string, pkgs ...string) error {
 				break
 			}
 		}
-	}
-	return errors.Join(errs...)
-}
-
-// Diff builds only the packages in s that are newer than (or missing from) the remote repo rr.
-func Diff(s *source.SourceRepo, t *Target, rr *repo.RemoteRepo, dest string, pkgs ...string) error {
-	toBuild := repo.DiffPackages(s.Pkgs, rr)
-	toBuild = source.SelectPackages(toBuild, pkgs)
-	toBuild = source.FilterByArch(toBuild, t.Arch)
-
-	if len(toBuild) == 0 {
-		slog.Info("No packages to build")
-		return nil
-	}
-	toBuild = source.OrderByDeps(toBuild, t.Arch)
-
-	outDir := path.Join(dest, t.Arch)
-	var errs []error
-	for _, p := range toBuild {
-		pkgbase := p.Base()
-		slog.Debug("Starting package build", "pkgbase", pkgbase)
-		if err := Package(p, t, outDir); err != nil {
-			slog.Error("Package build failed", "pkgbase", pkgbase, "error", err)
-			errs = append(errs, errors.WrapErr(err, "failed to build package: "+pkgbase))
-			if t.Publish != nil {
-				break
-			}
-			continue
-		}
-		slog.Debug("Package build completed", "pkgbase", pkgbase)
 	}
 	return errors.Join(errs...)
 }

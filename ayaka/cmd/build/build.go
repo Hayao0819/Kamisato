@@ -14,6 +14,7 @@ import (
 	"github.com/Hayao0819/Kamisato/ayaka/app"
 	"github.com/Hayao0819/Kamisato/ayaka/cli"
 	"github.com/Hayao0819/Kamisato/ayaka/service/build"
+	"github.com/Hayao0819/Kamisato/ayaka/service/plan"
 	"github.com/Hayao0819/Kamisato/ayaka/service/source"
 	"github.com/Hayao0819/Kamisato/internal/ayatoapi"
 	buildsetapp "github.com/Hayao0819/Kamisato/internal/buildset"
@@ -22,6 +23,7 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/pacman/builder"
 	pacmanhost "github.com/Hayao0819/Kamisato/internal/pacman/host"
 	pacmansign "github.com/Hayao0819/Kamisato/internal/pacman/sign"
+	pacmansource "github.com/Hayao0819/Kamisato/internal/pacman/source"
 )
 
 func Cmd(runtime *app.Runtime) *cobra.Command {
@@ -190,7 +192,19 @@ func Cmd(runtime *app.Runtime) *cobra.Command {
 				if err != nil {
 					return err
 				}
-				if err := build.Diff(srcrepo, &buildTarget, remoteRepo, outDir, buildPkgs...); err != nil {
+				planInput := srcrepo.Pkgs
+				if len(buildPkgs) > 0 {
+					planInput = pacmansource.SelectPackages(planInput, buildPkgs)
+				}
+				buildPlan, err := plan.Compute(cmd.Context(), planInput, remoteRepo, buildTarget.Arch, plan.CascadeOff, 0, nil)
+				if err != nil {
+					return errors.WrapErr(err, "failed to plan diff build")
+				}
+				if len(buildPlan.Order) == 0 {
+					slog.Info("No packages to build")
+					return nil
+				}
+				if err := build.Repo(srcrepo, &buildTarget, outDir, buildPlan.Order...); err != nil {
 					return errors.WrapErr(err, "failed to perform diff build")
 				}
 				slog.Debug("Diff build completed", "outdir", writeDir)
@@ -213,7 +227,7 @@ func Cmd(runtime *app.Runtime) *cobra.Command {
 	cmd.Flags().StringVar(&logDir, "log-dir", "", "Directory for per-pkgbase logs")
 	cmd.Flags().BoolVar(&sign, "sign", false, "Sign built packages with the GPG key specified by --key")
 	cmd.Flags().StringVar(&gpgkey, "key", "", "GPG key ID for package signing (requires --sign)")
-	cmd.Flags().BoolVar(&diffMode, "diff", false, "Enable diff build mode (build only new packages)")
+	cmd.Flags().BoolVar(&diffMode, "diff", false, "Enable diff build mode (build only changed or missing packages)")
 	cmd.Flags().BoolVar(&publish, "publish", false, "Upload each package to ayato right after it is built (and signed); auth via --publish-url, --publish-server or the saved server login")
 	cmd.Flags().StringVar(&publishURL, "publish-url", "", "Publish to this ayato base URL with the API key in "+publishAPIKeyEnv+" (CI); default is the registry default server")
 	cmd.Flags().StringVar(&publishServer, "publish-server", "", "Publish to this registered ayato server (default: the registry default); --server keeps its legacy diff meaning")
