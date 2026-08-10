@@ -118,3 +118,24 @@ func TestSourcePackageBuildMetadataUsesTargetArchitecture(t *testing.T) {
 		t.Fatalf("OutputProvides = %v", got)
 	}
 }
+
+func TestSourcePackageSourcesUsesTargetArchitecture(t *testing.T) {
+	dir := t.TempDir()
+	data := "pkgbase = vcs\n" +
+		"\tpkgver = 1\n\tpkgrel = 1\n\tarch = x86_64\n\tarch = i686\n" +
+		"\tsource = git+https://example.com/common.git\n" +
+		"\tsource_x86_64 = git+https://example.com/x86.git\n" +
+		"\tsource_i686 = git+https://example.com/i686.git\n\n" +
+		"pkgname = vcs\n"
+	if err := os.WriteFile(filepath.Join(dir, ".SRCINFO"), []byte(data), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	p, err := pkg.OpenSourcePackage(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"git+https://example.com/common.git", "git+https://example.com/x86.git"}
+	if got := p.Sources("x86_64"); !slices.Equal(got, want) {
+		t.Fatalf("Sources = %v, want %v", got, want)
+	}
+}

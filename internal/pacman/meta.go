@@ -21,6 +21,10 @@ func (p *SourcePackage) Pkgver() string {
 	return p.info.PkgVer
 }
 
+func (p *SourcePackage) Sources(arch string) []string {
+	return lo.Uniq(p.info.Source.ForArch(arch))
+}
+
 // Names returns the pkgbase and each sub-package name.
 func (p *SourcePackage) Names() []string {
 	names := []string{p.info.PkgBase}
