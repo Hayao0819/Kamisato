@@ -3,6 +3,7 @@ package builder
 import (
 	"encoding/json"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -61,7 +62,7 @@ func TestResolve(t *testing.T) {
 
 func TestProjectConfigOverrides(t *testing.T) {
 	project := ProjectConfig{
-		Arches:    []string{"x86_64"},
+		Arches:    map[string]ArchConfig{"x86_64": {}},
 		Timeout:   "45m",
 		Image:     "archlinux:$arch",
 		ArchBuild: "./repository-payload",
@@ -174,5 +175,78 @@ func TestValidateRepositories(t *testing.T) {
 				t.Fatal("want validation error")
 			}
 		})
+	}
+}
+
+func TestProjectConfigOverridesAppliesPerArchTimeout(t *testing.T) {
+	project := ProjectConfig{
+		Timeout: "2h",
+		Arches: map[string]ArchConfig{
+			"pentium4": {},
+			"i486":     {Timeout: "5h45m"},
+		},
+	}
+	for _, tt := range []struct {
+		arch string
+		want time.Duration
+	}{
+		{"pentium4", 2 * time.Hour},
+		{"i486", 5*time.Hour + 45*time.Minute},
+	} {
+		overrides, err := project.Overrides(tt.arch)
+		if err != nil {
+			t.Fatalf("%s: %v", tt.arch, err)
+		}
+		if overrides.Timeout != tt.want {
+			t.Errorf("%s timeout = %s, want %s", tt.arch, overrides.Timeout, tt.want)
+		}
+	}
+}
+
+func TestProjectConfigOverridesFiltersReposByArch(t *testing.T) {
+	project := ProjectConfig{
+		Arches: map[string]ArchConfig{"x86_64": {}, "i486": {}},
+		Repos: []PacmanRepository{
+			{Name: "everywhere", Server: "https://r/$repo/$arch"},
+			{Name: "thirtytwo", Server: "https://r/$repo/$arch", Arches: []string{"i486"}},
+		},
+	}
+	// A repo absent for an arch must not reach pacman.conf: a missing database
+	// aborts the entire sync, not just that repository.
+	for _, tt := range []struct {
+		arch string
+		want []string
+	}{
+		{"x86_64", []string{"everywhere"}},
+		{"i486", []string{"everywhere", "thirtytwo"}},
+	} {
+		overrides, err := project.Overrides(tt.arch)
+		if err != nil {
+			t.Fatalf("%s: %v", tt.arch, err)
+		}
+		var got []string
+		for _, repo := range overrides.Repositories {
+			got = append(got, repo.Name)
+		}
+		if !slices.Equal(got, tt.want) {
+			t.Errorf("%s repos = %v, want %v", tt.arch, got, tt.want)
+		}
+	}
+}
+
+func TestProjectConfigOverridesRejectsUnknownArch(t *testing.T) {
+	project := ProjectConfig{Arches: map[string]ArchConfig{"x86_64": {}}}
+	if _, err := project.Overrides("i486"); err == nil {
+		t.Error("an arch outside build.arches should be rejected")
+	}
+}
+
+func TestProjectConfigArchNamesAreSorted(t *testing.T) {
+	project := ProjectConfig{
+		Arches: map[string]ArchConfig{"pentium4": {}, "i486": {}, "i686": {}},
+	}
+	want := []string{"i486", "i686", "pentium4"}
+	if got := project.ArchNames(); !slices.Equal(got, want) {
+		t.Errorf("ArchNames() = %v, want %v", got, want)
 	}
 }

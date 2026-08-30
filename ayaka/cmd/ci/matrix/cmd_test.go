@@ -39,6 +39,18 @@ func (r *recordingPlanner) ReloadWithSrcinfo(srcrepo *source.SourceRepo, _ io.Wr
 	return srcrepo, nil
 }
 
+// archMap keys the arches to build with no per-arch overrides.
+func archMap(arches []string) map[string]builder.ArchConfig {
+	if arches == nil {
+		return nil
+	}
+	m := make(map[string]builder.ArchConfig, len(arches))
+	for _, a := range arches {
+		m[a] = builder.ArchConfig{}
+	}
+	return m
+}
+
 // testApp wires the source repo's url to a local server that always answers
 // 404, so cli.RemoteRepo takes its "treat as empty" path instead of
 // reaching the network.
@@ -49,7 +61,7 @@ func testApp(t *testing.T, arches []string) *app.App {
 	}))
 	t.Cleanup(srv.Close)
 	return &app.App{SrcRepos: []*source.SourceRepo{{
-		Config: &source.SrcConfig{Name: "test", URL: srv.URL, Build: builder.ProjectConfig{Arches: arches}},
+		Config: &source.SrcConfig{Name: "test", URL: srv.URL, Build: builder.ProjectConfig{Arches: archMap(arches)}},
 	}}}
 }
 

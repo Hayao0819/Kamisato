@@ -19,6 +19,20 @@ type PacmanRepository struct {
 	Name     string `koanf:"name" json:"name"`
 	Server   string `koanf:"server" json:"server"`
 	SigLevel string `koanf:"siglevel" json:"siglevel,omitempty"`
+	// Arches limits the repository to those target architectures; empty means
+	// every arch. A repo that does not exist for an arch must be excluded, or
+	// pacman aborts the whole sync on its missing database.
+	Arches []string `koanf:"arches" json:"arches,omitempty"`
+}
+
+// enabledFor reports whether the repository applies to the target arch.
+func (r PacmanRepository) enabledFor(arch string) bool {
+	return len(r.Arches) == 0 || slices.Contains(r.Arches, arch)
+}
+
+// ArchConfig overrides project settings for one target architecture.
+type ArchConfig struct {
+	Timeout string `koanf:"timeout" json:"timeout,omitempty"`
 }
 
 type MakepkgConfig struct {
@@ -40,8 +54,10 @@ func (c MakepkgConfig) IsZero() bool {
 type ProjectConfig struct {
 	Repos   []PacmanRepository `koanf:"repos" json:"repos,omitempty"`
 	Makepkg MakepkgConfig      `koanf:"makepkg" json:"makepkg,omitempty"`
-	Arches  []string           `koanf:"arches" json:"arches,omitempty"`
-	Image   string             `koanf:"image" json:"image,omitempty"`
+	// Arches keys the architectures to build; each value overrides the project
+	// settings for that one arch. An empty value keeps the defaults.
+	Arches map[string]ArchConfig `koanf:"arches" json:"arches,omitempty"`
+	Image  string                `koanf:"image" json:"image,omitempty"`
 	// ArchBuild is read only to diagnose legacy repo.json files; Resolve ignores it.
 	ArchBuild string `koanf:"archbuild" json:"archbuild,omitempty"`
 	Timeout   string `koanf:"timeout" json:"timeout,omitempty"`
@@ -145,23 +161,30 @@ type ResolvedConfig struct {
 }
 
 func (c ProjectConfig) Overrides(arch string) (BuildOverrides, error) {
-	if len(c.Arches) > 0 && !slices.Contains(c.Arches, arch) {
-		return BuildOverrides{}, fmt.Errorf("arch %s is not in build.arches (%s)", arch, strings.Join(c.Arches, ","))
+	archConfig, ok := c.Arches[arch]
+	if len(c.Arches) > 0 && !ok {
+		return BuildOverrides{}, fmt.Errorf("arch %s is not in build.arches (%s)", arch, strings.Join(c.ArchNames(), ","))
 	}
+	// Validate every repository, not just the enabled ones, so a typo in an
+	// arch this run skips still fails the build.
 	if err := ValidateRepositories(c.Repos); err != nil {
 		return BuildOverrides{}, fmt.Errorf("build.repos: %w", err)
 	}
+	timeoutSpec := c.Timeout
+	if archConfig.Timeout != "" {
+		timeoutSpec = archConfig.Timeout
+	}
 	var timeout time.Duration
-	if c.Timeout != "" {
-		parsed, err := time.ParseDuration(c.Timeout)
+	if timeoutSpec != "" {
+		parsed, err := time.ParseDuration(timeoutSpec)
 		if err != nil {
-			return BuildOverrides{}, fmt.Errorf("build.timeout %s is not a valid duration: %w", c.Timeout, err)
+			return BuildOverrides{}, fmt.Errorf("build.timeout %s is not a valid duration: %w", timeoutSpec, err)
 		}
 		timeout = parsed
 	}
 	return BuildOverrides{
 		Timeout:      timeout,
-		Repositories: cloneRepositories(c.Repos),
+		Repositories: cloneRepositories(c.reposFor(arch)),
 		Makepkg:      cloneMakepkg(c.Makepkg),
 		DockerImage:  c.Image,
 	}, nil
@@ -332,8 +355,34 @@ func formatArchBuild(template, arch string) string {
 	return template
 }
 
+// ArchNames lists the configured architectures in a stable order, so a map's
+// random iteration never reorders a CI job matrix.
+func (c ProjectConfig) ArchNames() []string {
+	names := make([]string, 0, len(c.Arches))
+	for name := range c.Arches {
+		names = append(names, name)
+	}
+	slices.Sort(names)
+	return names
+}
+
+// reposFor keeps the repositories enabled for the target arch.
+func (c ProjectConfig) reposFor(arch string) []PacmanRepository {
+	repos := make([]PacmanRepository, 0, len(c.Repos))
+	for _, repo := range c.Repos {
+		if repo.enabledFor(arch) {
+			repos = append(repos, repo)
+		}
+	}
+	return repos
+}
+
 func cloneRepositories(in []PacmanRepository) []PacmanRepository {
-	return append([]PacmanRepository(nil), in...)
+	out := append([]PacmanRepository(nil), in...)
+	for i := range out {
+		out[i].Arches = append([]string(nil), out[i].Arches...)
+	}
+	return out
 }
 
 func cloneMakepkg(in MakepkgConfig) MakepkgConfig {

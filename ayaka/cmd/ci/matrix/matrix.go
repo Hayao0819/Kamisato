@@ -105,7 +105,7 @@ func newCommand(svc planner, runtime *app.Runtime) *cobra.Command {
 					}
 				}
 				name := srcrepo.Config.Name
-				arches := srcrepo.Config.Build.Arches
+				arches := srcrepo.Config.Build.ArchNames()
 				if len(arches) == 0 {
 					arches = []string{"x86_64"}
 				}
