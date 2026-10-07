@@ -22,9 +22,9 @@ builds:
       - "386"
     ldflags:
       - -s -w
-      - -X github.com/Hayao0819/Kamisato/internal/version.Version={{.Version}}
-      - -X github.com/Hayao0819/Kamisato/internal/version.Commit={{.Commit}}
-      - -X github.com/Hayao0819/Kamisato/internal/version.Date={{.Date}}
+      - -X github.com/Hayao0819/Kamisato/internal/cli/version.Version={{.Version}}
+      - -X github.com/Hayao0819/Kamisato/internal/cli/version.Commit={{.Commit}}
+      - -X github.com/Hayao0819/Kamisato/internal/cli/version.Date={{.Date}}
 
   - id: ayato
     main: ./ayato
@@ -40,9 +40,9 @@ builds:
       - "386"
     ldflags:
       - -s -w
-      - -X github.com/Hayao0819/Kamisato/internal/version.Version={{.Version}}
-      - -X github.com/Hayao0819/Kamisato/internal/version.Commit={{.Commit}}
-      - -X github.com/Hayao0819/Kamisato/internal/version.Date={{.Date}}
+      - -X github.com/Hayao0819/Kamisato/internal/cli/version.Version={{.Version}}
+      - -X github.com/Hayao0819/Kamisato/internal/cli/version.Commit={{.Commit}}
+      - -X github.com/Hayao0819/Kamisato/internal/cli/version.Date={{.Date}}
 
   - id: lumine
     main: ./lumine
@@ -58,9 +58,9 @@ builds:
       - arm64
     ldflags:
       - -s -w
-      - -X github.com/Hayao0819/Kamisato/internal/version.Version={{.Version}}
-      - -X github.com/Hayao0819/Kamisato/internal/version.Commit={{.Commit}}
-      - -X github.com/Hayao0819/Kamisato/internal/version.Date={{.Date}}
+      - -X github.com/Hayao0819/Kamisato/internal/cli/version.Version={{.Version}}
+      - -X github.com/Hayao0819/Kamisato/internal/cli/version.Commit={{.Commit}}
+      - -X github.com/Hayao0819/Kamisato/internal/cli/version.Date={{.Date}}
 
   - id: thoma
     main: ./thoma
@@ -76,9 +76,9 @@ builds:
       - "386"
     ldflags:
       - -s -w
-      - -X github.com/Hayao0819/Kamisato/internal/version.Version={{.Version}}
-      - -X github.com/Hayao0819/Kamisato/internal/version.Commit={{.Commit}}
-      - -X github.com/Hayao0819/Kamisato/internal/version.Date={{.Date}}
+      - -X github.com/Hayao0819/Kamisato/internal/cli/version.Version={{.Version}}
+      - -X github.com/Hayao0819/Kamisato/internal/cli/version.Commit={{.Commit}}
+      - -X github.com/Hayao0819/Kamisato/internal/cli/version.Date={{.Date}}
 
 archives:
   - id: default
