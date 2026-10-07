@@ -20,6 +20,7 @@ type Spec struct {
 	// InstallPkgs are local package files installed before building (makechrootpkg -I / pacman -U)
 	// for not-yet-published build-chain dependencies.
 	InstallPkgs   []string
+	InstallNames  []string
 	IgnoreArch    bool
 	RunCheck      *bool
 	RunVerify     *bool

@@ -160,9 +160,12 @@ func (b *Backend) Build(ctx context.Context, spec builder.Spec) (*builder.Result
 		})
 		installTargets = append(installTargets, shell.Quote(target))
 	}
-	installCommand := ""
+	installCommand, err := installNamesCommand(spec.InstallNames)
+	if err != nil {
+		return nil, err
+	}
 	if len(installTargets) > 0 {
-		installCommand = "pacman -U --asdeps --noconfirm -- " + strings.Join(installTargets, " ")
+		installCommand += "pacman -U --asdeps --noconfirm -- " + strings.Join(installTargets, " ")
 	}
 
 	repositories := b.extraRepos
@@ -582,4 +585,18 @@ func (b *Backend) cacheMounts() ([]mount.Mount, error) {
 		return nil, err
 	}
 	return mounts, nil
+}
+
+func installNamesCommand(packages []string) (string, error) {
+	if len(packages) == 0 {
+		return "", nil
+	}
+	names := make([]string, 0, len(packages))
+	for _, name := range packages {
+		if name == "" || strings.HasPrefix(name, "-") || strings.ContainsAny(name, " \t\r\n") {
+			return "", fmt.Errorf("invalid install package name %q", name)
+		}
+		names = append(names, shell.Quote(name))
+	}
+	return "pacman -S --needed --noconfirm -- " + strings.Join(names, " ") + "\n", nil
 }

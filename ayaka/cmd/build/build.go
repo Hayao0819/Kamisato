@@ -130,12 +130,6 @@ func Cmd(runtime *app.Runtime) *cobra.Command {
 				}
 			}
 
-			pkgs, cleanup, err := pacmanhost.GetCleanPkgBinary(srcrepo.Config.InstallPkgs.Names...)
-			if err != nil {
-				return errors.WrapErr(err, "failed to get clean package binaries")
-			}
-			defer func() { _ = cleanup.Close() }()
-
 			var signKey string
 			if sign {
 				signKey = gpgkey
@@ -165,13 +159,25 @@ func Cmd(runtime *app.Runtime) *cobra.Command {
 			if err != nil {
 				return errors.WrapErr(err, "failed to resolve build configuration")
 			}
+			var pkgs, installNames []string
+			if resolved.Backend == builder.KindContainer {
+				installNames = append([]string(nil), srcrepo.Config.InstallPkgs.Names...)
+			} else {
+				var cleanup *pacmanhost.CleanPkgBinary
+				pkgs, cleanup, err = pacmanhost.GetCleanPkgBinary(srcrepo.Config.InstallPkgs.Names...)
+				if err != nil {
+					return errors.WrapErr(err, "failed to get clean package binaries")
+				}
+				defer func() { _ = cleanup.Close() }()
+			}
 			slog.Info("Creating build target", "backend", resolved.Backend, "archbuild", resolved.Devtools.ArchBuild, "installpkgs", pkgs)
 
 			buildTarget := build.Target{
-				Config:      resolved,
-				Arch:        input.Arch,
-				SignKey:     signKey,
-				InstallPkgs: append(srcrepo.Config.InstallPkgs.Files, pkgs...),
+				Config:       resolved,
+				Arch:         input.Arch,
+				SignKey:      signKey,
+				InstallPkgs:  append(srcrepo.Config.InstallPkgs.Files, pkgs...),
+				InstallNames: installNames,
 			}
 			if publish {
 				upload, err := resolvePublisher(cmd, publishURL, publishServer)

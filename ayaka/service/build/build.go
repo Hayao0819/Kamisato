@@ -16,20 +16,21 @@ import (
 
 	"github.com/otiai10/copy"
 
-	pkg "github.com/Hayao0819/Kamisato/internal/pacman/pkg"
 	"github.com/Hayao0819/Kamisato/internal/pacman/builder"
 	"github.com/Hayao0819/Kamisato/internal/pacman/builder/factory"
+	pkg "github.com/Hayao0819/Kamisato/internal/pacman/pkg"
 	"github.com/Hayao0819/Kamisato/internal/pacman/sign"
 	"github.com/Hayao0819/Kamisato/internal/pacman/source"
 )
 
 // Target keeps signing and publishing outside backend configuration.
 type Target struct {
-	Config      builder.ResolvedConfig
-	Arch        string
-	SignKey     string
-	InstallPkgs []string
-	Output      io.Writer
+	Config       builder.ResolvedConfig
+	Arch         string
+	SignKey      string
+	InstallPkgs  []string
+	InstallNames []string
+	Output       io.Writer
 	// Publish, when non-nil, uploads a package's built files right after it is
 	// built (and signed), so later builds in the same run can depend on it.
 	Publish func(pkgPaths []string) error
@@ -58,11 +59,12 @@ func Package(p *pkg.SourcePackage, target *Target, dest string) error {
 	}
 
 	result, err := backend.Build(context.Background(), builder.Spec{
-		SrcDir:      tmpdir,
-		OutDir:      dest,
-		Arch:        target.Arch,
-		InstallPkgs: target.InstallPkgs,
-		LogWriter:   target.Output,
+		SrcDir:       tmpdir,
+		OutDir:       dest,
+		Arch:         target.Arch,
+		InstallPkgs:  target.InstallPkgs,
+		InstallNames: target.InstallNames,
+		LogWriter:    target.Output,
 	})
 	if err != nil {
 		return errors.WrapErr(err, "failed to build package")
