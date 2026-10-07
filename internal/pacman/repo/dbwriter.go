@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	pkg "github.com/Hayao0819/Kamisato/internal/pacman"
+	pkg "github.com/Hayao0819/Kamisato/internal/pacman/pkg"
 	"github.com/Hayao0819/Kamisato/pkg/raiou"
 )
 

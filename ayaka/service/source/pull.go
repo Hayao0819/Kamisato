@@ -8,9 +8,9 @@ import (
 	"strings"
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
-	"github.com/Hayao0819/Kamisato/internal/gitcmd"
-	pkg "github.com/Hayao0819/Kamisato/internal/pacman"
+	pkg "github.com/Hayao0819/Kamisato/internal/pacman/pkg"
 	"github.com/Hayao0819/Kamisato/internal/pacman/source"
+	"github.com/Hayao0819/Kamisato/internal/vcs/git"
 )
 
 const aurHost = "aur.archlinux.org"
@@ -33,7 +33,7 @@ func IsAURMirror(dir string) bool {
 	if !isGitCheckout(dir) {
 		return false
 	}
-	origin, err := gitcmd.OriginURL(dir)
+	origin, err := git.OriginURL(dir)
 	if err != nil {
 		return false
 	}
@@ -106,18 +106,18 @@ func pullTargets(src *source.SourceRepo, names []string) ([]*pkg.SourcePackage, 
 
 func pullOne(ctx context.Context, p *pkg.SourcePackage, force bool) (*pkg.SourcePackage, error) {
 	dir := p.Dir()
-	clean, err := gitcmd.IsClean(dir)
+	clean, err := git.IsClean(dir)
 	if err != nil {
 		return nil, errors.WrapErr(err, p.Base())
 	}
 	if !clean && !force {
 		return nil, errors.NewErr(p.Base() + " has local changes; use --force to discard them")
 	}
-	branch, err := gitcmd.OriginHead(ctx, dir)
+	branch, err := git.OriginHead(ctx, dir)
 	if err != nil {
 		return nil, errors.WrapErr(err, p.Base())
 	}
-	if err := gitcmd.SyncHard(ctx, dir, branch); err != nil {
+	if err := git.SyncHard(ctx, dir, branch); err != nil {
 		return nil, errors.WrapErr(err, p.Base())
 	}
 	reloaded, err := pkg.OpenSourcePackage(dir)

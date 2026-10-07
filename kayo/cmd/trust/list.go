@@ -3,7 +3,7 @@ package trustcmd
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/Hayao0819/Kamisato/internal/cliutil"
+	cmdline "github.com/Hayao0819/Kamisato/internal/cli"
 	"github.com/Hayao0819/Kamisato/kayo/cli"
 	"github.com/Hayao0819/Kamisato/kayo/trust"
 )
@@ -33,7 +33,7 @@ func trustListCmd() *cobra.Command {
 				return err
 			}
 
-			format, err := cliutil.ResolveFormat(cmd, trustListDefaultFmt)
+			format, err := cmdline.ResolveFormat(cmd, trustListDefaultFmt)
 			if err != nil {
 				return err
 			}
@@ -50,9 +50,9 @@ func trustListCmd() *cobra.Command {
 			}
 
 			header := trustRow{Kind: "KIND", Name: "NAME", Source: "SOURCE", Maintainer: "MAINTAINER", Commit: "COMMIT"}
-			return cliutil.RenderList(cmd.OutOrStdout(), format, header, rows)
+			return cmdline.RenderList(cmd.OutOrStdout(), format, header, rows)
 		},
 	}
-	cliutil.AddFormatFlags(cmd)
+	cmdline.AddFormatFlags(cmd)
 	return cmd
 }

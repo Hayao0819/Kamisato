@@ -5,7 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	sharedhook "github.com/Hayao0819/Kamisato/internal/hookcmd"
+	sharedhook "github.com/Hayao0819/Kamisato/internal/pacman/hook/command"
 )
 
 //go:embed kayo-verify.hook.tmpl

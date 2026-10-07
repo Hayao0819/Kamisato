@@ -17,7 +17,7 @@ import (
 	"github.com/Hayao0819/Kamisato/ayato/router"
 	"github.com/Hayao0819/Kamisato/ayato/service"
 	"github.com/Hayao0819/Kamisato/internal/errors"
-	"github.com/Hayao0819/Kamisato/internal/ginutil"
+	httpserver "github.com/Hayao0819/Kamisato/internal/http/server"
 )
 
 func Run(ctx context.Context, cfg *ayatoconfig.AyatoConfig) (runErr error) {
@@ -90,7 +90,7 @@ func Run(ctx context.Context, cfg *ayatoconfig.AyatoConfig) (runErr error) {
 		slog.Warn("legacy Basic authentication is enabled only for signer registration; deploy Ayato before Miko, then disable auth.allow_legacy_signer_basic after the rollback window")
 	}
 
-	state := &ginutil.Readiness{}
+	state := &httpserver.Readiness{}
 	engine, err := buildRouter(cfg, appHandler, appMiddleware, kvStore, state)
 	if err != nil {
 		return err
@@ -100,9 +100,9 @@ func Run(ctx context.Context, cfg *ayatoconfig.AyatoConfig) (runErr error) {
 	}
 	slog.Info("All services initialized")
 
-	server := ginutil.NewServer(fmt.Sprintf(":%d", cfg.Port), engine)
+	server := httpserver.NewServer(fmt.Sprintf(":%d", cfg.Port), engine)
 	slog.Info("Waiting on port", "port", cfg.Port)
-	return ginutil.ServeHTTP(ctx, server, state)
+	return httpserver.ServeHTTP(ctx, server, state)
 }
 
 func buildRouter(
@@ -110,9 +110,9 @@ func buildRouter(
 	appHandler *handler.Set,
 	appMiddleware *middleware.Middleware,
 	kvStore kv.Store,
-	state *ginutil.Readiness,
+	state *httpserver.Readiness,
 ) (*gin.Engine, error) {
-	engine := ginutil.NewEngine()
+	engine := httpserver.NewEngine()
 	engine.Use(
 		appMiddleware.SecurityHeaders(),
 		appMiddleware.RejectMutationsWhenNotReady(state),

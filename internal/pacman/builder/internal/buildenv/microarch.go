@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/Hayao0819/Kamisato/internal/pacman/builder"
-	"github.com/Hayao0819/Kamisato/internal/pacman/builder/internal/shellutil"
+	"github.com/Hayao0819/Kamisato/internal/pacman/builder/internal/shell"
 )
 
 //go:embed makepkg.override.conf
@@ -34,7 +34,7 @@ func microarchOverride(tier string) (string, error) {
 func MakepkgOverrideLines(s builder.MakepkgConfig) (string, error) {
 	var b strings.Builder
 	if s.Packager != "" {
-		fmt.Fprintf(&b, "PACKAGER=%s\n", shellutil.Quote(s.Packager))
+		fmt.Fprintf(&b, "PACKAGER=%s\n", shell.Quote(s.Packager))
 	}
 	march, err := microarchOverride(s.Microarch)
 	if err != nil {
@@ -42,19 +42,19 @@ func MakepkgOverrideLines(s builder.MakepkgConfig) (string, error) {
 	}
 	b.WriteString(march)
 	if s.CFlagsAppend != "" {
-		fmt.Fprintf(&b, "CFLAGS+=%s\nCXXFLAGS+=%s\n", shellutil.Quote(" "+s.CFlagsAppend), shellutil.Quote(" "+s.CFlagsAppend))
+		fmt.Fprintf(&b, "CFLAGS+=%s\nCXXFLAGS+=%s\n", shell.Quote(" "+s.CFlagsAppend), shell.Quote(" "+s.CFlagsAppend))
 	}
 	if len(s.Options) > 0 {
 		options := make([]string, len(s.Options))
 		for i, option := range s.Options {
-			options[i] = shellutil.Quote(option)
+			options[i] = shell.Quote(option)
 		}
 		fmt.Fprintf(&b, "OPTIONS+=(%s)\n", strings.Join(options, " "))
 	}
 	if s.CompressZst != "" {
 		words := strings.Fields(s.CompressZst)
 		for i, word := range words {
-			words[i] = shellutil.Quote(word)
+			words[i] = shell.Quote(word)
 		}
 		fmt.Fprintf(&b, "COMPRESSZST=(%s)\n", strings.Join(words, " "))
 	}

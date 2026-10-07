@@ -10,7 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/Hayao0819/Kamisato/internal/auth/apikey"
-	"github.com/Hayao0819/Kamisato/internal/limits"
+	"github.com/Hayao0819/Kamisato/internal/pacman/limits"
 	"github.com/Hayao0819/Kamisato/internal/pacman/sign"
 )
 

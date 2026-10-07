@@ -9,9 +9,9 @@ import (
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
 
-	"github.com/Hayao0819/Kamisato/internal/nvcheck"
 	"github.com/Hayao0819/Kamisato/internal/pacman/builder"
 	"github.com/Hayao0819/Kamisato/internal/pacman/sign"
+	"github.com/Hayao0819/Kamisato/internal/pacman/source/nvcheck"
 	"github.com/Hayao0819/Kamisato/miko/domain"
 	"github.com/Hayao0819/Kamisato/miko/joblog"
 )

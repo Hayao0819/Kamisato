@@ -10,8 +10,8 @@ import (
 	"path"
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
-	"github.com/Hayao0819/Kamisato/internal/pacman"
-	"github.com/Hayao0819/Kamisato/internal/safefile"
+	"github.com/Hayao0819/Kamisato/internal/filesystem/safefile"
+	pacmanrepo "github.com/Hayao0819/Kamisato/internal/pacman/repo"
 
 	"github.com/Hayao0819/nahi/futils"
 	"github.com/samber/lo"
@@ -34,7 +34,7 @@ func New(repoDir string, repoNames []string) *LocalStore {
 
 func (l *LocalStore) getRepoDir(name string) (string, error) {
 	slog.Debug("get repo dir", "name", name)
-	if err := pacman.ValidateRepositoryName(name); err != nil {
+	if err := pacmanrepo.ValidateName(name); err != nil {
 		return "", err
 	}
 	pwd, err := os.Getwd()

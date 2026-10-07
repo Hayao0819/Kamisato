@@ -8,8 +8,8 @@ import (
 
 	"github.com/ProtonMail/go-crypto/openpgp"
 
+	"github.com/Hayao0819/Kamisato/internal/filesystem/safefile"
 	"github.com/Hayao0819/Kamisato/internal/pacman/sign"
-	"github.com/Hayao0819/Kamisato/internal/safefile"
 )
 
 // BuildParams describe one keyring package build from a signing key.

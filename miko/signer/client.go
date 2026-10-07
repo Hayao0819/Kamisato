@@ -3,20 +3,20 @@ package signer
 import (
 	"context"
 
+	"github.com/Hayao0819/Kamisato/internal/api/miko"
 	"github.com/Hayao0819/Kamisato/internal/errors"
-	"github.com/Hayao0819/Kamisato/internal/mikoapi"
+	"github.com/Hayao0819/Kamisato/internal/filesystem/safefile"
 	"github.com/Hayao0819/Kamisato/internal/pacman/sign"
-	"github.com/Hayao0819/Kamisato/internal/safefile"
 )
 
 // SignPath is the signer service's detach-sign endpoint, shared by client and
 // server so the two cannot drift.
-const SignPath = mikoapi.SignPath
+const SignPath = miko.SignPath
 
 // RemoteSigner POSTs a built package to the signer service and writes the returned
 // detached signature next to it, so the build worker holds no private key.
 type RemoteSigner struct {
-	client *mikoapi.Signer
+	client *miko.Signer
 }
 
 var _ sign.Signer = (*RemoteSigner)(nil)
@@ -24,7 +24,7 @@ var _ sign.Signer = (*RemoteSigner)(nil)
 // NewRemoteSigner returns a Signer that calls the signer service at baseURL,
 // authenticating with apiKey.
 func NewRemoteSigner(baseURL, apiKey string) (*RemoteSigner, error) {
-	api, err := mikoapi.NewSigner(baseURL, apiKey)
+	api, err := miko.NewSigner(baseURL, apiKey)
 	if err != nil {
 		return nil, err
 	}

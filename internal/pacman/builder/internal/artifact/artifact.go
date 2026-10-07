@@ -8,9 +8,9 @@ import (
 	"os"
 	"path/filepath"
 
-	pacmanpkg "github.com/Hayao0819/Kamisato/internal/pacman"
+	"github.com/Hayao0819/Kamisato/internal/filesystem/safefile"
 	"github.com/Hayao0819/Kamisato/internal/pacman/builder"
-	"github.com/Hayao0819/Kamisato/internal/safefile"
+	pacmanpkg "github.com/Hayao0819/Kamisato/internal/pacman/pkg"
 )
 
 type fileState struct {

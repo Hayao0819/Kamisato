@@ -7,7 +7,7 @@ import (
 	"os/exec"
 	"path"
 
-	"github.com/Hayao0819/Kamisato/internal/safefile"
+	"github.com/Hayao0819/Kamisato/internal/filesystem/safefile"
 )
 
 // GenerateSrcinfo rewrites <dir>/.SRCINFO from the PKGBUILD in dir by running

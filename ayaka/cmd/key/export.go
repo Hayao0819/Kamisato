@@ -8,7 +8,7 @@ import (
 
 	"github.com/Hayao0819/Kamisato/ayaka/cli"
 	"github.com/Hayao0819/Kamisato/internal/errors"
-	"github.com/Hayao0819/Kamisato/internal/safefile"
+	"github.com/Hayao0819/Kamisato/internal/filesystem/safefile"
 )
 
 func exportCmd() *cobra.Command {

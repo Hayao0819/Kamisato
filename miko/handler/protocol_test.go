@@ -6,12 +6,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Hayao0819/Kamisato/internal/mikoapi"
+	"github.com/Hayao0819/Kamisato/internal/api/miko"
 	"github.com/Hayao0819/Kamisato/miko/domain"
 )
 
 func TestProtocolBuildRequestDoesNotAcceptRequester(t *testing.T) {
-	var request mikoapi.BuildRequest
+	var request miko.BuildRequest
 	if err := json.Unmarshal([]byte(`{"repo":"core","arch":"x86_64","requester":"attacker"}`), &request); err != nil {
 		t.Fatal(err)
 	}
@@ -24,7 +24,7 @@ func TestProtocolBuildRequestDoesNotAcceptRequester(t *testing.T) {
 func TestProtocolBuildRequestPreservesMakepkgOptions(t *testing.T) {
 	runCheck := false
 	runVerify := false
-	request := domainBuildRequest(&mikoapi.BuildRequest{
+	request := domainBuildRequest(&miko.BuildRequest{
 		IgnoreArch:    true,
 		RunCheck:      &runCheck,
 		RunVerify:     &runVerify,
@@ -65,7 +65,7 @@ func TestProtocolBuildJobExcludesPersistenceFields(t *testing.T) {
 			t.Fatalf("wire job leaks %q: %s", forbidden, encoded)
 		}
 	}
-	if wire.Reason != mikoapi.ReasonDependency || wire.StartedAt == nil || *wire.StartedAt != started.Format(time.RFC3339Nano) {
+	if wire.Reason != miko.ReasonDependency || wire.StartedAt == nil || *wire.StartedAt != started.Format(time.RFC3339Nano) {
 		t.Fatalf("wire projection lost public fields: %#v", wire)
 	}
 }

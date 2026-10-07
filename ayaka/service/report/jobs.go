@@ -3,8 +3,8 @@ package report
 import (
 	"context"
 
-	"github.com/Hayao0819/Kamisato/internal/ayatoapi"
-	"github.com/Hayao0819/Kamisato/internal/mikoapi"
+	ayatostore "github.com/Hayao0819/Kamisato/internal/api/ayato/auth/store"
+	"github.com/Hayao0819/Kamisato/internal/api/miko"
 )
 
 // FetchJobsBestEffort resolves the ayato client for the named or default
@@ -12,13 +12,13 @@ import (
 // output when a server is reachable. It returns nil (no error) when no
 // registered server is available or the request fails, so callers stay
 // offline-friendly instead of failing the whole command.
-func FetchJobsBestEffort(server string) func() []mikoapi.Job {
-	return func() []mikoapi.Job {
-		srv, err := ayatoapi.Resolve(server)
+func FetchJobsBestEffort(server string) func() []miko.Job {
+	return func() []miko.Job {
+		srv, err := ayatostore.Resolve(server)
 		if err != nil {
 			return nil
 		}
-		api, err := ayatoapi.NewStoredClient(srv)
+		api, err := ayatostore.NewStoredClient(srv)
 		if err != nil {
 			return nil
 		}

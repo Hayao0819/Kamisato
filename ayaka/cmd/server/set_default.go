@@ -4,7 +4,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/Hayao0819/Kamisato/ayaka/cli"
-	"github.com/Hayao0819/Kamisato/internal/ayatoapi"
+	ayatostore "github.com/Hayao0819/Kamisato/internal/api/ayato/auth/store"
 	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
@@ -15,8 +15,8 @@ func SetDefaultCmd() *cobra.Command {
 		Args:              cobra.ExactArgs(1),
 		ValidArgsFunction: completeServerNames,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := ayatoapi.SetDefault(args[0]); err != nil {
-				if errors.Is(err, ayatoapi.ErrServerNotFound) {
+			if err := ayatostore.SetDefault(args[0]); err != nil {
+				if errors.Is(err, ayatostore.ErrServerNotFound) {
 					return errors.WrapErr(cli.ErrServerNotFound, args[0])
 				}
 				return err

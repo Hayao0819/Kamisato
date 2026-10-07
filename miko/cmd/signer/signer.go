@@ -3,7 +3,7 @@ package signercmd
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/Hayao0819/Kamisato/internal/cliutil"
+	cmdline "github.com/Hayao0819/Kamisato/internal/cli"
 	"github.com/Hayao0819/Kamisato/miko/app"
 	mikoconfig "github.com/Hayao0819/Kamisato/miko/config"
 )
@@ -14,7 +14,7 @@ func Cmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "signer",
 		Short: "Run the package signing service (holds the key so build workers stay keyless)",
-		Args:  cliutil.NoArgs,
+		Args:  cmdline.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			configFile, err := cmd.Flags().GetString("config")
 			if err != nil {

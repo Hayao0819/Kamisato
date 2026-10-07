@@ -7,7 +7,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/Hayao0819/Kamisato/ayaka/cli"
-	"github.com/Hayao0819/Kamisato/internal/ayatoapi"
+	"github.com/Hayao0819/Kamisato/internal/api/ayato"
 	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
@@ -34,7 +34,7 @@ func parseLoginOrID(s string) (id int64, login string) {
 
 // resolveAdminID returns the numeric GitHub user ID for s. If s is a positive
 // integer it is returned as-is; otherwise admins are listed to find the login.
-func resolveAdminID(ctx context.Context, api *ayatoapi.Ayato, s string) (int64, error) {
+func resolveAdminID(ctx context.Context, api *ayato.Client, s string) (int64, error) {
 	if id, _ := parseLoginOrID(s); id > 0 {
 		return id, nil
 	}

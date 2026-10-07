@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
-	"github.com/Hayao0819/Kamisato/internal/gitcmd"
+	"github.com/Hayao0819/Kamisato/internal/vcs/git"
 	"github.com/Hayao0819/Kamisato/kayo/audit"
 	kayoconfig "github.com/Hayao0819/Kamisato/kayo/config"
 	"github.com/Hayao0819/Kamisato/kayo/gitserve"
@@ -79,7 +79,7 @@ func changedFiles(dir, from, to string) []string {
 	if from == "" || to == "" {
 		return nil
 	}
-	names, err := gitcmd.ChangedFiles(dir, from, to)
+	names, err := git.ChangedFiles(dir, from, to)
 	if err != nil {
 		return nil
 	}

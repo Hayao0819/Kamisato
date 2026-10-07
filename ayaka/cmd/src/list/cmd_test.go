@@ -7,7 +7,7 @@ import (
 
 	"github.com/Hayao0819/Kamisato/ayaka/app"
 	"github.com/Hayao0819/Kamisato/ayaka/service/report"
-	"github.com/Hayao0819/Kamisato/internal/cliutil"
+	cmdline "github.com/Hayao0819/Kamisato/internal/cli"
 )
 
 func TestListFormatFlagResolution(t *testing.T) {
@@ -24,13 +24,13 @@ func TestListFormatFlagResolution(t *testing.T) {
 		t.Run(tc.want, func(t *testing.T) {
 			// Create a minimal command just to host the flags.
 			cmd := &cobra.Command{}
-			cliutil.AddFormatFlags(cmd)
+			cmdline.AddFormatFlags(cmd)
 			cmd.SetArgs(tc.args)
 			// Parse only; don't execute.
 			if err := cmd.ParseFlags(tc.args); err != nil {
 				t.Fatalf("ParseFlags: %v", err)
 			}
-			got, err := cliutil.ResolveFormat(cmd, report.DefaultListFormat)
+			got, err := cmdline.ResolveFormat(cmd, report.DefaultListFormat)
 			if err != nil {
 				t.Fatalf("ResolveFormat: %v", err)
 			}

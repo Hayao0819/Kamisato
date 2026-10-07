@@ -8,8 +8,8 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/Hayao0819/Kamisato/ayaka/app"
-	"github.com/Hayao0819/Kamisato/internal/buildset"
-	"github.com/Hayao0819/Kamisato/internal/cliutil"
+	"github.com/Hayao0819/Kamisato/ayaka/internal/buildset"
+	cmdline "github.com/Hayao0819/Kamisato/internal/cli"
 	"github.com/Hayao0819/Kamisato/internal/pacman/builder"
 )
 
@@ -39,10 +39,10 @@ func (o *DirectBuildFlags) Add(command *cobra.Command) {
 
 func (o *DirectBuildFlags) Validate(packages []string) error {
 	if len(packages) == 0 && len(o.LocalSources) == 0 {
-		return &cliutil.UsageError{Err: fmt.Errorf("pass at least one <pkgname> or --local-source")}
+		return &cmdline.UsageError{Err: fmt.Errorf("pass at least one <pkgname> or --local-source")}
 	}
 	if o.PacmanConf == "" {
-		return &cliutil.UsageError{Err: fmt.Errorf("--pacman-conf is required for direct package builds")}
+		return &cmdline.UsageError{Err: fmt.Errorf("--pacman-conf is required for direct package builds")}
 	}
 	return nil
 }

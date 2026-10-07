@@ -9,7 +9,7 @@ import (
 
 	"github.com/Hayao0819/Kamisato/ayato/blob"
 	"github.com/Hayao0819/Kamisato/internal/errors"
-	"github.com/Hayao0819/Kamisato/internal/safefile"
+	"github.com/Hayao0819/Kamisato/internal/filesystem/safefile"
 )
 
 var _ blob.ObjectMover = (*LocalStore)(nil)

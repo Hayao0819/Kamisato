@@ -6,7 +6,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/Hayao0819/Kamisato/ayaka/cli"
-	"github.com/Hayao0819/Kamisato/internal/cliutil"
+	cmdline "github.com/Hayao0819/Kamisato/internal/cli"
 )
 
 // keyRow is one line of `key list`: the primary key, then each subkey.
@@ -72,13 +72,13 @@ func listCmd() *cobra.Command {
 					Status:      status,
 				})
 			}
-			format, err := cliutil.ResolveFormat(cmd, keyListFormat)
+			format, err := cmdline.ResolveFormat(cmd, keyListFormat)
 			if err != nil {
 				return err
 			}
-			return cliutil.RenderList(cmd.OutOrStdout(), format, keyListHeader, rows)
+			return cmdline.RenderList(cmd.OutOrStdout(), format, keyListHeader, rows)
 		},
 	}
-	cliutil.AddFormatFlags(cmd)
+	cmdline.AddFormatFlags(cmd)
 	return cmd
 }

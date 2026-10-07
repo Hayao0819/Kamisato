@@ -5,8 +5,8 @@ import (
 	"encoding/base64"
 	"time"
 
+	"github.com/Hayao0819/Kamisato/internal/api/kayo"
 	"github.com/Hayao0819/Kamisato/internal/errors"
-	"github.com/Hayao0819/Kamisato/internal/kayoproto"
 )
 
 // Verifier checks an ayato catalog's detached Ed25519 signature and freshness.
@@ -33,7 +33,7 @@ func NewVerifier(pubB64 string, maxAge time.Duration) (*Verifier, error) {
 	if maxAge <= 0 {
 		return nil, errors.NewErr("ayato: maxAge must be positive")
 	}
-	return &Verifier{pub: ed25519.PublicKey(pub), keyID: kayoproto.KeyID(pub), maxAge: maxAge, leeway: time.Minute}, nil
+	return &Verifier{pub: ed25519.PublicKey(pub), keyID: kayo.KeyID(pub), maxAge: maxAge, leeway: time.Minute}, nil
 }
 
 func (v *Verifier) KeyID() string { return v.keyID }

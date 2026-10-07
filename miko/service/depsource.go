@@ -3,7 +3,7 @@ package service
 import (
 	"context"
 
-	"github.com/Hayao0819/Kamisato/internal/pacman"
+	"github.com/Hayao0819/Kamisato/internal/pacman/depend"
 	pacmanhost "github.com/Hayao0819/Kamisato/internal/pacman/host"
 	"github.com/Hayao0819/Kamisato/pkg/aurweb"
 )
@@ -11,7 +11,7 @@ import (
 // NewRepoChecker returns a RepoChecker backed by `pacman -T` on this host: a
 // best-effort pre-filter where specs not in the AUR are treated as repo-provided,
 // so a dep already in the build environment's sync repos need not be installed here.
-func NewRepoChecker() pacman.RepoChecker { return alpmRepoChecker{} }
+func NewRepoChecker() depend.RepoChecker { return alpmRepoChecker{} }
 
 type alpmRepoChecker struct{}
 
@@ -20,25 +20,25 @@ func (alpmRepoChecker) Unsatisfied(deps []string) ([]string, error) {
 }
 
 // NewAURSource adapts an aurweb upstream client to the AURSource seam.
-func NewAURSource(up *aurweb.AURUpstream) pacman.AURSource { return aurSource{up: up} }
+func NewAURSource(up *aurweb.AURUpstream) depend.AURSource { return aurSource{up: up} }
 
 type aurSource struct {
 	up *aurweb.AURUpstream
 }
 
-func (a aurSource) Info(ctx context.Context, names []string) ([]pacman.Pkg, error) {
+func (a aurSource) Info(ctx context.Context, names []string) ([]depend.Package, error) {
 	ps, err := a.up.Info(ctx, names)
 	if err != nil {
 		return nil, err
 	}
-	out := make([]pacman.Pkg, 0, len(ps))
+	out := make([]depend.Package, 0, len(ps))
 	for _, p := range ps {
 		out = append(out, fromAUR(p))
 	}
 	return out, nil
 }
 
-func (a aurSource) ProvidedBy(ctx context.Context, name string) (*pacman.Pkg, error) {
+func (a aurSource) ProvidedBy(ctx context.Context, name string) (*depend.Package, error) {
 	ps, err := a.up.Search(ctx, aurweb.ByProvides, name)
 	if err != nil {
 		return nil, err
@@ -61,12 +61,12 @@ func (a aurSource) ProvidedBy(ctx context.Context, name string) (*pacman.Pkg, er
 	return &p, nil
 }
 
-func fromAUR(p aurweb.Pkg) pacman.Pkg {
+func fromAUR(p aurweb.Pkg) depend.Package {
 	deps := make([]string, 0, len(p.Depends)+len(p.MakeDepends)+len(p.CheckDepends))
 	deps = append(deps, p.Depends...)
 	deps = append(deps, p.MakeDepends...)
 	deps = append(deps, p.CheckDepends...)
-	return pacman.Pkg{
+	return depend.Package{
 		Name:        p.Name,
 		PackageBase: p.PackageBase,
 		Version:     p.Version,

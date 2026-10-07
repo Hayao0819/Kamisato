@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"time"
 
-	buildsetapp "github.com/Hayao0819/Kamisato/internal/buildset"
+	buildsetapp "github.com/Hayao0819/Kamisato/ayaka/internal/buildset"
 	configloader "github.com/Hayao0819/Kamisato/internal/config"
 	"github.com/Hayao0819/Kamisato/internal/pacman/builder"
 	"github.com/Hayao0819/Kamisato/internal/pacman/builder/factory"

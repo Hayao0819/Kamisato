@@ -10,11 +10,11 @@ import (
 	"time"
 
 	ayatoaur "github.com/Hayao0819/Kamisato/ayato/service/aur"
-	"github.com/Hayao0819/Kamisato/internal/kayoproto"
+	"github.com/Hayao0819/Kamisato/internal/api/kayo"
 	"github.com/Hayao0819/Kamisato/pkg/aurweb"
 )
 
-var testCat = kayoproto.Catalog{
+var testCat = kayo.Catalog{
 	Packages: []aurweb.Pkg{{Name: "x", PackageBase: "x", Version: "1.0-1"}},
 	Sources:  map[string]string{"x": "https://git.example.com/x.git"},
 }
@@ -27,8 +27,8 @@ func signedServer(t *testing.T, signer *ayatoaur.CatalogSigner, alg string) *htt
 		switch r.URL.Path {
 		case catalogPath:
 			if alg == "none" { // legacy/unsigned envelope
-				payload, _ := json.Marshal(kayoproto.SignedPayload{IssuedAt: time.Now().UTC(), Catalog: testCat})
-				_ = json.NewEncoder(w).Encode(kayoproto.CatalogEnvelope{Payload: payload, Alg: "none"})
+				payload, _ := json.Marshal(kayo.SignedPayload{IssuedAt: time.Now().UTC(), Catalog: testCat})
+				_ = json.NewEncoder(w).Encode(kayo.CatalogEnvelope{Payload: payload, Alg: "none"})
 				return
 			}
 			env, err := signer.Sign(testCat)

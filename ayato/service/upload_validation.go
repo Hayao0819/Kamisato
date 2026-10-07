@@ -10,8 +10,8 @@ import (
 
 	"github.com/Hayao0819/Kamisato/ayato/blob"
 	"github.com/Hayao0819/Kamisato/ayato/domain"
-	"github.com/Hayao0819/Kamisato/internal/limits"
-	pacmanpkg "github.com/Hayao0819/Kamisato/internal/pacman"
+	pacmanpkg "github.com/Hayao0819/Kamisato/internal/pacman/pkg"
+	"github.com/Hayao0819/Kamisato/internal/pacman/limits"
 	"github.com/Hayao0819/Kamisato/internal/pacman/sign"
 	"github.com/Hayao0819/Kamisato/pkg/raiou"
 )

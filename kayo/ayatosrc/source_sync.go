@@ -6,8 +6,8 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/Hayao0819/Kamisato/internal/api/kayo"
 	"github.com/Hayao0819/Kamisato/internal/errors"
-	"github.com/Hayao0819/Kamisato/internal/kayoproto"
 	"github.com/Hayao0819/Kamisato/pkg/aurweb"
 )
 
@@ -20,13 +20,13 @@ func (s *Source) Sync(ctx context.Context) error {
 		return errors.WrapErr(err, "ayato catalog: "+s.name)
 	}
 
-	var env kayoproto.CatalogEnvelope
+	var env kayo.CatalogEnvelope
 	if err := json.Unmarshal(body, &env); err != nil {
 		return errors.WrapErr(err, "ayato catalog decode: "+s.name)
 	}
 	legacy := len(env.Payload) == 0
 
-	var signed kayoproto.SignedPayload
+	var signed kayo.SignedPayload
 	verified := false
 	if s.insecure {
 		if legacy {

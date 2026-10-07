@@ -10,14 +10,14 @@ import (
 
 	"github.com/Hayao0819/Kamisato/ayato/app"
 	ayatoconfig "github.com/Hayao0819/Kamisato/ayato/config"
-	"github.com/Hayao0819/Kamisato/internal/cliutil"
-	"github.com/Hayao0819/Kamisato/internal/ginutil"
+	cmdline "github.com/Hayao0819/Kamisato/internal/cli"
+	httpserver "github.com/Hayao0819/Kamisato/internal/http/server"
 )
 
 func RootCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:  "ayato",
-		Args: cliutil.NoArgs,
+		Args: cmdline.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			configFile, err := cmd.Flags().GetString("config")
 			if err != nil {
@@ -30,7 +30,7 @@ func RootCmd() *cobra.Command {
 			if configFile != "" {
 				slog.Info("Loaded from config file", "path", configFile)
 			}
-			ginutil.Setup(cmd, cfg.Debug)
+			httpserver.Setup(cmd, cfg.Debug)
 			ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
 			defer stop()
 			return app.Run(ctx, cfg)
@@ -38,15 +38,15 @@ func RootCmd() *cobra.Command {
 	}
 	cmd.PersistentFlags().BoolP("debug", "d", false, "Enable debug mode")
 	cmd.PersistentFlags().StringP("config", "c", "", "Config file")
-	cliutil.SetVersion(cmd)
-	cliutil.AddNoColorFlag(cmd)
+	cmdline.SetVersion(cmd)
+	cmdline.AddNoColorFlag(cmd)
 	cmd.SilenceErrors = true
 	cmd.SilenceUsage = true
 	cmd.AddCommand(aurCmd())
 	cmd.AddCommand(migrateCmd())
 	cmd.AddCommand(kvCmd())
 	cmd.AddCommand(repoCmd())
-	cmd.AddCommand(cliutil.VersionCommand())
+	cmd.AddCommand(cmdline.VersionCommand())
 
 	return cmd
 }

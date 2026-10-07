@@ -6,7 +6,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/Hayao0819/Kamisato/ayaka/cli"
-	"github.com/Hayao0819/Kamisato/internal/cliutil"
+	cmdline "github.com/Hayao0819/Kamisato/internal/cli"
 	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
@@ -39,13 +39,13 @@ func adminListCmd() *cobra.Command {
 			for _, a := range admins {
 				rows = append(rows, adminRow{ID: strconv.FormatInt(a.ID, 10), Login: a.Login})
 			}
-			format, err := cliutil.ResolveFormat(cmd, adminListDefaultFmt)
+			format, err := cmdline.ResolveFormat(cmd, adminListDefaultFmt)
 			if err != nil {
 				return err
 			}
-			return cliutil.RenderList(cmd.OutOrStdout(), format, adminRow{ID: "ID", Login: "LOGIN"}, rows)
+			return cmdline.RenderList(cmd.OutOrStdout(), format, adminRow{ID: "ID", Login: "LOGIN"}, rows)
 		},
 	}
-	cliutil.AddFormatFlags(cmd)
+	cmdline.AddFormatFlags(cmd)
 	return cmd
 }

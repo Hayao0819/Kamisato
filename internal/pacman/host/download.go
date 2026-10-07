@@ -7,7 +7,7 @@ import (
 
 	"github.com/Hayao0819/nahi/exutils"
 
-	pacmanpkg "github.com/Hayao0819/Kamisato/internal/pacman"
+	pacmanpkg "github.com/Hayao0819/Kamisato/internal/pacman/pkg"
 )
 
 // CleanPkgBinary owns the temp dir of packages downloaded by GetCleanPkgBinary;

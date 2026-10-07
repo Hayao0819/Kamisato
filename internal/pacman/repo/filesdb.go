@@ -6,7 +6,7 @@ import (
 	"io"
 	"strings"
 
-	pkg "github.com/Hayao0819/Kamisato/internal/pacman"
+	pkg "github.com/Hayao0819/Kamisato/internal/pacman/pkg"
 )
 
 // FilesFromDB parses a .files archive (compressed tar of desc/files members) into a map from %NAME% to file list;

@@ -10,7 +10,7 @@ import (
 	"github.com/Hayao0819/Kamisato/ayaka/cli"
 	"github.com/Hayao0819/Kamisato/ayaka/service/source"
 	"github.com/Hayao0819/Kamisato/internal/errors"
-	pkg "github.com/Hayao0819/Kamisato/internal/pacman"
+	pkg "github.com/Hayao0819/Kamisato/internal/pacman/pkg"
 	pacmansource "github.com/Hayao0819/Kamisato/internal/pacman/source"
 )
 

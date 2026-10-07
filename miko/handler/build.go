@@ -8,9 +8,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Hayao0819/Kamisato/internal/api/miko"
 	"github.com/Hayao0819/Kamisato/internal/auth/apikey"
 	"github.com/Hayao0819/Kamisato/internal/errors"
-	"github.com/Hayao0819/Kamisato/internal/mikoapi"
 
 	"github.com/gin-gonic/gin"
 
@@ -22,7 +22,7 @@ const maxBuildRequestBytes = 32 << 20
 // POST /api/unstable/build -> 202 {"job_id": id}
 func (h *Handler) SubmitBuildHandler(c *gin.Context) {
 	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxBuildRequestBytes)
-	var req mikoapi.BuildRequest
+	var req miko.BuildRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		var maxErr *http.MaxBytesError
 		if stderrors.As(err, &maxErr) {

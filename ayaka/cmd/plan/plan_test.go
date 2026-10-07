@@ -7,7 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/Hayao0819/Kamisato/internal/cliutil"
+	cmdline "github.com/Hayao0819/Kamisato/internal/cli"
 )
 
 func TestPlanFlagContract(t *testing.T) {
@@ -47,7 +47,7 @@ func executePlan(t *testing.T, args []string) error {
 
 func assertUsageError(t *testing.T, err error, contains string) {
 	t.Helper()
-	var usage *cliutil.UsageError
+	var usage *cmdline.UsageError
 	if !errors.As(err, &usage) || !strings.Contains(err.Error(), contains) {
 		t.Fatalf("error = %v", err)
 	}

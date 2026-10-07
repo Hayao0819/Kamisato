@@ -11,8 +11,8 @@ import (
 
 	"github.com/ProtonMail/go-crypto/openpgp"
 
-	pkg "github.com/Hayao0819/Kamisato/internal/pacman"
-	"github.com/Hayao0819/Kamisato/internal/safefile"
+	"github.com/Hayao0819/Kamisato/internal/filesystem/safefile"
+	pkg "github.com/Hayao0819/Kamisato/internal/pacman/pkg"
 )
 
 // Tool mutates a pacman repository database on disk: it adds or removes a

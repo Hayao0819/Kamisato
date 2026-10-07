@@ -7,7 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/Hayao0819/Kamisato/internal/cliutil"
+	cmdline "github.com/Hayao0819/Kamisato/internal/cli"
 )
 
 func TestDirectBuildFlagsNormalizeCLIInput(t *testing.T) {
@@ -36,7 +36,7 @@ func TestDirectBuildFlagsNormalizeCLIInput(t *testing.T) {
 func TestDirectBuildFlagsRejectMissingInputsInCLILayer(t *testing.T) {
 	var flags DirectBuildFlags
 	err := flags.Validate(nil)
-	var usage *cliutil.UsageError
+	var usage *cmdline.UsageError
 	if !errors.As(err, &usage) {
 		t.Fatalf("error = %v", err)
 	}

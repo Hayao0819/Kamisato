@@ -12,7 +12,7 @@ import (
 
 	"github.com/Hayao0819/Kamisato/internal/auth/apikey"
 	"github.com/Hayao0819/Kamisato/internal/errors"
-	"github.com/Hayao0819/Kamisato/internal/safefile"
+	"github.com/Hayao0819/Kamisato/internal/filesystem/safefile"
 	mikoconfig "github.com/Hayao0819/Kamisato/miko/config"
 )
 

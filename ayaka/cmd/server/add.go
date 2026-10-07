@@ -6,7 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/Hayao0819/Kamisato/internal/ayatoapi"
+	ayatostore "github.com/Hayao0819/Kamisato/internal/api/ayato/auth/store"
 )
 
 func AddCmd() *cobra.Command {
@@ -60,12 +60,12 @@ func AddCmd() *cobra.Command {
 			}
 
 			if clearCredentials {
-				return ayatoapi.SaveStaticToken(server, username, "")
+				return ayatostore.SaveStaticToken(server, username, "")
 			}
 			if !credentialInput {
-				return ayatoapi.SaveEndpoint(server, username)
+				return ayatostore.SaveEndpoint(server, username)
 			}
-			return ayatoapi.SaveStaticToken(server, username, token)
+			return ayatostore.SaveStaticToken(server, username, token)
 		},
 	}
 

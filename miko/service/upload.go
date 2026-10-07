@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/Hayao0819/Kamisato/internal/ayatoapi"
+	"github.com/Hayao0819/Kamisato/internal/api/ayato"
 	"github.com/Hayao0819/Kamisato/internal/errors"
-	"github.com/Hayao0819/Kamisato/internal/limits"
+	"github.com/Hayao0819/Kamisato/internal/pacman/limits"
 )
 
 type PackageUpload struct {
@@ -21,14 +21,14 @@ type Uploader interface {
 }
 
 type ayatoUploader struct {
-	client *ayatoapi.Publisher
+	client *ayato.Publisher
 }
 
 func NewAyatoUploader(rawURL, apiKey string) (Uploader, error) {
 	if rawURL == "" {
 		return nil, nil
 	}
-	publisher, err := ayatoapi.NewPublisher(rawURL, apiKey)
+	publisher, err := ayato.NewPublisher(rawURL, apiKey)
 	if err != nil {
 		return nil, err
 	}

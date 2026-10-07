@@ -9,7 +9,7 @@ import (
 	"github.com/otiai10/copy"
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
-	"github.com/Hayao0819/Kamisato/internal/gitcmd"
+	"github.com/Hayao0819/Kamisato/internal/vcs/git"
 	"github.com/Hayao0819/Kamisato/miko/domain"
 )
 
@@ -44,30 +44,30 @@ func materialize(ctx context.Context, req *domain.BuildRequest, srcDir string) e
 // internal hosts (e.g. cloud metadata) that a plain clone would leave open. A
 // specified ref triggers a full clone so any branch/tag/commit resolves; the
 // common no-ref case stays a depth-1 shallow clone.
-func materializeGit(ctx context.Context, git *domain.GitSource, srcDir string) error {
-	if git.URL == "" {
+func materializeGit(ctx context.Context, source *domain.GitSource, srcDir string) error {
+	if source.URL == "" {
 		return errors.NewErr("git source has no URL")
 	}
 
-	opts := gitcmd.CloneOptions{URL: git.URL, Ref: git.Ref, Strict: true}
-	if git.Ref == "" {
+	opts := git.CloneOptions{URL: source.URL, Ref: source.Ref, Strict: true}
+	if source.Ref == "" {
 		opts.Depth = 1
 	}
 
-	if git.Subdir == "" {
+	if source.Subdir == "" {
 		opts.Dir = srcDir
-		if err := gitcmd.Clone(ctx, opts); err != nil {
+		if err := git.Clone(ctx, opts); err != nil {
 			return errors.WrapErr(err, "git clone failed")
 		}
 		return nil
 	}
 
 	// Reject a subdir that escapes the clone root.
-	clean := filepath.Clean(git.Subdir)
+	clean := filepath.Clean(source.Subdir)
 	if clean == ".." || strings.HasPrefix(clean, ".."+string(filepath.Separator)) || filepath.IsAbs(clean) {
-		return errors.NewErrf("invalid subdir: %s", git.Subdir)
+		return errors.NewErrf("invalid subdir: %s", source.Subdir)
 	}
-	cloneDir, cleanup, err := gitcmd.CloneTemp(ctx, "miko-clone-*", opts)
+	cloneDir, cleanup, err := git.CloneTemp(ctx, "miko-clone-*", opts)
 	if err != nil {
 		return errors.WrapErr(err, "git clone failed")
 	}

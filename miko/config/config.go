@@ -9,7 +9,7 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/pacman/builder"
 	"github.com/spf13/pflag"
 
-	"github.com/Hayao0819/Kamisato/internal/apiclient"
+	"github.com/Hayao0819/Kamisato/internal/api/client"
 	configloader "github.com/Hayao0819/Kamisato/internal/config"
 )
 
@@ -272,7 +272,7 @@ func (c *MikoConfig) Validate() error {
 		return fmt.Errorf("signing.mode is remote but signing.remote.url is unset")
 	}
 	if c.Signing.Remote.URL != "" {
-		if _, err := apiclient.ParseBaseURL(c.Signing.Remote.URL); err != nil {
+		if _, err := client.ParseBaseURL(c.Signing.Remote.URL); err != nil {
 			return fmt.Errorf("signing.remote.url: %w", err)
 		}
 	}
@@ -280,7 +280,7 @@ func (c *MikoConfig) Validate() error {
 		return fmt.Errorf("ayato.api_key requires ayato.url")
 	}
 	if c.Ayato.URL != "" {
-		if _, err := apiclient.ParseBaseURL(c.Ayato.URL); err != nil {
+		if _, err := client.ParseBaseURL(c.Ayato.URL); err != nil {
 			return fmt.Errorf("ayato.url: %w", err)
 		}
 		if c.Ayato.APIKey == "" {

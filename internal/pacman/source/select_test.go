@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	pkg "github.com/Hayao0819/Kamisato/internal/pacman"
+	pkg "github.com/Hayao0819/Kamisato/internal/pacman/pkg"
 	"github.com/Hayao0819/Kamisato/internal/pacman/repo"
 	"github.com/Hayao0819/Kamisato/pkg/raiou"
 )
@@ -182,12 +182,12 @@ func TestPrunablePackages(t *testing.T) {
 func TestBuildDepGraphPerArch(t *testing.T) {
 	pkgs := []*pkg.SourcePackage{goSrc(t, "1.24"), kamisatoSrc(t, "0.1")}
 
-	g32 := BuildDepGraph(FilterByArch(pkgs, "i686"), "i686")
+	g32 := BuildDependencyGraph(FilterByArch(pkgs, "i686"), "i686")
 	if got := g32.Deps("kamisato"); !reflect.DeepEqual(got, []string{"go"}) {
 		t.Errorf("i686 deps of kamisato = %v, want [go]", got)
 	}
 
-	g64 := BuildDepGraph(FilterByArch(pkgs, "x86_64"), "x86_64")
+	g64 := BuildDependencyGraph(FilterByArch(pkgs, "x86_64"), "x86_64")
 	if got := g64.Deps("kamisato"); len(got) != 0 {
 		t.Errorf("x86_64 deps of kamisato = %v, want none (go is external there)", got)
 	}
@@ -199,7 +199,7 @@ func TestBuildDepGraphProvidesCannotShadowRealPackage(t *testing.T) {
 	baz := srcinfoPkg(t, "pkgbase = baz\n\tpkgver = 1.0\n\tpkgrel = 1\n\tarch = x86_64\n\tmakedepends = foo\n\npkgname = baz\n")
 
 	for _, pkgs := range [][]*pkg.SourcePackage{{foo, bar, baz}, {bar, foo, baz}} {
-		g := BuildDepGraph(pkgs, "x86_64")
+		g := BuildDependencyGraph(pkgs, "x86_64")
 		if got := g.Deps("baz"); !reflect.DeepEqual(got, []string{"foo"}) {
 			t.Errorf("deps of baz = %v, want [foo] regardless of package order", got)
 		}

@@ -5,11 +5,11 @@ import (
 
 	alpm "github.com/Hayao0819/dyalpm"
 
-	"github.com/Hayao0819/Kamisato/internal/pacman"
+	"github.com/Hayao0819/Kamisato/internal/pacman/pkg"
 )
 
-func DiffPackages(src []*pacman.SourcePackage, remote *RemoteRepo) []*pacman.SourcePackage {
-	var toBuild []*pacman.SourcePackage
+func DiffPackages(src []*pkg.SourcePackage, remote *RemoteRepo) []*pkg.SourcePackage {
+	var toBuild []*pkg.SourcePackage
 	for _, source := range src {
 		published := remote.PkgByPkgBase(source.Base())
 		if published == nil {

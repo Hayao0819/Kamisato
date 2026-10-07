@@ -5,9 +5,9 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/Hayao0819/Kamisato/internal/nvcheck"
-	ppkg "github.com/Hayao0819/Kamisato/internal/pacman"
+	ppkg "github.com/Hayao0819/Kamisato/internal/pacman/pkg"
 	"github.com/Hayao0819/Kamisato/internal/pacman/repo"
+	"github.com/Hayao0819/Kamisato/internal/pacman/source/nvcheck"
 	"github.com/Hayao0819/Kamisato/miko/domain"
 	"github.com/Hayao0819/Kamisato/pkg/raiou"
 )

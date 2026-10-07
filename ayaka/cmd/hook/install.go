@@ -3,8 +3,8 @@ package hookcmd
 import (
 	"github.com/spf13/cobra"
 
-	sharedhook "github.com/Hayao0819/Kamisato/internal/hookcmd"
 	"github.com/Hayao0819/Kamisato/internal/pacman/hook"
+	sharedhook "github.com/Hayao0819/Kamisato/internal/pacman/hook/command"
 )
 
 func hookInstallCmd() *cobra.Command {

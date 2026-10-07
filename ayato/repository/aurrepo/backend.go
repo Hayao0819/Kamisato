@@ -16,7 +16,7 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/errors"
 
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
-	"github.com/Hayao0819/Kamisato/internal/kayoproto"
+	"github.com/Hayao0819/Kamisato/internal/api/kayo"
 	"github.com/Hayao0819/Kamisato/pkg/aurweb"
 )
 
@@ -90,14 +90,14 @@ func (b *Backend) All(_ context.Context) ([]aurweb.Pkg, error) {
 	return b.all()
 }
 
-func (b *Backend) Catalog(_ context.Context) (kayoproto.Catalog, error) {
+func (b *Backend) Catalog(_ context.Context) (kayo.Catalog, error) {
 	pkgs, err := b.all()
 	if err != nil {
-		return kayoproto.Catalog{}, err
+		return kayo.Catalog{}, err
 	}
 	entries, err := b.kv.List(kv.AURBases)
 	if err != nil {
-		return kayoproto.Catalog{}, err
+		return kayo.Catalog{}, err
 	}
 	sources := make(map[string]string, len(entries))
 	for _, e := range entries {
@@ -106,7 +106,7 @@ func (b *Backend) Catalog(_ context.Context) (kayoproto.Catalog, error) {
 			sources[e.Key] = rec.URL
 		}
 	}
-	return kayoproto.Catalog{Packages: pkgs, Sources: sources}, nil
+	return kayo.Catalog{Packages: pkgs, Sources: sources}, nil
 }
 
 func (b *Backend) SourceURL(_ context.Context, pkgbase string) (string, bool, error) {

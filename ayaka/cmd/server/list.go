@@ -6,8 +6,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/Hayao0819/Kamisato/internal/ayatoapi"
-	"github.com/Hayao0819/Kamisato/internal/cliutil"
+	ayatostore "github.com/Hayao0819/Kamisato/internal/api/ayato/auth/store"
+	cmdline "github.com/Hayao0819/Kamisato/internal/cli"
 )
 
 type serverRow struct {
@@ -31,12 +31,12 @@ func ListCmd() *cobra.Command {
 		Args:              cobra.ArbitraryArgs,
 		ValidArgsFunction: completeServerNames,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			endpoints, err := ayatoapi.ListEndpoints()
+			endpoints, err := ayatostore.ListEndpoints()
 			if err != nil {
 				return err
 			}
 
-			byName := make(map[string]ayatoapi.EndpointSummary, len(endpoints))
+			byName := make(map[string]ayatostore.EndpointSummary, len(endpoints))
 			serverNames := make([]string, 0, len(endpoints))
 			for _, endpoint := range endpoints {
 				byName[endpoint.URL] = endpoint
@@ -61,7 +61,7 @@ func ListCmd() *cobra.Command {
 					Default:  endpoint.Default,
 				}
 				if showSecret {
-					resolved, err := ayatoapi.Resolve(name)
+					resolved, err := ayatostore.Resolve(name)
 					if err != nil {
 						return err
 					}
@@ -70,17 +70,17 @@ func ListCmd() *cobra.Command {
 				rows = append(rows, row)
 			}
 
-			format, err := cliutil.ResolveFormat(cmd, serverListDefaultFmt)
+			format, err := cmdline.ResolveFormat(cmd, serverListDefaultFmt)
 			if err != nil {
 				return err
 			}
-			return cliutil.RenderList(cmd.OutOrStdout(), format, serverRow{}, rows)
+			return cmdline.RenderList(cmd.OutOrStdout(), format, serverRow{}, rows)
 		},
 	}
 
 	cmd.Flags().BoolVar(&showSecret, "show-secret", false, "Show the stored Bearer access token")
 	cmd.Flags().StringVar(&search, "search", "", "Filter servers by name substring")
-	cliutil.AddFormatFlags(cmd)
+	cmdline.AddFormatFlags(cmd)
 
 	return cmd
 }

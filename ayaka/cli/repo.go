@@ -3,8 +3,8 @@ package cli
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/Hayao0819/Kamisato/internal/ayatoapi"
-	"github.com/Hayao0819/Kamisato/internal/cliutil"
+	"github.com/Hayao0819/Kamisato/internal/api/ayato"
+	cmdline "github.com/Hayao0819/Kamisato/internal/cli"
 )
 
 // AddRepoServerFlags registers the shared --server selection flag plus the
@@ -21,7 +21,7 @@ func AddRepoServerFlags(cmd *cobra.Command) {
 }
 
 // RepoClient resolves an Ayato client with optional credential overrides.
-func RepoClient(cmd *cobra.Command) (*ayatoapi.Ayato, error) {
+func RepoClient(cmd *cobra.Command) (*ayato.Client, error) {
 	server, err := cmd.Flags().GetString("server")
 	if err != nil {
 		return nil, err
@@ -31,7 +31,7 @@ func RepoClient(cmd *cobra.Command) (*ayatoapi.Ayato, error) {
 
 // RepoClientAt is RepoClient with an explicit server selection, for commands
 // whose --server flag keeps a different (legacy) meaning.
-func RepoClientAt(cmd *cobra.Command, server string) (*ayatoapi.Ayato, error) {
+func RepoClientAt(cmd *cobra.Command, server string) (*ayato.Client, error) {
 	tokenFlag, err := cmd.Flags().GetString("token")
 	if err != nil {
 		return nil, err
@@ -55,7 +55,7 @@ func RepoClientAt(cmd *cobra.Command, server string) (*ayatoapi.Ayato, error) {
 	} else if passwordFlag != "" {
 		info.AccessToken = passwordFlag
 	} else if askPass {
-		p, err := cliutil.PromptPassword("Access token:")
+		p, err := cmdline.PromptPassword("Access token:")
 		if err != nil {
 			return nil, err
 		}
@@ -63,7 +63,7 @@ func RepoClientAt(cmd *cobra.Command, server string) (*ayatoapi.Ayato, error) {
 	}
 
 	if tokenFlag != "" || passwordFlag != "" || askPass {
-		return ayatoapi.NewAyato(info.URL, ayatoapi.StaticBearer(info.AccessToken))
+		return ayato.New(info.URL, ayato.StaticBearer(info.AccessToken))
 	}
 	return AyatoClient(info)
 }

@@ -11,7 +11,7 @@ import (
 	"github.com/Hayao0819/Kamisato/ayato/blob"
 )
 
-// stagingPrefix keys every staged object below a segment pacman.ValidateRepositoryName can
+// stagingPrefix keys every staged object below a segment repo.ValidateName can
 // never accept as a repo name ('$' is outside its grammar), so a staged key can
 // never collide with a real repo's object space.
 const stagingPrefix = "$staging"

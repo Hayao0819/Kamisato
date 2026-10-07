@@ -10,8 +10,8 @@ import (
 
 	"github.com/Hayao0819/Kamisato/ayaka/app"
 	"github.com/Hayao0819/Kamisato/ayaka/service/source"
-	"github.com/Hayao0819/Kamisato/internal/nvcheck"
 	pacmansource "github.com/Hayao0819/Kamisato/internal/pacman/source"
+	"github.com/Hayao0819/Kamisato/internal/pacman/source/nvcheck"
 )
 
 type fakeNvChecker struct {

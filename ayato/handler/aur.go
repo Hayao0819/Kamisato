@@ -6,7 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/Hayao0819/Kamisato/ayato/service/aur"
-	"github.com/Hayao0819/Kamisato/internal/gitcmd"
+	"github.com/Hayao0819/Kamisato/internal/vcs/git"
 )
 
 // AURHandler is the gin-facing surface for AUR source management and the
@@ -36,7 +36,7 @@ func (h *AURHandler) RegisterHandler(c *gin.Context) {
 
 	// Validate here only to answer 400 (client error) instead of a blanket 502;
 	// Register re-validates before cloning, so this is not the trust boundary.
-	if err := gitcmd.ValidateRemote(req.GitURL); err != nil {
+	if err := git.ValidateRemote(req.GitURL); err != nil {
 		respondError(c, http.StatusBadRequest, "invalid git_url")
 		return
 	}

@@ -5,7 +5,7 @@ import (
 
 	"github.com/spf13/pflag"
 
-	"github.com/Hayao0819/Kamisato/internal/apiclient"
+	"github.com/Hayao0819/Kamisato/internal/api/client"
 	configloader "github.com/Hayao0819/Kamisato/internal/config"
 )
 
@@ -56,7 +56,7 @@ func (c *LumineConfig) Validate() error {
 		return fmt.Errorf("auth_mode must be \"cookie\" or \"bearer\", got %q", c.AuthMode)
 	}
 	if c.AyatoURL != "" {
-		if _, err := apiclient.ParseBaseURL(c.AyatoURL); err != nil {
+		if _, err := client.ParseBaseURL(c.AyatoURL); err != nil {
 			return fmt.Errorf("ayato_url: %w", err)
 		}
 	}

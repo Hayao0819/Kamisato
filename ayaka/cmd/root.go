@@ -21,7 +21,7 @@ import (
 	srccmd "github.com/Hayao0819/Kamisato/ayaka/cmd/src"
 	bumpcmd "github.com/Hayao0819/Kamisato/ayaka/cmd/src/bump"
 	srcinfocmd "github.com/Hayao0819/Kamisato/ayaka/cmd/src/srcinfo"
-	"github.com/Hayao0819/Kamisato/internal/cliutil"
+	cmdline "github.com/Hayao0819/Kamisato/internal/cli"
 )
 
 // grouped assigns cmds to the root help section id and returns them.
@@ -58,7 +58,7 @@ func RootCmd() *cobra.Command {
 		if c.Debug {
 			level = slog.LevelDebug
 		}
-		cliutil.Setup(level, cliutil.ColorEnabled(&cmd))
+		cmdline.Setup(level, cmdline.ColorEnabled(&cmd))
 		return app.New(c)
 	})
 	cmd.PersistentPreRunE = func(_ *cobra.Command, _ []string) error {
@@ -70,12 +70,12 @@ func RootCmd() *cobra.Command {
 		if debug {
 			level = slog.LevelDebug
 		}
-		cliutil.Setup(level, cliutil.ColorEnabled(&cmd))
+		cmdline.Setup(level, cmdline.ColorEnabled(&cmd))
 		return nil
 	}
 
-	cliutil.SetVersion(&cmd)
-	cliutil.AddNoColorFlag(&cmd)
+	cmdline.SetVersion(&cmd)
+	cmdline.AddNoColorFlag(&cmd)
 
 	cmd.AddGroup(
 		&cobra.Group{ID: "src", Title: "Source repository:"},
@@ -95,7 +95,7 @@ func RootCmd() *cobra.Command {
 		deprecatedStub(bumpcmd.Cmd(runtime), "ayaka src bump"),
 		deprecatedStub(srcinfocmd.Cmd(runtime), "ayaka src srcinfo"),
 		deprecatedStub(prunecmd.Cmd(runtime), "ayaka repo prune"),
-		cliutil.VersionCommand(),
+		cmdline.VersionCommand(),
 	)
 	subCmds.Bind(&cmd)
 

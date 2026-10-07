@@ -7,7 +7,7 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/errors"
 
 	"github.com/Hayao0819/Kamisato/ayato/blob"
-	pacmanpkg "github.com/Hayao0819/Kamisato/internal/pacman"
+	pacmanpkg "github.com/Hayao0819/Kamisato/internal/pacman/pkg"
 	pacmanrepo "github.com/Hayao0819/Kamisato/internal/pacman/repo"
 )
 

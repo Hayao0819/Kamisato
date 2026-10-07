@@ -3,11 +3,11 @@ package report
 import (
 	"testing"
 
-	"github.com/Hayao0819/Kamisato/internal/mikoapi"
+	"github.com/Hayao0819/Kamisato/internal/api/miko"
 )
 
 func TestLatestJobStatusPicksMostRecent(t *testing.T) {
-	jobs := []mikoapi.Job{
+	jobs := []miko.Job{
 		{Repo: "extra", Packages: []string{"foo"}, Status: "queued", CreatedAt: "2026-01-01T00:00:00Z"},
 		{Repo: "extra", Packages: []string{"foo"}, Status: "success", CreatedAt: "2026-02-01T00:00:00Z"},
 		{Repo: "other", Packages: []string{"foo"}, Status: "failed", CreatedAt: "2026-03-01T00:00:00Z"},

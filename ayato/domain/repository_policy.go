@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"slices"
 
-	"github.com/Hayao0819/Kamisato/internal/pacman"
+	pacmanrepo "github.com/Hayao0819/Kamisato/internal/pacman/repo"
 )
 
 // Tier names a stage in a tiered repository's promotion flow.
@@ -58,7 +58,7 @@ func newRepository(
 	defaultArches []string,
 	spec RepositorySpec,
 ) (*Repository, error) {
-	if err := pacman.ValidateRepositoryName(spec.Name); err != nil {
+	if err := pacmanrepo.ValidateName(spec.Name); err != nil {
 		return nil, err
 	}
 	arches := spec.Arches

@@ -4,9 +4,9 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/Hayao0819/Kamisato/ayaka/cli"
-	"github.com/Hayao0819/Kamisato/internal/cliutil"
+	"github.com/Hayao0819/Kamisato/internal/api/miko"
+	cmdline "github.com/Hayao0819/Kamisato/internal/cli"
 	"github.com/Hayao0819/Kamisato/internal/errors"
-	"github.com/Hayao0819/Kamisato/internal/mikoapi"
 )
 
 func mikoStatusCmd() *cobra.Command {
@@ -31,13 +31,13 @@ func mikoStatusCmd() *cobra.Command {
 
 			// status shows a single job as one row of the same table as `jobs`;
 			// --json / --format reach the full record for scripting.
-			format, err := cliutil.ResolveFormat(cmd, cli.JobTableFormat)
+			format, err := cmdline.ResolveFormat(cmd, cli.JobTableFormat)
 			if err != nil {
 				return err
 			}
-			return cliutil.RenderList(cmd.OutOrStdout(), format, cli.JobHeader, []mikoapi.Job{*job})
+			return cmdline.RenderList(cmd.OutOrStdout(), format, cli.JobHeader, []miko.Job{*job})
 		},
 	}
-	cliutil.AddFormatFlags(cmd)
+	cmdline.AddFormatFlags(cmd)
 	return cmd
 }

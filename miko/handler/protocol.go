@@ -3,11 +3,11 @@ package handler
 import (
 	"time"
 
-	"github.com/Hayao0819/Kamisato/internal/mikoapi"
+	"github.com/Hayao0819/Kamisato/internal/api/miko"
 	"github.com/Hayao0819/Kamisato/miko/domain"
 )
 
-func domainBuildRequest(request *mikoapi.BuildRequest) *domain.BuildRequest {
+func domainBuildRequest(request *miko.BuildRequest) *domain.BuildRequest {
 	if request == nil {
 		return nil
 	}
@@ -37,37 +37,37 @@ func domainBuildRequest(request *mikoapi.BuildRequest) *domain.BuildRequest {
 	}
 }
 
-func protocolBuildJob(job *domain.BuildJob) mikoapi.BuildJob {
-	return mikoapi.BuildJob{
+func protocolBuildJob(job *domain.BuildJob) miko.BuildJob {
+	return miko.BuildJob{
 		ID:        job.ID,
 		Repo:      job.Repo,
 		Arch:      job.Arch,
-		Status:    mikoapi.JobStatus(job.Status),
+		Status:    miko.JobStatus(job.Status),
 		Logs:      job.Logs,
 		Err:       job.Err,
 		Packages:  job.Packages,
 		Retries:   job.Retries,
-		Reason:    mikoapi.BuildReason(job.Reason),
+		Reason:    miko.BuildReason(job.Reason),
 		CreatedAt: job.CreatedAt.Format(time.RFC3339Nano),
 		StartedAt: protocolTime(job.StartedAt),
 		EndedAt:   protocolTime(job.EndedAt),
 	}
 }
 
-func protocolBuildJobs(jobs []*domain.BuildJob) []mikoapi.BuildJob {
-	result := make([]mikoapi.BuildJob, 0, len(jobs))
+func protocolBuildJobs(jobs []*domain.BuildJob) []miko.BuildJob {
+	result := make([]miko.BuildJob, 0, len(jobs))
 	for _, job := range jobs {
 		result = append(result, protocolBuildJob(job))
 	}
 	return result
 }
 
-func protocolBuildStats(stats domain.BuildStats) mikoapi.BuildStats {
-	counts := make(map[mikoapi.JobStatus]int, len(stats.Counts))
+func protocolBuildStats(stats domain.BuildStats) miko.BuildStats {
+	counts := make(map[miko.JobStatus]int, len(stats.Counts))
 	for status, count := range stats.Counts {
-		counts[mikoapi.JobStatus(status)] = count
+		counts[miko.JobStatus(status)] = count
 	}
-	return mikoapi.BuildStats{
+	return miko.BuildStats{
 		Workers:     stats.Workers,
 		QueueLength: stats.QueueLength,
 		Running:     stats.Running,

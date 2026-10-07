@@ -11,7 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/Hayao0819/Kamisato/ayato/domain"
-	pacmanpkg "github.com/Hayao0819/Kamisato/internal/pacman"
+	pacmanpkg "github.com/Hayao0819/Kamisato/internal/pacman/pkg"
 )
 
 func (h *RepositoryHandler) ReposHandler(ctx *gin.Context) {

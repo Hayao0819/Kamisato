@@ -14,7 +14,7 @@ import (
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
 
-	"github.com/Hayao0819/Kamisato/internal/gitcmd"
+	"github.com/Hayao0819/Kamisato/internal/vcs/git"
 	"github.com/Hayao0819/Kamisato/pkg/aurweb"
 )
 
@@ -34,18 +34,18 @@ func Materialize(ctx context.Context, root, pkgbase, sourceDir, commit string) e
 		return errors.WrapErr(err, "failed to clear served repo")
 	}
 
-	if err := gitcmd.Clone(ctx, gitcmd.CloneOptions{URL: sourceDir, Dir: repo, Bare: true}); err != nil {
+	if err := git.Clone(ctx, git.CloneOptions{URL: sourceDir, Dir: repo, Bare: true}); err != nil {
 		return err
 	}
 	// Point HEAD at the reviewed commit so a clone checks out the pinned tree,
 	// then refresh the dumb-HTTP index — all through go-git, no git process.
-	if err := gitcmd.SetRef(repo, "refs/heads/"+pinnedBranch, commit); err != nil {
+	if err := git.SetRef(repo, "refs/heads/"+pinnedBranch, commit); err != nil {
 		return err
 	}
-	if err := gitcmd.SetHead(repo, "refs/heads/"+pinnedBranch); err != nil {
+	if err := git.SetHead(repo, "refs/heads/"+pinnedBranch); err != nil {
 		return err
 	}
-	return gitcmd.UpdateServerInfo(repo)
+	return git.UpdateServerInfo(repo)
 }
 
 func Remove(root, pkgbase string) error {

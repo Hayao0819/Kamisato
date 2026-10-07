@@ -11,9 +11,9 @@ import (
 
 	"github.com/Hayao0819/Kamisato/ayaka/app"
 	"github.com/Hayao0819/Kamisato/ayaka/service/source"
-	"github.com/Hayao0819/Kamisato/internal/cliutil"
-	"github.com/Hayao0819/Kamisato/internal/nvcheck"
+	cmdline "github.com/Hayao0819/Kamisato/internal/cli"
 	pacmansource "github.com/Hayao0819/Kamisato/internal/pacman/source"
+	"github.com/Hayao0819/Kamisato/internal/pacman/source/nvcheck"
 )
 
 // nvChecker is the slice of service/source this command drives.
@@ -57,7 +57,7 @@ func newCommand(svc nvChecker, runtime *app.Runtime) *cobra.Command {
 			if tok := os.Getenv("GITHUB_TOKEN"); tok != "" {
 				client = nvcheck.WithGitHubToken(client, tok)
 			}
-			format, err := cliutil.ResolveFormat(cmd, defaultFmt)
+			format, err := cmdline.ResolveFormat(cmd, defaultFmt)
 			if err != nil {
 				return err
 			}
@@ -86,7 +86,7 @@ func newCommand(svc nvChecker, runtime *app.Runtime) *cobra.Command {
 			}
 
 			header := row{Repo: "REPO", Pkgbase: "PKGBASE", Current: "CURRENT", Latest: "LATEST", Method: "METHOD", Status: "STATUS"}
-			if err := cliutil.RenderList(cmd.OutOrStdout(), format, header, rows); err != nil {
+			if err := cmdline.RenderList(cmd.OutOrStdout(), format, header, rows); err != nil {
 				return err
 			}
 			if outdated > 0 {
@@ -95,7 +95,7 @@ func newCommand(svc nvChecker, runtime *app.Runtime) *cobra.Command {
 			return nil
 		},
 	}
-	cliutil.AddFormatFlags(&cmd)
+	cmdline.AddFormatFlags(&cmd)
 	return &cmd
 }
 

@@ -5,7 +5,7 @@ import (
 	"time"
 
 	ayatoaur "github.com/Hayao0819/Kamisato/ayato/service/aur"
-	"github.com/Hayao0819/Kamisato/internal/kayoproto"
+	"github.com/Hayao0819/Kamisato/internal/api/kayo"
 	"github.com/Hayao0819/Kamisato/pkg/aurweb"
 )
 
@@ -23,7 +23,7 @@ func TestSignVerifyRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cat := kayoproto.Catalog{Packages: []aurweb.Pkg{{Name: "x", PackageBase: "x"}}}
+	cat := kayo.Catalog{Packages: []aurweb.Pkg{{Name: "x", PackageBase: "x"}}}
 	env, err := signer.Sign(cat)
 	if err != nil {
 		t.Fatal(err)

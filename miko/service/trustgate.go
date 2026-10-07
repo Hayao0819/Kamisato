@@ -6,7 +6,7 @@ import (
 	"log/slog"
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
-	depend "github.com/Hayao0819/Kamisato/internal/pacman"
+	depend "github.com/Hayao0819/Kamisato/internal/pacman/depend"
 	"github.com/Hayao0819/Kamisato/miko/domain"
 	"github.com/Hayao0819/Kamisato/pkg/aurweb"
 )
@@ -24,7 +24,7 @@ type maintainerLookup interface {
 // closed. The target the user submitted is never passed here — only its
 // transitive AUR deps are gated, since a malicious dep would otherwise be built
 // and published silently.
-func (s *Service) checkDepTrust(ctx context.Context, up maintainerLookup, dep depend.Pkg) error {
+func (s *Service) checkDepTrust(ctx context.Context, up maintainerLookup, dep depend.Package) error {
 	maintainer, err := depMaintainer(ctx, up, dep)
 	if err != nil {
 		return errors.WrapErr(err, "failed to look up AUR maintainer for "+dep.PackageBase)
@@ -49,7 +49,7 @@ func (s *Service) checkDepTrust(ctx context.Context, up maintainerLookup, dep de
 // depMaintainer returns the AUR maintainer of dep's package base. An empty
 // string means the package is orphaned (or no longer in the AUR), which the
 // trust policy treats as untrusted.
-func depMaintainer(ctx context.Context, up maintainerLookup, dep depend.Pkg) (string, error) {
+func depMaintainer(ctx context.Context, up maintainerLookup, dep depend.Package) (string, error) {
 	infos, err := up.Info(ctx, []string{dep.Name})
 	if err != nil {
 		return "", err

@@ -8,7 +8,7 @@ import (
 	"github.com/Hayao0819/Kamisato/ayaka/app"
 	"github.com/Hayao0819/Kamisato/ayaka/cli"
 	"github.com/Hayao0819/Kamisato/ayaka/service/report"
-	"github.com/Hayao0819/Kamisato/internal/cliutil"
+	cmdline "github.com/Hayao0819/Kamisato/internal/cli"
 	"github.com/Hayao0819/Kamisato/internal/errors"
 	"github.com/Hayao0819/Kamisato/internal/pacman/source"
 )
@@ -23,7 +23,7 @@ var pkgHeader = report.Row{
 }
 
 func renderRows(out io.Writer, format string, rows []report.Row) error {
-	return cliutil.RenderList(out, format, pkgHeader, rows)
+	return cmdline.RenderList(out, format, pkgHeader, rows)
 }
 
 // Cmd lists source packages with their versions and build status; columns are
@@ -58,7 +58,7 @@ func Cmd(runtime *app.Runtime) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			format, err := cliutil.ResolveFormat(cmd, report.DefaultListFormat)
+			format, err := cmdline.ResolveFormat(cmd, report.DefaultListFormat)
 			if err != nil {
 				return err
 			}
@@ -67,7 +67,7 @@ func Cmd(runtime *app.Runtime) *cobra.Command {
 		},
 	}
 
-	cliutil.AddFormatFlags(&cmd)
+	cmdline.AddFormatFlags(&cmd)
 	cli.AddServerFlag(&cmd)
 	return &cmd
 }

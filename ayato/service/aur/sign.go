@@ -7,14 +7,14 @@ import (
 	"os"
 	"time"
 
+	"github.com/Hayao0819/Kamisato/internal/api/kayo"
 	"github.com/Hayao0819/Kamisato/internal/errors"
-	"github.com/Hayao0819/Kamisato/internal/kayoproto"
 )
 
 // KeyID is a human-comparable handle (first 16 hex of SHA-256) for logs and
 // out-of-band pin confirmation, never for crypto decisions.
 func KeyID(pub ed25519.PublicKey) string {
-	return kayoproto.KeyID(pub)
+	return kayo.KeyID(pub)
 }
 
 // CatalogSigner is ayato's Ed25519 identity for the catalog: ayato alone holds the
@@ -58,18 +58,18 @@ func (s *CatalogSigner) PublicKeyB64() string { return base64.StdEncoding.Encode
 
 // Sign returns a detached signature over the exact marshaled payload bytes (pure
 // Ed25519, no pre-hash).
-func (s *CatalogSigner) Sign(cat kayoproto.Catalog) (kayoproto.CatalogEnvelope, error) {
+func (s *CatalogSigner) Sign(cat kayo.Catalog) (kayo.CatalogEnvelope, error) {
 	now := time.Now().UTC()
-	p := kayoproto.SignedPayload{KeyID: s.keyID, IssuedAt: now, Catalog: cat}
+	p := kayo.SignedPayload{KeyID: s.keyID, IssuedAt: now, Catalog: cat}
 	if s.ttl > 0 {
 		p.ExpiresAt = now.Add(s.ttl)
 	}
 	payload, err := json.Marshal(p)
 	if err != nil {
-		return kayoproto.CatalogEnvelope{}, errors.WrapErr(err, "aur: marshal signed payload")
+		return kayo.CatalogEnvelope{}, errors.WrapErr(err, "aur: marshal signed payload")
 	}
 	sig := ed25519.Sign(s.priv, payload)
-	return kayoproto.CatalogEnvelope{
+	return kayo.CatalogEnvelope{
 		Payload:   payload,
 		Alg:       "ed25519",
 		KeyID:     s.keyID,

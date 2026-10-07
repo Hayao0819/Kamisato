@@ -12,9 +12,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/Hayao0819/Kamisato/internal/cliutil"
+	cmdline "github.com/Hayao0819/Kamisato/internal/cli"
 	"github.com/Hayao0819/Kamisato/internal/errors"
-	"github.com/Hayao0819/Kamisato/internal/ginutil"
+	httpserver "github.com/Hayao0819/Kamisato/internal/http/server"
 
 	"github.com/Hayao0819/Kamisato/internal/auth/apikey"
 	"github.com/Hayao0819/Kamisato/internal/pacman/sign"
@@ -109,10 +109,10 @@ func BuildHostSigner(ctx context.Context, cfg *mikoconfig.MikoConfig) (sign.Sign
 
 func RunSigner(ctx context.Context, cfg *mikoconfig.MikoConfig) error {
 	if cfg.Debug {
-		cliutil.UseColorLog(slog.LevelDebug)
+		cmdline.UseColorLog(slog.LevelDebug)
 		gin.SetMode(gin.DebugMode)
 	} else {
-		cliutil.UseColorLog(slog.LevelInfo)
+		cmdline.UseColorLog(slog.LevelInfo)
 		gin.SetMode(gin.ReleaseMode)
 	}
 
@@ -132,9 +132,9 @@ func RunSigner(ctx context.Context, cfg *mikoconfig.MikoConfig) error {
 		slog.Warn("signer service authentication explicitly disabled")
 	}
 
-	server := ginutil.NewServer(fmt.Sprintf(":%d", cfg.Port), signer.Handler(hostSigner, verifier, cfg.MaxSize))
+	server := httpserver.NewServer(fmt.Sprintf(":%d", cfg.Port), signer.Handler(hostSigner, verifier, cfg.MaxSize))
 	serverContext, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	slog.Info("signer service listening", "port", cfg.Port)
-	return ginutil.ServeHTTP(serverContext, server, nil)
+	return httpserver.ServeHTTP(serverContext, server, nil)
 }

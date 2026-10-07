@@ -6,9 +6,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Hayao0819/Kamisato/internal/ayatoapi"
+	"github.com/Hayao0819/Kamisato/internal/api/ayato"
 	"github.com/Hayao0819/Kamisato/internal/errors"
-	"github.com/Hayao0819/Kamisato/internal/nvcheck"
+	"github.com/Hayao0819/Kamisato/internal/pacman/source/nvcheck"
 	mikoconfig "github.com/Hayao0819/Kamisato/miko/config"
 	"github.com/Hayao0819/Kamisato/miko/service"
 )
@@ -76,9 +76,9 @@ func ServiceDependencies(cfg *mikoconfig.MikoConfig) ([]service.ServiceOption, e
 		return options, nil
 	}
 
-	repositories, err := ayatoapi.NewRepository(
+	repositories, err := ayato.NewRepository(
 		cfg.Ayato.URL,
-		ayatoapi.WithHTTPClient(httpClient),
+		ayato.WithHTTPClient(httpClient),
 	)
 	if err != nil {
 		return nil, errors.WrapErr(err, "configure Ayato repository reader")

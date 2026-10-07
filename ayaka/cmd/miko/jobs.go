@@ -4,7 +4,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/Hayao0819/Kamisato/ayaka/cli"
-	"github.com/Hayao0819/Kamisato/internal/cliutil"
+	cmdline "github.com/Hayao0819/Kamisato/internal/cli"
 	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
@@ -28,13 +28,13 @@ func mikoJobsCmd() *cobra.Command {
 				return errors.WrapErr(err, "failed to list jobs")
 			}
 
-			format, err := cliutil.ResolveFormat(cmd, cli.JobTableFormat)
+			format, err := cmdline.ResolveFormat(cmd, cli.JobTableFormat)
 			if err != nil {
 				return err
 			}
-			return cliutil.RenderList(cmd.OutOrStdout(), format, cli.JobHeader, jobs)
+			return cmdline.RenderList(cmd.OutOrStdout(), format, cli.JobHeader, jobs)
 		},
 	}
-	cliutil.AddFormatFlags(cmd)
+	cmdline.AddFormatFlags(cmd)
 	return cmd
 }

@@ -3,10 +3,10 @@ package main
 import (
 	"os"
 
-	"github.com/Hayao0819/Kamisato/internal/cliutil"
+	cmdline "github.com/Hayao0819/Kamisato/internal/cli"
 	"github.com/Hayao0819/Kamisato/miko/cmd"
 )
 
 func main() {
-	os.Exit(cliutil.Execute(cmd.RootCmd()))
+	os.Exit(cmdline.Execute(cmd.RootCmd()))
 }

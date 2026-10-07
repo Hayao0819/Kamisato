@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Hayao0819/Kamisato/internal/apiclient"
+	"github.com/Hayao0819/Kamisato/internal/api/client"
 )
 
 type catalogRoundTripFunc func(*http.Request) (*http.Response, error)
@@ -41,8 +41,8 @@ func TestCatalogClientPreservesPrefixAndRetriesReads(t *testing.T) {
 
 	catalog, err := newCatalogClient(
 		"https://ayato.example/mirror/root",
-		apiclient.WithHTTPClient(httpClient),
-		apiclient.WithReadAttempts(2),
+		client.WithHTTPClient(httpClient),
+		client.WithReadAttempts(2),
 	)
 	if err != nil {
 		t.Fatal(err)

@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
-	"github.com/Hayao0819/Kamisato/internal/ginutil"
+	httpserver "github.com/Hayao0819/Kamisato/internal/http/server"
 	mikoconfig "github.com/Hayao0819/Kamisato/miko/config"
 	"github.com/Hayao0819/Kamisato/miko/handler"
 	"github.com/Hayao0819/Kamisato/miko/router"
@@ -62,15 +62,15 @@ func Run(ctx context.Context, cfg *mikoconfig.MikoConfig) error {
 	}()
 	slog.Info("Build workers launched", "concurrency", cfg.Concurrency)
 
-	engine := ginutil.NewEngine()
+	engine := httpserver.NewEngine()
 	if err := router.SetRoute(engine, handlerInstance, verifier); err != nil {
 		return errors.WrapErr(err, "failed to set routing")
 	}
 	slog.Info("Routing initialized")
 
-	server := ginutil.NewServer(fmt.Sprintf(":%d", cfg.Port), engine)
+	server := httpserver.NewServer(fmt.Sprintf(":%d", cfg.Port), engine)
 	slog.Info("Waiting on port", "port", cfg.Port)
-	serveErr := ginutil.ServeHTTP(ctx, server, nil)
+	serveErr := httpserver.ServeHTTP(ctx, server, nil)
 	cancel()
 
 	var workerErr error

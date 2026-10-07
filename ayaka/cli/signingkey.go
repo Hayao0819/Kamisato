@@ -8,7 +8,7 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 
-	"github.com/Hayao0819/Kamisato/internal/cliutil"
+	cmdline "github.com/Hayao0819/Kamisato/internal/cli"
 	"github.com/Hayao0819/Kamisato/internal/errors"
 	"github.com/Hayao0819/Kamisato/internal/pacman/sign"
 )
@@ -48,9 +48,9 @@ func Passphrase(cmd *cobra.Command, prompt bool) (string, error) {
 	file, _ := cmd.Flags().GetString(flagPassphraseFile)
 	var ask func() (string, error)
 	if prompt && term.IsTerminal(int(syscall.Stdin)) {
-		ask = func() (string, error) { return cliutil.PromptPassword("Key passphrase (empty for none):") }
+		ask = func() (string, error) { return cmdline.PromptPassword("Key passphrase (empty for none):") }
 	}
-	return cliutil.ResolveSecret(PassphraseEnv, file, ask)
+	return cmdline.ResolveSecret(PassphraseEnv, file, ask)
 }
 
 // LoadSigningKey opens the signing key, resolving the passphrase from env/file
@@ -72,7 +72,7 @@ func LoadSigningKey(cmd *cobra.Command) (*sign.SigningKey, string, error) {
 		return k, pass, nil
 	}
 	if pass == "" && term.IsTerminal(int(syscall.Stdin)) {
-		prompted, perr := cliutil.PromptPassword("Key passphrase:")
+		prompted, perr := cmdline.PromptPassword("Key passphrase:")
 		if perr != nil {
 			return nil, "", perr
 		}

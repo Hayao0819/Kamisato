@@ -9,7 +9,7 @@ import (
 
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
 	"github.com/Hayao0819/Kamisato/internal/errors"
-	"github.com/Hayao0819/Kamisato/internal/gitcmd"
+	"github.com/Hayao0819/Kamisato/internal/vcs/git"
 	"github.com/Hayao0819/Kamisato/pkg/aurweb"
 	"github.com/Hayao0819/Kamisato/pkg/raiou"
 )
@@ -25,7 +25,7 @@ func (b *Backend) Register(ctx context.Context, gitURL, ref, maintainer string) 
 
 	// gitURL is admin-supplied, so Strict rejects file/ext transports and
 	// private-network hosts (SSRF/RCE guard).
-	if err := gitcmd.Clone(ctx, gitcmd.CloneOptions{URL: gitURL, Dir: dir, Ref: ref, Depth: 1, Strict: true}); err != nil {
+	if err := git.Clone(ctx, git.CloneOptions{URL: gitURL, Dir: dir, Ref: ref, Depth: 1, Strict: true}); err != nil {
 		return "", nil, err
 	}
 	return b.ingest(ctx, dir, gitURL, maintainer)
@@ -40,7 +40,7 @@ func (b *Backend) ingest(ctx context.Context, dir, source, maintainer string) (p
 	if maintainer == "" {
 		maintainer = b.defaultMaint
 	}
-	ts := gitcmd.CommitUnix(ctx, dir)
+	ts := git.CommitUnix(ctx, dir)
 	pkgs := aurweb.FromSrcinfo(si, aurweb.SrcinfoMeta{
 		Maintainer:     maintainer,
 		Submitter:      maintainer,

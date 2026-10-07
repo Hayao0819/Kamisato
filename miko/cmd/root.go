@@ -8,8 +8,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/Hayao0819/Kamisato/internal/cliutil"
-	"github.com/Hayao0819/Kamisato/internal/ginutil"
+	cmdline "github.com/Hayao0819/Kamisato/internal/cli"
+	httpserver "github.com/Hayao0819/Kamisato/internal/http/server"
 	"github.com/Hayao0819/Kamisato/miko/app"
 	apikeycmd "github.com/Hayao0819/Kamisato/miko/cmd/apikey"
 	nvcheckcmd "github.com/Hayao0819/Kamisato/miko/cmd/nvcheck"
@@ -20,7 +20,7 @@ import (
 func RootCmd() *cobra.Command {
 	cmd := cobra.Command{
 		Use:  "miko",
-		Args: cliutil.NoArgs,
+		Args: cmdline.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			configFile, err := cmd.Flags().GetString("config")
 			if err != nil {
@@ -33,7 +33,7 @@ func RootCmd() *cobra.Command {
 			if configFile != "" {
 				slog.Info("Loaded from config file", "path", configFile)
 			}
-			ginutil.Setup(cmd, cfg.Debug)
+			httpserver.Setup(cmd, cfg.Debug)
 			ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
 			defer stop()
 			return app.Run(ctx, cfg)
@@ -41,10 +41,10 @@ func RootCmd() *cobra.Command {
 	}
 	cmd.PersistentFlags().BoolP("debug", "d", false, "Enable debug mode")
 	cmd.PersistentFlags().StringP("config", "c", "", "Config file")
-	cliutil.SetVersion(&cmd)
-	cliutil.AddNoColorFlag(&cmd)
+	cmdline.SetVersion(&cmd)
+	cmdline.AddNoColorFlag(&cmd)
 	cmd.SilenceErrors = true
 	cmd.SilenceUsage = true
-	cmd.AddCommand(apikeycmd.Cmd(), nvcheckcmd.Cmd(), signercmd.Cmd(), cliutil.VersionCommand())
+	cmd.AddCommand(apikeycmd.Cmd(), nvcheckcmd.Cmd(), signercmd.Cmd(), cmdline.VersionCommand())
 	return &cmd
 }

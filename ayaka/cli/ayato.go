@@ -3,11 +3,11 @@ package cli
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/Hayao0819/Kamisato/internal/ayatoapi"
+	ayatostore "github.com/Hayao0819/Kamisato/internal/api/ayato/auth/store"
 )
 
 // AyatoServer is a resolved Ayato endpoint and credential source.
-type AyatoServer = ayatoapi.Endpoint
+type AyatoServer = ayatostore.Endpoint
 
 const serverFlagHelp = "ayato server (default: serverdb default)"
 
@@ -36,5 +36,5 @@ func ServerFromFlag(cmd *cobra.Command) (*AyatoServer, error) {
 
 // ResolveAyatoServer resolves a named or default server.
 func ResolveAyatoServer(server string) (*AyatoServer, error) {
-	return ayatoapi.Resolve(server)
+	return ayatostore.Resolve(server)
 }

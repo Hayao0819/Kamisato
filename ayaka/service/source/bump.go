@@ -12,10 +12,10 @@ import (
 	"github.com/samber/lo"
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
-	"github.com/Hayao0819/Kamisato/internal/gitcmd"
-	pkg "github.com/Hayao0819/Kamisato/internal/pacman"
+	"github.com/Hayao0819/Kamisato/internal/filesystem/safefile"
+	pkg "github.com/Hayao0819/Kamisato/internal/pacman/pkg"
 	"github.com/Hayao0819/Kamisato/internal/pacman/source"
-	"github.com/Hayao0819/Kamisato/internal/safefile"
+	"github.com/Hayao0819/Kamisato/internal/vcs/git"
 )
 
 var pkgrelRe = regexp.MustCompile(`(?m)^pkgrel=['"]?([0-9]+(?:\.[0-9]+)?)['"]?[ \t]*(?:#[^\r\n]*)?\r?$`)
@@ -57,7 +57,7 @@ func BumpPkgrel(src *source.SourceRepo, names []string, by string, stderr io.Wri
 // CommitBump stages each bumped package's PKGBUILD/.SRCINFO and commits them in
 // the git repo containing srcDir, returning the commit hash.
 func CommitBump(srcDir string, bumped []*pkg.SourcePackage, message string) (string, error) {
-	root, err := gitcmd.RepoRoot(srcDir)
+	root, err := git.RepoRoot(srcDir)
 	if err != nil {
 		return "", err
 	}
@@ -71,7 +71,7 @@ func CommitBump(srcDir string, bumped []*pkg.SourcePackage, message string) (str
 			paths = append(paths, filepath.ToSlash(rel))
 		}
 	}
-	return gitcmd.CommitPaths(root, paths, message)
+	return git.CommitPaths(root, paths, message)
 }
 
 func findPackage(pkgs []*pkg.SourcePackage, name string) *pkg.SourcePackage {

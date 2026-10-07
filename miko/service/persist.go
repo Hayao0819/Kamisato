@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
-	"github.com/Hayao0819/Kamisato/internal/safefile"
+	"github.com/Hayao0819/Kamisato/internal/filesystem/safefile"
 	"github.com/Hayao0819/Kamisato/miko/domain"
 )
 

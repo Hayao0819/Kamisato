@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/Hayao0819/Kamisato/ayaka/app"
-	pkg "github.com/Hayao0819/Kamisato/internal/pacman"
+	pkg "github.com/Hayao0819/Kamisato/internal/pacman/pkg"
 	"github.com/Hayao0819/Kamisato/internal/pacman/source"
 )
 

@@ -4,7 +4,7 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/Hayao0819/Kamisato/internal/ayatoapi"
+	"github.com/Hayao0819/Kamisato/internal/api/ayato"
 	"github.com/Hayao0819/Kamisato/internal/pacman/sign"
 )
 
@@ -14,7 +14,7 @@ func RegisterWorkerCert(ctx context.Context, settings Settings, keystore *sign.K
 	if err != nil {
 		return err
 	}
-	publisher, err := ayatoapi.NewPublisher(settings.AyatoURL, settings.AyatoAPIKey)
+	publisher, err := ayato.NewPublisher(settings.AyatoURL, settings.AyatoAPIKey)
 	if err != nil {
 		return err
 	}

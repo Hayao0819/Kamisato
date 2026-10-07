@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Hayao0819/Kamisato/internal/kayoproto"
+	"github.com/Hayao0819/Kamisato/internal/api/kayo"
 )
 
 // countingSM is a SourceManager whose Catalog build is counted, so a test can prove
@@ -19,9 +19,9 @@ func (c *countingSM) Register(context.Context, string, string, string) (string, 
 }
 func (c *countingSM) Remove(context.Context, string) error   { return nil }
 func (c *countingSM) List(context.Context) ([]string, error) { return nil, nil }
-func (c *countingSM) Catalog(context.Context) (kayoproto.Catalog, error) {
+func (c *countingSM) Catalog(context.Context) (kayo.Catalog, error) {
 	c.calls++
-	return kayoproto.Catalog{}, nil
+	return kayo.Catalog{}, nil
 }
 
 func TestCatalogServiceCachesEnvelope(t *testing.T) {

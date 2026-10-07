@@ -11,7 +11,7 @@ import (
 
 	"github.com/ProtonMail/go-crypto/openpgp"
 
-	pkgpkg "github.com/Hayao0819/Kamisato/internal/pacman"
+	pkgpkg "github.com/Hayao0819/Kamisato/internal/pacman/pkg"
 	"github.com/Hayao0819/Kamisato/internal/pacman/sign"
 )
 

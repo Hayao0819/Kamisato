@@ -8,7 +8,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/Hayao0819/Kamisato/internal/ayatoapi"
+	ayatologin "github.com/Hayao0819/Kamisato/internal/api/ayato/auth/login"
+	ayatostore "github.com/Hayao0819/Kamisato/internal/api/ayato/auth/store"
 )
 
 // LoginCmd logs into ayato via a GitHub OAuth loopback (RFC 8252) + PKCE flow
@@ -71,12 +72,12 @@ func LoginCmd() *cobra.Command {
 				// Device flow: no loopback listener, so it works over SSH/CI where the
 				// browser is on another machine.
 				if device {
-					return ayatoapi.DeviceLogin(ctx, serverURL, ayatoapi.WithDeviceOutput(cmd.OutOrStdout()))
+					return ayatologin.DeviceLogin(ctx, serverURL, ayatologin.WithDeviceOutput(cmd.OutOrStdout()))
 				}
-				return ayatoapi.LoopbackLogin(ctx, serverURL,
-					ayatoapi.WithNoBrowser(noBrowser),
-					ayatoapi.WithBrowserOpener(ayatoapi.OpenSystemBrowser),
-					ayatoapi.WithOutput(cmd.OutOrStdout()),
+				return ayatologin.LoopbackLogin(ctx, serverURL,
+					ayatologin.WithNoBrowser(noBrowser),
+					ayatologin.WithBrowserOpener(ayatologin.OpenSystemBrowser),
+					ayatologin.WithOutput(cmd.OutOrStdout()),
 				)
 			}
 			token, refresh, loginName, err := login()
@@ -104,9 +105,9 @@ func LoginCmd() *cobra.Command {
 func saveLogin(server, login, token, refresh string, setDefault bool) error {
 	var saveErr error
 	if refresh == "" {
-		saveErr = ayatoapi.SaveStaticToken(server, login, token)
+		saveErr = ayatostore.SaveStaticToken(server, login, token)
 	} else {
-		saveErr = ayatoapi.SaveTokens(server, login, token, refresh)
+		saveErr = ayatostore.SaveTokens(server, login, token, refresh)
 	}
 	if saveErr != nil {
 		return saveErr
@@ -114,5 +115,5 @@ func saveLogin(server, login, token, refresh string, setDefault bool) error {
 	if !setDefault {
 		return nil
 	}
-	return ayatoapi.SetDefault(server)
+	return ayatostore.SetDefault(server)
 }

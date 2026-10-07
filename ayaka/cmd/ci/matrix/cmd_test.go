@@ -14,7 +14,7 @@ import (
 
 	"github.com/Hayao0819/Kamisato/ayaka/app"
 	"github.com/Hayao0819/Kamisato/ayaka/service/plan"
-	pkg "github.com/Hayao0819/Kamisato/internal/pacman"
+	pkg "github.com/Hayao0819/Kamisato/internal/pacman/pkg"
 	"github.com/Hayao0819/Kamisato/internal/pacman/builder"
 	"github.com/Hayao0819/Kamisato/internal/pacman/repo"
 	"github.com/Hayao0819/Kamisato/internal/pacman/source"

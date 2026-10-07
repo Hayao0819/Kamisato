@@ -9,7 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
-	"github.com/Hayao0819/Kamisato/internal/ginutil"
+	httpserver "github.com/Hayao0819/Kamisato/internal/http/server"
 	kayoconfig "github.com/Hayao0819/Kamisato/kayo/config"
 	"github.com/Hayao0819/Kamisato/kayo/federate"
 	"github.com/Hayao0819/Kamisato/kayo/gitserve"
@@ -56,13 +56,13 @@ func Run(ctx context.Context, cfg *kayoconfig.KayoConfig) error {
 		go refreshLoop(ctx, composite, time.Duration(cfg.RefreshMinutes)*time.Minute)
 	}
 
-	engine := ginutil.NewEngine()
+	engine := httpserver.NewEngine()
 	engine.GET("/health", func(c *gin.Context) { c.String(http.StatusOK, "ok") })
 	engine.NoRoute(gin.WrapH(gitserve.NewHandler(cfg.ServedRoot(), surface)))
 
-	server := ginutil.NewServer(cfg.ListenAddr(), engine)
+	server := httpserver.NewServer(cfg.ListenAddr(), engine)
 	slog.Info("kayo listening", "addr", cfg.ListenAddr())
-	return ginutil.ServeHTTP(ctx, server, nil)
+	return httpserver.ServeHTTP(ctx, server, nil)
 }
 
 func refreshLoop(ctx context.Context, composite *federate.Composite, every time.Duration) {

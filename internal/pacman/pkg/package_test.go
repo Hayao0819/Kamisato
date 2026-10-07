@@ -1,0 +1,141 @@
+package pkg_test
+
+import (
+	"os"
+	"path/filepath"
+	"slices"
+	"testing"
+
+	pkg "github.com/Hayao0819/Kamisato/internal/pacman/pkg"
+)
+
+const srcinfo = "pkgbase = foo\n" +
+	"\tpkgver = 1.2.3\n" +
+	"\tpkgrel = 2\n" +
+	"\tepoch = 1\n" +
+	"\tarch = x86_64\n" +
+	"\n" +
+	"pkgname = foo\n" +
+	"\n" +
+	"pkgname = foo-libs\n"
+
+func writeSrcDir(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, ".SRCINFO"), []byte(srcinfo), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return dir
+}
+
+func TestOpenSourcePackage(t *testing.T) {
+	dir := writeSrcDir(t)
+
+	p, err := pkg.OpenSourcePackage(dir)
+	if err != nil {
+		t.Fatalf("OpenSourcePackage failed: %v", err)
+	}
+
+	if p.Base() != "foo" {
+		t.Errorf("Base() = %q, want foo", p.Base())
+	}
+	// epoch:pkgver-pkgrel
+	if p.Version() != "1:1.2.3-2" {
+		t.Errorf("Version() = %q, want 1:1.2.3-2", p.Version())
+	}
+	names := p.Names()
+	if len(names) != 2 || names[0] != "foo" || names[1] != "foo-libs" {
+		t.Errorf("Names() = %v, want [foo foo-libs]", names)
+	}
+	if p.Dir() != dir {
+		t.Errorf("Dir() = %q, want %q", p.Dir(), dir)
+	}
+}
+
+func TestSourcePackageArches(t *testing.T) {
+	p, err := pkg.OpenSourcePackage(writeSrcDir(t))
+	if err != nil {
+		t.Fatalf("OpenSourcePackage failed: %v", err)
+	}
+	if got := p.Arches(); len(got) != 1 || got[0] != "x86_64" {
+		t.Errorf("Arches() = %v, want [x86_64]", got)
+	}
+	if !p.SupportsArch("x86_64") {
+		t.Error("SupportsArch(x86_64) = false, want true")
+	}
+	if p.SupportsArch("i686") {
+		t.Error("SupportsArch(i686) = true, want false")
+	}
+}
+
+func TestSourcePackageSupportsArchAny(t *testing.T) {
+	dir := t.TempDir()
+	data := "pkgbase = bar\n\tpkgver = 1\n\tpkgrel = 1\n\tarch = any\n\npkgname = bar\n"
+	if err := os.WriteFile(filepath.Join(dir, ".SRCINFO"), []byte(data), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	p, err := pkg.OpenSourcePackage(dir)
+	if err != nil {
+		t.Fatalf("OpenSourcePackage failed: %v", err)
+	}
+	if !p.SupportsArch("i486") {
+		t.Error("SupportsArch(i486) = false for arch=any, want true")
+	}
+}
+
+func TestOpenSourcePackage_NoSrcinfo(t *testing.T) {
+	dir := t.TempDir()
+	if _, err := pkg.OpenSourcePackage(dir); err != pkg.ErrSRCINFONotFound {
+		t.Errorf("OpenSourcePackage error = %v, want ErrSRCINFONotFound", err)
+	}
+}
+
+func TestSourcePackageBuildMetadataUsesTargetArchitecture(t *testing.T) {
+	dir := t.TempDir()
+	data := "pkgbase = split\n" +
+		"\tpkgver = 2\n\tpkgrel = 3\n\tarch = x86_64\n\tarch = i686\n" +
+		"\tmakedepends = make-common\n\tmakedepends_x86_64 = make-x86\n" +
+		"\tcheckdepends = check-common\n\tcheckdepends_i686 = check-i686\n" +
+		"\n" +
+		"pkgname = split-cli\n\tdepends = runtime-common\n\tdepends_x86_64 = runtime-x86\n\tprovides = command=2\n" +
+		"\n" +
+		"pkgname = split-docs\n\tarch = any\n\tdepends = docs-common\n"
+	if err := os.WriteFile(filepath.Join(dir, ".SRCINFO"), []byte(data), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	p, err := pkg.OpenSourcePackage(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := p.OutputNames("x86_64"); !slices.Equal(got, []string{"split-cli", "split-docs"}) {
+		t.Fatalf("OutputNames = %v", got)
+	}
+	wantDepends := []string{"check-common", "docs-common", "make-common", "make-x86", "runtime-common", "runtime-x86"}
+	if got := p.BuildDepends("x86_64"); !slices.Equal(got, wantDepends) {
+		t.Fatalf("BuildDepends = %v", got)
+	}
+	if got := p.OutputProvides("x86_64"); !slices.Equal(got, []string{"command=2"}) {
+		t.Fatalf("OutputProvides = %v", got)
+	}
+}
+
+func TestSourcePackageSourcesUsesTargetArchitecture(t *testing.T) {
+	dir := t.TempDir()
+	data := "pkgbase = vcs\n" +
+		"\tpkgver = 1\n\tpkgrel = 1\n\tarch = x86_64\n\tarch = i686\n" +
+		"\tsource = git+https://example.com/common.git\n" +
+		"\tsource_x86_64 = git+https://example.com/x86.git\n" +
+		"\tsource_i686 = git+https://example.com/i686.git\n\n" +
+		"pkgname = vcs\n"
+	if err := os.WriteFile(filepath.Join(dir, ".SRCINFO"), []byte(data), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	p, err := pkg.OpenSourcePackage(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"git+https://example.com/common.git", "git+https://example.com/x86.git"}
+	if got := p.Sources("x86_64"); !slices.Equal(got, want) {
+		t.Fatalf("Sources = %v, want %v", got, want)
+	}
+}

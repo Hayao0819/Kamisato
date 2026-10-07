@@ -12,7 +12,7 @@ import (
 
 	"github.com/Hayao0819/Kamisato/ayato/blob"
 	"github.com/Hayao0819/Kamisato/ayato/domain"
-	"github.com/Hayao0819/Kamisato/internal/limits"
+	"github.com/Hayao0819/Kamisato/internal/pacman/limits"
 )
 
 type uploadFileError struct {

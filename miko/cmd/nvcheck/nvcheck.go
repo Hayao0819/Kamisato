@@ -5,7 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/Hayao0819/Kamisato/internal/cliutil"
+	cmdline "github.com/Hayao0819/Kamisato/internal/cli"
 	"github.com/Hayao0819/Kamisato/miko/app"
 	mikoconfig "github.com/Hayao0819/Kamisato/miko/config"
 )
@@ -23,7 +23,7 @@ func Cmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "nvcheck",
 		Short: "Check monitored packages for newer upstream versions",
-		Args:  cliutil.NoArgs,
+		Args:  cmdline.NoArgs,
 		Long: "Fetch the latest upstream version of every entry under nvcheck.entries " +
 			"and compare it against the version published on ayato. This is a read-only " +
 			"report: it does not enqueue rebuilds (the running server does that on its " +
@@ -60,12 +60,12 @@ func Cmd() *cobra.Command {
 					Status:    status,
 				})
 			}
-			format, err := cliutil.ResolveFormat(cmd, nvcheckDefaultFmt)
+			format, err := cmdline.ResolveFormat(cmd, nvcheckDefaultFmt)
 			if err != nil {
 				return err
 			}
 			header := nvcheckRow{Pkgbase: "PKGBASE", Published: "PUBLISHED", Upstream: "UPSTREAM", Status: "STATUS"}
-			if err := cliutil.RenderList(cmd.OutOrStdout(), format, header, rows); err != nil {
+			if err := cmdline.RenderList(cmd.OutOrStdout(), format, header, rows); err != nil {
 				return err
 			}
 
@@ -75,7 +75,7 @@ func Cmd() *cobra.Command {
 			return nil
 		},
 	}
-	cliutil.AddFormatFlags(cmd)
+	cmdline.AddFormatFlags(cmd)
 	return cmd
 }
 

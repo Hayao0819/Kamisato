@@ -13,7 +13,8 @@ import (
 	alpm "github.com/Hayao0819/dyalpm"
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
-	"github.com/Hayao0819/Kamisato/internal/pacman"
+	"github.com/Hayao0819/Kamisato/internal/pacman/depend"
+	"github.com/Hayao0819/Kamisato/internal/pacman/pkg"
 	"github.com/Hayao0819/Kamisato/internal/pacman/repo"
 	"github.com/Hayao0819/Kamisato/internal/pacman/source"
 )
@@ -49,13 +50,13 @@ type Plan struct {
 }
 
 // Compute derives the build set for arch from source and published packages.
-func Compute(ctx context.Context, src []*pacman.SourcePackage, rr *repo.RemoteRepo, arch string, cascade CascadeMode, workers int, costs map[string]float64) (*Plan, error) {
+func Compute(ctx context.Context, src []*pkg.SourcePackage, rr *repo.RemoteRepo, arch string, cascade CascadeMode, workers int, costs map[string]float64) (*Plan, error) {
 	return compute(ctx, src, rr, arch, cascade, workers, costs, gitRemoteCommit)
 }
 
 func compute(
 	ctx context.Context,
-	src []*pacman.SourcePackage,
+	src []*pkg.SourcePackage,
 	rr *repo.RemoteRepo,
 	arch string,
 	cascade CascadeMode,
@@ -64,7 +65,7 @@ func compute(
 	resolve gitCommitResolver,
 ) (*Plan, error) {
 	archPkgs := source.FilterByArch(src, arch)
-	byBase := lo.KeyBy(archPkgs, (*pacman.SourcePackage).Base)
+	byBase := lo.KeyBy(archPkgs, (*pkg.SourcePackage).Base)
 
 	reasons := map[string]string{}
 	for _, p := range repo.DiffPackages(archPkgs, rr) {
@@ -79,7 +80,7 @@ func compute(
 		return nil, err
 	}
 
-	graph := source.BuildDepGraph(archPkgs, arch)
+	graph := source.BuildDependencyGraph(archPkgs, arch)
 
 	if cascade == CascadeMakeDepends || cascade == CascadeBoth {
 		// VCS revisions and pkgver changes seed the cascade. Cascaded rebuilds
@@ -118,7 +119,7 @@ func compute(
 			}
 		}
 	}
-	order, err := pacman.TopoSort(nodes, subDeps)
+	order, err := depend.TopoSort(nodes, subDeps)
 	if err != nil {
 		return nil, err
 	}
@@ -136,7 +137,7 @@ func compute(
 // pkgverChanged reports whether sp's pkgver (epoch included, pkgrel excluded)
 // differs from the published one; a package missing from the db counts as
 // changed.
-func pkgverChanged(sp *pacman.SourcePackage, rr *repo.RemoteRepo) bool {
+func pkgverChanged(sp *pkg.SourcePackage, rr *repo.RemoteRepo) bool {
 	rp := rr.PkgByPkgBase(sp.Base())
 	if rp == nil {
 		return true
@@ -154,7 +155,7 @@ func pkgverOf(v string) string {
 }
 
 // dependentsClosure returns the transitive dependents of seeds, sorted.
-func dependentsClosure(g *pacman.DepGraph, seeds []string) []string {
+func dependentsClosure(g *depend.Graph, seeds []string) []string {
 	seen := map[string]bool{}
 	var queue []string
 	for _, s := range seeds {
@@ -189,7 +190,7 @@ func brokenSonameDependents(rr *repo.RemoteRepo) []string {
 	provides := map[string][]string{}
 	for _, p := range rr.Pkgs {
 		for _, pr := range p.PKGINFO().Provides {
-			c := pacman.Parse(pr)
+			c := depend.Parse(pr)
 			provides[c.Name] = append(provides[c.Name], c.Ver)
 		}
 	}
@@ -204,7 +205,7 @@ func brokenSonameDependents(rr *repo.RemoteRepo) []string {
 			if !strings.Contains(d, ".so") {
 				continue
 			}
-			c := pacman.Parse(d)
+			c := depend.Parse(d)
 			vers, intra := provides[c.Name]
 			if !intra || sonameSatisfied(c, vers) || seen[base] {
 				continue
@@ -217,8 +218,8 @@ func brokenSonameDependents(rr *repo.RemoteRepo) []string {
 	return out
 }
 
-func sonameSatisfied(c pacman.Constraint, vers []string) bool {
-	if c.Op == pacman.OpAny {
+func sonameSatisfied(c depend.Constraint, vers []string) bool {
+	if c.Op == depend.OpAny {
 		return true
 	}
 	for _, v := range vers {

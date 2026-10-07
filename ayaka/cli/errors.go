@@ -1,7 +1,7 @@
 package cli
 
 import (
-	"github.com/Hayao0819/Kamisato/internal/ayatoapi"
+	ayatostore "github.com/Hayao0819/Kamisato/internal/api/ayato/auth/store"
 	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
@@ -12,6 +12,6 @@ var (
 	ErrSourceRepoNotFound = errors.NewErr("source repository not found")
 	ErrNoSourceDir        = errors.NewErr("source directory not found")
 	ErrNoDestDir          = errors.NewErr("destination directory not found")
-	ErrServerNotFound     = ayatoapi.ErrServerNotFound
-	ErrNoServerSpecified  = ayatoapi.ErrNoServerSpecified
+	ErrServerNotFound     = ayatostore.ErrServerNotFound
+	ErrNoServerSpecified  = ayatostore.ErrNoServerSpecified
 )

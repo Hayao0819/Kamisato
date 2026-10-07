@@ -16,7 +16,7 @@ import (
 
 	"github.com/otiai10/copy"
 
-	pkg "github.com/Hayao0819/Kamisato/internal/pacman"
+	pkg "github.com/Hayao0819/Kamisato/internal/pacman/pkg"
 	"github.com/Hayao0819/Kamisato/internal/pacman/builder"
 	"github.com/Hayao0819/Kamisato/internal/pacman/builder/factory"
 	"github.com/Hayao0819/Kamisato/internal/pacman/sign"

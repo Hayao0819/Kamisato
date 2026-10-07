@@ -14,7 +14,7 @@ import (
 	"github.com/samber/lo"
 
 	"github.com/Hayao0819/Kamisato/ayato/blob"
-	"github.com/Hayao0819/Kamisato/internal/pacman"
+	pacmanrepo "github.com/Hayao0819/Kamisato/internal/pacman/repo"
 )
 
 var (
@@ -97,7 +97,7 @@ func key(repo, arch, name string) string {
 }
 
 func (s *S3) validateRepo(repo string) error {
-	if err := pacman.ValidateRepositoryName(repo); err != nil {
+	if err := pacmanrepo.ValidateName(repo); err != nil {
 		return err
 	}
 	if len(s.repoNames) > 0 && !lo.Contains(s.repoNames, repo) {

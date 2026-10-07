@@ -11,8 +11,8 @@ import (
 	"time"
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
-	"github.com/Hayao0819/Kamisato/internal/pacman"
 	"github.com/Hayao0819/Kamisato/internal/pacman/builder"
+	pacmanrepo "github.com/Hayao0819/Kamisato/internal/pacman/repo"
 	"github.com/Hayao0819/Kamisato/miko/domain"
 )
 
@@ -62,7 +62,7 @@ func (s *Service) submitWithReason(req *domain.BuildRequest, reason domain.Build
 		return "", fmt.Errorf("%w: unsupported arch %q", ErrInvalidRequest, req.Arch)
 	}
 	if req.Repo != "" {
-		if err := pacman.ValidateRepositoryName(req.Repo); err != nil {
+		if err := pacmanrepo.ValidateName(req.Repo); err != nil {
 			return "", fmt.Errorf("%w: invalid repo name %q: %v", ErrInvalidRequest, req.Repo, err)
 		}
 	}

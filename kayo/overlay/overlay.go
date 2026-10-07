@@ -16,7 +16,7 @@ import (
 	"sync"
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
-	"github.com/Hayao0819/Kamisato/internal/gitcmd"
+	"github.com/Hayao0819/Kamisato/internal/vcs/git"
 	kayoconfig "github.com/Hayao0819/Kamisato/kayo/config"
 	"github.com/Hayao0819/Kamisato/kayo/pkgindex"
 	"github.com/Hayao0819/Kamisato/pkg/aurweb"
@@ -78,7 +78,7 @@ func (r *Registry) Sync(ctx context.Context) error {
 			continue
 		}
 
-		ts := gitcmd.CommitUnix(ctx, dir)
+		ts := git.CommitUnix(ctx, dir)
 		pkgs := aurweb.FromSrcinfo(si, aurweb.SrcinfoMeta{
 			Maintainer:     o.Maintainer,
 			Submitter:      o.Maintainer,
@@ -117,13 +117,13 @@ func fetchOverlay(ctx context.Context, dir string, o kayoconfig.OverlayConfig) e
 	case !exists:
 		// Strict SSRF/loopback rejection is intentionally omitted: overlay URLs are
 		// admin-config, and local/loopback overlays (e.g. a dumb-HTTP git server on
-		// 127.0.0.1) are a supported deployment. ext:: RCE is blocked by gitcmd.
-		return gitcmd.Clone(ctx, gitcmd.CloneOptions{URL: o.URL, Dir: dir, Ref: o.Ref})
+		// 127.0.0.1) are a supported deployment. ext:: RCE is blocked by git.
+		return git.Clone(ctx, git.CloneOptions{URL: o.URL, Dir: dir, Ref: o.Ref})
 	case o.Ref != "":
 		// Force-advance to whatever o.Ref points at now (branch/tag/commit); a
 		// plain pull of an already-checked-out branch would freeze it at clone time.
-		return gitcmd.SyncHard(ctx, dir, o.Ref)
+		return git.SyncHard(ctx, dir, o.Ref)
 	default:
-		return gitcmd.Pull(ctx, dir)
+		return git.Pull(ctx, dir)
 	}
 }

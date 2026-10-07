@@ -7,8 +7,8 @@ import (
 	"os"
 	"path/filepath"
 
-	pkg "github.com/Hayao0819/Kamisato/internal/pacman"
 	"github.com/Hayao0819/Kamisato/internal/pacman/builder"
+	pkg "github.com/Hayao0819/Kamisato/internal/pacman/pkg"
 	"github.com/Hayao0819/nahi/futils"
 )
 

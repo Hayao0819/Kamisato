@@ -8,9 +8,9 @@ import (
 	"slices"
 	"time"
 
-	"github.com/Hayao0819/Kamisato/internal/ayatoapi"
+	"github.com/Hayao0819/Kamisato/internal/api/ayato"
 	"github.com/Hayao0819/Kamisato/internal/errors"
-	pkg "github.com/Hayao0819/Kamisato/internal/pacman"
+	pkg "github.com/Hayao0819/Kamisato/internal/pacman/pkg"
 	"github.com/Hayao0819/Kamisato/internal/pacman/sign"
 	"github.com/Hayao0819/Kamisato/internal/pacman/source"
 )
@@ -27,7 +27,7 @@ type RemoteBuildOpts struct {
 
 // RunRemoteBuild submits a build to ayato and returns the job id. The source is
 // --git, else the local PKGBUILD of the named package in srcrepo.
-func RunRemoteBuild(ctx context.Context, api *ayatoapi.Ayato, srcrepo *source.SourceRepo, o RemoteBuildOpts) (string, error) {
+func RunRemoteBuild(ctx context.Context, api *ayato.Client, srcrepo *source.SourceRepo, o RemoteBuildOpts) (string, error) {
 	req, err := buildRequest(srcrepo, o)
 	if err != nil {
 		return "", err
@@ -43,19 +43,19 @@ func RunRemoteBuild(ctx context.Context, api *ayatoapi.Ayato, srcrepo *source.So
 
 // buildRequest assembles the build request from opts: a git source, else the
 // local PKGBUILD of the named source package.
-func buildRequest(srcrepo *source.SourceRepo, o RemoteBuildOpts) (*ayatoapi.BuildRequest, error) {
+func buildRequest(srcrepo *source.SourceRepo, o RemoteBuildOpts) (*ayato.BuildRequest, error) {
 	arch := o.Arch
 	if arch == "" {
 		arch = "x86_64"
 	}
-	req := &ayatoapi.BuildRequest{
+	req := &ayato.BuildRequest{
 		Repo:        o.Repo,
 		Arch:        arch,
 		InstallPkgs: o.Pkgs,
 		Timeout:     o.Timeout,
 	}
 	if o.GitURL != "" {
-		req.Git = &ayatoapi.GitSource{URL: o.GitURL, Ref: o.GitRef, Subdir: o.GitSubdir}
+		req.Git = &ayato.GitSource{URL: o.GitURL, Ref: o.GitRef, Subdir: o.GitSubdir}
 		return req, nil
 	}
 	pkgbuild, files, err := readLocalSource(srcrepo, o.Pkgs)
@@ -72,7 +72,7 @@ func buildRequest(srcrepo *source.SourceRepo, o RemoteBuildOpts) (*ayatoapi.Buil
 
 // RunRemoteBuildLocalSign builds on miko without server-side signing, downloads
 // the artifacts, signs them locally with keyPath, and uploads them to ayato.
-func RunRemoteBuildLocalSign(ctx context.Context, api *ayatoapi.Ayato, srcrepo *source.SourceRepo, o RemoteBuildOpts, keyPath, passphrase string) error {
+func RunRemoteBuildLocalSign(ctx context.Context, api *ayato.Client, srcrepo *source.SourceRepo, o RemoteBuildOpts, keyPath, passphrase string) error {
 	signer, err := sign.NewLocalSigner(keyPath, passphrase)
 	if err != nil {
 		return errors.WrapErr(err, "failed to load local signing key")

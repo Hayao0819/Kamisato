@@ -8,14 +8,14 @@ import (
 
 	"github.com/Hayao0819/Kamisato/ayato/app"
 	ayatoconfig "github.com/Hayao0819/Kamisato/ayato/config"
-	"github.com/Hayao0819/Kamisato/internal/cliutil"
+	cmdline "github.com/Hayao0819/Kamisato/internal/cli"
 )
 
 func auditCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "audit",
 		Short: "Report KV entries not created by ayato; --prune deletes them",
-		Args:  cliutil.NoArgs,
+		Args:  cmdline.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			configFile, err := cmd.Flags().GetString("config")
 			if err != nil {
@@ -25,7 +25,7 @@ func auditCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			cliutil.Setup(slog.LevelInfo, cliutil.ColorEnabled(cmd))
+			cmdline.Setup(slog.LevelInfo, cmdline.ColorEnabled(cmd))
 
 			prune, _ := cmd.Flags().GetBool("prune")
 			foreign, err := app.Audit(cfg, prune)

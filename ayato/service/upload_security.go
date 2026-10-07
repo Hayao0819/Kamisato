@@ -8,7 +8,8 @@ import (
 
 	"github.com/Hayao0819/Kamisato/ayato/blob"
 	"github.com/Hayao0819/Kamisato/ayato/domain"
-	"github.com/Hayao0819/Kamisato/internal/pacman"
+	"github.com/Hayao0819/Kamisato/internal/pacman/depend"
+	"github.com/Hayao0819/Kamisato/internal/pacman/pkg"
 	"github.com/Hayao0819/Kamisato/pkg/raiou"
 )
 
@@ -63,9 +64,9 @@ func (v *uploadValidator) checkBuildinfoProvenance(pkgFile blob.SeekFile) error 
 	if err := blob.Rewind(pkgFile); err != nil {
 		return errors.WrapErr(err, "failed to seek package file for buildinfo check")
 	}
-	buildInfo, err := pacman.ReadBuildInfo(pkgFile)
+	buildInfo, err := pkg.ReadBuildInfo(pkgFile)
 	if err != nil {
-		if errors.Is(err, pacman.ErrBuildInfoNotFound) {
+		if errors.Is(err, pkg.ErrBuildInfoNotFound) {
 			return fmt.Errorf(
 				"%w: package has no .BUILDINFO but provenance is required",
 				domain.ErrInvalidUpload,
@@ -93,10 +94,10 @@ func (v *uploadValidator) checkProtectedNames(info *raiou.PKGINFO) error {
 	candidates := make([]string, 0, 1+len(info.Provides)+len(info.Replaces)+len(info.Group))
 	candidates = append(candidates, info.PkgName)
 	for _, provided := range info.Provides {
-		candidates = append(candidates, pacman.Parse(provided).Name)
+		candidates = append(candidates, depend.Parse(provided).Name)
 	}
 	for _, replaced := range info.Replaces {
-		candidates = append(candidates, pacman.Parse(replaced).Name)
+		candidates = append(candidates, depend.Parse(replaced).Name)
 	}
 	candidates = append(candidates, info.Group...)
 	for _, candidate := range candidates {

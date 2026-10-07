@@ -9,9 +9,9 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/Hayao0819/Kamisato/ayaka/cli"
-	"github.com/Hayao0819/Kamisato/internal/cliutil"
+	"github.com/Hayao0819/Kamisato/internal/api/miko"
+	cmdline "github.com/Hayao0819/Kamisato/internal/cli"
 	"github.com/Hayao0819/Kamisato/internal/errors"
-	"github.com/Hayao0819/Kamisato/internal/mikoapi"
 )
 
 func mikoStatsCmd() *cobra.Command {
@@ -34,7 +34,7 @@ func mikoStatsCmd() *cobra.Command {
 				return errors.WrapErr(err, "failed to get stats")
 			}
 
-			format, err := cliutil.ResolveFormat(cmd, "")
+			format, err := cmdline.ResolveFormat(cmd, "")
 			if err != nil {
 				return err
 			}
@@ -50,7 +50,7 @@ func mikoStatsCmd() *cobra.Command {
 				fmt.Fprintln(out, string(b))
 				return nil
 			case format != "":
-				return cliutil.RenderList(out, format, mikoapi.Stats{}, []mikoapi.Stats{*stats})
+				return cmdline.RenderList(out, format, miko.Stats{}, []miko.Stats{*stats})
 			}
 
 			w := tabwriter.NewWriter(out, 0, 4, 2, ' ', 0)
@@ -63,6 +63,6 @@ func mikoStatsCmd() *cobra.Command {
 			return w.Flush()
 		},
 	}
-	cliutil.AddFormatFlags(cmd)
+	cmdline.AddFormatFlags(cmd)
 	return cmd
 }

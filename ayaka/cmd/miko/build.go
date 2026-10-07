@@ -10,7 +10,7 @@ import (
 	"github.com/Hayao0819/Kamisato/ayaka/app"
 	"github.com/Hayao0819/Kamisato/ayaka/cli"
 	"github.com/Hayao0819/Kamisato/ayaka/service/build"
-	"github.com/Hayao0819/Kamisato/internal/cliutil"
+	cmdline "github.com/Hayao0819/Kamisato/internal/cli"
 	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
@@ -80,7 +80,7 @@ func mikoBuildCmd(runtime *app.Runtime) *cobra.Command {
 				Pkgs:      args[1:],
 			}
 			if signLocal {
-				passphrase, err := cliutil.ResolveSecret(cli.PassphraseEnv, passphraseFile, nil)
+				passphrase, err := cmdline.ResolveSecret(cli.PassphraseEnv, passphraseFile, nil)
 				if err != nil {
 					return err
 				}

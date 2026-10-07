@@ -14,8 +14,8 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/Hayao0819/Kamisato/internal/filesystem/safefile"
 	"github.com/Hayao0819/Kamisato/internal/pacman/sign"
-	"github.com/Hayao0819/Kamisato/internal/safefile"
 	"github.com/ProtonMail/go-crypto/openpgp"
 )
 

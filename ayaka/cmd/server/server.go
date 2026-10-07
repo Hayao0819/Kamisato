@@ -4,11 +4,11 @@ import (
 	"github.com/spf13/cobra"
 
 	admincmd "github.com/Hayao0819/Kamisato/ayaka/cmd/server/admin"
-	"github.com/Hayao0819/Kamisato/internal/ayatoapi"
+	ayatostore "github.com/Hayao0819/Kamisato/internal/api/ayato/auth/store"
 )
 
 func completeServerNames(_ *cobra.Command, _ []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-	return ayatoapi.Names(toComplete), cobra.ShellCompDirectiveNoFileComp
+	return ayatostore.Names(toComplete), cobra.ShellCompDirectiveNoFileComp
 }
 
 func Cmd() *cobra.Command {

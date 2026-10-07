@@ -9,8 +9,8 @@ import (
 	"strings"
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
-	depend "github.com/Hayao0819/Kamisato/internal/pacman"
 	"github.com/Hayao0819/Kamisato/internal/pacman/builder"
+	depend "github.com/Hayao0819/Kamisato/internal/pacman/depend"
 	"github.com/Hayao0819/Kamisato/miko/domain"
 	"github.com/Hayao0819/Kamisato/pkg/aurweb"
 	"github.com/Hayao0819/Kamisato/pkg/raiou"
@@ -66,7 +66,7 @@ func (s *Service) resolveAndBuildDeps(ctx context.Context, job *domain.BuildJob,
 
 // buildAndPublishDep builds one AUR dependency and publishes it to the target's
 // repo, which is exposed to every build in this run so later builds can install it.
-func (s *Service) buildAndPublishDep(ctx context.Context, job *domain.BuildJob, backend builder.Backend, up *aurweb.AURUpstream, dep depend.Pkg) error {
+func (s *Service) buildAndPublishDep(ctx context.Context, job *domain.BuildJob, backend builder.Backend, up *aurweb.AURUpstream, dep depend.Package) error {
 	depSrc, err := os.MkdirTemp("", "miko-dep-*")
 	if err != nil {
 		return errors.WrapErr(err, "failed to create dependency source dir")

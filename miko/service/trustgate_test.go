@@ -7,7 +7,7 @@ import (
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
 
-	depend "github.com/Hayao0819/Kamisato/internal/pacman"
+	depend "github.com/Hayao0819/Kamisato/internal/pacman/depend"
 	"github.com/Hayao0819/Kamisato/pkg/aurweb"
 )
 
@@ -40,7 +40,7 @@ func newTrustService(t *testing.T, settings Settings) *Service {
 }
 
 func TestCheckDepTrust(t *testing.T) {
-	dep := depend.Pkg{Name: "foo", PackageBase: "foo"}
+	dep := depend.Package{Name: "foo", PackageBase: "foo"}
 	lookup := fakeAURInfo{maintainers: map[string]string{"foo": "alice"}}
 
 	tests := []struct {
@@ -112,7 +112,7 @@ func TestCheckDepTrust(t *testing.T) {
 // blocked under the secure default, not silently allowed.
 func TestCheckDepTrustMissingRecordBlocked(t *testing.T) {
 	s := newTrustService(t, Settings{TrustedAURMaintainers: []string{"alice"}})
-	dep := depend.Pkg{Name: "ghost", PackageBase: "ghost"}
+	dep := depend.Package{Name: "ghost", PackageBase: "ghost"}
 	if err := s.checkDepTrust(context.Background(), fakeAURInfo{maintainers: map[string]string{}}, dep); err == nil {
 		t.Fatal("a dep with no AUR record must be blocked, got nil")
 	}
@@ -121,7 +121,7 @@ func TestCheckDepTrustMissingRecordBlocked(t *testing.T) {
 // A lookup error must fail the build closed, not pass.
 func TestCheckDepTrustLookupError(t *testing.T) {
 	s := newTrustService(t, Settings{AllowUntrustedAURPackages: true})
-	dep := depend.Pkg{Name: "foo", PackageBase: "foo"}
+	dep := depend.Package{Name: "foo", PackageBase: "foo"}
 	if err := s.checkDepTrust(context.Background(), fakeAURInfo{err: errors.New("boom")}, dep); err == nil {
 		t.Fatal("a lookup error must stop the build, got nil")
 	}

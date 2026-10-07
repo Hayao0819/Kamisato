@@ -8,7 +8,7 @@ import (
 	"github.com/samber/lo"
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
-	pacmanpkg "github.com/Hayao0819/Kamisato/internal/pacman"
+	pacmanpkg "github.com/Hayao0819/Kamisato/internal/pacman/pkg"
 	pacmanhost "github.com/Hayao0819/Kamisato/internal/pacman/host"
 )
 

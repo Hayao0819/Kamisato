@@ -10,9 +10,10 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/Hayao0819/Kamisato/internal/pacman"
+	"github.com/Hayao0819/Kamisato/internal/filesystem/safefile"
+	"github.com/Hayao0819/Kamisato/internal/pacman/depend"
+	"github.com/Hayao0819/Kamisato/internal/pacman/pkg"
 	"github.com/Hayao0819/Kamisato/internal/pacman/repo"
-	"github.com/Hayao0819/Kamisato/internal/safefile"
 	"github.com/Hayao0819/Kamisato/miko/domain"
 )
 
@@ -112,7 +113,7 @@ func (s *Service) maybeRebuildOnSonameBump(ctx context.Context, job *domain.Buil
 		if len(prev) == 0 {
 			continue // first build: record a baseline, nothing to compare against
 		}
-		bumps := pacman.DetectBumps(prev, current)
+		bumps := pkg.DetectBumps(prev, current)
 		if len(bumps) == 0 {
 			continue
 		}
@@ -177,7 +178,7 @@ func (e *sonameRebuildEnqueuer) enqueueRebuild(pkgbase string) error {
 // enqueueRebuildChain enqueues the transitive reverse-dependency chain of bumped
 // in dependency order (a dependency rebuilds before its dependents), so a chain
 // of rebuilds resolves against freshly-built links.
-func enqueueRebuildChain(g *pacman.DepGraph, bumped string, enq rebuildEnqueuer) ([]string, error) {
+func enqueueRebuildChain(g *depend.Graph, bumped string, enq rebuildEnqueuer) ([]string, error) {
 	chain, err := rebuildChain(g, bumped)
 	if err != nil {
 		return nil, err
@@ -193,7 +194,7 @@ func enqueueRebuildChain(g *pacman.DepGraph, bumped string, enq rebuildEnqueuer)
 // rebuildChain returns the transitive dependents of bumped, ordered by the
 // graph's topological build order so dependencies precede the packages that
 // depend on them. bumped itself is excluded — it was just built.
-func rebuildChain(g *pacman.DepGraph, bumped string) ([]string, error) {
+func rebuildChain(g *depend.Graph, bumped string) ([]string, error) {
 	affected := map[string]bool{}
 	queue := slices.Clone(g.Dependents(bumped))
 	for _, d := range queue {
@@ -229,7 +230,7 @@ func rebuildChain(g *pacman.DepGraph, bumped string) ([]string, error) {
 // package's %DEPENDS% (including soname deps like "libfoo.so=1-64") is resolved
 // to the pkgbase that provides it (by pkgname or a %PROVIDES% entry), so the
 // reverse map answers "who links against this package".
-func repoDepGraph(rr *repo.RemoteRepo) *pacman.DepGraph {
+func repoDepGraph(rr *repo.RemoteRepo) *depend.Graph {
 	provider := map[string]string{}
 	bases := map[string]struct{}{}
 	baseOf := func(p *ppkgBinary) string {
@@ -241,16 +242,16 @@ func repoDepGraph(rr *repo.RemoteRepo) *pacman.DepGraph {
 	for _, p := range rr.Pkgs {
 		base := baseOf(p)
 		bases[base] = struct{}{}
-		provider[pacman.Parse(p.Name()).Name] = base
+		provider[depend.Parse(p.Name()).Name] = base
 		for _, pr := range p.PKGINFO().Provides {
-			provider[pacman.Parse(pr).Name] = base
+			provider[depend.Parse(pr).Name] = base
 		}
 	}
 	deps := map[string][]string{}
 	for _, p := range rr.Pkgs {
 		base := baseOf(p)
 		for _, d := range p.PKGINFO().Depend {
-			if prov, ok := provider[pacman.Parse(d).Name]; ok && prov != base {
+			if prov, ok := provider[depend.Parse(d).Name]; ok && prov != base {
 				deps[base] = append(deps[base], prov)
 			}
 		}
@@ -259,12 +260,12 @@ func repoDepGraph(rr *repo.RemoteRepo) *pacman.DepGraph {
 	for b := range bases {
 		nodes = append(nodes, b)
 	}
-	return pacman.NewDepGraph(nodes, deps)
+	return depend.NewGraph(nodes, deps)
 }
 
 // ppkgBinary is the concrete binary-package type; aliased so repoDepGraph reads
 // cleanly without importing the name into the whole file.
-type ppkgBinary = pacman.BinaryPackage
+type ppkgBinary = pkg.BinaryPackage
 
 // sonamesByPkgbase reads each built package's pkgbase and the sonames it ships,
 // merging the sonames of every subpackage under one pkgbase.
@@ -275,7 +276,7 @@ func sonamesByPkgbase(packages []string) (map[string][]string, error) {
 		if err != nil {
 			return nil, err
 		}
-		sonames, err := pacman.SonamesOf(p)
+		sonames, err := pkg.SonamesOf(p)
 		if err != nil {
 			return nil, err
 		}
@@ -306,7 +307,7 @@ func pkgbaseOf(pkgFile string) (string, error) {
 		return "", err
 	}
 	defer func() { _ = f.Close() }()
-	bp, err := pacman.ReadBinaryPackage(pkgFile, f)
+	bp, err := pkg.ReadBinaryPackage(pkgFile, f)
 	if err != nil {
 		return "", err
 	}

@@ -9,21 +9,21 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Hayao0819/Kamisato/internal/ayatoapi"
-	"github.com/Hayao0819/Kamisato/internal/mikoapi"
+	"github.com/Hayao0819/Kamisato/internal/api/ayato"
+	"github.com/Hayao0819/Kamisato/internal/api/miko"
 	thomaconfig "github.com/Hayao0819/Kamisato/thoma/config"
 )
 
-func testBuildClient(t *testing.T, cfg *thomaconfig.ThomaConfig, base string) *mikoapi.Client {
+func testBuildClient(t *testing.T, cfg *thomaconfig.ThomaConfig, base string) *miko.Client {
 	t.Helper()
 	if cfg.Direct() {
-		miko, err := mikoapi.New(base, cfg.ApiKey)
+		miko, err := miko.New(base, cfg.ApiKey)
 		if err != nil {
 			t.Fatal(err)
 		}
 		return miko
 	}
-	ayato, err := ayatoapi.NewAyato(base, ayatoapi.StaticBearer(cfg.ApiKey))
+	ayato, err := ayato.New(base, ayato.StaticBearer(cfg.ApiKey))
 	if err != nil {
 		t.Fatal(err)
 	}

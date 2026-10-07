@@ -5,7 +5,7 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/Hayao0819/Kamisato/internal/nvcheck"
+	"github.com/Hayao0819/Kamisato/internal/pacman/source/nvcheck"
 	"github.com/Hayao0819/Kamisato/miko/domain"
 )
 

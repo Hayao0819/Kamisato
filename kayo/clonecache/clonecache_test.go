@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/Hayao0819/Kamisato/internal/gitcmd"
+	"github.com/Hayao0819/Kamisato/internal/vcs/git"
 )
 
 // commitRepo writes body to PKGBUILD in dir, commits it, and returns the new HEAD.
@@ -29,7 +29,7 @@ func commitRepo(t *testing.T, dir, body string, first bool) string {
 			t.Fatalf("git %v: %v (%s)", args, err, out)
 		}
 	}
-	head, err := gitcmd.HeadCommit(context.Background(), dir)
+	head, err := git.HeadCommit(context.Background(), dir)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -5,7 +5,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/Hayao0819/Kamisato/internal/ayatoapi"
+	"github.com/Hayao0819/Kamisato/internal/api/ayato"
+	ayatostore "github.com/Hayao0819/Kamisato/internal/api/ayato/auth/store"
 	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
@@ -20,7 +21,7 @@ func RevokeCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			server := args[0]
 
-			snapshot, err := ayatoapi.SnapshotCredentials(server)
+			snapshot, err := ayatostore.SnapshotCredentials(server)
 			if err != nil {
 				return err
 			}
@@ -33,7 +34,7 @@ func RevokeCmd() *cobra.Command {
 			// Revoke both halves server-side: the access token authorizes via Bearer,
 			// the refresh token via the body (and suffices once the access token has
 			// already expired).
-			api, err := ayatoapi.NewAyato(server, ayatoapi.StaticBearer(access))
+			api, err := ayato.New(server, ayato.StaticBearer(access))
 			if err != nil {
 				return err
 			}
@@ -41,7 +42,7 @@ func RevokeCmd() *cobra.Command {
 				return errors.WrapErr(err, "failed to revoke token")
 			}
 
-			cleared, err := ayatoapi.ClearCredentialsIfCurrent(snapshot, true)
+			cleared, err := ayatostore.ClearCredentialsIfCurrent(snapshot, true)
 			if err != nil {
 				return errors.WrapErr(err, "token was revoked server-side but local credential deletion failed; retry logout")
 			}

@@ -9,7 +9,7 @@ import (
 
 	"github.com/Hayao0819/Kamisato/ayato/app"
 	ayatoconfig "github.com/Hayao0819/Kamisato/ayato/config"
-	"github.com/Hayao0819/Kamisato/internal/cliutil"
+	cmdline "github.com/Hayao0819/Kamisato/internal/cli"
 )
 
 func gcCmd() *cobra.Command {
@@ -27,7 +27,7 @@ func gcCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			cliutil.Setup(slog.LevelInfo, cliutil.ColorEnabled(cmd))
+			cmdline.Setup(slog.LevelInfo, cmdline.ColorEnabled(cmd))
 
 			olderThan, err := cmd.Flags().GetDuration("older-than")
 			if err != nil {

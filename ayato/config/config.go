@@ -13,9 +13,9 @@ import (
 	"github.com/Hayao0819/Kamisato/ayato/domain"
 	"github.com/spf13/pflag"
 
-	"github.com/Hayao0819/Kamisato/internal/apiclient"
+	"github.com/Hayao0819/Kamisato/internal/api/client"
 	configloader "github.com/Hayao0819/Kamisato/internal/config"
-	"github.com/Hayao0819/Kamisato/internal/limits"
+	"github.com/Hayao0819/Kamisato/internal/pacman/limits"
 )
 
 type AyatoConfig struct {
@@ -416,7 +416,7 @@ func (c *AyatoConfig) Validate() error {
 		return fmt.Errorf("miko.api_key requires miko.url")
 	}
 	if c.Miko.URL != "" {
-		if _, err := apiclient.ParseBaseURL(c.Miko.URL); err != nil {
+		if _, err := client.ParseBaseURL(c.Miko.URL); err != nil {
 			return fmt.Errorf("miko.url: %w", err)
 		}
 		if c.Miko.APIKey == "" {

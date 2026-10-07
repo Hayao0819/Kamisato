@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Hayao0819/Kamisato/internal/pacman"
+	pacmanrepo "github.com/Hayao0819/Kamisato/internal/pacman/repo"
 )
 
 // offlineStore builds a client against a loopback endpoint with static
@@ -67,7 +67,7 @@ func TestExcludeStagingPrefix(t *testing.T) {
 }
 
 func TestStagingPrefixIsOutsideRepoNameGrammar(t *testing.T) {
-	if err := pacman.ValidateRepositoryName(stagingPrefix); err == nil {
-		t.Fatalf("pacman.ValidateRepositoryName(%q) = nil, want rejection so it can never collide with a real repo", stagingPrefix)
+	if err := pacmanrepo.ValidateName(stagingPrefix); err == nil {
+		t.Fatalf("repo.ValidateName(%q) = nil, want rejection so it can never collide with a real repo", stagingPrefix)
 	}
 }

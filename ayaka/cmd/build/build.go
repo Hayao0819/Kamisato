@@ -13,12 +13,12 @@ import (
 
 	"github.com/Hayao0819/Kamisato/ayaka/app"
 	"github.com/Hayao0819/Kamisato/ayaka/cli"
+	buildsetapp "github.com/Hayao0819/Kamisato/ayaka/internal/buildset"
 	"github.com/Hayao0819/Kamisato/ayaka/service/build"
 	"github.com/Hayao0819/Kamisato/ayaka/service/plan"
 	"github.com/Hayao0819/Kamisato/ayaka/service/source"
-	"github.com/Hayao0819/Kamisato/internal/ayatoapi"
-	buildsetapp "github.com/Hayao0819/Kamisato/internal/buildset"
-	"github.com/Hayao0819/Kamisato/internal/cliutil"
+	"github.com/Hayao0819/Kamisato/internal/api/ayato"
+	cmdline "github.com/Hayao0819/Kamisato/internal/cli"
 	"github.com/Hayao0819/Kamisato/internal/errors"
 	"github.com/Hayao0819/Kamisato/internal/pacman/builder"
 	pacmanhost "github.com/Hayao0819/Kamisato/internal/pacman/host"
@@ -58,7 +58,7 @@ func Cmd(runtime *app.Runtime) *cobra.Command {
 					return err
 				}
 				if output == "" || manifestPath == "" {
-					return &cliutil.UsageError{Err: fmt.Errorf("--output and --manifest are required for direct package builds")}
+					return &cmdline.UsageError{Err: fmt.Errorf("--output and --manifest are required for direct package builds")}
 				}
 				return nil
 			}
@@ -256,7 +256,7 @@ var directBuildFlags = []string{
 func rejectChangedFlags(command *cobra.Command, mode string, names ...string) error {
 	for _, name := range names {
 		if command.Flags().Changed(name) {
-			return &cliutil.UsageError{Err: fmt.Errorf("--%s cannot be used with %s", name, mode)}
+			return &cmdline.UsageError{Err: fmt.Errorf("--%s cannot be used with %s", name, mode)}
 		}
 	}
 	return nil
@@ -310,7 +310,7 @@ func resolvePublisher(cmd *cobra.Command, publishURL, publishServer string) (fun
 		if key == "" {
 			return nil, errors.NewErr("--publish-url requires the API key in " + publishAPIKeyEnv)
 		}
-		api, err := ayatoapi.NewPublisher(publishURL, key)
+		api, err := ayato.NewPublisher(publishURL, key)
 		if err != nil {
 			return nil, err
 		}

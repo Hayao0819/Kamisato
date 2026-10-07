@@ -11,20 +11,20 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/Hayao0819/Kamisato/internal/ayatoapi"
+	ayatostore "github.com/Hayao0819/Kamisato/internal/api/ayato/auth/store"
+	"github.com/Hayao0819/Kamisato/internal/api/miko"
 	"github.com/Hayao0819/Kamisato/internal/errors"
-	"github.com/Hayao0819/Kamisato/internal/mikoapi"
-	pacmanpkg "github.com/Hayao0819/Kamisato/internal/pacman"
+	"github.com/Hayao0819/Kamisato/internal/filesystem/safefile"
 	pacmanhost "github.com/Hayao0819/Kamisato/internal/pacman/host"
-	"github.com/Hayao0819/Kamisato/internal/safefile"
+	pacmanpkg "github.com/Hayao0819/Kamisato/internal/pacman/pkg"
 	thomaconfig "github.com/Hayao0819/Kamisato/thoma/config"
 )
 
 // resolveServer resolves a named or default Ayato server.
-func resolveServer(name string) (*ayatoapi.Endpoint, error) {
-	info, err := ayatoapi.Resolve(name)
+func resolveServer(name string) (*ayatostore.Endpoint, error) {
+	info, err := ayatostore.Resolve(name)
 	if err != nil {
-		if errors.Is(err, ayatoapi.ErrNoServerSpecified) {
+		if errors.Is(err, ayatostore.ErrNoServerSpecified) {
 			return nil, errors.NewErr("no ayato server configured; set THOMA_SERVER or run 'ayaka server login'")
 		}
 		return nil, err
@@ -33,12 +33,12 @@ func resolveServer(name string) (*ayatoapi.Endpoint, error) {
 }
 
 // configuredBuildClient creates the configured Ayato or Miko client.
-func configuredBuildClient(cfg *thomaconfig.ThomaConfig) (string, *mikoapi.Client, error) {
+func configuredBuildClient(cfg *thomaconfig.ThomaConfig) (string, *miko.Client, error) {
 	if cfg.Direct() {
 		if cfg.Server == "" {
 			return "", nil, errors.NewErr("direct mode needs THOMA_SERVER set to the miko URL")
 		}
-		miko, err := mikoapi.New(cfg.Server, cfg.ApiKey)
+		miko, err := miko.New(cfg.Server, cfg.ApiKey)
 		if err != nil {
 			return "", nil, err
 		}
@@ -48,7 +48,7 @@ func configuredBuildClient(cfg *thomaconfig.ThomaConfig) (string, *mikoapi.Clien
 	if err != nil {
 		return "", nil, err
 	}
-	ayato, err := ayatoapi.NewStoredClient(endpoint)
+	ayato, err := ayatostore.NewStoredClient(endpoint)
 	if err != nil {
 		return "", nil, err
 	}
@@ -128,7 +128,7 @@ func Run(parent context.Context, stdout, stderr io.Writer, options Options) erro
 		return err
 	}
 
-	req := &mikoapi.BuildRequest{
+	req := &miko.BuildRequest{
 		Repo:          cfg.Repo,
 		Arch:          cfg.Arch,
 		Pkgbuild:      pkgbuild,
@@ -235,7 +235,7 @@ func packageDests(ctx context.Context, mkpkg, dir, config, buildscript string) (
 // expected path. Packages are matched by pkgname (stable across pkgver drift on
 // VCS packages), and the file is written under the name yay expects so its
 // post-build os.Stat and pacman -U succeed.
-func placePackages(ctx context.Context, stderr io.Writer, cfg *thomaconfig.ThomaConfig, buildAPI *mikoapi.Client, jobID string, dests, built []string) error {
+func placePackages(ctx context.Context, stderr io.Writer, cfg *thomaconfig.ThomaConfig, buildAPI *miko.Client, jobID string, dests, built []string) error {
 	for _, dest := range dests {
 		want := pkgName(filepath.Base(dest))
 		match := ""
@@ -259,7 +259,7 @@ func placePackages(ctx context.Context, stderr io.Writer, cfg *thomaconfig.Thoma
 // downloadBuilt fetches one built package to dest. Ayato mode pulls the
 // published, host-signed package from ayato's repo route; direct mode pulls the
 // unsigned artifact retained on the miko job.
-func downloadBuilt(ctx context.Context, cfg *thomaconfig.ThomaConfig, buildAPI *mikoapi.Client, jobID, name, dest string) error {
+func downloadBuilt(ctx context.Context, cfg *thomaconfig.ThomaConfig, buildAPI *miko.Client, jobID, name, dest string) error {
 	if !cfg.Direct() {
 		return buildAPI.DownloadPackageFile(ctx, cfg.Repo, cfg.Arch, name, dest)
 	}

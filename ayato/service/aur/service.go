@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Hayao0819/Kamisato/internal/kayoproto"
+	"github.com/Hayao0819/Kamisato/internal/api/kayo"
 )
 
 // SourceManager is the subset of *Backend the service drives.
@@ -18,7 +18,7 @@ type SourceManager interface {
 	Register(ctx context.Context, gitURL, ref, maintainer string) (pkgbase string, names []string, err error)
 	Remove(ctx context.Context, pkgbase string) error
 	List(ctx context.Context) ([]string, error)
-	Catalog(ctx context.Context) (kayoproto.Catalog, error)
+	Catalog(ctx context.Context) (kayo.Catalog, error)
 }
 
 // Service is the gin-free backend for AUR source management and the kayo-facing
@@ -32,7 +32,7 @@ type Service struct {
 	// not invalidated; they wait out the TTL.
 	cacheTTL time.Duration
 	cacheMu  sync.Mutex
-	cached   *kayoproto.CatalogEnvelope
+	cached   *kayo.CatalogEnvelope
 	cacheExp time.Time
 }
 
@@ -68,27 +68,27 @@ func (s *Service) Remove(ctx context.Context, pkgbase string) error {
 // Envelope returns the catalog as a signed envelope, served from cache while it
 // is still fresh so repeated hits don't re-fan-out to KV. A nil signer yields an
 // unsigned ("none") envelope; kayo verifies the signature instead of credentials.
-func (s *Service) Envelope(ctx context.Context) (kayoproto.CatalogEnvelope, error) {
+func (s *Service) Envelope(ctx context.Context) (kayo.CatalogEnvelope, error) {
 	if env := s.cachedEnvelope(); env != nil {
 		return *env, nil
 	}
 
 	cat, err := s.sm.Catalog(ctx)
 	if err != nil {
-		return kayoproto.CatalogEnvelope{}, err
+		return kayo.CatalogEnvelope{}, err
 	}
 
-	var env kayoproto.CatalogEnvelope
+	var env kayo.CatalogEnvelope
 	if s.signer == nil {
-		payload, mErr := json.Marshal(kayoproto.SignedPayload{IssuedAt: time.Now().UTC(), Catalog: cat})
+		payload, mErr := json.Marshal(kayo.SignedPayload{IssuedAt: time.Now().UTC(), Catalog: cat})
 		if mErr != nil {
-			return kayoproto.CatalogEnvelope{}, mErr
+			return kayo.CatalogEnvelope{}, mErr
 		}
-		env = kayoproto.CatalogEnvelope{Payload: payload, Alg: "none"}
+		env = kayo.CatalogEnvelope{Payload: payload, Alg: "none"}
 	} else {
 		env, err = s.signer.Sign(cat)
 		if err != nil {
-			return kayoproto.CatalogEnvelope{}, err
+			return kayo.CatalogEnvelope{}, err
 		}
 	}
 
@@ -116,7 +116,7 @@ func (s *Service) SignerPublicKeyB64() string {
 	return s.signer.PublicKeyB64()
 }
 
-func (s *Service) cachedEnvelope() *kayoproto.CatalogEnvelope {
+func (s *Service) cachedEnvelope() *kayo.CatalogEnvelope {
 	if s.cacheTTL <= 0 {
 		return nil
 	}
@@ -128,7 +128,7 @@ func (s *Service) cachedEnvelope() *kayoproto.CatalogEnvelope {
 	return nil
 }
 
-func (s *Service) storeEnvelope(env kayoproto.CatalogEnvelope) {
+func (s *Service) storeEnvelope(env kayo.CatalogEnvelope) {
 	if s.cacheTTL <= 0 {
 		return
 	}

@@ -5,7 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/Hayao0819/Kamisato/internal/cliutil"
+	cmdline "github.com/Hayao0819/Kamisato/internal/cli"
 	"github.com/Hayao0819/Kamisato/kayo/ayatosrc"
 	"github.com/Hayao0819/Kamisato/kayo/cli"
 	kayoconfig "github.com/Hayao0819/Kamisato/kayo/config"
@@ -37,7 +37,7 @@ func ayatoListCmd() *cobra.Command {
 				return err
 			}
 
-			format, err := cliutil.ResolveFormat(cmd, ayatoListDefaultFmt)
+			format, err := cmdline.ResolveFormat(cmd, ayatoListDefaultFmt)
 			if err != nil {
 				return err
 			}
@@ -51,10 +51,10 @@ func ayatoListCmd() *cobra.Command {
 			}
 
 			header := ayatoRow{Kind: "KIND", Name: "NAME", URL: "URL", Mode: "MODE", KeyID: "KEY_ID", LastIssued: "LAST_ISSUED"}
-			return cliutil.RenderList(cmd.OutOrStdout(), format, header, rows)
+			return cmdline.RenderList(cmd.OutOrStdout(), format, header, rows)
 		},
 	}
-	cliutil.AddFormatFlags(cmd)
+	cmdline.AddFormatFlags(cmd)
 	return cmd
 }
 

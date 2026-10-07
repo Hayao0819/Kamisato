@@ -7,8 +7,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/Hayao0819/Kamisato/internal/cliutil"
-	"github.com/Hayao0819/Kamisato/internal/ginutil"
+	cmdline "github.com/Hayao0819/Kamisato/internal/cli"
+	httpserver "github.com/Hayao0819/Kamisato/internal/http/server"
 	"github.com/Hayao0819/Kamisato/lumine/app"
 	lumineconfig "github.com/Hayao0819/Kamisato/lumine/config"
 )
@@ -17,7 +17,7 @@ func RootCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "lumine",
 		Short: "Lumine is a frontend for Ayato",
-		Args:  cliutil.NoArgs,
+		Args:  cmdline.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			configFile, err := cmd.Flags().GetString("config")
 			if err != nil {
@@ -27,7 +27,7 @@ func RootCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			ginutil.Setup(cmd, cfg.Debug)
+			httpserver.Setup(cmd, cfg.Debug)
 			ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
 			defer stop()
 			return app.Run(ctx, cfg)
@@ -39,8 +39,8 @@ func RootCmd() *cobra.Command {
 	cmd.Flags().String("auth-mode", "cookie", "auth delivery mode: cookie (same-origin BFF proxy) or bearer (SPA calls ayato cross-origin with a token)")
 	cmd.Flags().BoolP("debug", "d", false, "Enable debug mode")
 	cmd.Flags().StringP("config", "c", "", "Config file")
-	cliutil.SetVersion(cmd)
-	cliutil.AddNoColorFlag(cmd)
-	cmd.AddCommand(cliutil.VersionCommand())
+	cmdline.SetVersion(cmd)
+	cmdline.AddNoColorFlag(cmd)
+	cmd.AddCommand(cmdline.VersionCommand())
 	return cmd
 }

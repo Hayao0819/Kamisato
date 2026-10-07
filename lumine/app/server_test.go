@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Hayao0819/Kamisato/internal/apiclient"
+	"github.com/Hayao0819/Kamisato/internal/api/client"
 )
 
 // The proxy must replace spoofed forwarding headers from the real connection
@@ -84,7 +84,7 @@ func TestReverseProxyKeepsFlushInterval(t *testing.T) {
 }
 
 func TestBearerEnvironmentUsesNormalizedPrefixedURL(t *testing.T) {
-	target, err := apiclient.ParseBaseURL("https://repo.example/ayato/prefix/")
+	target, err := client.ParseBaseURL("https://repo.example/ayato/prefix/")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -8,9 +8,9 @@ import (
 	"regexp"
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
-	pkg "github.com/Hayao0819/Kamisato/internal/pacman"
+	"github.com/Hayao0819/Kamisato/internal/filesystem/safefile"
+	pkg "github.com/Hayao0819/Kamisato/internal/pacman/pkg"
 	"github.com/Hayao0819/Kamisato/internal/pacman/source"
-	"github.com/Hayao0819/Kamisato/internal/safefile"
 )
 
 var pkgverRe = regexp.MustCompile(`(?m)^pkgver=['"]?([^\s'"#]+)['"]?[ \t]*(?:#[^\r\n]*)?\r?$`)

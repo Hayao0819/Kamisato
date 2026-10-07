@@ -10,9 +10,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/Hayao0819/Kamisato/internal/apiclient"
+	"github.com/Hayao0819/Kamisato/internal/api/client"
 	"github.com/Hayao0819/Kamisato/internal/errors"
-	"github.com/Hayao0819/Kamisato/internal/ginutil"
+	httpserver "github.com/Hayao0819/Kamisato/internal/http/server"
 	lumineconfig "github.com/Hayao0819/Kamisato/lumine/config"
 	"github.com/Hayao0819/Kamisato/lumine/embed"
 )
@@ -49,11 +49,11 @@ func Run(ctx context.Context, cfg *lumineconfig.LumineConfig) error {
 	if err != nil {
 		return errors.WrapErr(err, "failed to prepare embedded filesystem")
 	}
-	engine := ginutil.NewEngine()
+	engine := httpserver.NewEngine()
 
 	var target *url.URL
 	if cfg.AyatoURL != "" {
-		target, err = apiclient.ParseBaseURL(cfg.AyatoURL)
+		target, err = client.ParseBaseURL(cfg.AyatoURL)
 		if err != nil {
 			return errors.WrapErr(err, "invalid ayato url "+cfg.AyatoURL)
 		}
@@ -90,5 +90,5 @@ func Run(ctx context.Context, cfg *lumineconfig.LumineConfig) error {
 	engine.NoRoute(gin.WrapH(static))
 
 	slog.Info("Waiting on address", "addr", cfg.Addr)
-	return ginutil.ServeHTTP(ctx, ginutil.NewServer(cfg.Addr, engine), nil)
+	return httpserver.ServeHTTP(ctx, httpserver.NewServer(cfg.Addr, engine), nil)
 }

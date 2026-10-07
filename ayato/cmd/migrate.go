@@ -9,7 +9,7 @@ import (
 	"github.com/Hayao0819/Kamisato/ayato/app"
 	ayatoconfig "github.com/Hayao0819/Kamisato/ayato/config"
 	"github.com/Hayao0819/Kamisato/ayato/migrate"
-	"github.com/Hayao0819/Kamisato/internal/cliutil"
+	cmdline "github.com/Hayao0819/Kamisato/internal/cli"
 	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
@@ -19,7 +19,7 @@ func migrateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "migrate",
 		Short: "Run data-layout migrations as a one-shot job",
-		Args:  cliutil.NoArgs,
+		Args:  cmdline.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			configFile, err := cmd.Flags().GetString("config")
 			if err != nil {
@@ -29,7 +29,7 @@ func migrateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			cliutil.Setup(slog.LevelInfo, cliutil.ColorEnabled(cmd))
+			cmdline.Setup(slog.LevelInfo, cmdline.ColorEnabled(cmd))
 
 			// K_SERVICE/K_REVISION mark a Cloud Run service; a Job has neither.
 			if ayatoconfig.UnderCloudRun() {

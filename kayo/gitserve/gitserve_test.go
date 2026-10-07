@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/Hayao0819/Kamisato/internal/gitcmd"
+	"github.com/Hayao0819/Kamisato/internal/vcs/git"
 )
 
 func initRepo(t *testing.T) (dir, commit string) {
@@ -31,7 +31,7 @@ func initRepo(t *testing.T) (dir, commit string) {
 			t.Fatalf("git %v: %v (%s)", args, err, out)
 		}
 	}
-	c, err := gitcmd.HeadCommit(context.Background(), dir)
+	c, err := git.HeadCommit(context.Background(), dir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -50,7 +50,7 @@ func TestMaterialize(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(repo, "info", "refs")); err != nil {
 		t.Errorf("dumb-HTTP info/refs not generated: %v", err)
 	}
-	head, err := gitcmd.HeadCommit(ctx, repo)
+	head, err := git.HeadCommit(ctx, repo)
 	if err != nil {
 		t.Fatal(err)
 	}

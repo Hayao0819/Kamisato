@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
-	"github.com/Hayao0819/Kamisato/internal/gitcmd"
+	"github.com/Hayao0819/Kamisato/internal/vcs/git"
 )
 
 var aurPkgNameRe = regexp.MustCompile(`^[a-z0-9][a-z0-9@._+-]*$`)
@@ -59,7 +59,7 @@ func checkoutAUR(ctx context.Context, repoDir, name string) error {
 	targetDir := filepath.Join(repoDir, name)
 	url := aurBase + "/" + name + ".git"
 
-	root, err := gitcmd.RepoRoot(repoDir)
+	root, err := git.RepoRoot(repoDir)
 	if err == nil {
 		if err := os.MkdirAll(filepath.Dir(targetDir), 0o755); err != nil { //nolint:gosec // G301: repo dir world-readable by design
 			return errors.WrapErr(err, "failed to create parent directory")
@@ -76,7 +76,7 @@ func checkoutAUR(ctx context.Context, repoDir, name string) error {
 		}
 
 		slog.Info("adding AUR repo as submodule", "name", name, "root", root, "path", relPath)
-		if err := gitcmd.AddSubmodule(ctx, root, url, relPath); err != nil {
+		if err := git.AddSubmodule(ctx, root, url, relPath); err != nil {
 			return errors.WrapErr(err, "failed to add AUR submodule "+name)
 		}
 		return nil
@@ -86,7 +86,7 @@ func checkoutAUR(ctx context.Context, repoDir, name string) error {
 	if err := os.MkdirAll(repoDir, 0o755); err != nil { //nolint:gosec // G301: repo dir world-readable by design
 		return errors.WrapErr(err, "failed to create repo directory")
 	}
-	if err := gitcmd.Clone(ctx, gitcmd.CloneOptions{URL: url, Dir: targetDir, Strict: true}); err != nil {
+	if err := git.Clone(ctx, git.CloneOptions{URL: url, Dir: targetDir, Strict: true}); err != nil {
 		return errors.WrapErr(err, "failed to clone AUR package "+name)
 	}
 	return nil

@@ -5,7 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/Hayao0819/Kamisato/internal/ayatoapi"
+	ayatostore "github.com/Hayao0819/Kamisato/internal/api/ayato/auth/store"
 	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
@@ -21,7 +21,7 @@ func LogoutCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			server := args[0]
 
-			if err := ayatoapi.ClearCredentials(server, true); err != nil {
+			if err := ayatostore.ClearCredentials(server, true); err != nil {
 				return errors.WrapErr(err, "local credential deletion failed; retry logout")
 			}
 
