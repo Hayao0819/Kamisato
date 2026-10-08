@@ -76,6 +76,35 @@ func TestReplaceSwapsAtomically(t *testing.T) {
 	}
 }
 
+func TestSnapshotOwnsInputAndOutput(t *testing.T) {
+	ctx := context.Background()
+	input := map[string]aurweb.Pkg{"pkg": {Name: "pkg", PackageBase: "pkg", Depends: []string{"dependency"}}}
+	sources := map[string]string{"pkg": "https://original.example/pkg.git"}
+	i := New()
+	i.Replace(input, sources)
+	input["pkg"].Depends[0] = "changed input"
+	delete(input, "pkg")
+	sources["pkg"] = "https://changed.example/pkg.git"
+	if url, ok, _ := i.SourceURL(ctx, "pkg"); !ok || url != "https://original.example/pkg.git" {
+		t.Fatalf("snapshot source mutated: %q", url)
+	}
+	for _, read := range []func() ([]aurweb.Pkg, error){
+		func() ([]aurweb.Pkg, error) { return i.Info(ctx, []string{"pkg"}) },
+		func() ([]aurweb.Pkg, error) { return i.Search(ctx, aurweb.ByName, "pkg") },
+		func() ([]aurweb.Pkg, error) { return i.All(ctx) },
+	} {
+		got, err := read()
+		if err != nil || len(got) != 1 || got[0].Depends[0] != "dependency" {
+			t.Fatalf("snapshot record mutated: %+v, %v", got, err)
+		}
+		got[0].Depends[0] = "changed output"
+	}
+	got, _ := i.Info(ctx, []string{"pkg"})
+	if got[0].Depends[0] != "dependency" {
+		t.Fatalf("output mutated snapshot: %+v", got)
+	}
+}
+
 // TestConcurrentReadDuringRefresh exercises the atomic swap: readers run flat out
 // while Replace publishes new snapshots. Under -race this fails if a reader ever
 // touched a map a refresh was mutating; the swap guarantees it never does.

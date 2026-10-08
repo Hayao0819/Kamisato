@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
     buildPackagesQuery,
+    nextPackagesSort,
     type PackagesQuery,
     packagesHref,
     parsePackagesQuery,
@@ -51,6 +52,53 @@ describe("parsePackagesQuery", () => {
         const q = parsePackagesQuery(new URLSearchParams("page=-5&per=abc"));
         expect(q.page).toBe(1);
         expect(q.per).toBe(50);
+    });
+
+    it.each([
+        "-1",
+        "0",
+        "1.5",
+        "Infinity",
+        "NaN",
+        "9007199254740992",
+    ])("rejects invalid pagination values %s", (value) => {
+        const query = parsePackagesQuery(
+            new URLSearchParams({ page: value, per: value }),
+        );
+        expect(query.page).toBe(1);
+        expect(query.per).toBe(50);
+    });
+
+    it("preserves valid positive custom page sizes", () => {
+        expect(
+            parsePackagesQuery(new URLSearchParams("page=2&per=20")),
+        ).toMatchObject({ page: 2, per: 20 });
+    });
+});
+
+describe("nextPackagesSort", () => {
+    it("changes both key and direction in one URL update", () => {
+        const next = {
+            ...empty,
+            ...nextPackagesSort(empty, "size"),
+        };
+        const params = new URLSearchParams(buildPackagesQuery(next));
+        expect(params.get("sort")).toBe("size");
+        expect(params.get("dir")).toBe("desc");
+        expect(nextPackagesSort(next, "pkgver")).toEqual({
+            sort: "pkgver",
+            dir: "asc",
+        });
+    });
+
+    it("toggles only direction for the active column", () => {
+        expect(nextPackagesSort(empty, "pkgname")).toEqual({
+            sort: "pkgname",
+            dir: "desc",
+        });
+        expect(nextPackagesSort({ sort: "size", dir: "desc" }, "size")).toEqual(
+            { sort: "size", dir: "asc" },
+        );
     });
 });
 

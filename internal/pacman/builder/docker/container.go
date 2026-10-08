@@ -24,8 +24,6 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/pacman/builder"
 	"github.com/Hayao0819/Kamisato/internal/pacman/builder/internal/artifact"
 	"github.com/Hayao0819/Kamisato/internal/pacman/builder/internal/buildenv"
-	"github.com/Hayao0819/Kamisato/internal/pacman/builder/internal/failure"
-	"github.com/Hayao0819/Kamisato/internal/pacman/builder/internal/shell"
 )
 
 //go:embed buildscript.sh
@@ -94,13 +92,13 @@ func (b *Backend) Build(ctx context.Context, spec builder.Spec) (*builder.Result
 
 	platform, err := archToPlatform(spec.Arch)
 	if err != nil {
-		return nil, failure.Wrap(err, "failed to resolve platform")
+		return nil, fmt.Errorf("failed to resolve platform: %w", err)
 	}
 	platformStr := platformString(platform)
 
 	absSrc, err := filepath.Abs(spec.SrcDir)
 	if err != nil {
-		return nil, failure.Wrap(err, "failed to resolve src dir")
+		return nil, fmt.Errorf("failed to resolve src dir: %w", err)
 	}
 	outDir := spec.OutDir
 	if outDir == "" {
@@ -108,18 +106,18 @@ func (b *Backend) Build(ctx context.Context, spec builder.Spec) (*builder.Result
 	}
 	absOut, err := filepath.Abs(outDir)
 	if err != nil {
-		return nil, failure.Wrap(err, "failed to resolve out dir")
+		return nil, fmt.Errorf("failed to resolve out dir: %w", err)
 	}
 	if err := os.MkdirAll(absOut, 0o755); err != nil { //nolint:gosec // build output dir, read by the build user and downstream consumers
-		return nil, failure.Wrap(err, "failed to create out dir")
+		return nil, fmt.Errorf("failed to create out dir: %w", err)
 	}
 	stagingOut, err := os.MkdirTemp(filepath.Dir(absOut), ".kamisato-docker-out-*")
 	if err != nil {
-		return nil, failure.Wrap(err, "failed to create build output staging dir")
+		return nil, fmt.Errorf("failed to create build output staging dir: %w", err)
 	}
 	defer func() { _ = os.RemoveAll(stagingOut) }()
 	if err := os.Chmod(stagingOut, 0o755); err != nil { //nolint:gosec // the build container must be able to traverse this host mount
-		return nil, failure.Wrap(err, "failed to prepare build output staging dir")
+		return nil, fmt.Errorf("failed to prepare build output staging dir: %w", err)
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, b.timeout)
@@ -127,7 +125,7 @@ func (b *Backend) Build(ctx context.Context, spec builder.Spec) (*builder.Result
 
 	cli, err := newDockerClient(b.host)
 	if err != nil {
-		return nil, failure.Wrap(err, "failed to create docker client")
+		return nil, fmt.Errorf("failed to create docker client: %w", err)
 	}
 	defer cli.Close()
 
@@ -135,10 +133,10 @@ func (b *Backend) Build(ctx context.Context, spec builder.Spec) (*builder.Result
 	slog.Info("pulling container image", "image", imageRef, "platform", platformStr)
 	reader, err := cli.ImagePull(ctx, imageRef, image.PullOptions{Platform: platformStr})
 	if err != nil {
-		return nil, failure.Wrap(err, "failed to pull image")
+		return nil, fmt.Errorf("failed to pull image: %w", err)
 	}
 	if err := drainPullStream(reader); err != nil {
-		return nil, failure.Wrap(err, "failed to pull image")
+		return nil, fmt.Errorf("failed to pull image: %w", err)
 	}
 	b.recordImageDigest(ctx, cli, imageRef)
 	imageRef = b.currentImageReference()
@@ -149,7 +147,7 @@ func (b *Backend) Build(ctx context.Context, spec builder.Spec) (*builder.Result
 	for i, pkg := range spec.InstallPkgs {
 		absPkg, err := filepath.Abs(pkg)
 		if err != nil {
-			return nil, failure.Wrap(err, "failed to resolve install package path")
+			return nil, fmt.Errorf("failed to resolve install package path: %w", err)
 		}
 		target := fmt.Sprintf("/build/install/%d/%s", i, filepath.Base(pkg))
 		installMounts = append(installMounts, mount.Mount{
@@ -158,7 +156,7 @@ func (b *Backend) Build(ctx context.Context, spec builder.Spec) (*builder.Result
 			Target:   target,
 			ReadOnly: true,
 		})
-		installTargets = append(installTargets, shell.Quote(target))
+		installTargets = append(installTargets, buildenv.Quote(target))
 	}
 	installCommand, err := installNamesCommand(spec.InstallNames)
 	if err != nil {
@@ -174,7 +172,7 @@ func (b *Backend) Build(ctx context.Context, spec builder.Spec) (*builder.Result
 	}
 	reposScript, err := buildenv.ExtraReposScript(repositories)
 	if err != nil {
-		return nil, failure.Wrap(err, "invalid build repository configuration")
+		return nil, fmt.Errorf("invalid build repository configuration: %w", err)
 	}
 	script := buildenv.SubstituteBuildPlaceholders(buildScript, reposScript, installCommand)
 	script = strings.ReplaceAll(script, "__MAKEPKG_ARGS__", strings.Join(spec.MakepkgArgs(), " "))
@@ -218,14 +216,14 @@ func (b *Backend) Build(ctx context.Context, spec builder.Spec) (*builder.Result
 	if spec.PacmanConf != "" {
 		absConfig, err := filepath.Abs(spec.PacmanConf)
 		if err != nil {
-			return nil, failure.Wrap(err, "failed to resolve pacman config")
+			return nil, fmt.Errorf("failed to resolve pacman config: %w", err)
 		}
 		mounts = append(mounts, mount.Mount{Type: mount.TypeBind, Source: absConfig, Target: "/build/staging/pacman.conf", ReadOnly: true})
 	}
 	mounts = append(mounts, installMounts...)
 	repositoryMounts, err := localRepositoryMounts(spec.LocalRepositoryDirs)
 	if err != nil {
-		return nil, failure.Wrap(err, "failed to prepare local repository mounts")
+		return nil, fmt.Errorf("failed to prepare local repository mounts: %w", err)
 	}
 	mounts = append(mounts, repositoryMounts...)
 
@@ -242,7 +240,7 @@ func (b *Backend) Build(ctx context.Context, spec builder.Spec) (*builder.Result
 
 	resp, err := cli.ContainerCreate(ctx, containerConfig, hostConfig, nil, platform, "")
 	if err != nil {
-		return nil, failure.Wrap(err, "failed to create container")
+		return nil, fmt.Errorf("failed to create container: %w", err)
 	}
 	containerID := resp.ID
 	defer func() {
@@ -255,7 +253,7 @@ func (b *Backend) Build(ctx context.Context, spec builder.Spec) (*builder.Result
 	}()
 
 	if err := cli.ContainerStart(ctx, containerID, container.StartOptions{}); err != nil {
-		return nil, failure.Wrap(err, "failed to start container")
+		return nil, fmt.Errorf("failed to start container: %w", err)
 	}
 
 	// Docker multiplexes stdout and stderr on this stream.
@@ -316,36 +314,36 @@ func (b *Backend) GenerateSRCINFO(ctx context.Context, spec builder.Spec) ([]byt
 	}
 	platform, err := archToPlatform(spec.Arch)
 	if err != nil {
-		return nil, failure.Wrap(err, "failed to resolve platform")
+		return nil, fmt.Errorf("failed to resolve platform: %w", err)
 	}
 	absSrc, err := filepath.Abs(spec.SrcDir)
 	if err != nil {
-		return nil, failure.Wrap(err, "failed to resolve src dir")
+		return nil, fmt.Errorf("failed to resolve src dir: %w", err)
 	}
 	sharedParent := filepath.Dir(absSrc)
 	stagingOut, err := os.MkdirTemp(sharedParent, ".kamisato-srcinfo-out-*")
 	if err != nil {
-		return nil, failure.Wrap(err, "failed to create metadata output dir")
+		return nil, fmt.Errorf("failed to create metadata output dir: %w", err)
 	}
 	defer func() { _ = os.RemoveAll(stagingOut) }()
 	if err := os.Chmod(stagingOut, 0o755); err != nil { //nolint:gosec // container root must traverse the bind mount
-		return nil, failure.Wrap(err, "failed to prepare metadata output dir")
+		return nil, fmt.Errorf("failed to prepare metadata output dir: %w", err)
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, b.timeout)
 	defer cancel()
 	cli, err := newDockerClient(b.host)
 	if err != nil {
-		return nil, failure.Wrap(err, "failed to create docker client")
+		return nil, fmt.Errorf("failed to create docker client: %w", err)
 	}
 	defer cli.Close()
 	imageRef := b.currentImageReference()
 	reader, err := cli.ImagePull(ctx, imageRef, image.PullOptions{Platform: platformString(platform)})
 	if err != nil {
-		return nil, failure.Wrap(err, "failed to pull image")
+		return nil, fmt.Errorf("failed to pull image: %w", err)
 	}
 	if err := drainPullStream(reader); err != nil {
-		return nil, failure.Wrap(err, "failed to pull image")
+		return nil, fmt.Errorf("failed to pull image: %w", err)
 	}
 	b.recordImageDigest(ctx, cli, imageRef)
 	imageRef = b.currentImageReference()
@@ -363,13 +361,13 @@ func (b *Backend) GenerateSRCINFO(ctx context.Context, spec builder.Spec) ([]byt
 	if spec.PacmanConf != "" {
 		absConfig, err := filepath.Abs(spec.PacmanConf)
 		if err != nil {
-			return nil, failure.Wrap(err, "failed to resolve pacman config")
+			return nil, fmt.Errorf("failed to resolve pacman config: %w", err)
 		}
 		mounts = append(mounts, mount.Mount{Type: mount.TypeBind, Source: absConfig, Target: "/build/staging/pacman.conf", ReadOnly: true})
 	}
 	repositoryMounts, err := localRepositoryMounts(spec.LocalRepositoryDirs)
 	if err != nil {
-		return nil, failure.Wrap(err, "failed to prepare local repository mounts")
+		return nil, fmt.Errorf("failed to prepare local repository mounts: %w", err)
 	}
 	mounts = append(mounts, repositoryMounts...)
 	script := strings.ReplaceAll(metadataScript, "__PACMAN_CONFIG__", pacmanConfigScript(spec.PacmanConf))
@@ -380,7 +378,7 @@ func (b *Backend) GenerateSRCINFO(ctx context.Context, spec builder.Spec) ([]byt
 		User:  "root",
 	}, &container.HostConfig{AutoRemove: false, Mounts: mounts}, nil, platform, "")
 	if err != nil {
-		return nil, failure.Wrap(err, "failed to create metadata container")
+		return nil, fmt.Errorf("failed to create metadata container: %w", err)
 	}
 	containerID := resp.ID
 	defer func() {
@@ -389,7 +387,7 @@ func (b *Backend) GenerateSRCINFO(ctx context.Context, spec builder.Spec) ([]byt
 		_ = cli.ContainerRemove(rmCtx, containerID, container.RemoveOptions{Force: true})
 	}()
 	if err := cli.ContainerStart(ctx, containerID, container.StartOptions{}); err != nil {
-		return nil, failure.Wrap(err, "failed to start metadata container")
+		return nil, fmt.Errorf("failed to start metadata container: %w", err)
 	}
 	statusCh, errCh := cli.ContainerWait(ctx, containerID, container.WaitConditionNotRunning)
 	select {
@@ -412,7 +410,7 @@ func (b *Backend) GenerateSRCINFO(ctx context.Context, spec builder.Spec) ([]byt
 	}
 	data, err := os.ReadFile(filepath.Join(stagingOut, ".SRCINFO"))
 	if err != nil {
-		return nil, failure.Wrap(err, "failed to read generated .SRCINFO")
+		return nil, fmt.Errorf("failed to read generated .SRCINFO: %w", err)
 	}
 	if len(bytes.TrimSpace(data)) == 0 {
 		return nil, errors.New("generated .SRCINFO is empty")
@@ -566,10 +564,10 @@ func (b *Backend) cacheMounts() ([]mount.Mount, error) {
 		}
 		abs, err := filepath.Abs(hostDir)
 		if err != nil {
-			return failure.Wrap(err, "failed to resolve cache dir")
+			return fmt.Errorf("failed to resolve cache dir: %w", err)
 		}
 		if err := os.MkdirAll(abs, 0o755); err != nil { //nolint:gosec // cache dir shared with the build container
-			return failure.Wrap(err, "failed to create cache dir")
+			return fmt.Errorf("failed to create cache dir: %w", err)
 		}
 		mounts = append(mounts, mount.Mount{
 			Type:   mount.TypeBind,
@@ -596,7 +594,7 @@ func installNamesCommand(packages []string) (string, error) {
 		if name == "" || strings.HasPrefix(name, "-") || strings.ContainsAny(name, " \t\r\n") {
 			return "", fmt.Errorf("invalid install package name %q", name)
 		}
-		names = append(names, shell.Quote(name))
+		names = append(names, buildenv.Quote(name))
 	}
 	return "pacman -S --needed --noconfirm -- " + strings.Join(names, " ") + "\n", nil
 }

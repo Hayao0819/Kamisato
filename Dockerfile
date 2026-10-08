@@ -2,8 +2,8 @@
 FROM marcaureln/volta:latest AS web-builder
 WORKDIR /app/lumine/web
 COPY ./lumine/web/package.json package.json
-COPY ./lumine/web/pnpm-lock.yaml package-lock.yaml
-RUN volta install node@lts corepack && pnpm install --no-frozen-lockfile --prod
+COPY ./lumine/web/pnpm-lock.yaml pnpm-lock.yaml
+RUN volta install node@22.16.0 corepack && pnpm install --frozen-lockfile
 COPY . ../../
 RUN ../../install.sh --bin "/bin" --no-ayaka --no-ayato --no-miko --no-lumine-go
 
@@ -21,7 +21,7 @@ RUN ./install.sh --bin "/bin" --no-lumine-web --kamisato --upx
 
 # hadolint ignore=DL3007
 FROM alpine:latest
-# pacman: ayato repo-add. git: miko build source materialization.
+# pacman: ayato repo-add. git: VCS tooling for package recipes.
 # hadolint ignore=DL3018
 RUN apk add --no-cache pacman git
 COPY --from=builder /bin/kamisato /usr/local/bin/kamisato

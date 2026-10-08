@@ -46,7 +46,7 @@ func TestMikoJobReadsRequireAuth(t *testing.T) {
 	}
 
 	e := gin.New()
-	h := handler.New(nil, handler.Settings{Miko: handler.MikoSettings{URL: cfg.Miko.URL}}).WithAuth(signer)
+	h := handler.New(nil, handler.Settings{Miko: handler.MikoSettings{URL: cfg.Miko.URL}}, nil, nil, nil).WithAuth(signer)
 	m := middleware.New(middleware.Settings{}).WithAuth(stubChecker{admins: map[int64]bool{42: true}}, signer)
 	if err := router.SetRoute(e, h, m); err != nil {
 		t.Fatalf("SetRoute: %v", err)
@@ -115,7 +115,7 @@ func TestJobLogsOneTimeToken(t *testing.T) {
 	logTokens := repository.NewLogTokenRepository(store)
 
 	e := gin.New()
-	h := handler.New(nil, handler.Settings{Miko: handler.MikoSettings{URL: cfg.Miko.URL}}).WithAuth(signer).WithLogTokens(logTokens)
+	h := handler.New(nil, handler.Settings{Miko: handler.MikoSettings{URL: cfg.Miko.URL}}, nil, nil, nil).WithAuth(signer).WithLogTokens(logTokens)
 	m := middleware.New(middleware.Settings{}).WithAuth(stubChecker{admins: map[int64]bool{42: true}}, signer).WithLogTokens(logTokens)
 	if err := router.SetRoute(e, h, m); err != nil {
 		t.Fatalf("SetRoute: %v", err)

@@ -3,10 +3,10 @@ package signer
 import (
 	"context"
 
-	"github.com/Hayao0819/Kamisato/internal/api/miko"
 	"github.com/Hayao0819/Kamisato/internal/errors"
 	"github.com/Hayao0819/Kamisato/internal/filesystem/safefile"
 	"github.com/Hayao0819/Kamisato/internal/pacman/sign"
+	miko "github.com/Hayao0819/Kamisato/miko/client"
 )
 
 // SignPath is the signer service's detach-sign endpoint, shared by client and

@@ -13,7 +13,6 @@ import (
 	"github.com/Hayao0819/Kamisato/ayato/blob"
 	ayatoconfig "github.com/Hayao0819/Kamisato/ayato/config"
 	"github.com/Hayao0819/Kamisato/ayato/domain"
-	"github.com/Hayao0819/Kamisato/ayato/handler/bugreport"
 	"github.com/Hayao0819/Kamisato/ayato/test/mocks"
 )
 
@@ -27,7 +26,7 @@ func setup(t *testing.T) (*gomock.Controller, *mocks.MockServicer, *Set) {
 	gin.SetMode(gin.TestMode)
 	controller := gomock.NewController(t)
 	service := mocks.NewMockServicer(controller)
-	return controller, service, New(service, Settings{})
+	return controller, service, New(service, Settings{}, nil, nil, nil)
 }
 
 func testSettings(cfg *ayatoconfig.AyatoConfig) Settings {
@@ -59,23 +58,7 @@ func testSettings(cfg *ayatoconfig.AyatoConfig) Settings {
 			AllCommented: cfg.Mirror.AllCommented,
 		},
 		Recaptcha: RecaptchaSettings{
-			Provider: cfg.Recaptcha.Provider,
-			SiteKey:  cfg.Recaptcha.SiteKey,
-			Secret:   cfg.Recaptcha.Secret,
-		},
-		BugReport: bugreport.Config{
-			Backends: cfg.BugReport.Backends,
-			GitHub:   bugreport.GitHubConfig{Repo: cfg.BugReport.GitHub.Repo, Token: cfg.BugReport.GitHub.Token},
-			SMTP: bugreport.SMTPConfig{
-				Host:         cfg.BugReport.SMTP.Host,
-				Port:         cfg.BugReport.SMTP.Port,
-				Username:     cfg.BugReport.SMTP.Username,
-				Password:     cfg.BugReport.SMTP.Password,
-				From:         cfg.BugReport.SMTP.From,
-				To:           cfg.BugReport.SMTP.To,
-				ToMaintainer: cfg.BugReport.SMTP.ToMaintainer,
-			},
-			Webhook: bugreport.WebhookConfig{URL: cfg.BugReport.Webhook.URL},
+			SiteKey: cfg.Recaptcha.SiteKey,
 		},
 	}
 }

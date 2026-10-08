@@ -14,7 +14,7 @@ type databases struct {
 }
 
 func openDatabases(withSync bool) (*databases, error) {
-	config, err := loadConfig("")
+	config, err := ParseConfig("")
 	if err != nil {
 		return nil, err
 	}

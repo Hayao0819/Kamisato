@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Hayao0819/Kamisato/internal/api/miko"
+	miko "github.com/Hayao0819/Kamisato/miko/client"
 	"github.com/Hayao0819/Kamisato/miko/domain"
 )
 

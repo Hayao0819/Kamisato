@@ -16,7 +16,7 @@ import (
 	"github.com/spf13/pflag"
 
 	"github.com/Hayao0819/Kamisato/internal/cli/version"
-	"github.com/Hayao0819/Kamisato/thoma/build"
+	"github.com/Hayao0819/Kamisato/thoma/service/build"
 )
 
 // RootCmd builds the thoma command. The makepkg flags thoma reacts to are
@@ -100,7 +100,7 @@ func run(cmd *cobra.Command, args []string) error {
 		if err := rejectRoot(os.Geteuid()); err != nil {
 			return err
 		}
-		return build.Run(cmd.Context(), cmd.OutOrStdout(), cmd.ErrOrStderr(), options)
+		return remoteBuild(cmd.Context(), cmd.OutOrStdout(), cmd.ErrOrStderr(), options)
 	}
 	return passthrough(args)
 }
@@ -153,7 +153,7 @@ func rejectRoot(euid int) error {
 }
 
 func passthrough(args []string) error {
-	bin := build.RealMakepkg("")
+	bin := realMakepkg(os.Getenv("THOMA_MAKEPKG"))
 	return syscall.Exec(bin, append([]string{bin}, args...), os.Environ()) //nolint:gosec // bin is a resolved makepkg path, not attacker input
 }
 

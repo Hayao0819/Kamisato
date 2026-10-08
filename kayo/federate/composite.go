@@ -195,6 +195,18 @@ func (c *Composite) SourceURL(ctx context.Context, pkgbase string) (string, bool
 	return "", false, nil
 }
 
+// SourceURLFor keeps a resolved package's checkout in its own trust namespace.
+// A higher-ranked source may provide the same pkgbase under another package name;
+// SourceURL's merged lookup is not sufficient when auditing a specific record.
+func (c *Composite) SourceURLFor(ctx context.Context, source, pkgbase string) (string, bool, error) {
+	for _, e := range c.entries {
+		if e.source == source {
+			return e.backend.SourceURL(ctx, pkgbase)
+		}
+	}
+	return "", false, nil
+}
+
 // Resolve returns the winning record for a pkgname (highest tier, then priority)
 // and its source's trust namespace. Unlike Info it is ungated, so the caller
 // applies its own trust evaluation; delegatedVerified reports the keep() bypass —

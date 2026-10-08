@@ -186,3 +186,19 @@ type oidcRoundTripFunc func(*http.Request) (*http.Response, error)
 func (f oidcRoundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
 	return f(req)
 }
+
+func TestOIDCDiscoveryUsesInjectedClient(t *testing.T) {
+	requests := 0
+	wantErr := errors.New("injected discovery failure")
+	client := &http.Client{Transport: oidcRoundTripFunc(func(request *http.Request) (*http.Response, error) {
+		requests++
+		if request.URL.String() != githubOIDCIssuer+"/.well-known/openid-configuration" {
+			t.Fatalf("discovery URL = %s", request.URL)
+		}
+		return nil, wantErr
+	})}
+	_, err := NewCIAuthorizerWithHTTPClient(context.Background(), CISettings{GitHubOIDC: CIGitHubOIDC{Enabled: true}}, client)
+	if !errors.Is(err, wantErr) || requests != oidcGETAttempts {
+		t.Fatalf("error = %v; requests = %d", err, requests)
+	}
+}

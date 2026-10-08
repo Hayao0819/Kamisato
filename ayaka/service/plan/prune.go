@@ -3,11 +3,12 @@ package plan
 import (
 	"context"
 	"log/slog"
+	"net/http"
 	"strings"
 
+	"github.com/Hayao0819/Kamisato/ayaka/source"
 	"github.com/Hayao0819/Kamisato/internal/errors"
 	"github.com/Hayao0819/Kamisato/internal/pacman/repo"
-	"github.com/Hayao0819/Kamisato/internal/pacman/source"
 )
 
 type PruneOptions struct {
@@ -17,8 +18,10 @@ type PruneOptions struct {
 	Remove      func(context.Context, string, string) error
 }
 
-func Prune(ctx context.Context, src *source.SourceRepo, options PruneOptions) ([]string, error) {
-	return prune(ctx, src, options, repo.RepoFromURL)
+func Prune(ctx context.Context, client *http.Client, src *source.SourceRepo, options PruneOptions) ([]string, error) {
+	return prune(ctx, src, options, func(url, name string) (*repo.RemoteRepo, error) {
+		return repo.RepoFromURL(ctx, client, url, name)
+	})
 }
 
 func prune(

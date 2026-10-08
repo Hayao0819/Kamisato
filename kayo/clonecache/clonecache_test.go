@@ -76,3 +76,11 @@ func TestCheck(t *testing.T) {
 		t.Errorf("un-cloned pkgbase: %+v, want !Exists && !Drifted", res)
 	}
 }
+
+func TestCheckRejectsPathsOutsidePackageDirectory(t *testing.T) {
+	for _, base := range []string{"", ".", "..", "../other", "/absolute", "nested/pkg", `nested\pkg`, "pkg\x00name"} {
+		if _, err := Check(context.Background(), t.TempDir(), base, "pin"); err == nil {
+			t.Errorf("Check(%q) should reject a path instead of a package base", base)
+		}
+	}
+}

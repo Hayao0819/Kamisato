@@ -1,6 +1,6 @@
 // Package sign abstracts producing OpenPGP detached signatures for built
-// packages. Two backends implement Signer: a worker host key certified by a
-// shared master (HostKeySigner) and an arbitrary local user key (LocalSigner).
+// packages. LocalSigner accepts either a certified worker key or an existing
+// local user key; SigningKey additionally enforces its rotatable-subkey model.
 package sign
 
 import "context"

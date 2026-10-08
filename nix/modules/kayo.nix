@@ -27,8 +27,7 @@ in
       inherit (toml) type;
       default = { };
       example = {
-        port = 10713;
-        bind = "127.0.0.1";
+        addr = "127.0.0.1:10713";
         overlays = [
           {
             name = "mine";
@@ -64,12 +63,13 @@ in
     openFirewall = mkOption {
       type = types.bool;
       default = false;
-      description = "Open settings.port in the firewall.";
+      description = "Open the TCP port from settings.addr in the firewall.";
     };
   };
 
   config = mkIf cfg.enable (
     let
+      portMatch = builtins.match ".*:([0-9]+)" (cfg.settings.addr or "127.0.0.1:10713");
       # cache_dir/trust_store are forced to the durable, systemd-managed paths.
       configFile = toml.generate "kayo_config.toml" (
         cfg.settings
@@ -80,12 +80,17 @@ in
       );
     in
     {
+      assertions = [
+        {
+          assertion = !cfg.openFirewall || portMatch != null;
+          message = "services.kayo.openFirewall requires settings.addr with a numeric TCP port.";
+        }
+      ];
       systemd.services.kayo = {
         description = "kayo AUR overlay router";
         wantedBy = [ "multi-user.target" ];
         after = [ "network-online.target" ];
         wants = [ "network-online.target" ];
-        path = [ pkgs.git ]; # kayo shells out to git to clone overlays
         serviceConfig =
           shared.commonHardening
           // {
@@ -98,8 +103,8 @@ in
           }
           // shared.envFileAttrs cfg.environmentFile;
       };
-      networking.firewall.allowedTCPPorts = mkIf cfg.openFirewall [
-        (cfg.settings.port or 10713)
+      networking.firewall.allowedTCPPorts = mkIf (cfg.openFirewall && portMatch != null) [
+        (lib.toInt (builtins.head portMatch))
       ];
     }
   );

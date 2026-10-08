@@ -3,32 +3,35 @@ package submodulescmd
 import (
 	"log/slog"
 
-	"github.com/spf13/cobra"
-
-	"github.com/Hayao0819/Kamisato/ayaka/app"
+	"github.com/Hayao0819/Kamisato/ayaka/cmd/internal/sourcerepos"
 	cmdline "github.com/Hayao0819/Kamisato/internal/cli"
 	"github.com/Hayao0819/Kamisato/internal/errors"
 	"github.com/Hayao0819/Kamisato/internal/vcs/git"
+	"github.com/spf13/cobra"
 )
 
-func Cmd(runtime *app.Runtime) *cobra.Command {
+func newCommand(sources sourcerepos.Reader) *cobra.Command {
 	var (
 		init      bool
 		recursive bool
 	)
 
-	cmd := &cobra.Command{
+	cmd := &cobra.Command{}
+	if sources == nil {
+		sources = sourcerepos.ForCommand(cmd)
+	}
+	*cmd = cobra.Command{
 		Use:     "submodules",
 		Aliases: []string{"update-submodules", "usm"},
 		Short:   "Check out git submodules at their recorded commits",
 		Long:    "Sync all git submodules in the repository directories to the commits the parent records; advancing a mirror to its origin is 'ayaka src pull'.",
 		Args:    cmdline.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			a, err := runtime.App()
+			repos, err := sources.All()
 			if err != nil {
 				return err
 			}
-			for _, r := range a.Config.Repos {
+			for _, r := range repos {
 				root, err := git.RepoRoot(r.Dir)
 				if err != nil {
 					slog.Warn("skipping non-git repository", "dir", r.Dir)
@@ -52,3 +55,5 @@ func Cmd(runtime *app.Runtime) *cobra.Command {
 
 	return cmd
 }
+
+func Cmd() *cobra.Command { return newCommand(nil) }

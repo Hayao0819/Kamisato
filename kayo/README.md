@@ -3,9 +3,9 @@
 Kayo is a local aurweb-compatible overlay. You run it on your own machine, point
 an AUR helper at it, and it answers RPC and git requests in place of the real
 AUR. Behind that one endpoint it federates three sources: trusted git overlays,
-other ayato instances, and the upstream AUR. Everything the helper sees has
-already passed a local trust store, so a hijacked or newly compromised package
-can be held back before you install it.
+other ayato instances, and the upstream AUR. A local trust policy governs these
+results: enforce mode can hold back unreviewed packages and changed maintainers
+before installation; warn mode reports them without blocking.
 
 Run it as its own binary or as `kamisato kayo`. It listens on `127.0.0.1:10713`
 by default.
@@ -45,10 +45,10 @@ outright.
 
 ```sh
 kayo audit <package|dir|git-url>   # static PKGBUILD scan + maintainer check
-kayo trust add <package|git-url>   # review, pin the commit, record the approval
+kayo trust add <package|dir|git-url> # review, pin, and record the approval
 kayo trust list                    # list vouched maintainers and pinned packages
 kayo trust rm <pkgbase>            # drop an approval (or --maintainer source/account)
-kayo update <package|git-url>      # diff against the approved commit; --approve to re-pin
+kayo update <package|dir|git-url>  # show the diff; --approve to re-pin
 kayo verify [pkgname...]           # the install-time check the pacman hook runs
 ```
 
@@ -62,6 +62,25 @@ pass `--force`, then pins the reviewed commit and writes the approval. Use
 `--ref` to pin a specific revision. `update` shows what changed since the
 approval (maintainer, commit, files), re-audits, and advances the pin when you
 pass `--approve`.
+
+Package names follow the same source priority as resolution and verification:
+configured overlays, federated ayato sources, then AUR. An overlay review starts
+from its configured revision, not a fresh remote HEAD. Approvals keep the selected
+source's namespace and maintainer account, including for split packages.
+
+Git URLs supplied by a federated catalog use the strict clone transport: local
+files, private/loopback destinations, plaintext HTTP, and HTTP redirects are
+rejected. A catalog signature authenticates its publisher, not permission to read
+the reviewer's local files or contact internal services. Explicit directory/URL
+targets and operator-configured overlays still support local repositories.
+
+Approving a local Git directory reviews a temporary snapshot of the selected
+commit. Without `--ref`, tracked changes must be committed first; with an explicit
+ref, that revision is selected instead. Untracked files are not part of a pin.
+The ordinary audit and non-approving update still inspect the working directory.
+
+`trust whitelist add <pkgbase>` is a separate escape hatch: it skips review and
+maintainer-change checks and pins no commit. It is not equivalent to `trust add`.
 
 ## Pacman hook
 

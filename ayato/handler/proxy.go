@@ -6,8 +6,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/Hayao0819/Kamisato/internal/api/client"
 	"github.com/Hayao0819/Kamisato/internal/auth/apikey"
+	httpclient "github.com/Hayao0819/Kamisato/internal/http/client"
 )
 
 // Reverse-proxies build/job requests to the internal miko server; clients never
@@ -28,7 +28,7 @@ func NewMikoProxy(settings MikoSettings) (*MikoProxy, error) {
 		return nil, nil
 	}
 
-	target, err := client.ParseBaseURL(settings.URL)
+	target, err := httpclient.ParseBaseURL(settings.URL)
 	if err != nil {
 		return nil, err
 	}
@@ -62,7 +62,7 @@ func (p *MikoProxy) Handler(segments ...string) gin.HandlerFunc {
 // steering the proxy at an arbitrary miko endpoint.
 func (p *MikoProxy) HandlerFunc(build func(c *gin.Context) []string) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		target := client.EndpointURL(p.target, build(c)...)
+		target := httpclient.EndpointURL(p.target, build(c)...)
 		c.Request.URL.Path = target.Path
 		c.Request.URL.RawPath = target.RawPath
 		c.Request.URL.RawQuery = ""

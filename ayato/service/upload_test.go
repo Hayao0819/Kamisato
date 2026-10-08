@@ -2,6 +2,7 @@ package service_test
 
 import (
 	"bytes"
+	"os"
 	"testing"
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
@@ -42,8 +43,15 @@ func baseConfig(requireSign bool, keyring string) service.Settings {
 		RequireSign: requireSign,
 		Repos:       []ayatoconfig.BinRepoConfig{{Name: "myrepo", Arches: []string{"x86_64"}}},
 	}
-	cfg.Verify.Keyring = keyring
-	return settingsFromConfig(cfg)
+	settings := settingsFromConfig(cfg)
+	if keyring != "" {
+		data, err := os.ReadFile(keyring)
+		if err != nil {
+			panic(err) // A broken test fixture must not silently disable verification.
+		}
+		settings.VerificationKeys = data
+	}
+	return settings
 }
 
 func TestUploadFile_RejectsDowngrade(t *testing.T) {

@@ -2,6 +2,8 @@ package admincmd
 
 import (
 	"testing"
+
+	"github.com/Hayao0819/Kamisato/ayaka/cmd/server/admin/internal/userid"
 )
 
 func TestParseLoginOrID(t *testing.T) {
@@ -17,7 +19,7 @@ func TestParseLoginOrID(t *testing.T) {
 		{"some-user", 0, "some-user"},
 	}
 	for _, tc := range cases {
-		id, login := parseLoginOrID(tc.in)
+		id, login := userid.Parse(tc.in)
 		if id != tc.wantID || login != tc.wantLogin {
 			t.Errorf("parseLoginOrID(%q) = (%d, %q), want (%d, %q)",
 				tc.in, id, login, tc.wantID, tc.wantLogin)

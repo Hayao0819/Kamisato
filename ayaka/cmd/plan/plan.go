@@ -7,41 +7,42 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/Hayao0819/Kamisato/ayaka/app"
-	"github.com/Hayao0819/Kamisato/ayaka/cli"
+	"github.com/Hayao0819/Kamisato/ayaka/cmd/internal/buildenv"
+	"github.com/Hayao0819/Kamisato/ayaka/cmd/internal/buildflags"
+	"github.com/Hayao0819/Kamisato/ayaka/config"
 	"github.com/spf13/cobra"
 )
 
-type options struct {
-	input cli.DirectBuildFlags
-	json  bool
-}
-
 func Cmd() *cobra.Command {
-	var options options
+	var input buildflags.Options
+	var jsonOutput bool
 	command := &cobra.Command{
 		Use:               "plan [pkgname...]",
 		Short:             "Resolve package sources and print their build order",
 		ValidArgsFunction: cobra.NoFileCompletions,
 		PreRunE: func(_ *cobra.Command, args []string) error {
-			return options.input.Validate(args)
+			return input.Validate(args)
 		},
 		RunE: func(command *cobra.Command, args []string) error {
 			configFile, err := command.Flags().GetString("config")
 			if err != nil {
 				return err
 			}
-			application, _, err := app.NewDirectBuildApplication(options.input.ApplicationOptions(configFile))
+			host, err := config.LoadDirectBuildHostConfig(configFile)
+			if err != nil {
+				return err
+			}
+			service, _, err := buildenv.New(host, input.BackendOptions())
 			if err != nil {
 				return err
 			}
 			ctx, stop := signal.NotifyContext(command.Context(), os.Interrupt, syscall.SIGTERM)
 			defer stop()
-			plan, err := application.Plan(ctx, options.input.PlanRequest(args))
+			plan, err := service.Plan(ctx, input.PlanRequest(args))
 			if err != nil {
 				return err
 			}
-			if options.json {
+			if jsonOutput {
 				encoder := json.NewEncoder(command.OutOrStdout())
 				encoder.SetIndent("", "  ")
 				return encoder.Encode(plan)
@@ -58,7 +59,7 @@ func Cmd() *cobra.Command {
 			return nil
 		},
 	}
-	options.input.Add(command)
-	command.Flags().BoolVar(&options.json, "json", false, "Write the complete plan as JSON")
+	input.Add(command)
+	command.Flags().BoolVar(&jsonOutput, "json", false, "Write the complete plan as JSON")
 	return command
 }

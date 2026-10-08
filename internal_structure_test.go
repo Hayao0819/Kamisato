@@ -12,7 +12,6 @@ import (
 )
 
 var internalGroups = map[string]bool{
-	"api":        true,
 	"auth":       true,
 	"cli":        true,
 	"config":     true,
@@ -71,6 +70,37 @@ func TestInternalPackageLayout(t *testing.T) {
 				if importPath == product || strings.HasPrefix(importPath, product+"/") {
 					t.Errorf("%s imports product package %s", path, importPath)
 				}
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestReusablePackagesAreIndependent(t *testing.T) {
+	err := filepath.WalkDir("pkg", func(path string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.IsDir() || filepath.Ext(path) != ".go" {
+			return nil
+		}
+		file, err := parser.ParseFile(token.NewFileSet(), path, nil, parser.ImportsOnly)
+		if err != nil {
+			return err
+		}
+		for _, spec := range file.Imports {
+			importPath, err := strconv.Unquote(spec.Path.Value)
+			if err != nil {
+				return err
+			}
+			if !strings.HasPrefix(importPath, "github.com/Hayao0819/Kamisato/") {
+				continue
+			}
+			if !strings.HasPrefix(importPath, "github.com/Hayao0819/Kamisato/pkg/") {
+				t.Errorf("%s: reusable libraries, including tests, must not depend on product or internal packages: %s", path, importPath)
 			}
 		}
 		return nil

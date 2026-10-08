@@ -29,10 +29,10 @@ in
       example = {
         port = 8080;
         store = {
-          dbtype = "badgerdb";
-          storagetype = "localfs";
+          db_type = "badgerdb";
+          storage_type = "localfs";
           badgerdb = "/var/lib/ayato/badger";
-          localrepodir = "/var/lib/ayato/repo";
+          local_repo_dir = "/var/lib/ayato/repo";
         };
         auth.github.client_id = "Iv1.xxxx";
       };

@@ -43,7 +43,7 @@ func deviceHandler(t *testing.T) (*AuthHandler, deviceStore, *auth.Signer) {
 	if err != nil {
 		t.Fatalf("NewSigner: %v", err)
 	}
-	h := NewAuthHandler(svc, svc, testSettings(cfg)).WithSigner(signer).WithDeviceStore(dev)
+	h := NewAuthHandler(svc, svc, testSettings(cfg), nil).WithSigner(signer).WithDeviceStore(dev)
 	return h, dev, signer
 }
 

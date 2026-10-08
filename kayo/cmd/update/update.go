@@ -1,26 +1,35 @@
 package updatecmd
 
 import (
+	"context"
+
 	"github.com/spf13/cobra"
 
-	"github.com/Hayao0819/Kamisato/kayo/app"
-	"github.com/Hayao0819/Kamisato/kayo/cli"
+	"github.com/Hayao0819/Kamisato/kayo/cmd/internal/settings"
+	"github.com/Hayao0819/Kamisato/kayo/config"
+	"github.com/Hayao0819/Kamisato/kayo/service"
 )
 
+type updateFunc func(context.Context, *config.KayoConfig, string, bool, bool) (*service.UpdateResult, error)
+
 func Cmd() *cobra.Command {
+	return newCommand(service.Update)
+}
+
+func newCommand(update updateFunc) *cobra.Command {
 	var approve, force bool
 	cmd := &cobra.Command{
-		Use:   "update <package|git-url>",
+		Use:   "update <package|dir|git-url>",
 		Short: "Review changes since the approved commit and re-pin with --approve",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cfg, err := cli.LoadConfig(cmd)
+			cfg, err := settings.Load(cmd.Flags())
 			if err != nil {
 				return err
 			}
-			result, err := app.Update(cmd.Context(), cfg, args[0], approve, force)
+			result, err := update(cmd.Context(), cfg, args[0], approve, force)
 			if result != nil {
-				cli.PrintUpdate(cmd.OutOrStdout(), result)
+				printUpdate(cmd.OutOrStdout(), result)
 			}
 			return err
 		},

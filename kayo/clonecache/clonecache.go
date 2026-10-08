@@ -9,8 +9,10 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 
-	"github.com/Hayao0819/Kamisato/kayo/audit"
+	"github.com/Hayao0819/Kamisato/internal/errors"
+	"github.com/Hayao0819/Kamisato/internal/vcs/git"
 )
 
 // Dir is the clone-cache working tree the helper keeps for a pkgbase under root.
@@ -33,6 +35,9 @@ func (r Result) Drifted() bool { return r.Exists && !r.Matches }
 // root or an un-cloned pkgbase yields Exists=false rather than an error, so the
 // caller can treat "not cached yet" as nothing to verify.
 func Check(ctx context.Context, root, pkgbase, pinned string) (Result, error) {
+	if pkgbase == "" || !filepath.IsLocal(pkgbase) || filepath.Base(pkgbase) != pkgbase || strings.ContainsAny(pkgbase, "\\\x00") || pkgbase == "." {
+		return Result{}, errors.NewErrf("invalid package base %q", pkgbase)
+	}
 	dir := Dir(root, pkgbase)
 	res := Result{Dir: dir, Pinned: pinned}
 	if root == "" {
@@ -41,7 +46,7 @@ func Check(ctx context.Context, root, pkgbase, pinned string) (Result, error) {
 	if _, err := os.Stat(filepath.Join(dir, ".git")); err != nil {
 		return res, nil // the helper has not cloned this pkgbase
 	}
-	head, err := audit.HeadCommit(ctx, dir)
+	head, err := git.HeadCommit(ctx, dir)
 	if err != nil {
 		return res, err
 	}

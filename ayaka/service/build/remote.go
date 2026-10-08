@@ -8,11 +8,11 @@ import (
 	"slices"
 	"time"
 
-	"github.com/Hayao0819/Kamisato/internal/api/ayato"
+	"github.com/Hayao0819/Kamisato/ayaka/source"
+	ayato "github.com/Hayao0819/Kamisato/ayato/client"
 	"github.com/Hayao0819/Kamisato/internal/errors"
-	pkg "github.com/Hayao0819/Kamisato/internal/pacman/pkg"
+	"github.com/Hayao0819/Kamisato/internal/pacman/pkg"
 	"github.com/Hayao0819/Kamisato/internal/pacman/sign"
-	"github.com/Hayao0819/Kamisato/internal/pacman/source"
 )
 
 type RemoteBuildOpts struct {

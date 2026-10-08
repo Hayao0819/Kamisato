@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/Hayao0819/Kamisato/ayato/domain"
+	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
 func (h *AdminHandler) AdminsListHandler(c *gin.Context) {
@@ -57,19 +58,11 @@ func (h *AdminHandler) AdminsRemoveHandler(c *gin.Context) {
 		respondAuthError(c, http.StatusBadRequest, "invalid id")
 		return
 	}
-	// Refuse to empty the allowlist (including self-removal): auth fails closed on
-	// an empty list and the bootstrap admin is only re-seeded at startup, so this
-	// would lock everyone out until a restart.
-	admins, err := h.admins.ListAdmins()
-	if err != nil {
-		respondAuthError(c, http.StatusInternalServerError, "list")
-		return
-	}
-	if len(admins) == 1 && admins[0].ID == id {
-		respondAuthError(c, http.StatusConflict, "cannot remove the last admin")
-		return
-	}
 	if err := h.admins.RemoveAdmin(id); err != nil {
+		if errors.Is(err, domain.ErrConflict) {
+			respondAuthError(c, http.StatusConflict, "cannot remove the last admin")
+			return
+		}
 		respondAuthError(c, http.StatusInternalServerError, "remove")
 		return
 	}

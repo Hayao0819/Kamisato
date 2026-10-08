@@ -10,7 +10,7 @@ import (
 )
 
 // AURHandler is the gin-facing surface for AUR source management and the
-// kayo-facing catalog; parsing and responses live here so the ayato/aur backend
+// kayo-facing catalog; parsing and responses live here so ayato/service/aur
 // stays free of any web framework.
 type AURHandler struct {
 	svc *aur.Service

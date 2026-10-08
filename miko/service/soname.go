@@ -17,20 +17,20 @@ import (
 	"github.com/Hayao0819/Kamisato/miko/domain"
 )
 
-// sonameStore records the sonames a package provided at its last successful
+// SonameStore records the sonames a package provided at its last successful
 // build so the next build can detect a bump. The service depends on this seam so
 // a fake can stand in for tests; fileSonameStore is the production one.
-type sonameStore interface {
-	load(pkgbase string) ([]string, error)
-	save(pkgbase string, sonames []string) error
+type SonameStore interface {
+	Load(pkgbase string) ([]string, error)
+	Save(pkgbase string, sonames []string) error
 }
 
-var _ sonameStore = (*fileSonameStore)(nil)
+var _ SonameStore = (*fileSonameStore)(nil)
 
 // fileSonameStore stores one JSON array per pkgbase under <dataDir>/sonames.
 type fileSonameStore struct{ dir string }
 
-func newFileSonameStore(dataDir string) (*fileSonameStore, error) {
+func NewFileSonameStore(dataDir string) (SonameStore, error) {
 	dir := filepath.Join(dataDir, "sonames")
 	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return nil, err
@@ -47,7 +47,7 @@ func (s *fileSonameStore) path(pkgbase string) (string, error) {
 	return filepath.Join(s.dir, pkgbase+".json"), nil
 }
 
-func (s *fileSonameStore) load(pkgbase string) ([]string, error) {
+func (s *fileSonameStore) Load(pkgbase string) ([]string, error) {
 	p, err := s.path(pkgbase)
 	if err != nil {
 		return nil, err
@@ -66,7 +66,7 @@ func (s *fileSonameStore) load(pkgbase string) ([]string, error) {
 	return out, nil
 }
 
-func (s *fileSonameStore) save(pkgbase string, sonames []string) error {
+func (s *fileSonameStore) Save(pkgbase string, sonames []string) error {
 	p, err := s.path(pkgbase)
 	if err != nil {
 		return err
@@ -102,12 +102,12 @@ func (s *Service) maybeRebuildOnSonameBump(ctx context.Context, job *domain.Buil
 		return
 	}
 	for base, current := range grouped {
-		prev, err := s.sonames.load(base)
+		prev, err := s.sonames.Load(base)
 		if err != nil {
 			slog.Warn("could not load prior sonames", "pkgbase", base, "err", err)
 			continue
 		}
-		if err := s.sonames.save(base, current); err != nil {
+		if err := s.sonames.Save(base, current); err != nil {
 			slog.Warn("could not persist sonames", "pkgbase", base, "err", err)
 		}
 		if len(prev) == 0 {
@@ -233,7 +233,7 @@ func rebuildChain(g *depend.Graph, bumped string) ([]string, error) {
 func repoDepGraph(rr *repo.RemoteRepo) *depend.Graph {
 	provider := map[string]string{}
 	bases := map[string]struct{}{}
-	baseOf := func(p *ppkgBinary) string {
+	baseOf := func(p *pkg.BinaryPackage) string {
 		if b := p.Base(); b != "" {
 			return b
 		}
@@ -262,10 +262,6 @@ func repoDepGraph(rr *repo.RemoteRepo) *depend.Graph {
 	}
 	return depend.NewGraph(nodes, deps)
 }
-
-// ppkgBinary is the concrete binary-package type; aliased so repoDepGraph reads
-// cleanly without importing the name into the whole file.
-type ppkgBinary = pkg.BinaryPackage
 
 // sonamesByPkgbase reads each built package's pkgbase and the sonames it ships,
 // merging the sonames of every subpackage under one pkgbase.

@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	pkg "github.com/Hayao0819/Kamisato/internal/pacman/pkg"
-	"github.com/Hayao0819/Kamisato/internal/pacman/source"
+	"github.com/Hayao0819/Kamisato/ayaka/source"
+	"github.com/Hayao0819/Kamisato/internal/pacman/pkg"
 )
 
 func writeNvCheckFixture(t *testing.T, srcinfo, nvchecker string) *pkg.SourcePackage {

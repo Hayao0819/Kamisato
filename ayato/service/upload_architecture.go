@@ -25,17 +25,23 @@ func (s *Service) declaredArches(repo string) []string {
 
 // repoArches is the union of configured and already stored concrete arches.
 func (s *Service) repoArches(repo string) []string {
+	return concreteArches(s.declaredArches(repo), s.storedArches(repo))
+}
+
+func concreteArches(declared, stored []string) []string {
 	seen := make(map[string]struct{})
 	var arches []string
-	for _, arch := range append(s.declaredArches(repo), s.storedArches(repo)...) {
-		if arch == "" || arch == "any" {
-			continue
+	for _, group := range [][]string{declared, stored} {
+		for _, arch := range group {
+			if arch == "" || arch == "any" {
+				continue
+			}
+			if _, duplicate := seen[arch]; duplicate {
+				continue
+			}
+			seen[arch] = struct{}{}
+			arches = append(arches, arch)
 		}
-		if _, duplicate := seen[arch]; duplicate {
-			continue
-		}
-		seen[arch] = struct{}{}
-		arches = append(arches, arch)
 	}
 	return arches
 }

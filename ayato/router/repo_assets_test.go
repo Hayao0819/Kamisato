@@ -19,7 +19,7 @@ func TestRepoIndexAssets(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	e := gin.New()
-	h := handler.New(nil, handler.Settings{})
+	h := handler.New(nil, handler.Settings{}, nil, nil, nil)
 	m := middleware.New(middleware.Settings{})
 	if err := router.SetRoute(e, h, m); err != nil {
 		t.Fatalf("SetRoute: %v", err)

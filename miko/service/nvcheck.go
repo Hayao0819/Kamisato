@@ -3,9 +3,11 @@ package service
 import (
 	"context"
 	"log/slog"
+	"net/http"
 	"time"
 
-	"github.com/Hayao0819/Kamisato/internal/pacman/source/nvcheck"
+	"github.com/Hayao0819/Kamisato/internal/errors"
+	"github.com/Hayao0819/Kamisato/internal/pacman/nvcheck"
 	"github.com/Hayao0819/Kamisato/miko/domain"
 )
 
@@ -29,16 +31,29 @@ func (s *Service) CheckUpstreamVersionsDryRun(ctx context.Context) []nvcheck.Res
 }
 
 func (s *Service) runNvCheck(ctx context.Context, enq nvcheck.Enqueuer) []nvcheck.Result {
-	entries := s.settings.VersionCheckEntries
-	if len(entries) == 0 {
-		return nil
-	}
-	checker := nvcheck.NewChecker(entries, nvcheck.CheckerOptions{
+	return checkVersions(ctx, s.settings.VersionCheckEntries, nvcheck.CheckerOptions{
 		HTTPClient:     s.httpClient,
-		CurrentVersion: s.publishedVersion(),
+		CurrentVersion: publishedVersion(s.repositories, s.settings.AyatoURL != ""),
 		Enqueuer:       enq,
 		Logger:         slog.Default(),
 	})
+}
+
+// CheckUpstreamVersions is the read-only version check. It needs no worker,
+// queue, signer, or persistence store, so reporting never initializes them.
+func CheckUpstreamVersions(ctx context.Context, entries []nvcheck.Entry, client *http.Client, repositories RepositoryDBReader) []nvcheck.Result {
+	return checkVersions(ctx, entries, nvcheck.CheckerOptions{
+		HTTPClient:     client,
+		CurrentVersion: publishedVersion(repositories, repositories != nil),
+		Logger:         slog.Default(),
+	})
+}
+
+func checkVersions(ctx context.Context, entries []nvcheck.Entry, options nvcheck.CheckerOptions) []nvcheck.Result {
+	if len(entries) == 0 {
+		return nil
+	}
+	checker := nvcheck.NewChecker(entries, options)
 
 	results := checker.Check(ctx)
 	for _, r := range results {
@@ -90,12 +105,15 @@ func (e *versionUpdateEnqueuer) EnqueueVersionUpdate(entry nvcheck.Entry, newVer
 // ayato's repo DB. A missing repository or package resolves to an empty version,
 // which the checker treats as out-of-date so the first pass baselines. Transport
 // and malformed-database failures remain visible instead of looking outdated.
-func (s *Service) publishedVersion() nvcheck.CurrentFunc {
+func publishedVersion(repositories RepositoryDBReader, configured bool) nvcheck.CurrentFunc {
 	return func(ctx context.Context, entry nvcheck.Entry) (string, error) {
-		if s.settings.AyatoURL == "" || entry.Repo == "" || entry.Arch == "" {
+		if !configured || entry.Repo == "" || entry.Arch == "" {
 			return "", nil
 		}
-		rr, err := s.repositoryDB(ctx, entry.Repo, entry.Arch)
+		if repositories == nil {
+			return "", errors.NewErr("Ayato repository reader is not configured")
+		}
+		rr, err := repositories.Database(ctx, entry.Repo, entry.Arch)
 		if err != nil {
 			return "", err
 		}

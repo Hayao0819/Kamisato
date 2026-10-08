@@ -22,7 +22,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: ./lumine/web
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
 
       - name: Run Biome
         working-directory: ./lumine/web

@@ -356,8 +356,8 @@ func (k *SigningKey) Sign(ctx context.Context, pkgPath string) (string, error) {
 }
 
 var (
-	errNoPrimarySecret = fmt.Errorf("this operation needs the primary secret key; run it against the offline key directory with --home")
-	errNoValidSubkey   = fmt.Errorf("no valid signing subkey (expired or revoked); add one with 'ayaka key subkey add' or rotate with 'ayaka key subkey rotate'")
+	errNoPrimarySecret = fmt.Errorf("this operation needs the primary secret key")
+	errNoValidSubkey   = fmt.Errorf("no valid signing subkey (expired or revoked); add or rotate a signing subkey")
 )
 
 // dropEncryptionSubkeys removes any non-signing subkey. A repository key only

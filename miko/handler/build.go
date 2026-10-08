@@ -8,12 +8,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Hayao0819/Kamisato/internal/api/miko"
 	"github.com/Hayao0819/Kamisato/internal/auth/apikey"
 	"github.com/Hayao0819/Kamisato/internal/errors"
+	miko "github.com/Hayao0819/Kamisato/miko/client"
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/Hayao0819/Kamisato/miko/joblog"
 	"github.com/Hayao0819/Kamisato/miko/service"
 )
 
@@ -119,11 +120,17 @@ func (h *Handler) JobLogsHandler(c *gin.Context) {
 		h.logReadersMu.Unlock()
 	}()
 
-	// Fallback: no live buffer, return whatever text we have.
+	// Plain-text clients retain the historical fallback. EventSource explicitly
+	// requests SSE, so replay persisted logs through the same framing as live logs.
 	buf := h.s.LogBuffer(id)
 	if buf == nil {
-		c.String(http.StatusOK, job.Logs)
-		return
+		if !strings.Contains(c.GetHeader("Accept"), "text/event-stream") {
+			c.String(http.StatusOK, job.Logs)
+			return
+		}
+		buf = joblog.New(0)
+		_, _ = buf.Write([]byte(job.Logs))
+		buf.Close()
 	}
 
 	c.Header("Content-Type", "text/event-stream")

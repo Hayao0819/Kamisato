@@ -42,7 +42,7 @@ func TestRepoFileCacheControl(t *testing.T) {
 			ctrl, mockSvc, h := setup(t)
 			defer ctrl.Finish()
 
-			// h.cfg is nil, so the handler tries SignedURL first; return "" to fall
+			// Redirects are enabled by default, so SignedURL is tried first; return "" to fall
 			// through to the streaming path where the cache headers are set.
 			mockSvc.EXPECT().SignedURL("core", "x86_64", tc.file).Return("", nil)
 			fs := blob.NewFileStream(tc.file, "application/octet-stream", nopSeekCloser{bytes.NewReader([]byte("data"))})

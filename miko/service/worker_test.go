@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -96,5 +97,37 @@ func TestRunOwnsWorkersAndStopsOnContextCancel(t *testing.T) {
 	case <-done:
 	case <-time.After(2 * time.Second):
 		t.Fatal("Run did not wait for and stop its worker set")
+	}
+}
+
+func TestCancelledJobsAreEvictedWithoutResurrectingQueuedBuilds(t *testing.T) {
+	s := New(Settings{})
+	oldest := &domain.BuildJob{ID: "cancelled-000", Status: domain.JobStatusCancelled}
+	s.newLogBuffer(oldest.ID)
+	s.mu.Lock()
+	for i := range maxStoredJobs {
+		job := &domain.BuildJob{
+			ID: fmt.Sprintf("cancelled-%03d", i), Status: domain.JobStatusCancelled,
+			CreatedAt: time.Unix(int64(i), 0),
+		}
+		s.store[job.ID] = job
+	}
+	s.store["queued"] = &domain.BuildJob{ID: "queued", Status: domain.JobStatusQueued}
+	evicted := s.evictLocked()
+	s.mu.Unlock()
+	if len(evicted) != 1 || evicted[0] != oldest.ID || len(s.List()) != maxStoredJobs {
+		t.Fatalf("evicted = %v, remaining = %d", evicted, len(s.List()))
+	}
+	if _, err := s.Status("queued"); err != nil {
+		t.Fatal("non-terminal queued job was evicted")
+	}
+	// Popping the queue's stale pointer must stop before source/backend access.
+	// A nil Request deliberately makes any accidental execution fail the test.
+	s.process(t.Context(), oldest)
+	if s.LogBuffer(oldest.ID) != nil {
+		t.Fatal("evicted job retained its live log buffer")
+	}
+	if _, err := s.Status(oldest.ID); err == nil {
+		t.Fatal("evicted job was resurrected")
 	}
 }

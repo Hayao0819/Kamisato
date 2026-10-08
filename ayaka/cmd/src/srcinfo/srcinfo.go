@@ -1,43 +1,37 @@
 package srcinfocmd
 
 import (
-	"github.com/spf13/cobra"
-
-	"github.com/Hayao0819/Kamisato/ayaka/app"
-	"github.com/Hayao0819/Kamisato/ayaka/cli"
+	"github.com/Hayao0819/Kamisato/ayaka/cmd/internal/completion"
+	"github.com/Hayao0819/Kamisato/ayaka/cmd/internal/sourcerepos"
 	"github.com/Hayao0819/Kamisato/ayaka/service/source"
 	"github.com/Hayao0819/Kamisato/internal/errors"
+	"github.com/spf13/cobra"
 )
 
 // Cmd regenerates .SRCINFO files; with no argument it covers every configured repository.
-func Cmd(runtime *app.Runtime) *cobra.Command {
-	cmd := &cobra.Command{
+func newCommand(sources sourcerepos.Reader) *cobra.Command {
+	cmd := &cobra.Command{}
+	if sources == nil {
+		sources = sourcerepos.ForCommand(cmd)
+	}
+	*cmd = cobra.Command{
 		Use:               "srcinfo [<srcrepo>]",
 		Aliases:           []string{"us"},
 		Short:             "Regenerate .SRCINFO files in a source repository (.ayakarc)",
 		Long:              "Regenerate .SRCINFO files for the source packages in a source repository (.ayakarc).",
 		Args:              cobra.MaximumNArgs(1),
-		ValidArgsFunction: cli.CompleteSrcRepoNames(runtime),
+		ValidArgsFunction: completion.CompleteSrcRepoNames(sources),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			a, err := runtime.App()
+			repos, err := sourcerepos.Select(sources, args)
 			if err != nil {
 				return err
 			}
-			dirs := make([]string, 0, len(a.Config.Repos))
-			if len(args) > 0 {
-				sourceRepo := a.GetSrcRepo(args[0])
-				if sourceRepo == nil || sourceRepo.Dir == "" {
-					return errors.WrapErr(cli.ErrSourceRepoNotFound, args[0])
+			for _, repo := range repos {
+				if repo.Dir == "" {
+					return errors.WrapErr(sourcerepos.ErrSourceRepoNotFound, repo.Config.Name)
 				}
-				dirs = append(dirs, sourceRepo.Dir)
-			} else {
-				for _, r := range a.Config.Repos {
-					dirs = append(dirs, r.Dir)
-				}
-			}
-
-			for _, dir := range dirs {
-				if err := source.RegenerateSrcinfoStrict(dir, cmd.ErrOrStderr(), func(d string) {
+				dir := repo.Dir
+				if err := source.RegenerateSrcinfoStrict(cmd.Context(), dir, cmd.ErrOrStderr(), func(d string) {
 					cmd.Println("Updated SRCINFO file:", d)
 				}); err != nil {
 					return err
@@ -49,3 +43,5 @@ func Cmd(runtime *app.Runtime) *cobra.Command {
 
 	return cmd
 }
+
+func Cmd() *cobra.Command { return newCommand(nil) }

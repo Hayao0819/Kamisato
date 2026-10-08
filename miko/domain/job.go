@@ -1,6 +1,8 @@
 package domain
 
 import (
+	"maps"
+	"slices"
 	"time"
 )
 
@@ -60,6 +62,29 @@ type BuildRequest struct {
 	Requester string `json:"-"`
 }
 
+// Clone separates a caller's mutable input from a queued build request.
+func (request *BuildRequest) Clone() *BuildRequest {
+	if request == nil {
+		return nil
+	}
+	copy := *request
+	copy.Files = maps.Clone(request.Files)
+	copy.InstallPkgs = slices.Clone(request.InstallPkgs)
+	if request.Git != nil {
+		git := *request.Git
+		copy.Git = &git
+	}
+	if request.RunCheck != nil {
+		value := *request.RunCheck
+		copy.RunCheck = &value
+	}
+	if request.RunVerify != nil {
+		value := *request.RunVerify
+		copy.RunVerify = &value
+	}
+	return &copy
+}
+
 const (
 	SignHost   = "host"
 	SignClient = "client"
@@ -94,6 +119,26 @@ type BuildJob struct {
 	CreatedAt   time.Time  `json:"created_at"`
 	StartedAt   *time.Time `json:"started_at,omitempty"`
 	EndedAt     *time.Time `json:"ended_at,omitempty"`
+}
+
+// Clone is a detached snapshot safe for readers and persistence outside the
+// service's state lock. A struct assignment alone shares slices and pointers.
+func (job *BuildJob) Clone() *BuildJob {
+	if job == nil {
+		return nil
+	}
+	copy := *job
+	copy.Packages = slices.Clone(job.Packages)
+	copy.Request = job.Request.Clone()
+	if job.StartedAt != nil {
+		value := *job.StartedAt
+		copy.StartedAt = &value
+	}
+	if job.EndedAt != nil {
+		value := *job.EndedAt
+		copy.EndedAt = &value
+	}
+	return &copy
 }
 
 type BuildStats struct {

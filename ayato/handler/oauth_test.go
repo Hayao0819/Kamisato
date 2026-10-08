@@ -38,7 +38,7 @@ func testHandler(t *testing.T) (*AuthHandler, *auth.Signer) {
 		t.Fatalf("NewSigner: %v", err)
 	}
 
-	h := NewAuthHandler(svc, svc, testSettings(cfg)).WithSigner(signer)
+	h := NewAuthHandler(svc, svc, testSettings(cfg), nil).WithSigner(signer)
 	return h, signer
 }
 

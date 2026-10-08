@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	httpclient "github.com/Hayao0819/Kamisato/internal/http/client"
 	"github.com/Hayao0819/Kamisato/kayo/pkgindex"
 )
 
@@ -42,8 +43,8 @@ type Source struct {
 
 // New builds a Source. An explicit PubKey is a hard pin; an empty PubKey requires
 // either TrustOnFirstUse or Insecure.
-func New(o Options) (*Source, error) {
-	catalog, err := newCatalogClient(o.BaseURL)
+func New(o Options, transportOptions ...httpclient.Option) (*Source, error) {
+	catalog, err := newCatalogClient(o.BaseURL, transportOptions...)
 	if err != nil {
 		return nil, err
 	}

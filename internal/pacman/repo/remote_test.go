@@ -90,7 +90,7 @@ func TestRepoFromURL_NotFound(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	if _, err := RepoFromURL(srv.URL, "alterlinux"); !errors.Is(err, ErrRepoNotFound) {
+	if _, err := RepoFromURL(context.Background(), srv.Client(), srv.URL, "alterlinux"); !errors.Is(err, ErrRepoNotFound) {
 		t.Fatalf("RepoFromURL on 404: want ErrRepoNotFound, got %v", err)
 	}
 }
@@ -114,7 +114,7 @@ func TestRepoFromURL_EmptyDB(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	r, err := RepoFromURL(srv.URL, "alterlinux")
+	r, err := RepoFromURL(context.Background(), srv.Client(), srv.URL, "alterlinux")
 	if err != nil {
 		t.Fatalf("RepoFromURL on empty db: %v", err)
 	}
@@ -162,5 +162,55 @@ func TestRepoDBReaderBoundsExpandedInput(t *testing.T) {
 	}
 	if string(data) != "ab" {
 		t.Fatalf("data = %q, want %q", data, "ab")
+	}
+}
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) { return f(req) }
+
+func TestRepoFromURLUsesInjectedClientAndContext(t *testing.T) {
+	type contextKey struct{}
+	ctx := context.WithValue(context.Background(), contextKey{}, "caller")
+	called := false
+	client := &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		called = true
+		if req.Context().Value(contextKey{}) != "caller" {
+			t.Error("HTTP request lost the caller's context")
+		}
+		if req.URL.String() != "https://mirror.example/arch/test.db" {
+			t.Errorf("URL = %s", req.URL)
+		}
+		return &http.Response{
+			StatusCode: http.StatusNotFound,
+			Body:       io.NopCloser(strings.NewReader("missing")),
+		}, nil
+	})}
+	r, err := FetchOrEmpty(ctx, client, "https://mirror.example/arch", "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !called || r.Name != "test" || len(r.Pkgs) != 0 {
+		t.Fatalf("called = %v, empty repository = %+v", called, r)
+	}
+}
+
+func TestRepoFromURLRejectsMissingClient(t *testing.T) {
+	if _, err := RepoFromURL(context.Background(), nil, "https://mirror.example", "test"); err == nil {
+		t.Fatal("missing client silently replaced with a global/default client")
+	}
+}
+
+func TestRepoFromURLPropagatesCancellation(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	client := &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		cancel()
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader("unused")),
+		}, nil
+	})}
+	if _, err := RepoFromURL(ctx, client, "https://mirror.example", "test"); !errors.Is(err, context.Canceled) {
+		t.Fatalf("parse after request cancellation: %v", err)
 	}
 }

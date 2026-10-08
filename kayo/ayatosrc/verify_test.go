@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
+	kayo "github.com/Hayao0819/Kamisato/ayato/protocol"
 	ayatoaur "github.com/Hayao0819/Kamisato/ayato/service/aur"
-	"github.com/Hayao0819/Kamisato/internal/api/kayo"
 	"github.com/Hayao0819/Kamisato/pkg/aurweb"
 )
 

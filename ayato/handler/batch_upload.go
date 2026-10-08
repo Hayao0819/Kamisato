@@ -9,8 +9,8 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/Hayao0819/Kamisato/ayato/domain"
-	pacmanpkg "github.com/Hayao0819/Kamisato/internal/pacman/pkg"
 	"github.com/Hayao0819/Kamisato/internal/pacman/limits"
+	pacmanpkg "github.com/Hayao0819/Kamisato/internal/pacman/pkg"
 )
 
 // BatchUploadHandler publishes several packages atomically (one RepoAddBatch per

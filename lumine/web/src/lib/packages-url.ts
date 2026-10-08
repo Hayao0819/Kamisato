@@ -1,9 +1,15 @@
-import {
-    DEFAULT_PAGE_SIZE,
-    SORT_KEYS,
-    type SortDir,
-    type SortKey,
-} from "@/hooks/use-console";
+export type SortKey = "pkgname" | "pkgver" | "arch" | "size" | "builddate";
+export type SortDir = "asc" | "desc";
+
+export const SORT_KEYS: readonly SortKey[] = [
+    "pkgname",
+    "pkgver",
+    "arch",
+    "size",
+    "builddate",
+];
+export const PAGE_SIZES = [50, 100, 250] as const;
+export const DEFAULT_PAGE_SIZE = 50;
 
 // Canonical query model for the /packages route. Kept in one place so the
 // packages client and the sidebar facets agree on parsing and serialization.
@@ -19,6 +25,22 @@ export type PackagesQuery = {
     per: number;
 };
 
+// A column click changes key and direction together. Returning one patch keeps
+// two router.replace calls from overwriting each other's changes.
+export function nextPackagesSort(
+    current: Pick<PackagesQuery, "sort" | "dir">,
+    sort: SortKey,
+): Pick<PackagesQuery, "sort" | "dir"> {
+    const descending =
+        sort === current.sort
+            ? current.dir === "asc"
+            : sort === "builddate" || sort === "size";
+    return {
+        sort,
+        dir: descending ? "desc" : "asc",
+    };
+}
+
 export function parsePackagesQuery(
     params: URLSearchParams | ReadonlyURLSearchParams,
 ): PackagesQuery {
@@ -27,8 +49,11 @@ export function parsePackagesQuery(
         ? (sortRaw as SortKey)
         : "pkgname";
     const dir = params.get("dir") === "desc" ? "desc" : "asc";
-    const page = Math.max(1, Number(params.get("page")) || 1);
-    const per = Number(params.get("per")) || DEFAULT_PAGE_SIZE;
+    const pageRaw = Number(params.get("page"));
+    const perRaw = Number(params.get("per"));
+    const page = Number.isSafeInteger(pageRaw) && pageRaw > 0 ? pageRaw : 1;
+    const per =
+        Number.isSafeInteger(perRaw) && perRaw > 0 ? perRaw : DEFAULT_PAGE_SIZE;
     return {
         repo: params.get("repo") || "",
         arch: params.get("arch") || "",

@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"os"
 
+	"github.com/Hayao0819/Kamisato/ayato/auth/secretbox"
 	"github.com/Hayao0819/Kamisato/ayato/blob"
 	"github.com/Hayao0819/Kamisato/ayato/blob/localfs"
 	"github.com/Hayao0819/Kamisato/ayato/blob/s3"
@@ -13,7 +14,6 @@ import (
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv/cfkv"
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv/securekv"
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv/sqlkv"
-	"github.com/Hayao0819/Kamisato/internal/auth/secretbox"
 	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 

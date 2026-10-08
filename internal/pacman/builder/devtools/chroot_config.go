@@ -9,7 +9,6 @@ import (
 
 	"github.com/Hayao0819/Kamisato/internal/pacman/builder"
 	"github.com/Hayao0819/Kamisato/internal/pacman/builder/internal/buildenv"
-	"github.com/Hayao0819/Kamisato/internal/pacman/builder/internal/failure"
 )
 
 var devtoolsDataDir = "/usr/share/devtools"
@@ -26,7 +25,7 @@ func renderChrootPacmanConf(repoName string, repos []builder.PacmanRepository) (
 		}
 	}
 	if err != nil {
-		return "", failure.Wrap(err, "failed to read devtools pacman.conf")
+		return "", fmt.Errorf("failed to read devtools pacman.conf: %w", err)
 	}
 	stanzas, err := buildenv.PacmanRepoStanzas(repos)
 	if err != nil {
@@ -43,7 +42,7 @@ func renderChrootMakepkgConf(arch string, mk builder.MakepkgConfig) (string, err
 		return "", fmt.Errorf("devtools makepkg.conf not found (%s); the 'devtools' package is required", base)
 	}
 	if err != nil {
-		return "", failure.Wrap(err, "failed to read devtools makepkg.conf")
+		return "", fmt.Errorf("failed to read devtools makepkg.conf: %w", err)
 	}
 	overrides, err := buildenv.MakepkgOverrideLines(mk)
 	if err != nil {

@@ -17,8 +17,6 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import {
-    type SortDir,
-    type SortKey,
     useConsoleFilters,
     useConsolePackages,
     useConsoleView,
@@ -29,6 +27,8 @@ import {
     buildPackagesQuery,
     type PackagesQuery,
     parsePackagesQuery,
+    type SortDir,
+    type SortKey,
 } from "@/lib/packages-url";
 import type { PacmanPkgsResponse } from "@/lib/types";
 
@@ -178,8 +178,8 @@ export default function PackagesClient() {
 
     const onSetGroup = (v: string | null) => updateUrl({ group: v, page: 1 });
     const onSetPkgtype = (v: string | null) => updateUrl({ type: v, page: 1 });
-    const onSetSortKey = (v: SortKey) => updateUrl({ sort: v, page: 1 });
-    const onSetSortDir = (v: SortDir) => updateUrl({ dir: v, page: 1 });
+    const onSetSort = (sort: SortKey, dir: SortDir) =>
+        updateUrl({ sort, dir, page: 1 });
     const onSetPage = (v: number) => updateUrl({ page: v });
     const onSetPageSize = (v: number) => updateUrl({ per: v, page: 1 });
 
@@ -311,8 +311,7 @@ export default function PackagesClient() {
                         pageSize={pageSize}
                         onSetGroup={onSetGroup}
                         onSetPkgtype={onSetPkgtype}
-                        onSetSortKey={onSetSortKey}
-                        onSetSortDir={onSetSortDir}
+                        onSetSort={onSetSort}
                         onSetPage={onSetPage}
                         onSetPageSize={onSetPageSize}
                     />

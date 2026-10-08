@@ -1,6 +1,7 @@
 package source
 
 import (
+	"context"
 	"io"
 	"os"
 	"path"
@@ -9,13 +10,12 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/samber/lo"
-
+	"github.com/Hayao0819/Kamisato/ayaka/source"
 	"github.com/Hayao0819/Kamisato/internal/errors"
 	"github.com/Hayao0819/Kamisato/internal/filesystem/safefile"
-	pkg "github.com/Hayao0819/Kamisato/internal/pacman/pkg"
-	"github.com/Hayao0819/Kamisato/internal/pacman/source"
+	"github.com/Hayao0819/Kamisato/internal/pacman/pkg"
 	"github.com/Hayao0819/Kamisato/internal/vcs/git"
+	"github.com/samber/lo"
 )
 
 var pkgrelRe = regexp.MustCompile(`(?m)^pkgrel=['"]?([0-9]+(?:\.[0-9]+)?)['"]?[ \t]*(?:#[^\r\n]*)?\r?$`)
@@ -23,9 +23,12 @@ var pkgrelRe = regexp.MustCompile(`(?m)^pkgrel=['"]?([0-9]+(?:\.[0-9]+)?)['"]?[ 
 // BumpPkgrel raises the pkgrel of each named source package in its PKGBUILD and
 // regenerates the .SRCINFO, returning the edited packages. by is "0.1" (rebuild
 // suffix: 1 -> 1.1 -> 1.2) or "1" (next integer: 1.2 -> 2).
-func BumpPkgrel(src *source.SourceRepo, names []string, by string, stderr io.Writer) ([]*pkg.SourcePackage, error) {
+func BumpPkgrel(ctx context.Context, src *source.SourceRepo, names []string, by string, stderr io.Writer) ([]*pkg.SourcePackage, error) {
 	var bumped []*pkg.SourcePackage
 	for _, name := range names {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 		p := findPackage(src.Pkgs, name)
 		if p == nil {
 			return nil, errors.NewErr("package not found: " + name)
@@ -42,7 +45,7 @@ func BumpPkgrel(src *source.SourceRepo, names []string, by string, stderr io.Wri
 		if err := safefile.WriteFile(pkgbuild, out, 0o644); err != nil { //nolint:gosec // PKGBUILD is world-readable source
 			return nil, errors.WrapErr(err, "failed to write "+pkgbuild)
 		}
-		if err := source.GenerateSrcinfo(p.Dir(), stderr); err != nil {
+		if err := source.GenerateSrcinfo(ctx, p.Dir(), stderr); err != nil {
 			return nil, err
 		}
 		reloaded, err := pkg.OpenSourcePackage(p.Dir())

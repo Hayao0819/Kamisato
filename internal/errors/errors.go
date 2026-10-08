@@ -1,8 +1,7 @@
-// Package errors is the application layer's single error package: every package
-// outside pkg/ imports this instead of the standard library's errors or
-// cockroachdb/errors, so the wrapping backend lives in one small, swappable
-// place. pkg/ deliberately stays on the standard library to keep the reusable
-// layer dependency-light.
+// Package errors adds stack-carrying errors at application and adapter
+// boundaries. Pure library code may use the standard library's errors package;
+// both forms support the same errors.Is/errors.As chains. The stack backend
+// stays here so callers do not depend directly on cockroachdb/errors.
 package errors
 
 import (
@@ -12,8 +11,8 @@ import (
 	"github.com/cockroachdb/errors/errbase"
 )
 
-// New, Is, As, Join, and ErrUnsupported mirror the standard library's
-// errors package so callers never import "errors" directly.
+// New, Is, As, Join, and ErrUnsupported mirror the standard library's errors
+// package for callers that also need the stack helpers in this package.
 func New(text string) error         { return stderrors.New(text) }
 func Is(err, target error) bool     { return stderrors.Is(err, target) }
 func As(err error, target any) bool { return stderrors.As(err, target) }

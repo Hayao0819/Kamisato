@@ -26,7 +26,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: ./lumine/web
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
 
       - name: Build (pnpm run build)
         working-directory: ./lumine/web

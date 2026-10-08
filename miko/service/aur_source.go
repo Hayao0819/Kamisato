@@ -1,0 +1,76 @@
+package service
+
+import (
+	"context"
+
+	"github.com/Hayao0819/Kamisato/internal/pacman/depend"
+	pacmanhost "github.com/Hayao0819/Kamisato/internal/pacman/host"
+	"github.com/Hayao0819/Kamisato/pkg/aurweb"
+)
+
+// NewRepoChecker returns a RepoChecker backed by `pacman -T` on this host: a
+// best-effort pre-filter where specs not in the AUR are treated as repo-provided,
+// so a dep already in the build environment's sync repos need not be installed here.
+func NewRepoChecker() depend.RepoChecker { return alpmRepoChecker{} }
+
+type alpmRepoChecker struct{}
+
+func (alpmRepoChecker) Unsatisfied(deps []string) ([]string, error) {
+	return pacmanhost.Deptest(deps)
+}
+
+// NewAURSource adapts an aurweb upstream client to the AURSource seam.
+func NewAURSource(up AURClient) depend.AURSource { return aurSource{up: up} }
+
+type aurSource struct {
+	up AURClient
+}
+
+func (a aurSource) Info(ctx context.Context, names []string) ([]depend.Package, error) {
+	ps, err := a.up.Info(ctx, names)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]depend.Package, 0, len(ps))
+	for _, p := range ps {
+		out = append(out, fromAUR(p))
+	}
+	return out, nil
+}
+
+func (a aurSource) ProvidedBy(ctx context.Context, name string) (*depend.Package, error) {
+	ps, err := a.up.Search(ctx, aurweb.ByProvides, name)
+	if err != nil {
+		return nil, err
+	}
+	if len(ps) == 0 {
+		return nil, nil
+	}
+	// aurweb search records omit the relation arrays (provides/depends), so fetch
+	// the full info record: the resolver needs the provider's version-qualified
+	// provides to satisfy a versioned constraint and its own deps to recurse.
+	infos, err := a.up.Info(ctx, []string{ps[0].Name})
+	if err != nil {
+		return nil, err
+	}
+	if len(infos) == 0 {
+		p := fromAUR(ps[0])
+		return &p, nil
+	}
+	p := fromAUR(infos[0])
+	return &p, nil
+}
+
+func fromAUR(p aurweb.Pkg) depend.Package {
+	deps := make([]string, 0, len(p.Depends)+len(p.MakeDepends)+len(p.CheckDepends))
+	deps = append(deps, p.Depends...)
+	deps = append(deps, p.MakeDepends...)
+	deps = append(deps, p.CheckDepends...)
+	return depend.Package{
+		Name:        p.Name,
+		PackageBase: p.PackageBase,
+		Version:     p.Version,
+		Provides:    p.Provides,
+		Deps:        deps,
+	}
+}

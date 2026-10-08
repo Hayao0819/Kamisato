@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/Hayao0819/Kamisato/ayato/blob"
 	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 
@@ -23,13 +24,21 @@ func (s *Service) RemovePkg(rname string, arch string, pkgname string) error {
 	}
 
 	allArches := arch == "" || arch == "any"
+	var knownArches []string
+	if storeArch == "any" {
+		stored, err := s.pkgBinaryRepo.Arches(rname)
+		if err != nil {
+			return errors.WrapErr(err, "list arches before removing shared package")
+		}
+		knownArches = concreteArches(s.declaredArches(rname), stored)
+	}
 
 	// A concrete package lives in exactly one arch; an arch=any package is
 	// registered in every configured arch.
 	var dbArches []string
 	if storeArch == "any" {
 		if allArches {
-			dbArches = s.repoArches(rname)
+			dbArches = knownArches
 		} else {
 			dbArches = []string{arch}
 		}
@@ -56,8 +65,14 @@ func (s *Service) RemovePkg(rname string, arch string, pkgname string) error {
 
 	// Keep the shared arch=any file while another arch still lists it; a concrete
 	// file always goes with its arch.
-	if storeArch == "any" && !allArches && s.stillRegistered(rname, pkgname, dbArches) {
-		return nil
+	if storeArch == "any" && !allArches {
+		registered, err := s.stillRegistered(rname, pkgname, knownArches, dbArches)
+		if err != nil {
+			return err // Never delete shared bytes when another arch could still use them.
+		}
+		if registered {
+			return nil
+		}
 	}
 
 	if err := s.pkgBinaryRepo.DeleteFile(rname, storeArch, filename); err != nil {
@@ -72,24 +87,27 @@ func (s *Service) RemovePkg(rname string, arch string, pkgname string) error {
 
 // stillRegistered reports whether a shared arch=any file is still in use (listed
 // by an arch outside the just-removed set) and must be kept.
-func (s *Service) stillRegistered(repo, pkgname string, removed []string) bool {
+func (s *Service) stillRegistered(repo, pkgname string, arches, removed []string) (bool, error) {
 	removedSet := make(map[string]struct{}, len(removed))
 	for _, a := range removed {
 		removedSet[a] = struct{}{}
 	}
-	for _, a := range s.repoArches(repo) {
+	for _, a := range arches {
 		if _, ok := removedSet[a]; ok {
 			continue
 		}
 		rr, err := s.pkgBinaryRepo.RemoteRepo(repo, a)
 		if err != nil {
-			continue
+			if errors.Is(err, blob.ErrNotFound) {
+				continue
+			}
+			return false, errors.WrapErr(err, "read other arch before deleting shared package")
 		}
 		if rr.PkgByPkgName(pkgname) != nil {
-			return true
+			return true, nil
 		}
 	}
-	return false
+	return false, nil
 }
 
 // deleteSignatureIfPresent best-effort removes "<pkgFile>.sig"; listing first

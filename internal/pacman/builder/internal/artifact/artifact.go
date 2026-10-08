@@ -13,12 +13,8 @@ import (
 	pacmanpkg "github.com/Hayao0819/Kamisato/internal/pacman/pkg"
 )
 
-type fileState struct {
-	info os.FileInfo
-}
-
 // Baseline distinguishes same-version rebuilds from stale package files.
-type Baseline map[string]fileState
+type Baseline map[string]os.FileInfo
 
 func Snapshot(dir string) (Baseline, error) {
 	set := Baseline{}
@@ -30,7 +26,7 @@ func Snapshot(dir string) (Baseline, error) {
 		return nil, fmt.Errorf("failed to snapshot package dir: %w", err)
 	}
 	for _, entry := range entries {
-		if !entry.IsDir() && IsPackageFile(entry.Name()) {
+		if !entry.IsDir() && pacmanpkg.IsArchive(entry.Name()) {
 			info, err := entry.Info()
 			if err != nil {
 				return nil, fmt.Errorf("failed to stat existing package %s: %w", entry.Name(), err)
@@ -38,7 +34,7 @@ func Snapshot(dir string) (Baseline, error) {
 			if !info.Mode().IsRegular() {
 				return nil, fmt.Errorf("existing package %s is not a regular file", entry.Name())
 			}
-			set[entry.Name()] = fileState{info: info}
+			set[entry.Name()] = info
 		}
 	}
 	return set, nil
@@ -52,7 +48,7 @@ func Collect(dir string, baseline Baseline) ([]string, error) {
 	}
 	var packages []string
 	for _, entry := range entries {
-		if entry.IsDir() || !IsPackageFile(entry.Name()) {
+		if entry.IsDir() || !pacmanpkg.IsArchive(entry.Name()) {
 			continue
 		}
 		info, err := entry.Info()
@@ -63,9 +59,9 @@ func Collect(dir string, baseline Baseline) ([]string, error) {
 			return nil, fmt.Errorf("package %s is not a regular file", entry.Name())
 		}
 		if previous, ok := baseline[entry.Name()]; ok {
-			if os.SameFile(previous.info, info) &&
-				previous.info.Size() == info.Size() &&
-				previous.info.ModTime().Equal(info.ModTime()) {
+			if os.SameFile(previous, info) &&
+				previous.Size() == info.Size() &&
+				previous.ModTime().Equal(info.ModTime()) {
 				continue
 			}
 		}
@@ -162,8 +158,4 @@ func moveFile(src, dst string) error {
 		return err
 	}
 	return safefile.Remove(src)
-}
-
-func IsPackageFile(name string) bool {
-	return pacmanpkg.IsArchive(name)
 }

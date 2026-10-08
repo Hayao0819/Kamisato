@@ -5,11 +5,10 @@ package hook
 import (
 	"log/slog"
 
-	"github.com/samber/lo"
-
 	"github.com/Hayao0819/Kamisato/internal/errors"
-	pacmanpkg "github.com/Hayao0819/Kamisato/internal/pacman/pkg"
 	pacmanhost "github.com/Hayao0819/Kamisato/internal/pacman/host"
+	pacmanpkg "github.com/Hayao0819/Kamisato/internal/pacman/pkg"
+	"github.com/samber/lo"
 )
 
 // CollectFiles resolves the on-disk package files for names: by default only
@@ -39,7 +38,7 @@ func CollectFiles(names []string, all bool, cacheOverride, buildDirs []string, p
 	dirs := cacheOverride
 	if len(dirs) == 0 {
 		dirs = append([]string{}, buildDirs...)
-		if config, err := pacmanhost.Read(); err == nil && config.PKGDEST != "" {
+		if config, err := pacmanhost.ReadMakepkgConfig(); err == nil && config.PKGDEST != "" {
 			dirs = append(dirs, config.PKGDEST)
 		}
 		dirs = append(dirs, pacmanhost.CacheDirs(pacmanConf)...)

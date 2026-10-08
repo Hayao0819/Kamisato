@@ -2,6 +2,7 @@ package gitserve
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -56,6 +57,115 @@ func TestMaterialize(t *testing.T) {
 	}
 	if head != commit {
 		t.Errorf("served HEAD = %q, want pinned %q", head, commit)
+	}
+	if err := Materialize(ctx, root, "x", src, commit); err != nil {
+		t.Fatalf("replace existing pin: %v", err)
+	}
+	entries, err := os.ReadDir(root)
+	if err != nil || len(entries) != 1 || entries[0].Name() != "x.git" {
+		t.Fatalf("pin staging should be cleaned: entries=%v, error=%v", entries, err)
+	}
+}
+
+func TestMaterializeFailurePreservesExistingPin(t *testing.T) {
+	src, commit := initRepo(t)
+	for _, failure := range []string{"cancelled", "clone", "missing commit"} {
+		t.Run(failure, func(t *testing.T) {
+			root := t.TempDir()
+			if err := Materialize(context.Background(), root, "x", src, commit); err != nil {
+				t.Fatal(err)
+			}
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			source, pin := src, commit
+			switch failure {
+			case "cancelled":
+				cancel()
+			case "clone":
+				source = filepath.Join(t.TempDir(), "missing")
+			case "missing commit":
+				pin = "ffffffffffffffffffffffffffffffffffffffff"
+			}
+			err := Materialize(ctx, root, "x", source, pin)
+			if err == nil {
+				t.Fatal("expected the pin update to fail")
+			}
+			if failure == "cancelled" && !errors.Is(err, context.Canceled) {
+				t.Fatalf("cancellation error=%v", err)
+			}
+			head, err := git.HeadCommit(context.Background(), filepath.Join(root, "x.git"))
+			if err != nil || head != commit {
+				t.Fatalf("previous pin lost: HEAD=%q, error=%v", head, err)
+			}
+			entries, err := os.ReadDir(root)
+			if err != nil || len(entries) != 1 || entries[0].Name() != "x.git" {
+				t.Fatalf("failed staging should be cleaned: entries=%v, error=%v", entries, err)
+			}
+		})
+	}
+}
+
+func TestMaterializeDetachedRevisionSurvivesSourceCleanup(t *testing.T) {
+	source, reviewedCommit := initRepo(t)
+	if err := os.WriteFile(filepath.Join(source, "PKGBUILD"), []byte("pkgname=changed\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for _, args := range [][]string{{"add", "PKGBUILD"}, {"commit", "--quiet", "-m", "new HEAD"}} {
+		command := exec.Command("git", args...)
+		command.Dir = source
+		if out, err := command.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v (%s)", args, err, out)
+		}
+	}
+	ctx := context.Background()
+	review, cleanup, err := git.CloneTemp(ctx, "kayo-review-test-*", git.CloneOptions{URL: source, Ref: reviewedCommit})
+	defer cleanup()
+	if err != nil {
+		t.Fatal(err)
+	}
+	root := t.TempDir()
+	if err := Materialize(ctx, root, "x", review, reviewedCommit); err != nil {
+		t.Fatal(err)
+	}
+	cleanup()
+	checkout, closeCheckout, err := git.CloneTemp(ctx, "kayo-served-test-*", git.CloneOptions{URL: filepath.Join(root, "x.git")})
+	defer closeCheckout()
+	if err != nil {
+		t.Fatalf("pin must remain clonable without its temporary source: %v", err)
+	}
+	contents, err := os.ReadFile(filepath.Join(checkout, "PKGBUILD"))
+	if err != nil || string(contents) != "pkgname=x\n" {
+		t.Fatalf("served recipe=%q, error=%v; want the reviewed revision", contents, err)
+	}
+}
+
+func TestRepositoryEffectsRejectUnsafePackageBases(t *testing.T) {
+	parent := t.TempDir()
+	root := filepath.Join(parent, "served")
+	victim := filepath.Join(parent, "victim.git")
+	if err := os.Mkdir(victim, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	sentinel := filepath.Join(victim, "keep")
+	if err := os.WriteFile(sentinel, []byte("keep"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for _, base := range []string{"", ".", "..", "../victim", "nested/pkg", `nested\pkg`, "/absolute", "pkg\x00name"} {
+		if err := Remove(root, base); err == nil {
+			t.Errorf("Remove(%q) should refuse an unsafe package base", base)
+		}
+		if err := Materialize(context.Background(), root, base, "unused", "commit"); err == nil {
+			t.Errorf("Materialize(%q) should refuse an unsafe package base", base)
+		}
+	}
+	if _, err := os.Stat(root); !os.IsNotExist(err) {
+		t.Errorf("invalid inputs created the served root: %v", err)
+	}
+	if contents, err := os.ReadFile(sentinel); err != nil || string(contents) != "keep" {
+		t.Fatalf("repository outside the root was modified: contents=%q error=%v", contents, err)
+	}
+	if err := Remove("", "pkg"); err == nil {
+		t.Error("Remove without a served root should fail")
 	}
 }
 

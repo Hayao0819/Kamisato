@@ -1,14 +1,15 @@
 package nvbumpcmd
 
 import (
+	"context"
 	"io"
 	"os"
 	"path/filepath"
 	"testing"
 
-	"github.com/Hayao0819/Kamisato/ayaka/app"
-	pkg "github.com/Hayao0819/Kamisato/internal/pacman/pkg"
-	"github.com/Hayao0819/Kamisato/internal/pacman/source"
+	"github.com/Hayao0819/Kamisato/ayaka/cmd/internal/sourcerepos"
+	"github.com/Hayao0819/Kamisato/ayaka/source"
+	"github.com/Hayao0819/Kamisato/internal/pacman/pkg"
 )
 
 type recordingNvBumper struct {
@@ -17,7 +18,7 @@ type recordingNvBumper struct {
 	messages []string
 }
 
-func (r *recordingNvBumper) NvBump(src *source.SourceRepo, name, newVersion string, _ io.Writer) (*pkg.SourcePackage, error) {
+func (r *recordingNvBumper) NvBump(_ context.Context, src *source.SourceRepo, name, newVersion string, _ io.Writer) (*pkg.SourcePackage, error) {
 	r.name = name
 	r.version = newVersion
 	return src.Pkgs[0], nil
@@ -28,7 +29,7 @@ func (r *recordingNvBumper) Commit(_ string, _ []*pkg.SourcePackage, message str
 	return "deadbeef", nil
 }
 
-func testApp(t *testing.T) *app.App {
+func testSources(t *testing.T) []*source.SourceRepo {
 	t.Helper()
 	dir := t.TempDir()
 	srcinfo := "pkgbase = foo\n\tpkgver = 1.0\n\tpkgrel = 1\n\tarch = any\n\npkgname = foo\n"
@@ -39,16 +40,16 @@ func testApp(t *testing.T) *app.App {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return &app.App{SrcRepos: []*source.SourceRepo{{
+	return []*source.SourceRepo{{
 		Config: &source.SrcConfig{Name: "test"},
 		Pkgs:   []*pkg.SourcePackage{p},
 		Dir:    dir,
-	}}}
+	}}
 }
 
 func TestNvBumpArgsReachService(t *testing.T) {
 	rec := &recordingNvBumper{}
-	cmd := newCommand(rec, app.StaticRuntime(testApp(t)))
+	cmd := newCommand(rec.NvBump, rec.Commit, sourcerepos.Static(testSources(t)).Find, nil)
 	cmd.SetArgs([]string{"test", "foo", "2.0"})
 	if err := cmd.Execute(); err != nil {
 		t.Fatal(err)
@@ -63,7 +64,7 @@ func TestNvBumpArgsReachService(t *testing.T) {
 
 func TestNvBumpCustomMessage(t *testing.T) {
 	rec := &recordingNvBumper{}
-	cmd := newCommand(rec, app.StaticRuntime(testApp(t)))
+	cmd := newCommand(rec.NvBump, rec.Commit, sourcerepos.Static(testSources(t)).Find, nil)
 	cmd.SetArgs([]string{"test", "foo", "2.0", "--message", "custom"})
 	if err := cmd.Execute(); err != nil {
 		t.Fatal(err)
@@ -75,7 +76,7 @@ func TestNvBumpCustomMessage(t *testing.T) {
 
 func TestNvBumpNoCommitSkipsCommit(t *testing.T) {
 	rec := &recordingNvBumper{}
-	cmd := newCommand(rec, app.StaticRuntime(testApp(t)))
+	cmd := newCommand(rec.NvBump, rec.Commit, sourcerepos.Static(testSources(t)).Find, nil)
 	cmd.SetArgs([]string{"test", "foo", "2.0", "--no-commit"})
 	if err := cmd.Execute(); err != nil {
 		t.Fatal(err)
@@ -86,7 +87,7 @@ func TestNvBumpNoCommitSkipsCommit(t *testing.T) {
 }
 
 func TestNvBumpUnknownRepoFails(t *testing.T) {
-	cmd := newCommand(&recordingNvBumper{}, app.StaticRuntime(testApp(t)))
+	cmd := newCommand((&recordingNvBumper{}).NvBump, (&recordingNvBumper{}).Commit, sourcerepos.Static(testSources(t)).Find, nil)
 	cmd.SetArgs([]string{"nope", "foo", "2.0"})
 	cmd.SilenceUsage = true
 	cmd.SilenceErrors = true

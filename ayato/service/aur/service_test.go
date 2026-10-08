@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Hayao0819/Kamisato/internal/api/kayo"
+	kayo "github.com/Hayao0819/Kamisato/ayato/protocol"
 )
 
 // countingSM is a SourceManager whose Catalog build is counted, so a test can prove

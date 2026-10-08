@@ -115,7 +115,7 @@ func (s *Service) conditionalGet(ctx context.Context, url, etag, lastMod string)
 	if lastMod != "" {
 		req.Header.Set("If-Modified-Since", lastMod)
 	}
-	resp, err := doUpstreamGET(s.upstreamClient, req)
+	resp, err := doUpstreamGET(s.httpClient, req)
 	if err != nil {
 		return nil, "", "", false, err
 	}

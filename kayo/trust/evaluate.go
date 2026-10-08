@@ -57,6 +57,13 @@ func (s *Store) Evaluate(source, pkgbase, maintainer string) Verdict {
 	if !ok {
 		return Verdict{Decision: NeedsReview, Reasons: []string{"unreviewed package"}}
 	}
+	// Matching account names across independent sources are not the same trust
+	// anchor. An approval must remain scoped to the source that was reviewed.
+	if ap.Source != source {
+		return Verdict{Decision: NeedsReview, Reasons: []string{
+			fmt.Sprintf("source changed: %q -> %q", ap.Source, source),
+		}}
+	}
 	// A changed maintainer account is the takeover/adoption signal — including a
 	// maintained package going orphaned (jguer -> ""). Sources without an account
 	// (local/url) record "" at both ends and stay trusted on the commit pin.

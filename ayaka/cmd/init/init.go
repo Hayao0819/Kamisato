@@ -3,9 +3,8 @@ package initcmd
 import (
 	"path/filepath"
 
-	"github.com/spf13/cobra"
-
 	"github.com/Hayao0819/Kamisato/ayaka/service/source"
+	"github.com/spf13/cobra"
 )
 
 func Cmd() *cobra.Command {

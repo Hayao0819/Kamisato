@@ -22,6 +22,9 @@ type CloneOptions struct {
 	Strict bool
 	// Bare clones without a working tree (a servable repository).
 	Bare bool
+	// Mirror preserves all refs, including remote-tracking refs in a detached
+	// checkout. It implies Bare and is useful for a self-contained serving cache.
+	Mirror bool
 }
 
 // CloneTemp clones into a fresh temp dir named after prefix and returns it with

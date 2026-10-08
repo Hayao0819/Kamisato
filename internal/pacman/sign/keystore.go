@@ -22,12 +22,13 @@ const (
 )
 
 // keyConfig pins Ed25519 keys and SHA-256 digests so signatures land inside the
-// hash set ayato's verifier accepts.
+// hash set accepted by the shared verifier.
 func keyConfig() *packet.Config {
 	return &packet.Config{Algorithm: packet.PubKeyAlgoEdDSA, DefaultHash: crypto.SHA256}
 }
 
-// Keystore is a worker signing key (private) plus the certifying master (public); the master is the trust root ayato pins.
+// Keystore is a worker signing key (private) plus the certifying master (public);
+// consumers pin the master as the trust root.
 type Keystore struct {
 	dir    string
 	master *openpgp.Entity // public only
@@ -119,19 +120,19 @@ func load(dir, passphrase string) (*Keystore, error) {
 	}
 	if worker.PrivateKey != nil && worker.PrivateKey.Encrypted {
 		if err := decryptPrivate(worker, passphrase); err != nil {
-			return nil, fmt.Errorf("decrypt worker key (wrong or missing MIKO_SIGNING_PASSPHRASE?): %w", err)
+			return nil, fmt.Errorf("decrypt worker key (wrong or missing passphrase?): %w", err)
 		}
 	}
 	return &Keystore{dir: dir, master: master, worker: worker}, nil
 }
 
-// WorkerEntity is the private signing key HostKeySigner uses.
+// WorkerEntity is the private signing key NewHostKeySigner uses.
 func (k *Keystore) WorkerEntity() *openpgp.Entity { return k.worker }
 
-// MasterEntity is the public master that ayato pins as its trust root.
+// MasterEntity is the public master used as the trust root.
 func (k *Keystore) MasterEntity() *openpgp.Entity { return k.master }
 
-// MasterPublicArmored returns the master public key for ayato's verify.master_keys.
+// MasterPublicArmored returns the master public key for a consumer's trust configuration.
 func (k *Keystore) MasterPublicArmored() (string, error) {
 	return readString(filepath.Join(k.dir, masterPubFile))
 }
@@ -141,7 +142,8 @@ func (k *Keystore) WorkerCertArmored() (string, error) {
 	return readString(filepath.Join(k.dir, workerCertFile))
 }
 
-// CertifiedBy returns nil if a UID of child carries a valid certification by parent's primary key (the worker←master chain ayato enforces).
+// CertifiedBy returns nil if a UID of child carries a valid certification by
+// parent's primary key, establishing the worker-to-master trust chain.
 func CertifiedBy(child, parent *openpgp.Entity) error {
 	for name, ident := range child.Identities {
 		for _, sig := range ident.Signatures {

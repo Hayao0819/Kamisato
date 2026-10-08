@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/Hayao0819/Kamisato/internal/pacman/builder"
-	"github.com/Hayao0819/Kamisato/internal/pacman/builder/internal/shell"
+	"github.com/Hayao0819/Kamisato/internal/pacman/builder/internal/buildenv"
 )
 
 func TestNewBwrapBackend(t *testing.T) {
@@ -59,7 +59,7 @@ func TestBwrapInstallBinds(t *testing.T) {
 	if len(binds) != 2 || binds[0][0] != "/cache/dep-1.0-1-x86_64.pkg.tar.zst" {
 		t.Fatalf("unexpected binds: %v", binds)
 	}
-	wantInstall := "pacman -U --asdeps --noconfirm -- " + shell.Quote(binds[0][1]) + " " + shell.Quote(binds[1][1])
+	wantInstall := "pacman -U --asdeps --noconfirm -- " + buildenv.Quote(binds[0][1]) + " " + buildenv.Quote(binds[1][1])
 	if !strings.Contains(script, wantInstall) {
 		t.Errorf("install command not substituted: %q", script)
 	}

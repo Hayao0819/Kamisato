@@ -9,8 +9,8 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/pacman/builder"
 	"github.com/spf13/pflag"
 
-	"github.com/Hayao0819/Kamisato/internal/api/client"
 	configloader "github.com/Hayao0819/Kamisato/internal/config"
+	httpclient "github.com/Hayao0819/Kamisato/internal/http/client"
 )
 
 type MikoConfig struct {
@@ -272,7 +272,7 @@ func (c *MikoConfig) Validate() error {
 		return fmt.Errorf("signing.mode is remote but signing.remote.url is unset")
 	}
 	if c.Signing.Remote.URL != "" {
-		if _, err := client.ParseBaseURL(c.Signing.Remote.URL); err != nil {
+		if _, err := httpclient.ParseBaseURL(c.Signing.Remote.URL); err != nil {
 			return fmt.Errorf("signing.remote.url: %w", err)
 		}
 	}
@@ -280,7 +280,7 @@ func (c *MikoConfig) Validate() error {
 		return fmt.Errorf("ayato.api_key requires ayato.url")
 	}
 	if c.Ayato.URL != "" {
-		if _, err := client.ParseBaseURL(c.Ayato.URL); err != nil {
+		if _, err := httpclient.ParseBaseURL(c.Ayato.URL); err != nil {
 			return fmt.Errorf("ayato.url: %w", err)
 		}
 		if c.Ayato.APIKey == "" {
@@ -290,13 +290,19 @@ func (c *MikoConfig) Validate() error {
 			return fmt.Errorf("ayato.api_key is required when ayato.url is configured")
 		}
 	}
+	return c.Auth.Validate()
+}
+
+// Validate checks named service credentials independently of daemon settings,
+// so both startup and key-management commands enforce the same contract.
+func (c MikoAuthConfig) Validate() error {
 	knownScopes := map[string]bool{
 		"*": true, "build:submit": true, "build:read": true,
 		"build:cancel": true, "build:admin": true, "sign": true,
 	}
-	names := make(map[string]bool, len(c.Auth.APIKeys))
-	keys := make(map[string]bool, len(c.Auth.APIKeys))
-	for index, entry := range c.Auth.APIKeys {
+	names := make(map[string]bool, len(c.APIKeys))
+	keys := make(map[string]bool, len(c.APIKeys))
+	for index, entry := range c.APIKeys {
 		if entry.Name == "" || entry.Key == "" || len(entry.Scopes) == 0 {
 			return fmt.Errorf("auth.api_keys[%d]: name, key, and scopes are required", index)
 		}

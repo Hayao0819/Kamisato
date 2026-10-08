@@ -4,14 +4,20 @@ on:
   push:
     paths:
       - 'lumine/web/**'
-      - 'internal/api/miko/**'
+      - 'lumine/main.go'
+      - 'go.mod'
+      - 'go.sum'
+      - 'miko/client/**'
       - 'ayato/domain/**'
       - 'pkg/raiou/**'
       - '.github/workflows/web-test.yml'
   pull_request:
     paths:
       - 'lumine/web/**'
-      - 'internal/api/miko/**'
+      - 'lumine/main.go'
+      - 'go.mod'
+      - 'go.sum'
+      - 'miko/client/**'
       - 'ayato/domain/**'
       - 'pkg/raiou/**'
       - '.github/workflows/web-test.yml'
@@ -37,7 +43,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: ./lumine/web
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
 
       - name: Verify generated API types
         working-directory: ./lumine/web

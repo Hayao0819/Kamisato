@@ -7,6 +7,8 @@
 // equally well in a plain mux (kayo) or behind gin (ayato).
 package aurweb
 
+import "slices"
+
 // Version is the only aurweb RPC version this package exposes. aurweb itself
 // exposes nothing else; v6 is an unimplemented upstream TODO.
 const Version = 5
@@ -43,6 +45,23 @@ type Pkg struct {
 	License       []string
 	Keywords      []string
 	CoMaintainers []string
+}
+
+// Clone returns a record whose relation arrays can be changed independently.
+// Backends use this at immutable snapshot boundaries.
+func (p Pkg) Clone() Pkg {
+	p.Depends = slices.Clone(p.Depends)
+	p.MakeDepends = slices.Clone(p.MakeDepends)
+	p.CheckDepends = slices.Clone(p.CheckDepends)
+	p.OptDepends = slices.Clone(p.OptDepends)
+	p.Conflicts = slices.Clone(p.Conflicts)
+	p.Provides = slices.Clone(p.Provides)
+	p.Replaces = slices.Clone(p.Replaces)
+	p.Groups = slices.Clone(p.Groups)
+	p.License = slices.Clone(p.License)
+	p.Keywords = slices.Clone(p.Keywords)
+	p.CoMaintainers = slices.Clone(p.CoMaintainers)
+	return p
 }
 
 // searchResult is the search-level record: the fields every result carries.

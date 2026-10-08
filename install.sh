@@ -153,7 +153,7 @@ parse_args() {
             ;;
         --help | -h)
             print_usage
-            return 0
+            exit 0
             ;;
         *)
             echo "Unknown option: $1"
@@ -212,7 +212,7 @@ build_kamisato() {
 build_nextjs() {
     (
         cd "$1" || exit 1
-        pnpm install
+        pnpm install --frozen-lockfile
         pnpm run build
     )
 }
@@ -236,6 +236,12 @@ main() {
 
     check_requirements
 
+    # The combined binary also embeds Lumine, so generate web assets before
+    # building either Go entrypoint that includes them.
+    if [ "$build_lumine_web" = true ]; then
+        build_lumine_web
+    fi
+
     if [ $build_ayaka = true ]; then
         build_ayaka
     fi
@@ -250,10 +256,6 @@ main() {
 
     if [ "$build_kamisato" = true ]; then
         build_kamisato
-    fi
-
-    if [ "$build_lumine_web" = true ]; then
-        build_lumine_web
     fi
 
     if [ "$build_lumine_go" = true ]; then

@@ -29,12 +29,15 @@ type oidcPublisher struct {
 	repos        map[string]bool
 }
 
-func newOIDCAuth(ctx context.Context, cfg CIGitHubOIDC) (*oidcAuth, error) {
-	client := &http.Client{
-		Transport: oidcGETRetryTransport{base: http.DefaultTransport},
-		Timeout:   10 * time.Second,
+func newOIDCAuth(ctx context.Context, cfg CIGitHubOIDC, client *http.Client) (*oidcAuth, error) {
+	if client == nil {
+		client = &http.Client{Timeout: 10 * time.Second}
 	}
-	provider, err := oidc.NewProvider(oidc.ClientContext(ctx, client), githubOIDCIssuer)
+	// Keep the dedicated GET-only retry policy with either a default or supplied
+	// transport, without mutating a client shared with other outbound operations.
+	oidcClient := *client
+	oidcClient.Transport = oidcGETRetryTransport{base: client.Transport}
+	provider, err := oidc.NewProvider(oidc.ClientContext(ctx, &oidcClient), githubOIDCIssuer)
 	if err != nil {
 		return nil, errors.WrapErr(err, "discover github oidc issuer")
 	}

@@ -1,14 +1,15 @@
 package source
 
 import (
+	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
 
-	pkg "github.com/Hayao0819/Kamisato/internal/pacman/pkg"
-	"github.com/Hayao0819/Kamisato/internal/pacman/source"
+	"github.com/Hayao0819/Kamisato/ayaka/source"
+	"github.com/Hayao0819/Kamisato/internal/pacman/pkg"
 )
 
 func TestNextPkgrel(t *testing.T) {
@@ -73,7 +74,7 @@ func TestBumpPkgrel(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "PKGBUILD"), []byte(pkgbuild), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := source.GenerateSrcinfo(dir, os.Stderr); err != nil {
+	if err := source.GenerateSrcinfo(context.Background(), dir, os.Stderr); err != nil {
 		t.Fatal(err)
 	}
 	p, err := pkg.OpenSourcePackage(dir)
@@ -82,7 +83,7 @@ func TestBumpPkgrel(t *testing.T) {
 	}
 	src := &source.SourceRepo{Config: &source.SrcConfig{Name: "test"}, Pkgs: []*pkg.SourcePackage{p}, Dir: dir}
 
-	bumped, err := BumpPkgrel(src, []string{"foo"}, "0.1", os.Stderr)
+	bumped, err := BumpPkgrel(context.Background(), src, []string{"foo"}, "0.1", os.Stderr)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -97,7 +98,7 @@ func TestBumpPkgrel(t *testing.T) {
 		t.Errorf("PKGBUILD not rewritten: %q", data)
 	}
 
-	bumped, err = BumpPkgrel(src, []string{"foo"}, "1", os.Stderr)
+	bumped, err = BumpPkgrel(context.Background(), src, []string{"foo"}, "1", os.Stderr)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -105,7 +106,7 @@ func TestBumpPkgrel(t *testing.T) {
 		t.Fatalf("bumped by 1 = %v, want [foo 1.0-2]", bumped)
 	}
 
-	if _, err := BumpPkgrel(src, []string{"nope"}, "0.1", os.Stderr); err == nil {
+	if _, err := BumpPkgrel(context.Background(), src, []string{"nope"}, "0.1", os.Stderr); err == nil {
 		t.Error("bumping an unknown package should error")
 	}
 }

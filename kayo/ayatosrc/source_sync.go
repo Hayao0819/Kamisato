@@ -6,8 +6,9 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/Hayao0819/Kamisato/internal/api/kayo"
+	kayo "github.com/Hayao0819/Kamisato/ayato/protocol"
 	"github.com/Hayao0819/Kamisato/internal/errors"
+	httpclient "github.com/Hayao0819/Kamisato/internal/http/client"
 	"github.com/Hayao0819/Kamisato/pkg/aurweb"
 )
 
@@ -139,8 +140,8 @@ func (s *Source) resolveVerifier(ctx context.Context) (*Verifier, error) {
 // FetchPubkey retrieves the catalog-signing public key an ayato base URL advertises,
 // for an operator converting a TOFU pin into a hard config pin. The key is
 // unauthenticated on its own — verify the key_id out of band before trusting it.
-func FetchPubkey(ctx context.Context, baseURL string) (pubkey, keyID string, err error) {
-	catalog, err := newCatalogClient(baseURL)
+func FetchPubkey(ctx context.Context, baseURL string, transportOptions ...httpclient.Option) (pubkey, keyID string, err error) {
+	catalog, err := newCatalogClient(baseURL, transportOptions...)
 	if err != nil {
 		return "", "", err
 	}

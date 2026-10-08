@@ -50,11 +50,14 @@ runs:
         # Compute the prune list locally: ayaka reads the checked-out source and the
         # public repo db (no credential needed). --dry-run prints pkgnames to stdout.
         diff_url="${IN_SERVER%/}/repo/${IN_REPO}/${IN_ARCH}"
-        mapfile -t pkgs < <(ayaka repo prune "$IN_REPO" --arch "$IN_ARCH" --diff-url "$diff_url" --dry-run)
-        if [ ${#pkgs[@]} -eq 0 ]; then
+        # Assignment propagates a failed planner exit; process substitution
+        # would silently turn a failed query into a successful empty prune.
+        prune_list="$(ayaka repo prune "$IN_REPO" --arch "$IN_ARCH" --diff-url "$diff_url" --dry-run)"
+        if [ -z "$prune_list" ]; then
           echo "nothing to prune for ${IN_REPO}/${IN_ARCH}"
           exit 0
         fi
+        mapfile -t pkgs <<< "$prune_list"
 
         printf 'prunable in %s/%s:\n' "$IN_REPO" "$IN_ARCH"
         printf '  %s\n' "${pkgs[@]}"

@@ -6,7 +6,7 @@ import (
 )
 
 // BUILDINFO models the pacman .BUILDINFO metadata embedded in a built package.
-// Only the provenance fields ayato gates on are decoded; the on-disk format is
+// Only the supported provenance fields are decoded; the on-disk format is
 // the same key = value grammar as .PKGINFO.
 type BUILDINFO struct {
 	Format   string `json:"format" yml:"format" toml:"format"`
@@ -18,7 +18,7 @@ func ParseBuildinfoString(data string) (*BUILDINFO, error) {
 }
 
 // ParseBuildinfo parses a .BUILDINFO. Unknown keys are ignored on purpose: the
-// format grows fields across releases and ayato only reads the provenance ones.
+// format grows fields across releases independently of the supported fields.
 func ParseBuildinfo(r io.Reader) (*BUILDINFO, error) {
 	lines, err := readLines(r)
 	if err != nil {

@@ -4,9 +4,9 @@ import (
 	"context"
 	"testing"
 
-	"github.com/Hayao0819/Kamisato/ayaka/app"
-	pkg "github.com/Hayao0819/Kamisato/internal/pacman/pkg"
-	"github.com/Hayao0819/Kamisato/internal/pacman/source"
+	"github.com/Hayao0819/Kamisato/ayaka/cmd/internal/sourcerepos"
+	"github.com/Hayao0819/Kamisato/ayaka/source"
+	"github.com/Hayao0819/Kamisato/internal/pacman/pkg"
 )
 
 type recordingPuller struct {
@@ -22,13 +22,13 @@ func (r *recordingPuller) Pull(_ context.Context, src *source.SourceRepo, names 
 	return src.Pkgs, nil
 }
 
-func testApp() *app.App {
-	return &app.App{SrcRepos: []*source.SourceRepo{{Config: &source.SrcConfig{Name: "test"}}}}
+func testSources() []*source.SourceRepo {
+	return []*source.SourceRepo{{Config: &source.SrcConfig{Name: "test"}}}
 }
 
 func TestPullFlagsReachService(t *testing.T) {
 	rec := &recordingPuller{}
-	cmd := newCommand(rec, app.StaticRuntime(testApp()))
+	cmd := newCommand(rec.Pull, sourcerepos.Static(testSources()).Find, nil)
 	cmd.SetArgs([]string{"test", "ckbcomp", "foo", "--force"})
 	if err := cmd.Execute(); err != nil {
 		t.Fatal(err)
@@ -40,7 +40,7 @@ func TestPullFlagsReachService(t *testing.T) {
 
 func TestPullAllMirrorsWithNoNames(t *testing.T) {
 	rec := &recordingPuller{}
-	cmd := newCommand(rec, app.StaticRuntime(testApp()))
+	cmd := newCommand(rec.Pull, sourcerepos.Static(testSources()).Find, nil)
 	cmd.SetArgs([]string{"test"})
 	if err := cmd.Execute(); err != nil {
 		t.Fatal(err)
@@ -51,7 +51,7 @@ func TestPullAllMirrorsWithNoNames(t *testing.T) {
 }
 
 func TestPullUnknownRepoFails(t *testing.T) {
-	cmd := newCommand(&recordingPuller{}, app.StaticRuntime(testApp()))
+	cmd := newCommand((&recordingPuller{}).Pull, sourcerepos.Static(testSources()).Find, nil)
 	cmd.SetArgs([]string{"nope"})
 	cmd.SilenceUsage = true
 	cmd.SilenceErrors = true

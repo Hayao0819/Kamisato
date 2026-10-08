@@ -64,12 +64,18 @@ type CIAuthorizer struct {
 // NewCIAuthorizer performs OIDC issuer discovery when OIDC is enabled, so it makes a
 // network call and may fail at startup.
 func NewCIAuthorizer(ctx context.Context, cfg CISettings) (*CIAuthorizer, error) {
+	return NewCIAuthorizerWithHTTPClient(ctx, cfg, nil)
+}
+
+// NewCIAuthorizerWithHTTPClient uses client for OIDC discovery and JWKS fetches.
+// Nil selects the default bounded, GET-only-retrying transport.
+func NewCIAuthorizerWithHTTPClient(ctx context.Context, cfg CISettings, client *http.Client) (*CIAuthorizer, error) {
 	a := &CIAuthorizer{}
 	if len(cfg.APIKeys) > 0 {
 		a.apikey = newAPIKeyAuth(cfg.APIKeys)
 	}
 	if cfg.GitHubOIDC.Enabled {
-		o, err := newOIDCAuth(ctx, cfg.GitHubOIDC)
+		o, err := newOIDCAuth(ctx, cfg.GitHubOIDC, client)
 		if err != nil {
 			return nil, errors.WrapErr(err, "ci oidc init")
 		}

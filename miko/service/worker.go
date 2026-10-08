@@ -19,8 +19,18 @@ func (s *Service) process(ctx context.Context, job *domain.BuildJob) {
 	// Per-job context so Cancel can stop this build; registered under mu, cleared on return.
 	jobCtx, cancel := context.WithCancel(ctx)
 	s.mu.Lock()
+	cur, ok := s.store[job.ID]
+	// A cancelled queued job may already have been evicted from history. The
+	// queue still owns its old pointer, but it must never resurrect that build.
+	if !ok {
+		s.mu.Unlock()
+		cancel()
+		s.finalizeLog(job.ID)
+		slog.Info("Skipping evicted job", "id", job.ID)
+		return
+	}
 	// Skip a job cancelled while still queued.
-	if cur, ok := s.store[job.ID]; ok && cur.Status == domain.JobStatusCancelled {
+	if cur.Status == domain.JobStatusCancelled {
 		s.mu.Unlock()
 		cancel()
 		s.finalizeLog(job.ID)
@@ -118,12 +128,12 @@ func (s *Service) sweepArtifacts(ttl time.Duration) {
 	now := time.Now()
 	s.mu.Lock()
 	var dirs []string
-	var swept []domain.BuildJob
+	var swept []*domain.BuildJob
 	for _, j := range s.store {
 		if j.ArtifactDir != "" && j.EndedAt != nil && now.Sub(*j.EndedAt) > ttl {
 			dirs = append(dirs, j.ArtifactDir)
 			j.ArtifactDir = ""
-			swept = append(swept, *j)
+			swept = append(swept, j.Clone())
 		}
 	}
 	s.mu.Unlock()
@@ -132,8 +142,8 @@ func (s *Service) sweepArtifacts(ttl time.Duration) {
 	}
 	// Persist the cleared dir so a restart does not restore a job pointing at a
 	// directory that no longer exists.
-	for i := range swept {
-		s.persistSave(&swept[i])
+	for _, job := range swept {
+		s.persistSave(job)
 	}
 }
 

@@ -1,0 +1,77 @@
+package config
+
+import (
+	"encoding/json"
+	"fmt"
+	"log/slog"
+	"path/filepath"
+
+	configloader "github.com/Hayao0819/Kamisato/internal/config"
+	"github.com/Hayao0819/Kamisato/internal/pacman/builder"
+	"github.com/knadh/koanf/v2"
+	"github.com/spf13/pflag"
+)
+
+type RepoEntry struct {
+	Dir     string `koanf:"dir" json:"dir"`
+	DestDir string `koanf:"destdir" json:"destdir"`
+}
+
+type AyakaConfig struct {
+	LegacyRepoDir string             `koanf:"repodir" json:"repodir"`
+	LegacyDestDir string             `koanf:"destdir" json:"destdir"`
+	Repos         []RepoEntry        `koanf:"repos" json:"repos"`
+	Builder       builder.HostConfig `koanf:"builder" json:"builder,omitempty"`
+	Debug         bool               `koanf:"debug" json:"debug"`
+}
+
+func (c *AyakaConfig) Marshal() ([]byte, error) {
+	return json.MarshalIndent(c, "", "  ")
+}
+
+func LoadAyakaConfig(flags *pflag.FlagSet, configFile string) (*AyakaConfig, error) {
+	var files []string
+	if configFile != "" {
+		absPath, err := filepath.Abs(configFile)
+		if err != nil {
+			return nil, err
+		}
+		files = []string{absPath}
+	} else {
+		files = configloader.FileNames("", ".ayakarc")
+	}
+	return configloader.LoadTypedWithSourceTransforms[AyakaConfig](
+		configloader.CommonDirs(),
+		files,
+		flags,
+		"AYAKA",
+		(*AyakaConfig).migrateLegacy,
+		func(source *koanf.Koanf) error {
+			return configloader.ValidateDuration(source, "builder.timeout")
+		},
+	)
+}
+
+// migrateLegacy folds the deprecated top-level repodir/destdir into the repos
+// list so the rest of the CLI only ever deals with the current shape.
+func (c *AyakaConfig) migrateLegacy() {
+	if c.LegacyRepoDir == "" && c.LegacyDestDir == "" {
+		return
+	}
+	slog.Warn("Using legacy configuration fields 'repodir' or 'destdir' is deprecated. Please migrate to the new 'repos' field.")
+	c.Repos = append(c.Repos, RepoEntry{Dir: c.LegacyRepoDir, DestDir: c.LegacyDestDir})
+}
+
+// Validate rejects a repos entry without a source directory, which would
+// otherwise surface later as a confusing load failure.
+func (c *AyakaConfig) Validate() error {
+	if err := c.Builder.Validate(); err != nil {
+		return fmt.Errorf("builder: %w", err)
+	}
+	for i, r := range c.Repos {
+		if r.Dir == "" {
+			return fmt.Errorf("repos[%d]: dir is required", i)
+		}
+	}
+	return nil
+}

@@ -1,0 +1,57 @@
+package revokecmd
+
+import (
+	"fmt"
+
+	ayato "github.com/Hayao0819/Kamisato/ayato/client"
+	ayatostore "github.com/Hayao0819/Kamisato/ayato/client/auth/store"
+	"github.com/Hayao0819/Kamisato/internal/errors"
+	"github.com/spf13/cobra"
+)
+
+// Cmd invalidates the stored CLI token server-side (via the denylist) and
+// then clears it locally. Unlike logout, this stops the token working on every
+// replica immediately, not just on this machine.
+func Cmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "revoke <server>",
+		Short: "Revoke the stored CLI token on an ayato server and clear it locally",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			server := args[0]
+
+			snapshot, err := ayatostore.SnapshotCredentials(server)
+			if err != nil {
+				return err
+			}
+			access := snapshot.Access
+			refresh := snapshot.Refresh
+			if access == "" && refresh == "" {
+				return errors.NewErr("no stored token to revoke for " + server)
+			}
+
+			// Revoke both halves server-side: the access token authorizes via Bearer,
+			// the refresh token via the body (and suffices once the access token has
+			// already expired).
+			api, err := ayato.New(server, ayato.StaticBearer(access))
+			if err != nil {
+				return err
+			}
+			if err := api.RevokeCLIToken(cmd.Context(), refresh); err != nil {
+				return errors.WrapErr(err, "failed to revoke token")
+			}
+
+			cleared, err := ayatostore.ClearCredentialsIfCurrent(snapshot, true)
+			if err != nil {
+				return errors.WrapErr(err, "token was revoked server-side but local credential deletion failed; retry logout")
+			}
+			if !cleared {
+				fmt.Fprintln(cmd.OutOrStdout(), "Token revoked; a newer local login was retained")
+				return nil
+			}
+
+			fmt.Fprintln(cmd.OutOrStdout(), "Token revoked")
+			return nil
+		},
+	}
+}

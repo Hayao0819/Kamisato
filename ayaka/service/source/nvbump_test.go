@@ -1,14 +1,15 @@
 package source
 
 import (
+	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
 
-	pkg "github.com/Hayao0819/Kamisato/internal/pacman/pkg"
-	"github.com/Hayao0819/Kamisato/internal/pacman/source"
+	"github.com/Hayao0819/Kamisato/ayaka/source"
+	"github.com/Hayao0819/Kamisato/internal/pacman/pkg"
 )
 
 func TestRewritePkgver(t *testing.T) {
@@ -55,7 +56,7 @@ func TestNvBump(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "foo.txt"), []byte("payload\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := source.GenerateSrcinfo(dir, os.Stderr); err != nil {
+	if err := source.GenerateSrcinfo(context.Background(), dir, os.Stderr); err != nil {
 		t.Fatal(err)
 	}
 	p, err := pkg.OpenSourcePackage(dir)
@@ -64,7 +65,7 @@ func TestNvBump(t *testing.T) {
 	}
 	src := &source.SourceRepo{Config: &source.SrcConfig{Name: "test"}, Pkgs: []*pkg.SourcePackage{p}, Dir: dir}
 
-	bumped, err := NvBump(src, "foo", "2.0", os.Stderr)
+	bumped, err := NvBump(context.Background(), src, "foo", "2.0", os.Stderr)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -82,7 +83,7 @@ func TestNvBump(t *testing.T) {
 		t.Errorf("updpkgsums should replace the checksum: %q", data)
 	}
 
-	if _, err := NvBump(src, "nope", "2.0", os.Stderr); err == nil {
+	if _, err := NvBump(context.Background(), src, "nope", "2.0", os.Stderr); err == nil {
 		t.Error("bumping an unknown package should error")
 	}
 }

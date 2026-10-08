@@ -41,7 +41,7 @@ func denylistHandler(t *testing.T) (*AuthHandler, *fakeDenylistRepo, *auth.Signe
 	if err != nil {
 		t.Fatalf("NewSigner: %v", err)
 	}
-	return NewAuthHandler(svc, svc, testSettings(cfg)).WithSigner(signer), dl, signer
+	return NewAuthHandler(svc, svc, testSettings(cfg), nil).WithSigner(signer), dl, signer
 }
 
 func jtiOf(t *testing.T, token string) string {

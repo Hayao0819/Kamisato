@@ -42,7 +42,7 @@
                   "-s"
                   "-w"
                 ];
-                # CGO stays on (ayato uses mattn/go-sqlite3); tests need network/Landlock.
+                # CI runs the offline Go test suite; this derivation builds the binaries.
                 doCheck = false;
               }
               // args

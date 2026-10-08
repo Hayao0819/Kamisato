@@ -145,7 +145,7 @@ func (v *Verifier) Middleware(scopes ...string) gin.HandlerFunc {
 			}
 		}
 		if strings.HasPrefix(principal.KeyID, "legacy-") {
-			slog.Warn("legacy full-scope Miko API key used", "key_id", principal.KeyID, "method", c.Request.Method, "path", c.FullPath())
+			slog.Warn("legacy full-scope API key used", "key_id", principal.KeyID, "method", c.Request.Method, "path", c.FullPath())
 		}
 		c.Next()
 	}

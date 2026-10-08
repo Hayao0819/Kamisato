@@ -32,19 +32,15 @@ func ParseConfig(path string) (*pacmanconf.Config, error) {
 	return nil, fmt.Errorf("pacman-conf: %w", err)
 }
 
-func loadConfig(path string) (*pacmanconf.Config, error) {
-	return ParseConfig(path)
-}
-
 func HookDir(configPath string) string {
-	if config, err := loadConfig(configPath); err == nil && len(config.HookDir) > 0 {
+	if config, err := ParseConfig(configPath); err == nil && len(config.HookDir) > 0 {
 		return config.HookDir[0]
 	}
 	return FallbackHookDir
 }
 
 func CacheDirs(configPath string) []string {
-	if config, err := loadConfig(configPath); err == nil && len(config.CacheDir) > 0 {
+	if config, err := ParseConfig(configPath); err == nil && len(config.CacheDir) > 0 {
 		return config.CacheDir
 	}
 	return []string{FallbackCacheDir}

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"golang.org/x/oauth2"
 
 	"github.com/Hayao0819/Kamisato/ayato/auth"
 )
@@ -83,6 +84,7 @@ func (h *AuthHandler) GitHubCallbackHandler(c *gin.Context) {
 func (h *AuthHandler) resolveGitHubUser(c *gin.Context, code string) (githubUser, bool) {
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 15*time.Second)
 	defer cancel()
+	ctx = context.WithValue(ctx, oauth2.HTTPClient, h.httpClient)
 
 	cfg := h.oauthConfig(c)
 	tok, err := cfg.Exchange(ctx, code)
@@ -98,7 +100,7 @@ func (h *AuthHandler) resolveGitHubUser(c *gin.Context, code string) (githubUser
 	req.Header.Set("Authorization", "Bearer "+tok.AccessToken)
 	req.Header.Set("Accept", "application/vnd.github+json")
 	// The access token is used only for this /user call and never stored.
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := h.httpClient.Do(req)
 	if err != nil {
 		slog.Warn("github /user request failed", "error", err)
 		return githubUser{}, false

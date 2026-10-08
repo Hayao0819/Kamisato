@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Hayao0819/Kamisato/ayato/auth/secretbox"
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv/securekv"
-	"github.com/Hayao0819/Kamisato/internal/auth/secretbox"
 )
 
 type bulkAuditStore struct {

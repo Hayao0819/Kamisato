@@ -284,8 +284,22 @@ export class APIClient {
         return res.json();
     }
 
-    jobLogsUrl(id: string): string {
-        return this.endpoints.jobLogs(id);
+    // EventSource cannot attach a bearer header. Mint Ayato's short-lived,
+    // one-time job-bound token through the same auth strategy as other calls;
+    // only that token, never a session bearer, appears in the stream URL.
+    async jobLogsUrl(id: string, signal?: AbortSignal): Promise<string> {
+        const res = await this.authedFetch(this.endpoints.jobLogToken(id), {
+            method: "POST",
+            signal,
+        });
+        if (!res.ok) {
+            throw mutationError(res.status, "ログ認証に失敗しました");
+        }
+        const payload = (await res.json()) as { token?: unknown };
+        if (typeof payload.token !== "string" || !payload.token) {
+            throw new Error("ログ認証トークンが返されませんでした");
+        }
+        return `${this.endpoints.jobLogs(id)}?token=${encodeURIComponent(payload.token)}`;
     }
 
     uploadPackageWithProgress(
@@ -461,6 +475,9 @@ class APIEndpoints {
     get jobLogs() {
         return (id: string) =>
             `${this.apiUnstableUrl}/jobs/${segment(id)}/logs`;
+    }
+    get jobLogToken() {
+        return (id: string) => `${this.jobLogs(id)}/token`;
     }
     get cancelJob() {
         return (id: string) => `${this.apiUnstableUrl}/jobs/${segment(id)}`;

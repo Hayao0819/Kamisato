@@ -5,8 +5,8 @@ package securekv
 import (
 	"time"
 
+	"github.com/Hayao0819/Kamisato/ayato/auth/secretbox"
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
-	"github.com/Hayao0819/Kamisato/internal/auth/secretbox"
 	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 

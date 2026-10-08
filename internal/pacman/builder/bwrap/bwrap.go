@@ -16,8 +16,6 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/pacman/builder"
 	"github.com/Hayao0819/Kamisato/internal/pacman/builder/internal/artifact"
 	"github.com/Hayao0819/Kamisato/internal/pacman/builder/internal/buildenv"
-	"github.com/Hayao0819/Kamisato/internal/pacman/builder/internal/failure"
-	"github.com/Hayao0819/Kamisato/internal/pacman/builder/internal/shell"
 )
 
 //go:embed bwrap_deps.sh
@@ -66,7 +64,7 @@ func (b *Backend) Build(ctx context.Context, spec builder.Spec) (*builder.Result
 	}
 	if reason, in := inContainer(); in {
 		return nil, fmt.Errorf("bwrap backend is host-only and refuses to run inside a container (%s); "+
-			"run miko on the host (nested bwrap needs the outer container's seccomp/AppArmor relaxed)", reason)
+			"run the build backend on the host (nested bwrap needs the outer container's seccomp/AppArmor relaxed)", reason)
 	}
 	if _, err := exec.LookPath("bwrap"); err != nil {
 		return nil, fmt.Errorf("bwrap backend requires the 'bubblewrap' package (>= 0.11) on PATH: %w", err)
@@ -80,7 +78,7 @@ func (b *Backend) Build(ctx context.Context, spec builder.Spec) (*builder.Result
 
 	srcAbs, err := filepath.Abs(spec.SrcDir)
 	if err != nil {
-		return nil, failure.Wrap(err, "failed to resolve src dir")
+		return nil, fmt.Errorf("failed to resolve src dir: %w", err)
 	}
 	cacheDir, err := prepareCacheDir(b.cacheDir)
 	if err != nil {
@@ -92,7 +90,7 @@ func (b *Backend) Build(ctx context.Context, spec builder.Spec) (*builder.Result
 	// a possibly-tmpfs TMPDIR.
 	scratch, err := os.MkdirTemp(filepath.Dir(b.rootfs), "bwrap-build-")
 	if err != nil {
-		return nil, failure.Wrap(err, "failed to create overlay scratch dir")
+		return nil, fmt.Errorf("failed to create overlay scratch dir: %w", err)
 	}
 	defer func() { _ = os.RemoveAll(scratch) }()
 	// depsUpper captures phase 1's dependency install. Phase 2 cannot reuse it as
@@ -105,7 +103,7 @@ func (b *Backend) Build(ctx context.Context, spec builder.Spec) (*builder.Result
 	work2 := filepath.Join(scratch, "work2")
 	for _, d := range []string{depsUpper, work1, buildUpper, work2} {
 		if err := os.Mkdir(d, 0o755); err != nil { //nolint:gosec // build overlay dirs accessed by the build sandbox/overlayfs
-			return nil, failure.Wrap(err, "failed to create overlay dir")
+			return nil, fmt.Errorf("failed to create overlay dir: %w", err)
 		}
 	}
 
@@ -121,13 +119,13 @@ func (b *Backend) Build(ctx context.Context, spec builder.Spec) (*builder.Result
 
 	depsScript, installBinds, err := bwrapInstall(spec.InstallPkgs, b.extraRepos)
 	if err != nil {
-		return nil, failure.Wrap(err, "invalid build repository configuration")
+		return nil, fmt.Errorf("invalid build repository configuration: %w", err)
 	}
 
 	slog.Info("bwrap phase 1: installing dependencies", "dir", srcAbs, "rootfs", b.rootfs)
 	p1 := bwrapArgs([]string{b.rootfs}, depsUpper, work1, srcAbs, cacheDir, "0", depsScript, installBinds)
 	if err := runBwrap(ctx, p1, out); err != nil {
-		return nil, failure.Wrap(err, "bwrap dependency phase failed (ensure unprivileged user namespaces and bwrap >= 0.11 with overlay support)")
+		return nil, fmt.Errorf("bwrap dependency phase failed (ensure unprivileged user namespaces and bwrap >= 0.11 with overlay support): %w", err)
 	}
 
 	buildScript := bwrapBuildScript
@@ -148,7 +146,7 @@ func (b *Backend) Build(ctx context.Context, spec builder.Spec) (*builder.Result
 	slog.Info("bwrap phase 2: building package", "dir", srcAbs, "arch", spec.Arch)
 	p2 := bwrapArgs([]string{b.rootfs, depsUpper}, buildUpper, work2, srcAbs, cacheDir, bwrapBuildUID, buildScript, buildBinds)
 	if err := runBwrap(ctx, p2, out); err != nil {
-		return nil, failure.Build(ctx, err, "bwrap build phase failed")
+		return nil, builder.BuildError(ctx, err, "bwrap build phase failed")
 	}
 
 	packages, err := artifact.CollectToDir(srcAbs, baseline, spec.OutDir)
@@ -163,7 +161,7 @@ func bwrapInstall(installPkgs []string, extraRepos []builder.PacmanRepository) (
 	for i, p := range installPkgs {
 		dest := fmt.Sprintf("/build/install/%d-%s", i, filepath.Base(p))
 		binds = append(binds, [2]string{p, dest})
-		installPaths = append(installPaths, shell.Quote(dest))
+		installPaths = append(installPaths, buildenv.Quote(dest))
 	}
 	installCommand := ""
 	if len(installPaths) > 0 {
@@ -224,10 +222,10 @@ func prepareCacheDir(dir string) (string, error) {
 	}
 	abs, err := filepath.Abs(dir)
 	if err != nil {
-		return "", failure.Wrap(err, "failed to resolve bwrap cache dir")
+		return "", fmt.Errorf("failed to resolve bwrap cache dir: %w", err)
 	}
 	if err := os.MkdirAll(abs, 0o755); err != nil { //nolint:gosec // shared package cache must be traversable by the sandbox uid
-		return "", failure.Wrap(err, "failed to create bwrap cache dir")
+		return "", fmt.Errorf("failed to create bwrap cache dir: %w", err)
 	}
 	return abs, nil
 }

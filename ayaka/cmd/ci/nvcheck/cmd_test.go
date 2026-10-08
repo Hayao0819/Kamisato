@@ -8,10 +8,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Hayao0819/Kamisato/ayaka/app"
+	"github.com/Hayao0819/Kamisato/ayaka/cmd/internal/sourcerepos"
 	"github.com/Hayao0819/Kamisato/ayaka/service/source"
-	pacmansource "github.com/Hayao0819/Kamisato/internal/pacman/source"
-	"github.com/Hayao0819/Kamisato/internal/pacman/source/nvcheck"
+	sourcerepo "github.com/Hayao0819/Kamisato/ayaka/source"
+	"github.com/Hayao0819/Kamisato/internal/pacman/nvcheck"
 )
 
 type fakeNvChecker struct {
@@ -19,16 +19,16 @@ type fakeNvChecker struct {
 	calls   int
 }
 
-func (f *fakeNvChecker) RunNvCheck(_ context.Context, srcrepo *pacmansource.SourceRepo, _ *http.Client) []source.CheckResult {
+func (f *fakeNvChecker) RunNvCheck(_ context.Context, srcrepo *sourcerepo.SourceRepo, _ *http.Client) []source.CheckResult {
 	f.calls++
 	return f.results[srcrepo.Config.Name]
 }
 
-func testApp() *app.App {
-	return &app.App{SrcRepos: []*pacmansource.SourceRepo{
-		{Config: &pacmansource.SrcConfig{Name: "alpha"}},
-		{Config: &pacmansource.SrcConfig{Name: "beta"}},
-	}}
+func testSources() []*sourcerepo.SourceRepo {
+	return []*sourcerepo.SourceRepo{
+		{Config: &sourcerepo.SrcConfig{Name: "alpha"}},
+		{Config: &sourcerepo.SrcConfig{Name: "beta"}},
+	}
 }
 
 func TestNvcheckWalksEveryRepo(t *testing.T) {
@@ -36,7 +36,7 @@ func TestNvcheckWalksEveryRepo(t *testing.T) {
 		"alpha": {{Result: nvcheck.Result{Pkgbase: "foo", Current: "1.0", Latest: "1.0"}, Method: source.MethodNvBump}},
 		"beta":  {{Result: nvcheck.Result{Pkgbase: "bar", Current: "1.0", Latest: "1.0"}, Method: source.MethodPull}},
 	}}
-	cmd := newCommand(fake, app.StaticRuntime(testApp()))
+	cmd := newCommand(fake.RunNvCheck, sourcerepos.Static(testSources()).All)
 	var out bytes.Buffer
 	cmd.SetOut(&out)
 	if err := cmd.Execute(); err != nil {
@@ -56,7 +56,7 @@ func TestNvcheckOutdatedExitsNonZero(t *testing.T) {
 	fake := &fakeNvChecker{results: map[string][]source.CheckResult{
 		"alpha": {{Result: nvcheck.Result{Pkgbase: "foo", Current: "1.0", Latest: "2.0", Outdated: true}, Method: source.MethodNvBump}},
 	}}
-	cmd := newCommand(fake, app.StaticRuntime(testApp()))
+	cmd := newCommand(fake.RunNvCheck, sourcerepos.Static(testSources()).All)
 	cmd.SetOut(&bytes.Buffer{})
 	cmd.SilenceUsage = true
 	cmd.SilenceErrors = true
@@ -72,7 +72,7 @@ func TestNvcheckJSONRows(t *testing.T) {
 			{Result: nvcheck.Result{Pkgbase: "bad", Err: errors.New("boom")}, Method: source.MethodNvBump},
 		},
 	}}
-	cmd := newCommand(fake, app.StaticRuntime(testApp()))
+	cmd := newCommand(fake.RunNvCheck, sourcerepos.Static(testSources()).All)
 	var out bytes.Buffer
 	cmd.SetOut(&out)
 	cmd.SetArgs([]string{"--format", "json"})

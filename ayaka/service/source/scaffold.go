@@ -5,8 +5,8 @@ import (
 	"os"
 	"path/filepath"
 
+	sourcerepo "github.com/Hayao0819/Kamisato/ayaka/source"
 	"github.com/Hayao0819/Kamisato/internal/errors"
-	pacmansource "github.com/Hayao0819/Kamisato/internal/pacman/source"
 )
 
 type scaffoldConfig struct {
@@ -50,6 +50,9 @@ func PrepareTargetDir(dir string) (string, error) {
 // Scaffold writes a fresh .ayakarc.json plus one source repository (repo.json)
 // and its output directory under targetDir.
 func Scaffold(targetDir, repoName, maintainer, destDir string) (*Scaffolded, error) {
+	if !filepath.IsLocal(repoName) || filepath.Base(repoName) != repoName || repoName == "." {
+		return nil, errors.NewErr("repository name must be a single local directory name")
+	}
 	ayakarcPath := filepath.Join(targetDir, ".ayakarc.json")
 	repoDir := filepath.Join(targetDir, repoName)
 
@@ -84,7 +87,7 @@ func Scaffold(targetDir, repoName, maintainer, destDir string) (*Scaffolded, err
 		return nil, errors.WrapErr(err, "failed to create output directory")
 	}
 
-	repoconf := pacmansource.SrcConfig{
+	repoconf := sourcerepo.SrcConfig{
 		Name:       repoName,
 		Maintainer: maintainer,
 	}

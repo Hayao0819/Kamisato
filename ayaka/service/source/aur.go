@@ -21,7 +21,16 @@ const aurBase = "https://aur.archlinux.org"
 // one bad package does not stop the rest. Updating a tracked package is
 // PullPackages' job (`ayaka src pull`).
 func AddAUR(ctx context.Context, repoDir string, names []string, force bool) error {
+	// Validate every target before --force can remove an existing checkout.
+	for _, name := range names {
+		if !aurPkgNameRe.MatchString(name) {
+			return errors.NewErrf("invalid AUR package name %q", name)
+		}
+	}
 	return eachAUR("one or more AUR adds failed:\n", names, func(name string) error {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		gitDir := filepath.Join(repoDir, name, ".git")
 		if _, err := os.Stat(gitDir); err == nil {
 			if !force {

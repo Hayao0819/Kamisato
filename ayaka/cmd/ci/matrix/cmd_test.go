@@ -12,12 +12,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Hayao0819/Kamisato/ayaka/app"
+	"github.com/Hayao0819/Kamisato/ayaka/cmd/internal/sourcerepos"
 	"github.com/Hayao0819/Kamisato/ayaka/service/plan"
-	pkg "github.com/Hayao0819/Kamisato/internal/pacman/pkg"
+	"github.com/Hayao0819/Kamisato/ayaka/source"
 	"github.com/Hayao0819/Kamisato/internal/pacman/builder"
+	"github.com/Hayao0819/Kamisato/internal/pacman/pkg"
 	"github.com/Hayao0819/Kamisato/internal/pacman/repo"
-	"github.com/Hayao0819/Kamisato/internal/pacman/source"
 )
 
 type recordingPlanner struct {
@@ -34,7 +34,7 @@ func (r *recordingPlanner) Compute(_ context.Context, _ []*pkg.SourcePackage, _ 
 	return &plan.Plan{Order: []string{}, Reasons: map[string]string{}, BumpTargets: []string{}}, nil
 }
 
-func (r *recordingPlanner) ReloadWithSrcinfo(srcrepo *source.SourceRepo, _ io.Writer) (*source.SourceRepo, error) {
+func (r *recordingPlanner) ReloadWithSrcinfo(_ context.Context, srcrepo *source.SourceRepo, _ io.Writer) (*source.SourceRepo, error) {
 	r.reloads++
 	return srcrepo, nil
 }
@@ -51,23 +51,22 @@ func archMap(arches []string) map[string]builder.ArchConfig {
 	return m
 }
 
-// testApp wires the source repo's url to a local server that always answers
-// 404, so cli.RemoteRepo takes its "treat as empty" path instead of
+// testSources wires the source repo's url to a local server that always answers
+// 404, so plan.RemoteRepo takes its "treat as empty" path instead of
 // reaching the network.
-func testApp(t *testing.T, arches []string) *app.App {
+func testSources(t *testing.T, arches []string) []*source.SourceRepo {
 	t.Helper()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 	}))
 	t.Cleanup(srv.Close)
-	return &app.App{SrcRepos: []*source.SourceRepo{{
-		Config: &source.SrcConfig{Name: "test", URL: srv.URL, Build: builder.ProjectConfig{Arches: archMap(arches)}},
-	}}}
+	return []*source.SourceRepo{{
+		Config: &source.SrcConfig{Name: "test", URL: srv.URL, Build: builder.ProjectConfig{Arches: archMap(arches)}}}}
 }
 
-func run(t *testing.T, rec *recordingPlanner, a *app.App, args ...string) *Matrix {
+func executeCommand(t *testing.T, rec *recordingPlanner, a []*source.SourceRepo, args ...string) *Matrix {
 	t.Helper()
-	cmd := newCommand(rec, app.StaticRuntime(a))
+	cmd := newCommand(rec.Compute, rec.ReloadWithSrcinfo, sourcerepos.Static(a).All)
 	var out bytes.Buffer
 	cmd.SetOut(&out)
 	cmd.SetArgs(args)
@@ -86,7 +85,7 @@ func TestMatrixBucketsPerArch(t *testing.T) {
 		"i486": {Order: []string{"a", "b"}, Buckets: [][]string{{"a", "b"}}, BumpTargets: []string{"b"}},
 		"i686": {Order: []string{"a"}, Buckets: [][]string{{"a"}}, BumpTargets: []string{"a"}},
 	}}
-	m := run(t, rec, testApp(t, []string{"i486", "i686"}), "--update-srcinfo=false")
+	m := executeCommand(t, rec, testSources(t, []string{"i486", "i686"}), "--update-srcinfo=false")
 
 	if len(m.BuildMatrix.Include) != 2 {
 		t.Fatalf("build entries = %d, want 2: %+v", len(m.BuildMatrix.Include), m.BuildMatrix.Include)
@@ -108,7 +107,7 @@ func TestMatrixBucketsPerArch(t *testing.T) {
 
 func TestMatrixEmptyPlan(t *testing.T) {
 	rec := &recordingPlanner{}
-	m := run(t, rec, testApp(t, nil), "--update-srcinfo=false")
+	m := executeCommand(t, rec, testSources(t, nil), "--update-srcinfo=false")
 	if m.AnyBuild {
 		t.Error("any_build should be false with nothing to build")
 	}
@@ -123,7 +122,7 @@ func TestMatrixEmptyPlan(t *testing.T) {
 
 func TestMatrixForceModeSkipsPlan(t *testing.T) {
 	rec := &recordingPlanner{}
-	m := run(t, rec, testApp(t, []string{"i486", "i686"}), "--packages", "foo bar")
+	m := executeCommand(t, rec, testSources(t, []string{"i486", "i686"}), "--packages", "foo bar")
 	if len(rec.arches) != 0 || rec.reloads != 0 {
 		t.Errorf("force mode must not plan or reload (planned %v, reloads %d)", rec.arches, rec.reloads)
 	}
@@ -139,7 +138,7 @@ func TestMatrixWorkersZeroFallsBackToOneBucket(t *testing.T) {
 	rec := &recordingPlanner{plans: map[string]*plan.Plan{
 		"x86_64": {Order: []string{"a", "b"}, BumpTargets: []string{}},
 	}}
-	m := run(t, rec, testApp(t, nil), "--update-srcinfo=false")
+	m := executeCommand(t, rec, testSources(t, nil), "--update-srcinfo=false")
 	if len(m.BuildMatrix.Include) != 1 || m.BuildMatrix.Include[0].Pkgs != "a b" {
 		t.Errorf("want the flat order as one bucket, got %+v", m.BuildMatrix.Include)
 	}
@@ -151,7 +150,7 @@ func TestMatrixGithubOutput(t *testing.T) {
 	rec := &recordingPlanner{plans: map[string]*plan.Plan{
 		"x86_64": {Order: []string{"a"}, Buckets: [][]string{{"a"}}, BumpTargets: []string{"a"}},
 	}}
-	cmd := newCommand(rec, app.StaticRuntime(testApp(t, nil)))
+	cmd := newCommand(rec.Compute, rec.ReloadWithSrcinfo, sourcerepos.Static(testSources(t, nil)).All)
 	cmd.SetArgs([]string{"--update-srcinfo=false", "--format", "github"})
 	if err := cmd.Execute(); err != nil {
 		t.Fatal(err)

@@ -23,6 +23,34 @@ func TestSubmitRejectsBadArch(t *testing.T) {
 	}
 }
 
+func TestSubmittedRequestAndSnapshotsDoNotShareServiceState(t *testing.T) {
+	s := New(Settings{})
+	request := &domain.BuildRequest{Arch: "x86_64", Pkgbuild: "pkgname=original", Files: map[string]string{"source": "original"}}
+	id, err := s.Submit(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	request.Pkgbuild = "pkgname=changed"
+	request.Files["source"] = "changed"
+	job, err := s.Status(id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if job.Request.Pkgbuild != "pkgname=original" || job.Request.Files["source"] != "original" {
+		t.Fatal("service retained the caller's mutable request")
+	}
+	job.Request.Files["source"] = "status-changed"
+	list := s.List()
+	list[0].Request.Files["source"] = "list-changed"
+	latest, err := s.Status(id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if latest.Request.Files["source"] != "original" {
+		t.Fatal("status or list snapshot mutated service state")
+	}
+}
+
 func TestSubmitRejectsUnsafeRepoName(t *testing.T) {
 	s := New(Settings{})
 	for _, repo := range []string{".", "..", "../repo", "repo/testing", "repo\n[evil]"} {

@@ -43,9 +43,3 @@ func Setup(level slog.Level, color bool) {
 	l := slog.New(h)
 	slog.SetDefault(l)
 }
-
-// UseColorLog is the pre-convention entry point; new callers should pass their
-// color decision through Setup.
-func UseColorLog(level slog.Level) {
-	Setup(level, true)
-}

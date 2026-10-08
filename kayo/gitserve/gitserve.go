@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
 
@@ -23,33 +24,89 @@ const pinnedBranch = "kayo-pinned"
 // Materialize (re)builds root/<pkgbase>.git as a bare repo whose HEAD is the
 // reviewed commit, cloned from the already-checked-out sourceDir.
 func Materialize(ctx context.Context, root, pkgbase, sourceDir, commit string) error {
+	repo, err := repoPath(root, pkgbase)
+	if err != nil {
+		return err
+	}
 	if commit == "" {
 		return errors.NewErr("cannot materialize without a pinned commit")
+	}
+	if err := ctx.Err(); err != nil {
+		return err
 	}
 	if err := os.MkdirAll(root, 0o755); err != nil { //nolint:gosec // served git root is exposed over dumb-HTTP and is world-readable by design
 		return errors.WrapErr(err, "failed to create served root")
 	}
-	repo := filepath.Join(root, pkgbase+".git")
-	if err := os.RemoveAll(repo); err != nil {
-		return errors.WrapErr(err, "failed to clear served repo")
+	staging, err := os.MkdirTemp(root, ".kayo-pin-*")
+	if err != nil {
+		return errors.WrapErr(err, "failed to create pin staging directory")
 	}
+	defer func() {
+		if staging != "" {
+			_ = os.RemoveAll(staging)
+		}
+	}()
 
-	if err := git.Clone(ctx, git.CloneOptions{URL: sourceDir, Dir: repo, Bare: true}); err != nil {
+	// Prepare the full replacement before touching the existing pin. A failed
+	// clone, unreachable commit, or cancelled review must not discard it.
+	next := filepath.Join(staging, "repo")
+	// A reviewed checkout may have detached HEAD and only remote-tracking refs.
+	// Mirror keeps their objects available even after the temporary source closes.
+	if err := git.Clone(ctx, git.CloneOptions{URL: sourceDir, Dir: next, Mirror: true}); err != nil {
 		return err
 	}
 	// Point HEAD at the reviewed commit so a clone checks out the pinned tree,
 	// then refresh the dumb-HTTP index — all through go-git, no git process.
-	if err := git.SetRef(repo, "refs/heads/"+pinnedBranch, commit); err != nil {
+	if err := git.SetRef(next, "refs/heads/"+pinnedBranch, commit); err != nil {
 		return err
 	}
-	if err := git.SetHead(repo, "refs/heads/"+pinnedBranch); err != nil {
+	if err := git.SetHead(next, "refs/heads/"+pinnedBranch); err != nil {
 		return err
 	}
-	return git.UpdateServerInfo(repo)
+	if err := git.UpdateServerInfo(next); err != nil {
+		return err
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	previous := filepath.Join(staging, "previous")
+	hadPrevious := false
+	if err := os.Rename(repo, previous); err == nil {
+		hadPrevious = true
+	} else if !os.IsNotExist(err) {
+		return errors.WrapErr(err, "failed to retain previous pin")
+	}
+	if err := os.Rename(next, repo); err != nil {
+		if hadPrevious {
+			if rollbackErr := os.Rename(previous, repo); rollbackErr != nil {
+				// Keep the backup available for recovery if restoring also fails.
+				staging = ""
+				return errors.Join(errors.WrapErr(err, "failed to publish pin"), errors.WrapErr(rollbackErr, "previous pin retained at "+previous))
+			}
+		}
+		return errors.WrapErr(err, "failed to publish pin")
+	}
+	return nil
 }
 
 func Remove(root, pkgbase string) error {
-	return os.RemoveAll(filepath.Join(root, pkgbase+".git"))
+	repo, err := repoPath(root, pkgbase)
+	if err != nil {
+		return err
+	}
+	return os.RemoveAll(repo)
+}
+
+// Package bases come from both command arguments and repository metadata. Check
+// confinement before any filesystem effects, especially recursive removal.
+func repoPath(root, pkgbase string) (string, error) {
+	if root == "" {
+		return "", errors.NewErr("served git root is required")
+	}
+	if pkgbase == "" || !filepath.IsLocal(pkgbase) || filepath.Base(pkgbase) != pkgbase || strings.ContainsAny(pkgbase, "\\\x00") || pkgbase == "." {
+		return "", errors.NewErrf("invalid package base %q", pkgbase)
+	}
+	return filepath.Join(root, pkgbase+".git"), nil
 }
 
 // MaterializePins (re)serves every pkgbase in sources at its approved commit,

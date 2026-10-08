@@ -31,8 +31,15 @@ func LoadArmoredEntity(armored, passphrase string) (*openpgp.Entity, error) {
 	return key, nil
 }
 
-// LocalSigner signs with an arbitrary OpenPGP private key the user holds locally.
+// LocalSigner signs with an OpenPGP private key held in this process. It may be
+// loaded from an existing key file or a certified worker Keystore.
 type LocalSigner struct{ key *openpgp.Entity }
+
+// NewHostKeySigner uses the certified worker key from k. A separate signer type
+// is unnecessary: key provenance does not change the signing operation.
+func NewHostKeySigner(k *Keystore) *LocalSigner {
+	return &LocalSigner{key: k.WorkerEntity()}
+}
 
 // NewLocalSigner loads a private key (armored or binary) from keyPath, decrypting
 // it with passphrase when the key is protected.

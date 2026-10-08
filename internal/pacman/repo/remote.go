@@ -11,14 +11,10 @@ import (
 	"net/url"
 	"os"
 	"strings"
-	"time"
 
 	pkg "github.com/Hayao0819/Kamisato/internal/pacman/pkg"
 	"github.com/Hayao0819/Kamisato/pkg/raiou"
 )
-
-// dbHTTPClient is an HTTP client with a bounded timeout to prevent a hung mirror from blocking indefinitely.
-var dbHTTPClient = &http.Client{Timeout: 30 * time.Second}
 
 // ErrRepoNotFound is an HTTP 404: the repo is absent (misconfigured URL/arch), distinct from transport failures so callers can tell a config error from an unreachable server.
 var ErrRepoNotFound = errors.New("remote repository not found")
@@ -64,8 +60,8 @@ func (r *RemoteRepo) PkgByPkgBase(pkgbase string) *pkg.BinaryPackage {
 
 // FetchOrEmpty fetches the repo db at server; a missing db resolves to an
 // empty repo, so a repo/arch with no packages yet diffs as "build everything".
-func FetchOrEmpty(server, name string) (*RemoteRepo, error) {
-	rr, err := RepoFromURL(server, name)
+func FetchOrEmpty(ctx context.Context, client *http.Client, server, name string) (*RemoteRepo, error) {
+	rr, err := RepoFromURL(ctx, client, server, name)
 	if errors.Is(err, ErrRepoNotFound) {
 		slog.Warn("remote repo db not found; treating as empty", "url", server)
 		return &RemoteRepo{Name: name}, nil
@@ -73,13 +69,22 @@ func FetchOrEmpty(server, name string) (*RemoteRepo, error) {
 	return rr, err
 }
 
-func RepoFromURL(server string, name string) (*RemoteRepo, error) {
+// RepoFromURL downloads a database through the caller's client. The caller owns
+// network policy (transport, credentials, timeout); ctx also bounds parsing.
+func RepoFromURL(ctx context.Context, client *http.Client, server, name string) (*RemoteRepo, error) {
+	if client == nil {
+		return nil, fmt.Errorf("remote repository: nil HTTP client")
+	}
 	dburl, err := url.JoinPath(server, Artifacts(name).DatabaseAlias())
 	if err != nil {
 		return nil, err
 	}
 
-	resp, err := dbHTTPClient.Get(dburl)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, dburl, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create database request: %w", err)
+	}
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to download database: %w", err)
 	}
@@ -92,7 +97,7 @@ func RepoFromURL(server string, name string) (*RemoteRepo, error) {
 		return nil, fmt.Errorf("bad status while downloading: %s", resp.Status)
 	}
 
-	r, err := RemoteRepoFromDB(name, resp.Body)
+	r, err := RemoteRepoFromDBContext(ctx, name, resp.Body)
 	if r != nil {
 		r.Server = server
 	}

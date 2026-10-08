@@ -32,10 +32,10 @@ The Docker stack trades that native simplicity for freedom — you configure eve
 component and run pieces the native demo leaves out. It brings up:
 
 | Service | Port | Role |
-|---|---|---|
-| **ayato** | 8080 | repo server + aurweb-compatible host (`/rpc`, signed catalog) |
+| --- | --- | --- |
+| **ayato** | 8080 | repo server + aurweb (`/rpc`, signed catalog) |
 | **lumine** | 3000 | web console, served same-origin in front of ayato |
-| **miko** | — | build server (builds packages in containers via the dind daemon) |
+| **miko** | — | build server (containers via dind) |
 | **kayo** | 10713 | local aurweb overlay/router, federating ayato's catalog |
 | **dind** | — | Docker-in-Docker daemon miko builds inside |
 
@@ -54,7 +54,7 @@ curl -X POST -H "X-API-Key: example-ci-key" \
   -F package=@example/ayaka/out/myrepo/x86_64/dummypkg-1.0.0-1-any.pkg.tar.zst \
   http://localhost:8080/api/unstable/repos/myrepo/packages
 
-curl http://localhost:8080/api/unstable/repos/myrepo/arches/x86_64/packages   # now listed
+curl http://localhost:8080/api/unstable/repos/myrepo/x86_64/packages   # now listed
 ```
 
 ayato also answers aurweb's RPC and serves a signed catalog for kayo:

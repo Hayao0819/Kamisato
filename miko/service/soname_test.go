@@ -99,20 +99,20 @@ func TestRepoDepGraphResolvesSonameProvider(t *testing.T) {
 }
 
 func TestFileSonameStoreRoundTrip(t *testing.T) {
-	st, err := newFileSonameStore(t.TempDir())
+	st, err := NewFileSonameStore(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if got, err := st.load("absent"); err != nil || got != nil {
+	if got, err := st.Load("absent"); err != nil || got != nil {
 		t.Errorf("load(absent) = %v, %v; want nil, nil", got, err)
 	}
 
 	want := []string{"libfoo.so.1", "libbar.so.2"}
-	if err := st.save("foo", want); err != nil {
+	if err := st.Save("foo", want); err != nil {
 		t.Fatalf("save: %v", err)
 	}
-	got, err := st.load("foo")
+	got, err := st.Load("foo")
 	if err != nil {
 		t.Fatalf("load: %v", err)
 	}
@@ -122,12 +122,12 @@ func TestFileSonameStoreRoundTrip(t *testing.T) {
 }
 
 func TestFileSonameStoreRejectsUnsafePkgbase(t *testing.T) {
-	st, err := newFileSonameStore(t.TempDir())
+	st, err := NewFileSonameStore(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, bad := range []string{"../escape", "a/b", ""} {
-		if err := st.save(bad, []string{"x"}); err == nil {
+		if err := st.Save(bad, []string{"x"}); err == nil {
 			t.Errorf("save(%q) succeeded, want an error", bad)
 		}
 	}

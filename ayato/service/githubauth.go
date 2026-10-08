@@ -20,7 +20,7 @@ func (s *Service) ResolveGitHubLogin(ctx context.Context, login string) (int64, 
 		return 0, "", err
 	}
 	req.Header.Set("Accept", "application/vnd.github+json")
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := s.httpClient.Do(req)
 	if err != nil {
 		return 0, "", err
 	}

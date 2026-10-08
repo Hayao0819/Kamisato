@@ -5,8 +5,8 @@ import (
 
 	"github.com/spf13/pflag"
 
-	"github.com/Hayao0819/Kamisato/internal/api/client"
 	configloader "github.com/Hayao0819/Kamisato/internal/config"
+	httpclient "github.com/Hayao0819/Kamisato/internal/http/client"
 )
 
 // LumineConfig configures the lumine web frontend/BFF for ayato. AyatoURL and
@@ -56,7 +56,7 @@ func (c *LumineConfig) Validate() error {
 		return fmt.Errorf("auth_mode must be \"cookie\" or \"bearer\", got %q", c.AuthMode)
 	}
 	if c.AyatoURL != "" {
-		if _, err := client.ParseBaseURL(c.AyatoURL); err != nil {
+		if _, err := httpclient.ParseBaseURL(c.AyatoURL); err != nil {
 			return fmt.Errorf("ayato_url: %w", err)
 		}
 	}

@@ -3,8 +3,6 @@ package git
 import (
 	"context"
 	"net"
-	"os"
-	"path/filepath"
 	"testing"
 	"time"
 )
@@ -46,29 +44,5 @@ func TestSafeDialContextRejectsInternal(t *testing.T) {
 			_ = conn.Close()
 			t.Errorf("safeDialContext(%q) = nil error, want refusal", addr)
 		}
-	}
-}
-
-// TestCloneIntegration performs a real strict https clone through the go-git
-// path. It is gated on outbound network availability so CI (offline) skips it.
-func TestCloneIntegration(t *testing.T) {
-	c, err := net.DialTimeout("tcp", "github.com:443", 3*time.Second)
-	if err != nil {
-		t.Skipf("no network: %v", err)
-	}
-	_ = c.Close()
-
-	dir := t.TempDir()
-	target := filepath.Join(dir, "repo")
-	if err := Clone(context.Background(), CloneOptions{
-		URL:    "https://github.com/octocat/Hello-World.git",
-		Dir:    target,
-		Depth:  1,
-		Strict: true,
-	}); err != nil {
-		t.Fatalf("strict https clone failed: %v", err)
-	}
-	if _, err := os.Stat(filepath.Join(target, ".git")); err != nil {
-		t.Fatalf("clone produced no .git dir: %v", err)
 	}
 }

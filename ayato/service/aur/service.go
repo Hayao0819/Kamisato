@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Hayao0819/Kamisato/internal/api/kayo"
+	kayo "github.com/Hayao0819/Kamisato/ayato/protocol"
 )
 
 // SourceManager is the subset of *Backend the service drives.

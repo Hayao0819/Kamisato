@@ -3,6 +3,8 @@ package mikocmd
 import (
 	"testing"
 
+	cancelcmd "github.com/Hayao0819/Kamisato/ayaka/cmd/miko/cancel"
+	logscmd "github.com/Hayao0819/Kamisato/ayaka/cmd/miko/logs"
 	"github.com/spf13/cobra"
 )
 
@@ -11,8 +13,8 @@ func TestStreamCommandsRequireOneJobID(t *testing.T) {
 		name string
 		new  func() *cobra.Command
 	}{
-		{name: "logs", new: mikoLogsCmd},
-		{name: "cancel", new: mikoCancelCmd},
+		{name: "logs", new: logscmd.Cmd},
+		{name: "cancel", new: cancelcmd.Cmd},
 	}
 
 	for _, command := range commands {

@@ -1,11 +1,12 @@
 package handler
 
 import (
+	"net/http"
 	"time"
 
 	"github.com/Hayao0819/Kamisato/ayato/auth"
+	"github.com/Hayao0819/Kamisato/ayato/bugreport"
 	"github.com/Hayao0819/Kamisato/ayato/domain"
-	"github.com/Hayao0819/Kamisato/ayato/handler/bugreport"
 	"github.com/Hayao0819/Kamisato/ayato/handler/recaptcha"
 	"github.com/Hayao0819/Kamisato/ayato/service"
 )
@@ -21,7 +22,6 @@ type Settings struct {
 	Auth                     AuthSettings
 	Mirror                   MirrorSettings
 	Recaptcha                RecaptchaSettings
-	BugReport                bugreport.Config
 }
 
 type MikoSettings struct {
@@ -47,9 +47,7 @@ type MirrorSettings struct {
 }
 
 type RecaptchaSettings struct {
-	Provider string
-	SiteKey  string
-	Secret   string
+	SiteKey string
 }
 
 func (settings Settings) normalized() Settings {
@@ -104,12 +102,13 @@ type PublicationHandler struct {
 }
 
 type AuthHandler struct {
-	settings Settings
-	admins   service.AdminService
-	revoker  service.Revoker
-	signer   *auth.Signer
-	replay   replayGuard
-	device   deviceStore
+	settings   Settings
+	admins     service.AdminService
+	revoker    service.Revoker
+	signer     *auth.Signer
+	replay     replayGuard
+	device     deviceStore
+	httpClient *http.Client
 }
 
 type AdminHandler struct {

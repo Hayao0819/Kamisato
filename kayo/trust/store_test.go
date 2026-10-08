@@ -58,6 +58,7 @@ func TestEvaluate(t *testing.T) {
 	assertEvaluations(t, s, []evaluationCase{
 		{"overlay always trusted", "overlay", "anything", "", Trusted},
 		{"approved, same maintainer", "aur", "yay", "jguer", Trusted},
+		{"same account on another source is not the approval", "mirror", "yay", "jguer", NeedsReview},
 		{"unreviewed package", "aur", "newpkg", "someone", NeedsReview},
 		{"maintainer changed (takeover)", "aur", "yay", "attacker", NeedsReview},
 		{"orphaned", "aur", "yay", "", NeedsReview},
@@ -111,6 +112,10 @@ func TestEvaluateVouchedAdoption(t *testing.T) {
 	s, _ := Open(filepath.Join(t.TempDir(), "trust.json"))
 	s.Approve(Approval{Pkgbase: "yay", Source: "aur", Maintainer: "jguer", Commit: "c1"})
 	s.TrustMaintainer("aur", "successor", "")
+	s.TrustMaintainer("mirror", "successor", "")
+	if got := s.Evaluate("mirror", "yay", "successor"); got.Decision != NeedsReview {
+		t.Errorf("vouching for a mirror account must not transfer an AUR approval: %+v", got)
+	}
 
 	// Handoff of an approved package to a vouched account is sanctioned.
 	if got := s.Evaluate("aur", "yay", "successor"); got.Decision != Trusted {

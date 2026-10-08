@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
@@ -17,14 +18,15 @@ type Service struct {
 	pkgNameRepo   NameStore
 	pkgBinaryRepo BinaryRepository
 	authRepo      AuthRepository
+	adminMu       sync.Mutex // serializes allowlist policy mutations in this service
 	signerRepo    SignerRepository
 	denylistRepo  DenylistRepository // nil when per-token revocation is not wired
 	settings      Settings
 	catalog       *domain.RepositoryCatalog
 	catalogErr    error
-	// upstreamClient fetches upstream repo databases for the overlay/merge sync.
-	upstreamClient *http.Client
-	verifier       signatureTrust
+	// httpClient owns outbound HTTP for upstream databases and GitHub lookups.
+	httpClient *http.Client
+	verifier   signatureTrust
 }
 
 type Settings struct {
@@ -37,7 +39,7 @@ type Settings struct {
 	MaxBatchPackages           int
 	MaxPackageSize             int
 	SignDatabase               bool
-	VerificationKeyring        string
+	VerificationKeys           []byte // public key material loaded by the composition root
 	TrustedVerificationKeys    []string
 	MasterVerificationKeys     []string
 }
@@ -121,8 +123,8 @@ type Lifecycle interface {
 	InitAll() error
 }
 
-// Servicer is the composite the handler depends on today; the role interfaces
-// above are the ISP seams that narrower handlers can adopt.
+// Servicer is the composite accepted by handler assembly. Feature handlers
+// depend on the narrower operation interfaces above.
 type Servicer interface {
 	RepoReader
 	Uploader
@@ -134,25 +136,43 @@ type Servicer interface {
 	Lifecycle
 }
 
+// ServiceOption supplies an optional external collaborator.
+type ServiceOption func(*Service)
+
+// WithOutboundHTTPClient supplies the transport used by all service HTTP calls.
+func WithOutboundHTTPClient(client *http.Client) ServiceOption {
+	return func(s *Service) {
+		if client != nil {
+			s.httpClient = client
+		}
+	}
+}
+
 func New(
 	pkgNameRepo NameStore,
 	pkgBinaryRepo BinaryRepository,
 	authRepo AuthRepository,
 	signerRepo SignerRepository,
 	settings Settings,
+	options ...ServiceOption,
 ) *Service {
 	settings = settings.normalized()
 	s := &Service{
-		pkgNameRepo:    pkgNameRepo,
-		pkgBinaryRepo:  pkgBinaryRepo,
-		authRepo:       authRepo,
-		signerRepo:     signerRepo,
-		settings:       settings,
-		catalog:        settings.Catalog,
-		catalogErr:     settings.CatalogError,
-		upstreamClient: &http.Client{Timeout: 30 * time.Second},
+		pkgNameRepo:   pkgNameRepo,
+		pkgBinaryRepo: pkgBinaryRepo,
+		authRepo:      authRepo,
+		signerRepo:    signerRepo,
+		settings:      settings,
+		catalog:       settings.Catalog,
+		catalogErr:    settings.CatalogError,
+		httpClient:    &http.Client{Timeout: 30 * time.Second},
 	}
-	s.verifier = loadSignatureTrust(settings)
+	s.verifier = parseSignatureTrust(settings)
+	for _, option := range options {
+		if option != nil {
+			option(s)
+		}
+	}
 	return s
 }
 

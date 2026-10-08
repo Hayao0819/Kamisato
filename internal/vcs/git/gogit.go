@@ -85,7 +85,7 @@ func strictClientOptions() []client.Option {
 // options (see strictClientOptions); ValidateRemote also runs first (in Clone)
 // as defense in depth.
 func cloneGoGit(ctx context.Context, o CloneOptions) error {
-	opts := &git.CloneOptions{URL: o.URL, Depth: o.Depth, Bare: o.Bare}
+	opts := &git.CloneOptions{URL: o.URL, Depth: o.Depth, Bare: o.Bare || o.Mirror, Mirror: o.Mirror}
 	if o.Strict {
 		opts.ClientOptions = strictClientOptions()
 	}
@@ -93,7 +93,7 @@ func cloneGoGit(ctx context.Context, o CloneOptions) error {
 	if err != nil {
 		return errors.WrapErr(err, "git clone: "+o.URL)
 	}
-	if o.Ref == "" || o.Bare {
+	if o.Ref == "" || o.Bare || o.Mirror {
 		return nil
 	}
 	wt, err := repo.Worktree()

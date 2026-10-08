@@ -61,8 +61,8 @@ pkg="${pkgs[0]}"
 
 echo "==> publishing $(basename "$pkg")"
 curl -fsS -o /dev/null -w "    upload: HTTP %{http_code}\n" \
-	-X PUT -H "X-API-Key: $key" -F "package=@$pkg" \
-	http://127.0.0.1:8080/api/unstable/myrepo/package
+	-X POST -H "X-API-Key: $key" -F "package=@$pkg" \
+	http://127.0.0.1:8080/api/unstable/repos/myrepo/packages
 
 echo "==> starting lumine (web UI) on :3000"
 "$bin/kamisato" lumine --addr 127.0.0.1:3000 --ayato-url http://127.0.0.1:8080 \
@@ -75,7 +75,7 @@ cat <<EOF
 
     Web UI   http://127.0.0.1:3000
     API      http://127.0.0.1:8080/api/unstable/repos
-    Package  http://127.0.0.1:8080/api/unstable/myrepo/x86_64/package
+    Package  http://127.0.0.1:8080/api/unstable/repos/myrepo/x86_64/packages
 
   Install it with pacman by adding to /etc/pacman.conf:
 

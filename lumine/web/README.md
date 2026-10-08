@@ -1,98 +1,91 @@
-
 # Lumine Web
 
-Lumine Web is a frontend application for the Arch Linux package repository backend
-(Ayato).
+Lumine is the web console for Ayato: browse packages and signatures, publish
+packages, submit builds, and inspect Miko jobs through Ayato. Optional operations
+are shown only when Ayato advertises the corresponding feature.
 
-## Features
+## Development
 
-- Display package list
-- Search packages
-- Show Ayato backend server status
+Use the Node and pnpm versions declared in `package.json`:
 
-## Technologies Used
-
-- Next.js
-- React
-- TypeScript
-- Tailwind CSS
-- shadcn/ui
-- Lucide React (icons)
-- next-themes (theme switching)
-- jotai (state)
-- class-variance-authority (style utility)
-- @radix-ui/react-* (UI primitives)
-
-## Setup
-
-1. Clone this repository.
-2. Move to the `lumine/web` directory.
-
-    ```bash
-    cd lumine/web
-    ```
-
-3. Install dependencies. If you use pnpm:
-
-    ```bash
-    pnpm install
-    ```
-
-    If you use npm or yarn, use the appropriate command.
-4. Point the app at an ayato server from the in-app server dialog (it is stored in
-your browser). The embedded production server can instead reverse-proxy `/api`
-and `/repo` to ayato with `lumine --ayato-url`, so the browser talks only to
-lumine (same origin, no CORS).
-
-## Start Development Server
-
-To start the development server, run:
-
-```bash
-pnpm dev
+```sh
+cd lumine/web
+corepack enable
+pnpm install --frozen-lockfile
+AYATO_URL=http://localhost:8080 pnpm dev
 ```
 
-or
+Open `http://localhost:3000`. Next.js proxies `/api` and `/repo` to `AYATO_URL`
+(default `http://localhost:8080`) in development. The browser uses same-origin
+cookie authentication; there is no browser-local server registry.
 
-```bash
-npm run dev
+```sh
+pnpm gen:types
+pnpm typecheck
+pnpm test
+pnpm build
 ```
 
-```bash
-yarn dev
+`pnpm build` creates a static export at `lumine/embed/out`. The Go Lumine server
+embeds this directory and, in cookie mode, proxies Ayato on the browser's origin:
+
+```sh
+go run ./lumine --addr :3000 --ayato-url http://localhost:8080
 ```
 
-The application will be available at `http://localhost:3000`.
+Run that command from the repository root after building the web export.
 
-## Project Structure
+## Runtime configuration and authentication
 
-- `app/`: Page routing with Next.js App Router
-  - `layout.tsx`: Root layout
-  - `page.tsx`: Package list page
-  - `about/page.tsx`: About Lumine page
-  - `server-status/page.tsx`: Server status page
-- `components/`: Reusable components
-  - `ui/`: UI components from shadcn/ui
-  - Other components (`package-table.tsx`, `search-bar.tsx`, etc.)
-- `hooks/`: Custom hooks
-- `lib/`: Utility functions and type definitions
-  - `api.ts`: Backend API
-  - `types.ts`: Type definitions
-  - `generated/`: API types generated from the Go structs (see below)
-  - `utils.ts`: Other utilities
-- `styles/`: Global styles
+The browser reads `/env.json` at startup. An empty `AYATO_URL` means same-origin;
+`AUTH_MODE` is `cookie` by default. The Go server writes this configuration from
+`LUMINE_AYATO_URL` / `--ayato-url` and `LUMINE_AUTH_MODE` / `--auth-mode`.
 
-## API Types
+For a fully static, cross-origin deployment, use `AUTH_MODE: "bearer"` and set
+`AYATO_URL` to the public Ayato URL. The
+[build-lumine action](../../actions/build-lumine/action.yml) injects the runtime
+configuration and the API origin into the static host's `_headers` CSP. Ayato
+must allow the frontend's origin for CORS and its web login callback.
 
-`src/lib/generated/` mirrors the ayato and miko Go structs, generated with
-[tygo](https://github.com/gzuidhof/tygo) from `tygo.yaml` so the client cannot
-drift from the server. `src/lib/types.ts` re-exports those shapes with a few
-client-only refinements. Regenerate them whenever the Go types change:
+Cookie login uses a first-party HttpOnly session cookie. Bearer login keeps the
+token in memory, not browser storage. `APIClient` applies this auth strategy to
+requests. Build-log streams use Ayato's short-lived, one-time job token because
+native `EventSource` cannot attach an Authorization header. Do not place a
+long-lived bearer token in a stream URL.
 
-```bash
+`TITLE` and `DESCRIPTION` in `/env.json` override the landing text; the Go server
+also accepts `LUMINE_TITLE` and `LUMINE_DESCRIPTION`.
+
+## Source ownership
+
+- `src/app/`: Next.js route entries and route-specific clients. `/` is the search
+  landing page; `/packages` is the query-driven package list.
+- `src/components/`: Console views and shared presentation; `ui/` contains the
+  Radix/shadcn primitives. Keep page-only behavior in its route rather than
+  inventing a parallel application or service layer.
+- `src/hooks/`: React state and effects, including shared console atoms.
+- `src/lib/`: Framework-independent URL/query policies, API/auth clients, type
+  contracts, and formatting. Pure query code does not import React hooks.
+- `src/styles/globals.css`: Tailwind CSS v4 theme and styles.
+
+API calls and auth delivery belong to `src/lib/api.ts` and `auth-client.ts`, not
+individual views. The `/packages` URL owns scope, filters, sorting, and pagination;
+related query fields must be updated in one navigation.
+
+## Generated API types
+
+`src/lib/generated/` is generated from Ayato's domain responses and Miko's public
+client contracts using `tygo.yaml`. `src/lib/types.ts` contains only client-side
+refinements. Regenerate when the Go contracts change:
+
+```sh
 pnpm gen:types
 ```
 
+The generator version is pinned in the root `go.mod`; `go generate ./lumine`
+uses the same tool. Do not hand-edit generated files. CI checks regeneration,
+TypeScript, and the unit tests.
+
 ## License
 
-See [LICENSE.txt](https://github.com/Hayao0819/Kamisato/blob/main/LICENSE.txt).
+See [LICENSE.txt](../../LICENSE.txt).

@@ -11,7 +11,8 @@ import (
 	"github.com/ProtonMail/go-crypto/openpgp/packet"
 )
 
-// SignDetached writes a detached EdDSA/SHA-256 OpenPGP signature (matching ayato's verification keyring); the primitive shared by detachSignFile and the merged-db signer.
+// SignDetached writes a detached EdDSA/SHA-256 OpenPGP signature, matching the
+// shared verifier; the primitive shared by database signing consumers.
 func SignDetached(entity *openpgp.Entity, r io.Reader, w io.Writer) error {
 	return openpgp.DetachSign(w, entity, r, &packet.Config{Algorithm: packet.PubKeyAlgoEdDSA, DefaultHash: crypto.SHA256})
 }

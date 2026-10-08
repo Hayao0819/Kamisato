@@ -5,9 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/spf13/cobra"
-
 	cmdline "github.com/Hayao0819/Kamisato/internal/cli"
+	"github.com/spf13/cobra"
 )
 
 func TestPlanFlagContract(t *testing.T) {

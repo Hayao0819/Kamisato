@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
@@ -9,8 +10,8 @@ import (
 
 	cmdline "github.com/Hayao0819/Kamisato/internal/cli"
 	httpserver "github.com/Hayao0819/Kamisato/internal/http/server"
-	"github.com/Hayao0819/Kamisato/lumine/app"
 	lumineconfig "github.com/Hayao0819/Kamisato/lumine/config"
+	"github.com/Hayao0819/Kamisato/lumine/server"
 )
 
 func RootCmd() *cobra.Command {
@@ -27,10 +28,15 @@ func RootCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			httpserver.Setup(cmd, cfg.Debug)
+			level := slog.LevelInfo
+			if cfg.Debug {
+				level = slog.LevelDebug
+			}
+			cmdline.Setup(level, cmdline.ColorEnabled(cmd))
+			httpserver.SetMode(cfg.Debug)
 			ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
 			defer stop()
-			return app.Run(ctx, cfg)
+			return server.Run(ctx, cfg)
 		},
 		SilenceUsage: true,
 	}

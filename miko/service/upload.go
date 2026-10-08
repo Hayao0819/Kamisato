@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/Hayao0819/Kamisato/internal/api/ayato"
+	ayato "github.com/Hayao0819/Kamisato/ayato/client"
 	"github.com/Hayao0819/Kamisato/internal/errors"
 	"github.com/Hayao0819/Kamisato/internal/pacman/limits"
 )

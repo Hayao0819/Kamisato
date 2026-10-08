@@ -2,7 +2,7 @@ package repo
 
 import (
 	"bytes"
-	"sort"
+	"slices"
 	"testing"
 )
 
@@ -127,9 +127,6 @@ func TestDiffDB(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DiffDB: %v", err)
 	}
-	sort.Strings(diff.Added)
-	sort.Strings(diff.Removed)
-	sort.Strings(diff.Updated)
 	if len(diff.Added) != 1 || diff.Added[0] != "fresh" {
 		t.Errorf("Added = %v, want [fresh]", diff.Added)
 	}
@@ -146,5 +143,27 @@ func TestDiffDB(t *testing.T) {
 	}
 	if !same.Empty() {
 		t.Errorf("identical snapshots diff = %+v, want empty", same)
+	}
+}
+
+func TestDiffDBReturnsStablePackageOrder(t *testing.T) {
+	oldDB, _ := buildDB(t,
+		&meta{"z-updated", "1-1", nil}, &meta{"a-updated", "1-1", nil},
+		&meta{"z-removed", "1-1", nil}, &meta{"a-removed", "1-1", nil},
+	)
+	newDB, _ := buildDB(t,
+		&meta{"z-updated", "2-1", nil}, &meta{"a-updated", "2-1", nil},
+		&meta{"z-added", "1-1", nil}, &meta{"a-added", "1-1", nil},
+	)
+	for range 20 {
+		diff, err := DiffDB(bytes.NewReader(oldDB), bytes.NewReader(newDB))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !slices.Equal(diff.Added, []string{"a-added", "z-added"}) ||
+			!slices.Equal(diff.Removed, []string{"a-removed", "z-removed"}) ||
+			!slices.Equal(diff.Updated, []string{"a-updated", "z-updated"}) {
+			t.Fatalf("unordered diff: %+v", diff)
+		}
 	}
 }

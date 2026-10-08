@@ -12,22 +12,18 @@ import (
 	"path"
 	"path/filepath"
 
+	"github.com/Hayao0819/Kamisato/ayaka/source"
 	"github.com/Hayao0819/Kamisato/internal/errors"
-
-	"github.com/otiai10/copy"
-
 	"github.com/Hayao0819/Kamisato/internal/pacman/builder"
-	"github.com/Hayao0819/Kamisato/internal/pacman/builder/factory"
-	pkg "github.com/Hayao0819/Kamisato/internal/pacman/pkg"
-	"github.com/Hayao0819/Kamisato/internal/pacman/sign"
-	"github.com/Hayao0819/Kamisato/internal/pacman/source"
+	"github.com/Hayao0819/Kamisato/internal/pacman/pkg"
+	"github.com/otiai10/copy"
 )
 
 // Target keeps signing and publishing outside backend configuration.
 type Target struct {
-	Config       builder.ResolvedConfig
+	Backend      builder.Backend
 	Arch         string
-	SignKey      string
+	Sign         func(string) error
 	InstallPkgs  []string
 	InstallNames []string
 	Output       io.Writer
@@ -37,7 +33,10 @@ type Target struct {
 }
 
 // Package copies the SourcePackage to a temp directory, builds it, and signs it if needed.
-func Package(p *pkg.SourcePackage, target *Target, dest string) error {
+func Package(ctx context.Context, p *pkg.SourcePackage, target *Target, dest string) error {
+	if target == nil || target.Backend == nil {
+		return fmt.Errorf("build backend is not configured")
+	}
 	tmpdir, err := os.MkdirTemp("", "ayaka-build-*")
 	if err != nil {
 		return err
@@ -53,12 +52,7 @@ func Package(p *pkg.SourcePackage, target *Target, dest string) error {
 	if err := copy.Copy(srcdir, tmpdir); err != nil {
 		return err
 	}
-	backend, err := factory.New(target.Config)
-	if err != nil {
-		return errors.WrapErr(err, "failed to create build backend")
-	}
-
-	result, err := backend.Build(context.Background(), builder.Spec{
+	result, err := target.Backend.Build(ctx, builder.Spec{
 		SrcDir:       tmpdir,
 		OutDir:       dest,
 		Arch:         target.Arch,
@@ -69,10 +63,16 @@ func Package(p *pkg.SourcePackage, target *Target, dest string) error {
 	if err != nil {
 		return errors.WrapErr(err, "failed to build package")
 	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if result == nil {
+		return fmt.Errorf("build backend returned no result")
+	}
 
-	if target.SignKey != "" {
+	if target.Sign != nil {
 		for _, pkgPath := range result.Packages {
-			if err := sign.SignFile(target.SignKey, "", pkgPath); err != nil {
+			if err := target.Sign(pkgPath); err != nil {
 				return errors.WrapErr(err, "failed to sign file: "+pkgPath)
 			}
 		}
@@ -88,7 +88,7 @@ func Package(p *pkg.SourcePackage, target *Target, dest string) error {
 }
 
 // Repo builds the named packages in r (all of them when none are named).
-func Repo(r *source.SourceRepo, t *Target, dest string, pkgs ...string) error {
+func Repo(ctx context.Context, r *source.SourceRepo, t *Target, dest string, pkgs ...string) error {
 	fulldstdir := path.Join(dest, t.Arch)
 	var errs []error
 	if err := os.MkdirAll(fulldstdir, 0o755); err != nil { //nolint:gosec // published pacman repo output dir is world-readable by design
@@ -107,8 +107,11 @@ func Repo(r *source.SourceRepo, t *Target, dest string, pkgs ...string) error {
 	targetPkgs = source.OrderByDeps(targetPkgs, t.Arch)
 
 	for _, p := range targetPkgs {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		slog.Info("building package", "pkg", p.Names())
-		if err := Package(p, t, fulldstdir); err != nil {
+		if err := Package(ctx, p, t, fulldstdir); err != nil {
 			slog.Error("build package failed", "pkg", p.Names(), "err", err)
 			errs = append(errs, err)
 			// When publishing, a later package may depend on this one's upload;

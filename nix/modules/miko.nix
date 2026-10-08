@@ -48,19 +48,18 @@ in
         concurrency = 2;
         ayato = {
           url = "https://repo.example.com";
-          username = "miko";
         };
       };
       description = ''
         miko_config.json contents (schema: miko/config). The default
         builder backend "container" talks to the Docker daemon. Secrets (e.g.
-        the ayato password via MIKO_AYATO_PASSWORD) belong in environmentFile.
+        the ayato publish key via MIKO_AYATO_API_KEY) belong in environmentFile.
       '';
     };
     environmentFile = mkOption {
       type = types.nullOr types.path;
       default = null;
-      description = "systemd EnvironmentFile holding MIKO_* secrets (e.g. MIKO_AYATO_PASSWORD).";
+      description = "systemd EnvironmentFile holding MIKO_* secrets (e.g. MIKO_AYATO_API_KEY).";
     };
     openFirewall = mkOption {
       type = types.bool;

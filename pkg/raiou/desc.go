@@ -267,7 +267,7 @@ func joinQuoted(values []string, sep string) string {
 	for i, v := range values {
 		q[i] = fmt.Sprintf("%q", v)
 	}
-	return fmt.Sprint(strings.Join(q, sep))
+	return strings.Join(q, sep)
 }
 
 // DescFromPkginfo builds a repository desc entry from a package's .PKGINFO plus

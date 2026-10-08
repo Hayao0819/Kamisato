@@ -2,6 +2,7 @@ package git
 
 import (
 	"context"
+	"strings"
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
 
@@ -132,14 +133,25 @@ func CommitPaths(dir string, paths []string, message string) (string, error) {
 	return hash.String(), nil
 }
 
-// SetRef points refName at hash in the repo at dir, the go-git equivalent of
-// `git update-ref`.
+// SetRef points refName at an existing object hash in the repo at dir, the
+// go-git equivalent of `git update-ref`. Branches must point at commits.
 func SetRef(dir, refName, hash string) error {
+	if !plumbing.IsHash(hash) {
+		return errors.NewErrf("invalid object hash %q", hash)
+	}
 	repo, err := git.PlainOpen(dir)
 	if err != nil {
 		return errors.WrapErr(err, "open repo "+dir)
 	}
-	return repo.Storer.SetReference(plumbing.NewHashReference(plumbing.ReferenceName(refName), plumbing.NewHash(hash)))
+	target := plumbing.NewHash(hash)
+	obj, err := repo.Storer.EncodedObject(plumbing.AnyObject, target)
+	if err != nil {
+		return errors.WrapErr(err, "load ref target "+hash)
+	}
+	if strings.HasPrefix(refName, "refs/heads/") && obj.Type() != plumbing.CommitObject {
+		return errors.NewErr("a branch must point at a commit")
+	}
+	return repo.Storer.SetReference(plumbing.NewHashReference(plumbing.ReferenceName(refName), target))
 }
 
 // SetHead points HEAD at the symbolic target ref in the repo at dir, the go-git

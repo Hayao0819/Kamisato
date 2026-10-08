@@ -4,24 +4,24 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/Hayao0819/Kamisato/internal/api/ayato"
 	"github.com/Hayao0819/Kamisato/internal/pacman/sign"
 )
 
-// RegisterWorkerCert registers the worker signing certificate with Ayato.
-func RegisterWorkerCert(ctx context.Context, settings Settings, keystore *sign.Keystore) error {
+// SignerRegistrar is the certificate-registration operation required at startup.
+type SignerRegistrar interface {
+	RegisterSigner(context.Context, []byte) (string, error)
+}
+
+// RegisterWorkerCert registers the worker signing certificate through registrar.
+func RegisterWorkerCert(ctx context.Context, registrar SignerRegistrar, keystore *sign.Keystore) error {
 	certificate, err := keystore.WorkerCertArmored()
 	if err != nil {
 		return err
 	}
-	publisher, err := ayato.NewPublisher(settings.AyatoURL, settings.AyatoAPIKey)
+	fingerprint, err := registrar.RegisterSigner(ctx, []byte(certificate))
 	if err != nil {
 		return err
 	}
-	fingerprint, err := publisher.RegisterSigner(ctx, []byte(certificate))
-	if err != nil {
-		return err
-	}
-	slog.Info("registered worker signing key with ayato", "url", settings.AyatoURL, "fingerprint", fingerprint)
+	slog.Info("registered worker signing key with ayato", "fingerprint", fingerprint)
 	return nil
 }

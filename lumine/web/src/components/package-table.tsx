@@ -19,7 +19,12 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { PAGE_SIZES, type SortDir, type SortKey } from "@/hooks/use-console";
+import {
+    nextPackagesSort,
+    PAGE_SIZES,
+    type SortDir,
+    type SortKey,
+} from "@/lib/packages-url";
 import type { PackageInfo } from "@/lib/types";
 import { cn, formatBuildDate, formatBytes } from "@/lib/utils";
 import { useAPIClient, useFeatures } from "./lumine-provider";
@@ -37,8 +42,7 @@ interface PackageTableProps {
     pageSize: number;
     onSetGroup: (v: string | null) => void;
     onSetPkgtype: (v: string | null) => void;
-    onSetSortKey: (v: SortKey) => void;
-    onSetSortDir: (v: SortDir) => void;
+    onSetSort: (sort: SortKey, dir: SortDir) => void;
     onSetPage: (v: number) => void;
     onSetPageSize: (v: number) => void;
 }
@@ -107,8 +111,7 @@ export function PackageTable({
     pageSize,
     onSetGroup,
     onSetPkgtype,
-    onSetSortKey,
-    onSetSortDir,
+    onSetSort,
     onSetPage,
     onSetPageSize,
 }: PackageTableProps) {
@@ -155,14 +158,8 @@ export function PackageTable({
     const rows = sorted.slice(start, start + pageSize);
 
     const toggleSort = (key: SortKey) => {
-        if (key === sortKey) {
-            onSetSortDir(sortDir === "asc" ? "desc" : "asc");
-        } else {
-            onSetSortKey(key);
-            onSetSortDir(
-                key === "builddate" || key === "size" ? "desc" : "asc",
-            );
-        }
+        const next = nextPackagesSort({ sort: sortKey, dir: sortDir }, key);
+        onSetSort(next.sort, next.dir);
     };
 
     const handleDownload = (pkg: PackageInfo) => {
@@ -176,7 +173,7 @@ export function PackageTable({
             <div className="flex flex-wrap items-center gap-2">
                 <Select
                     value={sortKey}
-                    onValueChange={(v) => onSetSortKey(v as SortKey)}
+                    onValueChange={(v) => onSetSort(v as SortKey, sortDir)}
                 >
                     <SelectTrigger className="h-9 w-44 rounded-sm text-[14px]">
                         <SelectValue />
@@ -193,7 +190,7 @@ export function PackageTable({
                 <button
                     type="button"
                     onClick={() =>
-                        onSetSortDir(sortDir === "asc" ? "desc" : "asc")
+                        onSetSort(sortKey, sortDir === "asc" ? "desc" : "asc")
                     }
                     title="昇順／降順を切り替え"
                     className="inline-flex h-9 items-center gap-1.5 rounded-sm border border-border px-3 text-[14px] hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"

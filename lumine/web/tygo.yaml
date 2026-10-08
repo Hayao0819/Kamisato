@@ -1,10 +1,10 @@
 # TypeScript types generated from the Go truth types so the client cannot drift.
 # Regenerate from lumine/web with: pnpm gen:types
-# (or: go run github.com/gzuidhof/tygo@latest generate)
+# The tool version is pinned in the root go.mod; go generate ./lumine also uses it.
 packages:
   - path: "github.com/Hayao0819/Kamisato/ayato/domain"
     output_path: "src/lib/generated/ayato_domain.ts"
     include_files: ["repo.go", "features.go", "signature.go"]
-  - path: "github.com/Hayao0819/Kamisato/internal/api/miko"
+  - path: "github.com/Hayao0819/Kamisato/miko/client"
     output_path: "src/lib/generated/miko_domain.ts"
     include_files: ["types.go"]

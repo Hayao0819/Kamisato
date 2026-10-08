@@ -11,6 +11,7 @@ package pkgindex
 import (
 	"cmp"
 	"context"
+	"maps"
 	"slices"
 	"strings"
 	"sync/atomic"
@@ -40,20 +41,19 @@ func New() *Index {
 }
 
 // Replace atomically swaps in a fresh snapshot; the sorted name list is derived
-// from byName. The caller must not mutate the maps after handing them over.
+// from byName. It owns a copy of the maps and records, so callers and readers
+// cannot mutate a published snapshot through a retained slice or map.
 func (i *Index) Replace(byName map[string]aurweb.Pkg, sources map[string]string) {
-	if byName == nil {
-		byName = map[string]aurweb.Pkg{}
-	}
-	if sources == nil {
-		sources = map[string]string{}
+	owned := make(map[string]aurweb.Pkg, len(byName))
+	for name, pkg := range byName {
+		owned[name] = pkg.Clone()
 	}
 	names := make([]string, 0, len(byName))
 	for n := range byName {
 		names = append(names, n)
 	}
 	slices.Sort(names)
-	i.cur.Store(&snapshot{byName: byName, sources: sources, names: names})
+	i.cur.Store(&snapshot{byName: owned, sources: maps.Clone(sources), names: names})
 }
 
 func (i *Index) Info(_ context.Context, requested []string) ([]aurweb.Pkg, error) {
@@ -61,7 +61,7 @@ func (i *Index) Info(_ context.Context, requested []string) ([]aurweb.Pkg, error
 	var out []aurweb.Pkg
 	for _, n := range requested {
 		if p, ok := s.byName[n]; ok {
-			out = append(out, p)
+			out = append(out, p.Clone())
 		}
 	}
 	return out, nil
@@ -72,7 +72,7 @@ func (i *Index) Search(_ context.Context, by aurweb.By, arg string) ([]aurweb.Pk
 	var out []aurweb.Pkg
 	for _, p := range s.byName {
 		if aurweb.Match(p, by, arg) {
-			out = append(out, p)
+			out = append(out, p.Clone())
 		}
 	}
 	slices.SortFunc(out, func(a, b aurweb.Pkg) int { return cmp.Compare(a.Name, b.Name) })
@@ -111,8 +111,9 @@ func (i *Index) All(_ context.Context) ([]aurweb.Pkg, error) {
 	s := i.cur.Load()
 	out := make([]aurweb.Pkg, 0, len(s.byName))
 	for _, p := range s.byName {
-		out = append(out, p)
+		out = append(out, p.Clone())
 	}
+	slices.SortFunc(out, func(a, b aurweb.Pkg) int { return cmp.Compare(a.Name, b.Name) })
 	return out, nil
 }
 

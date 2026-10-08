@@ -109,3 +109,15 @@ func TestListenAddr(t *testing.T) {
 		}
 	}
 }
+
+func TestOverlayNameIsCacheDirectoryComponent(t *testing.T) {
+	for _, name := range []string{"", ".", "..", "../other", "/absolute", "nested/name", `nested\name`, "name\x00suffix", "aur", "overlay"} {
+		cfg := &KayoConfig{Overlays: []OverlayConfig{{Name: name, URL: "local", Ref: "pin"}}}
+		if err := cfg.Validate(); err == nil {
+			t.Errorf("Validate accepted unsafe or reserved overlay name %q", name)
+		}
+	}
+	if err := (OverlayConfig{Name: "my-overlay.v2", URL: "local"}).Validate(); err != nil {
+		t.Errorf("valid single-component name was rejected: %v", err)
+	}
+}

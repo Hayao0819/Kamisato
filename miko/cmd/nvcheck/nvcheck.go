@@ -2,12 +2,16 @@ package nvcheckcmd
 
 import (
 	"fmt"
+	"net/http"
+	"time"
 
 	"github.com/spf13/cobra"
 
+	ayato "github.com/Hayao0819/Kamisato/ayato/client"
 	cmdline "github.com/Hayao0819/Kamisato/internal/cli"
-	"github.com/Hayao0819/Kamisato/miko/app"
-	mikoconfig "github.com/Hayao0819/Kamisato/miko/config"
+	"github.com/Hayao0819/Kamisato/internal/errors"
+	"github.com/Hayao0819/Kamisato/miko/config"
+	"github.com/Hayao0819/Kamisato/miko/service"
 )
 
 type nvcheckRow struct {
@@ -33,14 +37,19 @@ func Cmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			cfg, err := mikoconfig.LoadMikoConfig(cmd.Flags(), configFile)
+			cfg, err := config.LoadMikoConfig(cmd.Flags(), configFile)
 			if err != nil {
 				return err
 			}
-			results, err := app.CheckUpstreamVersions(cmd.Context(), cfg)
-			if err != nil {
-				return err
+			httpClient := &http.Client{Timeout: 30 * time.Second}
+			var reader service.RepositoryDBReader
+			if cfg.Ayato.URL != "" {
+				reader, err = ayato.NewRepository(cfg.Ayato.URL, ayato.WithHTTPClient(httpClient))
+				if err != nil {
+					return errors.WrapErr(err, "configure Ayato repository reader")
+				}
 			}
+			results := service.CheckUpstreamVersions(cmd.Context(), config.ServiceSettings(cfg).VersionCheckEntries, httpClient, reader)
 
 			rows := make([]nvcheckRow, 0, len(results))
 			outdated := 0

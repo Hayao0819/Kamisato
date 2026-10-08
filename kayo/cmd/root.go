@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
@@ -9,7 +10,6 @@ import (
 
 	cmdline "github.com/Hayao0819/Kamisato/internal/cli"
 	httpserver "github.com/Hayao0819/Kamisato/internal/http/server"
-	"github.com/Hayao0819/Kamisato/kayo/app"
 	auditcmd "github.com/Hayao0819/Kamisato/kayo/cmd/audit"
 	ayatocmd "github.com/Hayao0819/Kamisato/kayo/cmd/ayato"
 	hookcmd "github.com/Hayao0819/Kamisato/kayo/cmd/hook"
@@ -17,6 +17,7 @@ import (
 	updatecmd "github.com/Hayao0819/Kamisato/kayo/cmd/update"
 	verifycmd "github.com/Hayao0819/Kamisato/kayo/cmd/verify"
 	kayoconfig "github.com/Hayao0819/Kamisato/kayo/config"
+	"github.com/Hayao0819/Kamisato/kayo/server"
 )
 
 func RootCmd() *cobra.Command {
@@ -33,10 +34,15 @@ func RootCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			httpserver.Setup(cmd, cfg.Debug)
+			level := slog.LevelInfo
+			if cfg.Debug {
+				level = slog.LevelDebug
+			}
+			cmdline.Setup(level, cmdline.ColorEnabled(cmd))
+			httpserver.SetMode(cfg.Debug)
 			ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
 			defer stop()
-			return app.Run(ctx, cfg)
+			return server.Run(ctx, cfg)
 		},
 	}
 	cmd.PersistentFlags().BoolP("debug", "d", false, "Enable debug mode")

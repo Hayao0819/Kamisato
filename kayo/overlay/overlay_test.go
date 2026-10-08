@@ -55,6 +55,19 @@ func syncedRegistry(t *testing.T, overlays []kayoconfig.OverlayConfig) *Registry
 func TestOverlayPriorityShadowing(t *testing.T) {
 	low := makeOverlayRepo(t, "shared", "1")
 	high := makeOverlayRepo(t, "shared", "2")
+	// A lower-priority version must not leak a removed split package back into
+	// the index or replace the selected recipe's URL/checkout through that name.
+	srcinfo := "pkgbase = shared\n\tpkgver = 1\n\tpkgrel = 1\n\tarch = x86_64\n\npkgname = shared\n\npkgname = removed-split\n"
+	if err := os.WriteFile(filepath.Join(low, ".SRCINFO"), []byte(srcinfo), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for _, args := range [][]string{{"add", ".SRCINFO"}, {"commit", "--quiet", "-m", "old split package"}} {
+		command := exec.Command("git", args...)
+		command.Dir = low
+		if out, err := command.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v (%s)", args, err, out)
+		}
+	}
 
 	cases := []struct {
 		name     string
@@ -75,6 +88,15 @@ func TestOverlayPriorityShadowing(t *testing.T) {
 			info, _ := r.Info(context.Background(), []string{"shared"})
 			if len(info) != 1 || info[0].Version != "2-1" {
 				t.Fatalf("higher-priority overlay must win regardless of order: %+v", info)
+			}
+			if url, ok, err := r.SourceURL(context.Background(), "shared"); err != nil || !ok || url != high {
+				t.Fatalf("metadata and source differ: URL=%q, found=%v, error=%v", url, ok, err)
+			}
+			if dir := r.SourceDirs()["shared"]; filepath.Base(dir) != "high" {
+				t.Fatalf("metadata and pin checkout differ: %q", dir)
+			}
+			if old, err := r.Info(context.Background(), []string{"removed-split"}); err != nil || len(old) != 0 {
+				t.Fatalf("shadowed recipe leaked an old split package: %+v, error=%v", old, err)
 			}
 		})
 	}
@@ -114,5 +136,31 @@ func TestOverlayEqualPriorityKeepsFirst(t *testing.T) {
 	info, _ := r.Info(context.Background(), []string{"shared"})
 	if len(info) != 1 || info[0].Version != "1-1" {
 		t.Fatalf("equal priority must keep the first overlay, not the later one: %+v", info)
+	}
+	if url, ok, err := r.SourceURL(context.Background(), "shared"); err != nil || !ok || url != first {
+		t.Fatalf("equal-priority source must also keep the first: URL=%q, found=%v, error=%v", url, ok, err)
+	}
+	if dir := r.SourceDirs()["shared"]; filepath.Base(dir) != "first" {
+		t.Fatalf("equal-priority pin checkout must keep the first: %q", dir)
+	}
+}
+
+func TestSyncRejectsUnsafeOverlayBeforeFilesystemEffects(t *testing.T) {
+	cache := filepath.Join(t.TempDir(), "cache")
+	r := New(cache, []kayoconfig.OverlayConfig{{Name: "../other", URL: "unused"}})
+	if err := r.Sync(context.Background()); err == nil {
+		t.Fatal("Sync accepted an overlay outside its cache")
+	}
+	if _, err := os.Stat(cache); !os.IsNotExist(err) {
+		t.Errorf("invalid input created the cache: %v", err)
+	}
+}
+
+func TestNewOwnsOverlayConfiguration(t *testing.T) {
+	configs := []kayoconfig.OverlayConfig{{Name: "safe", URL: "local"}}
+	r := New(t.TempDir(), configs)
+	configs[0].Name = "../other"
+	if r.overlays[0].Name != "safe" {
+		t.Fatal("Registry retains caller-owned mutable configuration")
 	}
 }

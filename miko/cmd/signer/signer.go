@@ -1,11 +1,17 @@
 package signercmd
 
 import (
+	"log/slog"
+	"os"
+	"os/signal"
+	"syscall"
+
 	"github.com/spf13/cobra"
 
 	cmdline "github.com/Hayao0819/Kamisato/internal/cli"
-	"github.com/Hayao0819/Kamisato/miko/app"
-	mikoconfig "github.com/Hayao0819/Kamisato/miko/config"
+	httpserver "github.com/Hayao0819/Kamisato/internal/http/server"
+	"github.com/Hayao0819/Kamisato/miko/config"
+	"github.com/Hayao0819/Kamisato/miko/server"
 )
 
 // Cmd runs the dedicated signer tier: it holds the host signing key and
@@ -20,11 +26,19 @@ func Cmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			cfg, err := mikoconfig.LoadMikoConfig(cmd.Flags(), configFile)
+			cfg, err := config.LoadMikoConfig(cmd.Flags(), configFile)
 			if err != nil {
 				return err
 			}
-			return app.RunSigner(cmd.Context(), cfg)
+			level := slog.LevelInfo
+			if cfg.Debug {
+				level = slog.LevelDebug
+			}
+			cmdline.Setup(level, cmdline.ColorEnabled(cmd))
+			httpserver.SetMode(cfg.Debug)
+			ctx, stop := signal.NotifyContext(cmd.Context(), os.Interrupt, syscall.SIGTERM)
+			defer stop()
+			return server.RunSigner(ctx, cfg)
 		},
 	}
 }

@@ -3,6 +3,7 @@
 package host
 
 import (
+	"context"
 	"os/exec"
 	"testing"
 )
@@ -14,7 +15,7 @@ func TestGetCleanPkgBinary(t *testing.T) {
 		}
 	}
 
-	files, cleanup, err := GetCleanPkgBinary("git")
+	files, cleanup, err := GetCleanPkgBinary(context.Background(), "git")
 	if err != nil {
 		t.Fatalf("GetCleanPkgBinary failed: %v", err)
 	}

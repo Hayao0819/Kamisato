@@ -1,6 +1,48 @@
 package git
 
-import "testing"
+import (
+	"io"
+	"testing"
+
+	gogit "github.com/go-git/go-git/v6"
+	"github.com/go-git/go-git/v6/plumbing"
+)
+
+func TestSetRefValidatesTargetBeforeMutation(t *testing.T) {
+	dir := t.TempDir()
+	repo, err := gogit.PlainInit(dir, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	blob := &plumbing.MemoryObject{}
+	blob.SetType(plumbing.BlobObject)
+	writer, err := blob.Writer()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := io.WriteString(writer, "not a commit"); err != nil {
+		t.Fatal(err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatal(err)
+	}
+	hash, err := repo.Storer.SetEncodedObject(blob)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const ref = "refs/heads/pinned"
+	for _, target := range []string{"invalid", "ffffffffffffffffffffffffffffffffffffffff", hash.String()} {
+		if err := SetRef(dir, ref, target); err == nil {
+			t.Errorf("branch target %q should be rejected", target)
+		}
+		if _, err := repo.Reference(plumbing.ReferenceName(ref), false); err != plumbing.ErrReferenceNotFound {
+			t.Fatalf("rejected target mutated the branch: %v", err)
+		}
+	}
+	if err := SetRef(dir, "refs/tags/blob", hash.String()); err != nil {
+		t.Fatalf("non-branch refs may name existing blobs: %v", err)
+	}
+}
 
 func TestValidateRemote(t *testing.T) {
 	// Allowed forms (IP literals avoid DNS in tests).

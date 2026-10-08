@@ -52,6 +52,7 @@ describe("APIEndpoints", () => {
         expect(e.listJobs()).toBe(`${api}/jobs`);
         expect(e.jobDetail("j1")).toBe(`${api}/jobs/j1`);
         expect(e.jobLogs("j1")).toBe(`${api}/jobs/j1/logs`);
+        expect(e.jobLogToken("j1")).toBe(`${api}/jobs/j1/logs/token`);
         expect(e.cancelJob("j1")).toBe(`${api}/jobs/j1`);
         expect(e.stats()).toBe(`${api}/stats`);
     });
@@ -75,6 +76,86 @@ describe("APIEndpoints", () => {
         expect(apiClient.endpoints.apiUnstableUrl).toBe(
             `${BASE}/prefix/api/unstable`,
         );
+    });
+});
+
+describe("APIClient log authentication", () => {
+    afterEach(() => {
+        vi.restoreAllMocks();
+        vi.unstubAllGlobals();
+    });
+
+    it("mints a one-time token with cookie credentials and propagates cancellation", async () => {
+        const fetchMock = vi.fn<FetchFn>(
+            async () => new Response(JSON.stringify({ token: "once/+?" })),
+        );
+        vi.stubGlobal("fetch", fetchMock);
+        const controller = new AbortController();
+
+        const url = await client().jobLogsUrl("job/one", controller.signal);
+
+        expect(fetchMock.mock.calls[0][0]).toBe(
+            `${BASE}/api/unstable/jobs/job%2Fone/logs/token`,
+        );
+        expect(fetchMock.mock.calls[0][1]).toMatchObject({
+            method: "POST",
+            credentials: "include",
+            signal: controller.signal,
+        });
+        expect(url).toBe(
+            `${BASE}/api/unstable/jobs/job%2Fone/logs?token=once%2F%2B%3F`,
+        );
+    });
+
+    it("uses the bearer auth strategy but never places the session bearer in the URL", async () => {
+        const api = new APIClient({
+            AYATO_URL: BASE,
+            AUTH_MODE: "bearer",
+            FALLBACK: false,
+        });
+        const decorate = vi
+            .spyOn(api.auth, "decorate")
+            .mockImplementation((init) => ({
+                ...init,
+                headers: { Authorization: "Bearer session-secret" },
+                credentials: "omit",
+            }));
+        const fetchMock = vi.fn<FetchFn>(
+            async () => new Response(JSON.stringify({ token: "one-time" })),
+        );
+        vi.stubGlobal("fetch", fetchMock);
+
+        const url = await api.jobLogsUrl("job1");
+
+        expect(decorate).toHaveBeenCalledOnce();
+        expect(fetchMock.mock.calls[0][1]).toMatchObject({
+            credentials: "omit",
+            headers: { Authorization: "Bearer session-secret" },
+        });
+        expect(url).toBe(`${BASE}/api/unstable/jobs/job1/logs?token=one-time`);
+        expect(url).not.toContain("session-secret");
+    });
+
+    it("does not open an unauthenticated stream when token minting fails", async () => {
+        vi.stubGlobal(
+            "fetch",
+            vi.fn(async () => new Response("denied", { status: 401 })),
+        );
+        await expect(client().jobLogsUrl("job1")).rejects.toThrow(
+            "ログインが必要です",
+        );
+    });
+
+    it.each([
+        {},
+        { token: "" },
+        { token: 123 },
+    ])("rejects an invalid token response %j", async (payload) => {
+        vi.stubGlobal(
+            "fetch",
+            vi.fn(async () => new Response(JSON.stringify(payload))),
+        );
+        await expect(client().jobLogsUrl("job1")).rejects.toThrow("トークン");
     });
 });
 

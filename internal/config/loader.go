@@ -1,6 +1,6 @@
-// Package conf defines each binary's configuration structs and loads them with a
-// thin koanf wrapper that merges multiple directories, multiple formats
-// (JSON/TOML/YAML), environment variables and pflag.
+// Package config loads caller-owned configuration types from directories,
+// JSON/TOML/YAML files, environment variables, and pflag values. Product-specific
+// configuration structs and defaults belong to the products, not this package.
 package config
 
 import (

@@ -36,8 +36,7 @@ func (s *Service) update(id string, fn func(*domain.BuildJob)) {
 	}
 	var snap *domain.BuildJob
 	if ok {
-		c := *job
-		snap = &c
+		snap = job.Clone()
 	}
 	s.mu.Unlock()
 	if snap != nil {
@@ -49,7 +48,7 @@ func (s *Service) update(id string, fn func(*domain.BuildJob)) {
 // jobs are dropped first (and removed from disk when persistence is on).
 const maxStoredJobs = 500
 
-// evictLocked drops the oldest terminal (success/failed) jobs until the store
+// evictLocked drops the oldest terminal (success/failed/cancelled) jobs until the store
 // is within maxStoredJobs, returning the evicted IDs so the caller can remove
 // them from disk. Queued/running jobs are never evicted. Callers must hold s.mu.
 func (s *Service) evictLocked() []string {
@@ -58,7 +57,7 @@ func (s *Service) evictLocked() []string {
 	}
 	terminal := make([]*domain.BuildJob, 0, len(s.store))
 	for _, j := range s.store {
-		if j.Status == domain.JobStatusSuccess || j.Status == domain.JobStatusFailed {
+		if j.Status == domain.JobStatusSuccess || j.Status == domain.JobStatusFailed || j.Status == domain.JobStatusCancelled {
 			terminal = append(terminal, j)
 		}
 	}

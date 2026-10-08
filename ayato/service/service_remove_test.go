@@ -1,6 +1,7 @@
 package service_test
 
 import (
+	"errors"
 	"testing"
 
 	"go.uber.org/mock/gomock"
@@ -101,6 +102,36 @@ func TestServiceRemoveAnyPackageFromOneArchKeepsSharedFile(t *testing.T) {
 	svc := service.New(names, bin, nil, nil, repoConfig())
 	if err := svc.RemovePkg("myrepo", "x86_64", "mypkg"); err != nil {
 		t.Fatalf("RemovePkg(any one arch) failed: %v", err)
+	}
+}
+
+func TestServiceRemoveAnyPackageKeepsObjectsWhenOtherArchesCannotBeVerified(t *testing.T) {
+	for _, failure := range []string{"list arches", "read other arch"} {
+		t.Run(failure, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			bin := mocks.NewMockBinaryRepository(ctrl)
+			names := mocks.NewMockNameStore(ctrl)
+			want := errors.New("repository unavailable")
+			bin.EXPECT().RepoNames().Return([]string{"myrepo"}, nil)
+			// Source resolution's best-effort list is not authority for deletion.
+			firstList := bin.EXPECT().Arches("myrepo").Return([]string{"x86_64", "aarch64"}, nil)
+			secondList := bin.EXPECT().Arches("myrepo")
+			if failure == "list arches" {
+				secondList.Return(nil, want)
+			} else {
+				secondList.Return([]string{"x86_64", "aarch64"}, nil)
+				bin.EXPECT().RepoRemove("myrepo", "x86_64", "mypkg", false, gomock.Nil()).Return(nil)
+				bin.EXPECT().RemoteRepo("myrepo", "aarch64").Return(nil, want)
+			}
+			gomock.InOrder(firstList, secondList)
+			bin.EXPECT().RemoteRepo("myrepo", "x86_64").Return(anyPackageRepo(), nil)
+			names.EXPECT().StorePackageFile("myrepo", "any", "mypkg", "mypkg-1.0-1-any.pkg.tar.zst").Return(nil)
+			// No DeleteFile, signature deletion, or metadata deletion is allowed.
+			svc := service.New(names, bin, nil, nil, repoConfig())
+			if err := svc.RemovePkg("myrepo", "x86_64", "mypkg"); !errors.Is(err, want) {
+				t.Fatalf("RemovePkg = %v, want backend error", err)
+			}
+		})
 	}
 }
 

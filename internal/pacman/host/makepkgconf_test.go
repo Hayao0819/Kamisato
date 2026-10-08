@@ -14,7 +14,7 @@ func requireBash(t *testing.T) {
 	}
 }
 
-func TestReadFile(t *testing.T) {
+func TestReadMakepkgConfigFile(t *testing.T) {
 	requireBash(t)
 	dir := t.TempDir()
 	path := filepath.Join(dir, "makepkg.conf")
@@ -26,7 +26,7 @@ func TestReadFile(t *testing.T) {
 	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	cfg, err := ReadFile(path)
+	cfg, err := ReadMakepkgConfigFile(path)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -44,13 +44,13 @@ func TestReadFile(t *testing.T) {
 	}
 }
 
-func TestReadFileMissing(t *testing.T) {
+func TestReadMakepkgConfigFileMissing(t *testing.T) {
 	requireBash(t)
-	cfg, err := ReadFile(filepath.Join(t.TempDir(), "absent.conf"))
+	cfg, err := ReadMakepkgConfigFile(filepath.Join(t.TempDir(), "absent.conf"))
 	if err != nil {
 		t.Fatalf("missing file should not error: %v", err)
 	}
 	if cfg.CARCH != "" || cfg.PKGDEST != "" {
-		t.Errorf("missing file should yield empty Conf, got %+v", cfg)
+		t.Errorf("missing file should yield empty config, got %+v", cfg)
 	}
 }

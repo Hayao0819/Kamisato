@@ -1,15 +1,16 @@
 package servercmd
 
 import (
-	"github.com/spf13/cobra"
-
+	addcmd "github.com/Hayao0819/Kamisato/ayaka/cmd/server/add"
 	admincmd "github.com/Hayao0819/Kamisato/ayaka/cmd/server/admin"
-	ayatostore "github.com/Hayao0819/Kamisato/internal/api/ayato/auth/store"
+	listcmd "github.com/Hayao0819/Kamisato/ayaka/cmd/server/list"
+	logincmd "github.com/Hayao0819/Kamisato/ayaka/cmd/server/login"
+	logoutcmd "github.com/Hayao0819/Kamisato/ayaka/cmd/server/logout"
+	removecmd "github.com/Hayao0819/Kamisato/ayaka/cmd/server/remove"
+	revokecmd "github.com/Hayao0819/Kamisato/ayaka/cmd/server/revoke"
+	setdefaultcmd "github.com/Hayao0819/Kamisato/ayaka/cmd/server/set-default"
+	"github.com/spf13/cobra"
 )
-
-func completeServerNames(_ *cobra.Command, _ []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-	return ayatostore.Names(toComplete), cobra.ShellCompDirectiveNoFileComp
-}
 
 func Cmd() *cobra.Command {
 	cmd := &cobra.Command{
@@ -19,13 +20,13 @@ func Cmd() *cobra.Command {
 	}
 
 	cmd.AddCommand(
-		ListCmd(),
-		AddCmd(),
-		LoginCmd(),
-		LogoutCmd(),
-		RevokeCmd(),
-		RemoveCmd(),
-		SetDefaultCmd(),
+		listcmd.Cmd(),
+		addcmd.Cmd(),
+		logincmd.Cmd(),
+		logoutcmd.Cmd(),
+		revokecmd.Cmd(),
+		removecmd.Cmd(),
+		setdefaultcmd.Cmd(),
 		admincmd.Cmd(),
 	)
 

@@ -171,7 +171,7 @@ func TestRepoFileHandlerStreamsWhenRedirectDisabled(t *testing.T) {
 		bufferToReadSeekCloser(bytes.NewBufferString(body)),
 	)
 	disabled := false
-	handlers := New(service, Settings{DisableRedirectDownloads: !disabled})
+	handlers := New(service, Settings{DisableRedirectDownloads: !disabled}, nil, nil, nil)
 	service.EXPECT().
 		GetFileWithMeta("myrepo", "x86_64", "foo.pkg.tar.zst").
 		Return(file, domain.FileMeta{}, nil)

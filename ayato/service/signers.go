@@ -3,7 +3,6 @@ package service
 import (
 	"fmt"
 	"log/slog"
-	"os"
 	"slices"
 
 	"github.com/ProtonMail/go-crypto/openpgp"
@@ -20,31 +19,28 @@ type signatureTrust struct {
 	err                 error
 }
 
-func loadSignatureTrust(settings Settings) signatureTrust {
+func parseSignatureTrust(settings Settings) signatureTrust {
 	trustedKeys := settings.TrustedVerificationKeys
-	keyring := settings.VerificationKeyring
+	keys := settings.VerificationKeys
 	trust := signatureTrust{
 		trustedFingerprints: slices.Clone(trustedKeys),
 	}
-	if keyring != "" {
-		data, err := os.ReadFile(keyring)
-		if err == nil {
-			trust.base, err = sign.ReadEntities(data)
+	if keys != nil {
+		var err error
+		trust.base, err = sign.ReadEntities(keys)
+		if err == nil && len(trust.base) == 0 {
+			err = fmt.Errorf("keyring contains no public keys")
 		}
 		if err != nil {
-			trust.err = fmt.Errorf("load package-signature keyring: %w", err)
+			trust.err = fmt.Errorf("parse package-signature keyring: %w", err)
 			slog.Error(
-				"failed to load package-signature keyring",
-				"path",
-				keyring,
+				"failed to parse package-signature keyring",
 				"err",
 				err,
 			)
 		} else {
 			slog.Info(
 				"package-signature verification enabled",
-				"keyring",
-				keyring,
 				"trusted_keys",
 				len(trustedKeys),
 			)
@@ -53,6 +49,9 @@ func loadSignatureTrust(settings Settings) signatureTrust {
 	masterKeys := settings.MasterVerificationKeys
 	for index, armored := range masterKeys {
 		entities, err := sign.ReadEntities([]byte(armored))
+		if err == nil && len(entities) == 0 {
+			err = fmt.Errorf("master key contains no public keys")
+		}
 		if err != nil {
 			trust.err = fmt.Errorf("parse verify.master_keys[%d]: %w", index, err)
 			slog.Error("failed to parse master key", "index", index, "err", err)
@@ -60,7 +59,7 @@ func loadSignatureTrust(settings Settings) signatureTrust {
 		}
 		trust.masters = append(trust.masters, entities...)
 	}
-	hasRoot := keyring != "" || len(masterKeys) > 0
+	hasRoot := keys != nil || len(masterKeys) > 0
 	if settings.RequireSign && !hasRoot && trust.err == nil {
 		trust.err = fmt.Errorf(
 			"require_sign is enabled but no verification trust root is configured",

@@ -3,11 +3,14 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
+	"github.com/Hayao0819/Kamisato/internal/pacman/nvcheck"
 	ppkg "github.com/Hayao0819/Kamisato/internal/pacman/pkg"
 	"github.com/Hayao0819/Kamisato/internal/pacman/repo"
-	"github.com/Hayao0819/Kamisato/internal/pacman/source/nvcheck"
 	"github.com/Hayao0819/Kamisato/miko/domain"
 	"github.com/Hayao0819/Kamisato/pkg/raiou"
 )
@@ -69,7 +72,7 @@ func TestRepositoryConsumersShareInjectedReader(t *testing.T) {
 	reader := &fakeRepositoryDBReader{database: database}
 	s := New(Settings{AyatoURL: "https://ayato.example"}, WithRepositoryDBReader(reader))
 
-	version, err := s.publishedVersion()(context.Background(), nvcheck.Entry{
+	version, err := publishedVersion(s.repositories, true)(context.Background(), nvcheck.Entry{
 		Pkgbase: "foo",
 		Repo:    "extra",
 		Arch:    "x86_64",
@@ -106,12 +109,30 @@ func TestPublishedVersionPreservesRepositoryFailure(t *testing.T) {
 	reader := &fakeRepositoryDBReader{err: wantErr}
 	s := New(Settings{AyatoURL: "https://ayato.example"}, WithRepositoryDBReader(reader))
 
-	_, err := s.publishedVersion()(context.Background(), nvcheck.Entry{
+	_, err := publishedVersion(s.repositories, true)(context.Background(), nvcheck.Entry{
 		Pkgbase: "foo",
 		Repo:    "extra",
 		Arch:    "x86_64",
 	})
 	if !errors.Is(err, wantErr) {
 		t.Fatalf("error = %v, want %v", err, wantErr)
+	}
+}
+
+func TestReadOnlyVersionCheckUsesHTTPAndRepositoryBoundaries(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		fmt.Fprint(response, "version=2.0")
+	}))
+	defer upstream.Close()
+	info := raiou.NewPKGINFO()
+	info.PkgName, info.PkgBase, info.PkgVer = "foo", "foo", "1.0-1"
+	reader := &fakeRepositoryDBReader{database: &repo.RemoteRepo{Pkgs: []*ppkg.BinaryPackage{ppkg.NewBinaryPackage("foo-1.0-1-x86_64.pkg.tar.zst", info)}}}
+	entries := []nvcheck.Entry{{Pkgbase: "foo", Repo: "extra", Arch: "x86_64", Source: nvcheck.Spec{Kind: "http", URL: upstream.URL, Regex: `version=(\S+)`}}}
+	results := CheckUpstreamVersions(context.Background(), entries, upstream.Client(), reader)
+	if len(results) != 1 || results[0].Err != nil || results[0].Latest != "2.0" || results[0].Current != "1.0-1" || !results[0].Outdated || results[0].Enqueued {
+		t.Fatalf("read-only results = %+v", results)
+	}
+	if len(reader.calls) != 1 || reader.calls[0].repo != "extra" || reader.calls[0].arch != "x86_64" {
+		t.Fatalf("reader calls = %+v", reader.calls)
 	}
 }

@@ -29,6 +29,12 @@ type Verifier interface {
 // empty (verification disabled). Provider "turnstile" targets Cloudflare Turnstile;
 // any other value (including "recaptcha" and empty) targets Google reCAPTCHA.
 func New(provider, secret string) Verifier {
+	return NewWithHTTPClient(provider, secret, nil)
+}
+
+// NewWithHTTPClient uses client for verification requests. Nil selects the
+// default bounded client; an empty secret still disables verification.
+func NewWithHTTPClient(provider, secret string, client *http.Client) Verifier {
 	if secret == "" {
 		return nil
 	}
@@ -36,10 +42,13 @@ func New(provider, secret string) Verifier {
 	if provider == "turnstile" {
 		endpoint = turnstileVerifyURL
 	}
+	if client == nil {
+		client = &http.Client{Timeout: 10 * time.Second}
+	}
 	return &verifier{
 		secret:   secret,
 		endpoint: endpoint,
-		client:   &http.Client{Timeout: 10 * time.Second},
+		client:   client,
 	}
 }
 

@@ -58,6 +58,7 @@ func (s *Service) submitWithReason(req *domain.BuildRequest, reason domain.Build
 	if req == nil {
 		return "", fmt.Errorf("%w: request is nil", ErrInvalidRequest)
 	}
+	req = req.Clone()
 	if !allowedArches[req.Arch] {
 		return "", fmt.Errorf("%w: unsupported arch %q", ErrInvalidRequest, req.Arch)
 	}
@@ -95,9 +96,9 @@ func (s *Service) submitWithReason(req *domain.BuildRequest, reason domain.Build
 	s.mu.Lock()
 	s.store[job.ID] = job
 	evicted := s.evictLocked()
-	snap := *job
+	snap := job.Clone()
 	s.mu.Unlock()
-	s.persistSave(&snap)
+	s.persistSave(snap)
 	for _, id := range evicted {
 		s.persistRemove(id)
 	}
@@ -123,8 +124,7 @@ func (s *Service) Status(id string) (*domain.BuildJob, error) {
 	if !ok {
 		return nil, errors.NewErrf("job not found: %s", id)
 	}
-	clone := *job
-	return &clone, nil
+	return job.Clone(), nil
 }
 
 // List returns clones of every job, sorted by CreatedAt descending.
@@ -134,8 +134,7 @@ func (s *Service) List() []*domain.BuildJob {
 
 	jobs := make([]*domain.BuildJob, 0, len(s.store))
 	for _, job := range s.store {
-		clone := *job
-		jobs = append(jobs, &clone)
+		jobs = append(jobs, job.Clone())
 	}
 	sort.Slice(jobs, func(i, j int) bool {
 		return jobs[i].CreatedAt.After(jobs[j].CreatedAt)
@@ -160,9 +159,9 @@ func (s *Service) Cancel(id string) error {
 		job.Status = domain.JobStatusCancelled
 		end := time.Now()
 		job.EndedAt = &end
-		snap := *job
+		snap := job.Clone()
 		s.mu.Unlock()
-		s.persistSave(&snap)
+		s.persistSave(snap)
 		slog.Info("Build job cancelled while queued", "id", id)
 		return nil
 	default:

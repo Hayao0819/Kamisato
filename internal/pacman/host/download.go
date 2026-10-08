@@ -1,11 +1,11 @@
 package host
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"os/exec"
 	"path"
-
-	"github.com/Hayao0819/nahi/exutils"
 
 	pacmanpkg "github.com/Hayao0819/Kamisato/internal/pacman/pkg"
 )
@@ -29,9 +29,12 @@ func (c *CleanPkgBinary) Close() error {
 
 // GetCleanPkgBinary downloads names from pacman repos into a temp dir;
 // returns paths and a CleanPkgBinary handle to remove it after the build.
-func GetCleanPkgBinary(names ...string) ([]string, *CleanPkgBinary, error) {
+func GetCleanPkgBinary(ctx context.Context, names ...string) ([]string, *CleanPkgBinary, error) {
 	if len(names) == 0 {
 		return nil, nil, nil
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, nil, err
 	}
 
 	tmp, err := os.MkdirTemp("", "kamisato-pkg-dl-")
@@ -53,11 +56,17 @@ func GetCleanPkgBinary(names ...string) ([]string, *CleanPkgBinary, error) {
 
 	// pacman 7's sandbox (DownloadUser+Landlock) fails under fakeroot/containers;
 	// integrity comes from pacman's signature verification.
-	args := []string{"pacman", "--sync", "--refresh", "--noconfirm", "--downloadonly", "--disable-sandbox", "--cachedir", cachepath, "--dbpath", dbpath, "--log", "/dev/null"}
+	args := []string{"pacman", "--sync", "--refresh", "--noconfirm", "--downloadonly", "--disable-sandbox", "--cachedir", cachepath, "--dbpath", dbpath, "--log", "/dev/null", "--"}
 	args = append(args, names...)
-	c := exutils.CommandWithStdio("fakeroot", args...)
+	c := exec.CommandContext(ctx, "fakeroot", args...) //nolint:gosec // Fixed executable, no shell; package targets follow the option terminator.
+	c.Stdin = os.Stdin
+	c.Stdout = os.Stdout
+	c.Stderr = os.Stderr
 	if err := c.Run(); err != nil {
 		_ = cleanup.Close()
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return nil, nil, fmt.Errorf("failed to download package: %w", ctxErr)
+		}
 		return nil, nil, fmt.Errorf("failed to download package: %w", err)
 	}
 

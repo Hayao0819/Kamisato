@@ -18,6 +18,17 @@ func TestNewDisabledWhenNoSecret(t *testing.T) {
 	}
 }
 
+func TestNewWithHTTPClientUsesSuppliedBoundary(t *testing.T) {
+	client := &http.Client{}
+	v := NewWithHTTPClient("turnstile", "secret", client).(*verifier)
+	if v.client != client || v.endpoint != turnstileVerifyURL {
+		t.Fatalf("verifier = %+v", v)
+	}
+	if NewWithHTTPClient("turnstile", "", client) != nil {
+		t.Fatal("explicit HTTP client must not enable disabled verification")
+	}
+}
+
 func TestVerify(t *testing.T) {
 	for _, tc := range []struct {
 		provider string

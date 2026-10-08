@@ -1,12 +1,15 @@
 package apikeycmd
 
-import "github.com/spf13/cobra"
+import (
+	generatecmd "github.com/Hayao0819/Kamisato/miko/cmd/apikey/generate"
+	"github.com/spf13/cobra"
+)
 
 func Cmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "apikey",
 		Short: "Manage miko API keys",
 	}
-	cmd.AddCommand(generateCmd())
+	cmd.AddCommand(generatecmd.Cmd())
 	return cmd
 }

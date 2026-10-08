@@ -3,10 +3,6 @@ package cmd
 import (
 	"log/slog"
 
-	"github.com/Hayao0819/nahi/cobrautils"
-	"github.com/spf13/cobra"
-
-	"github.com/Hayao0819/Kamisato/ayaka/app"
 	buildcmd "github.com/Hayao0819/Kamisato/ayaka/cmd/build"
 	cicmd "github.com/Hayao0819/Kamisato/ayaka/cmd/ci"
 	hookcmd "github.com/Hayao0819/Kamisato/ayaka/cmd/hook"
@@ -22,6 +18,8 @@ import (
 	bumpcmd "github.com/Hayao0819/Kamisato/ayaka/cmd/src/bump"
 	srcinfocmd "github.com/Hayao0819/Kamisato/ayaka/cmd/src/srcinfo"
 	cmdline "github.com/Hayao0819/Kamisato/internal/cli"
+	"github.com/Hayao0819/nahi/cobrautils"
+	"github.com/spf13/cobra"
 )
 
 // grouped assigns cmds to the root help section id and returns them.
@@ -48,19 +46,6 @@ func RootCmd() *cobra.Command {
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
-	runtime := app.NewRuntime(func() (*app.App, error) {
-		configFile, _ := cmd.PersistentFlags().GetString("config")
-		c, err := app.LoadAyakaConfigFrom(configFile, cmd.PersistentFlags())
-		if err != nil {
-			return nil, err
-		}
-		level := slog.LevelInfo
-		if c.Debug {
-			level = slog.LevelDebug
-		}
-		cmdline.Setup(level, cmdline.ColorEnabled(&cmd))
-		return app.New(c)
-	})
 	cmd.PersistentPreRunE = func(_ *cobra.Command, _ []string) error {
 		level := slog.LevelInfo
 		debug, err := cmd.PersistentFlags().GetBool("debug")
@@ -86,15 +71,15 @@ func RootCmd() *cobra.Command {
 	)
 
 	subCmds := cobrautils.Registory{}
-	subCmds.Add(grouped("src", initcmd.Cmd(), srccmd.Cmd(runtime))...)
-	subCmds.Add(grouped("build", buildcmd.Cmd(runtime), plancmd.Cmd(), mikocmd.Cmd(runtime))...)
-	subCmds.Add(grouped("ayato", repocmd.Cmd(runtime), servercmd.Cmd(), hookcmd.Cmd())...)
+	subCmds.Add(grouped("src", initcmd.Cmd(), srccmd.Cmd())...)
+	subCmds.Add(grouped("build", buildcmd.Cmd(), plancmd.Cmd(), mikocmd.Cmd())...)
+	subCmds.Add(grouped("ayato", repocmd.Cmd(), servercmd.Cmd(), hookcmd.Cmd())...)
 	subCmds.Add(grouped("signing", keycmd.Cmd(), keyringcmd.Cmd())...)
-	subCmds.Add(grouped("ci", cicmd.Cmd(runtime))...)
+	subCmds.Add(grouped("ci", cicmd.Cmd())...)
 	subCmds.Add(
-		deprecatedStub(bumpcmd.Cmd(runtime), "ayaka src bump"),
-		deprecatedStub(srcinfocmd.Cmd(runtime), "ayaka src srcinfo"),
-		deprecatedStub(prunecmd.Cmd(runtime), "ayaka repo prune"),
+		deprecatedStub(bumpcmd.Cmd(), "ayaka src bump"),
+		deprecatedStub(srcinfocmd.Cmd(), "ayaka src srcinfo"),
+		deprecatedStub(prunecmd.Cmd(), "ayaka repo prune"),
 		cmdline.VersionCommand(),
 	)
 	subCmds.Bind(&cmd)

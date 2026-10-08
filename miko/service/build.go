@@ -8,13 +8,15 @@ import (
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
 	"github.com/Hayao0819/Kamisato/internal/pacman/builder"
-	"github.com/Hayao0819/Kamisato/internal/pacman/builder/factory"
 	"github.com/Hayao0819/Kamisato/miko/domain"
 )
 
 // On success it returns the output directory holding the built packages; the
 // caller owns its cleanup (after signing/uploading).
 func (s *Service) runBuild(ctx context.Context, job *domain.BuildJob) (*builder.Result, string, error) {
+	if s.newBackend == nil {
+		return nil, "", errors.NewErr("build backend factory is not configured")
+	}
 	req := job.Request
 
 	srcDir, err := os.MkdirTemp("", "miko-src-*")
@@ -58,7 +60,7 @@ func (s *Service) runBuild(ctx context.Context, job *domain.BuildJob) (*builder.
 		_ = os.RemoveAll(outDir)
 		return nil, "", errors.WrapErr(err, "failed to resolve build configuration")
 	}
-	backend, err := factory.New(config)
+	backend, err := s.newBackend(config)
 	if err != nil {
 		_ = os.RemoveAll(outDir)
 		return nil, "", errors.WrapErr(err, "failed to create build backend")

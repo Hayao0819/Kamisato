@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-func TestIsPackageFile(t *testing.T) {
+func TestCollectFiltersPackageFiles(t *testing.T) {
 	tests := []struct {
 		name     string
 		filename string
@@ -28,8 +28,18 @@ func TestIsPackageFile(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := IsPackageFile(tt.filename); got != tt.want {
-				t.Errorf("IsPackageFile(%q) = %v, want %v", tt.filename, got, tt.want)
+			dir := t.TempDir()
+			if tt.filename != "" {
+				if err := os.WriteFile(filepath.Join(dir, tt.filename), []byte("package"), 0o644); err != nil {
+					t.Fatal(err)
+				}
+			}
+			got, err := Collect(dir, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if (len(got) == 1) != tt.want {
+				t.Errorf("Collect(%q) = %v, want package %v", tt.filename, got, tt.want)
 			}
 		})
 	}

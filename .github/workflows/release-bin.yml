@@ -32,7 +32,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y gcc-multilib
 
       - name : Build Lumine Web
-        run: ./install.sh --no-ayaka --no-ayato --no-lumine-go
+        run: ./install.sh --disable-all --lumine-web
 
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v7

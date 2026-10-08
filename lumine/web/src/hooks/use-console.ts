@@ -1,6 +1,11 @@
 "use client";
 
 import { atom, useAtom } from "jotai";
+import {
+    DEFAULT_PAGE_SIZE,
+    type SortDir,
+    type SortKey,
+} from "@/lib/packages-url";
 import type { PackageInfo } from "@/lib/types";
 
 // Shared console state so the persistent sidebar (facets) and the main list
@@ -10,19 +15,6 @@ const groupFilterAtom = atom<string | null>(null);
 const pkgtypeFilterAtom = atom<string | null>(null);
 const keywordAtom = atom<string>("");
 const mobileNavOpenAtom = atom<boolean>(false);
-
-export type SortKey = "pkgname" | "pkgver" | "arch" | "size" | "builddate";
-export type SortDir = "asc" | "desc";
-
-export const SORT_KEYS: SortKey[] = [
-    "pkgname",
-    "pkgver",
-    "arch",
-    "size",
-    "builddate",
-];
-export const PAGE_SIZES = [50, 100, 250];
-export const DEFAULT_PAGE_SIZE = 50;
 
 // View state for the /packages table. Kept in shared atoms (rather than local
 // component state) so the sidebar facets and the URL-sync layer in

@@ -8,11 +8,13 @@
 package overlay
 
 import (
+	"cmp"
 	"context"
 	"log/slog"
 	"maps"
 	"os"
 	"path/filepath"
+	"slices"
 	"sync"
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
@@ -40,7 +42,7 @@ func New(cacheDir string, overlays []kayoconfig.OverlayConfig) *Registry {
 	return &Registry{
 		Index:    pkgindex.New(),
 		cacheDir: cacheDir,
-		overlays: overlays,
+		overlays: slices.Clone(overlays),
 		dirs:     map[string]string{},
 	}
 }
@@ -56,6 +58,11 @@ func (r *Registry) SourceDirs() map[string]string {
 // Sync clones or updates every overlay, re-parses their .SRCINFO, and atomically
 // swaps in a fresh index. A single failing overlay is logged and skipped.
 func (r *Registry) Sync(ctx context.Context) error {
+	for _, o := range r.overlays {
+		if err := o.Validate(); err != nil {
+			return err
+		}
+	}
 	if err := os.MkdirAll(r.cacheDir, 0o750); err != nil {
 		return errors.WrapErr(err, "failed to create overlay cache dir")
 	}
@@ -64,8 +71,12 @@ func (r *Registry) Sync(ctx context.Context) error {
 	prio := map[string]int{}
 	bases := map[string]string{}
 	dirs := map[string]string{}
+	overlays := slices.Clone(r.overlays)
+	slices.SortStableFunc(overlays, func(a, b kayoconfig.OverlayConfig) int {
+		return cmp.Compare(b.Priority, a.Priority)
+	})
 
-	for _, o := range r.overlays {
+	for _, o := range overlays {
 		dir := filepath.Join(r.cacheDir, o.Name)
 		if err := fetchOverlay(ctx, dir, o); err != nil {
 			slog.Error("overlay sync failed; skipping", "overlay", o.Name, "error", err)
@@ -89,8 +100,16 @@ func (r *Registry) Sync(ctx context.Context) error {
 			continue
 		}
 
-		bases[pkgs[0].PackageBase] = o.URL
-		dirs[pkgs[0].PackageBase] = dir
+		base := pkgs[0].PackageBase
+		// A recipe and all of its split packages share one checkout. Select
+		// that recipe before merging names, so metadata, redirect, and pin
+		// source cannot accidentally come from different overlays.
+		if _, exists := bases[base]; exists {
+			slog.Warn("overlay recipe shadowed by higher/equal priority overlay", "pkgbase", base, "overlay", o.Name)
+			continue
+		}
+		bases[base] = o.URL
+		dirs[base] = dir
 		for _, p := range pkgs {
 			if cur, ok := prio[p.Name]; ok && cur >= o.Priority {
 				slog.Warn("overlay package shadowed by higher/equal priority overlay", "package", p.Name, "overlay", o.Name)

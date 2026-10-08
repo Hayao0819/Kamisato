@@ -67,14 +67,29 @@ export function BuildJobDetail({
     useEffect(() => {
         if (!open || !jobId) return;
         setLogLines([]);
-        const source = new EventSource(api.jobLogsUrl(jobId));
-        source.onmessage = (e) => {
-            setLogLines((prev) => [...prev, e.data]);
+        const controller = new AbortController();
+        let source: EventSource | undefined;
+        api.jobLogsUrl(jobId, controller.signal)
+            .then((url) => {
+                if (controller.signal.aborted) return;
+                source = new EventSource(url);
+                source.onmessage = (e) => {
+                    setLogLines((prev) => [...prev, e.data]);
+                };
+                source.onerror = () => source?.close();
+            })
+            .catch((error) => {
+                if (controller.signal.aborted) return;
+                setLogLines([
+                    error instanceof Error
+                        ? error.message
+                        : "ログ取得に失敗しました",
+                ]);
+            });
+        return () => {
+            controller.abort();
+            source?.close();
         };
-        source.onerror = () => {
-            source.close();
-        };
-        return () => source.close();
     }, [open, jobId, api]);
 
     // Pin the viewport to the tail as fresh lines stream in.

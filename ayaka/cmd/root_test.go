@@ -2,9 +2,46 @@ package cmd
 
 import (
 	"bytes"
+	"path/filepath"
 	"strings"
 	"testing"
 )
+
+func TestEveryCommandHelpIsIndependentOfConfigurationAndCredentials(t *testing.T) {
+	t.Setenv("AYAKA_BUILDER_TIMEOUT", "not-a-duration")
+	root := RootCmd()
+	var paths [][]string
+	var collect func([]string)
+	collect = func(path []string) {
+		command, _, err := root.Find(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		paths = append(paths, append([]string(nil), path...))
+		for _, child := range command.Commands() {
+			if !child.Hidden {
+				collect(append(append([]string(nil), path...), child.Name()))
+			}
+		}
+	}
+	collect(nil)
+	for _, path := range paths {
+		t.Run(strings.Join(path, "/"), func(t *testing.T) {
+			command := RootCmd()
+			args := append(append([]string(nil), path...), "--config", filepath.Join(t.TempDir(), "missing.json"), "--help")
+			command.SetArgs(args)
+			var output bytes.Buffer
+			command.SetOut(&output)
+			command.SetErr(&output)
+			if err := command.Execute(); err != nil {
+				t.Fatalf("help loaded external input: %v", err)
+			}
+			if output.Len() == 0 {
+				t.Fatal("help output is empty")
+			}
+		})
+	}
+}
 
 func TestVersionDoesNotLoadAyakaConfig(t *testing.T) {
 	t.Setenv("AYAKA_BUILDER_TIMEOUT", "not-a-duration")

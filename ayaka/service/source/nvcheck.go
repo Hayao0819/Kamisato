@@ -6,8 +6,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/Hayao0819/Kamisato/internal/pacman/source"
-	"github.com/Hayao0819/Kamisato/internal/pacman/source/nvcheck"
+	"github.com/Hayao0819/Kamisato/ayaka/source"
+	"github.com/Hayao0819/Kamisato/internal/pacman/nvcheck"
 )
 
 // CheckMethod is how an outdated package gets updated: rewriting its PKGBUILD

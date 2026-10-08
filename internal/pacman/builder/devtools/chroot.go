@@ -3,6 +3,7 @@ package devtools
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"os"
@@ -11,7 +12,6 @@ import (
 
 	"github.com/Hayao0819/Kamisato/internal/pacman/builder"
 	"github.com/Hayao0819/Kamisato/internal/pacman/builder/internal/artifact"
-	"github.com/Hayao0819/Kamisato/internal/pacman/builder/internal/failure"
 )
 
 // Backend bypasses the devtools wrapper only when overrides require generated -C/-M configs.
@@ -61,12 +61,12 @@ func (b *Backend) Build(ctx context.Context, spec builder.Spec) (*builder.Result
 	if useGenerated {
 		slog.Info("building package in clean chroot", "dir", spec.SrcDir, "arch", spec.Arch, "repos", len(b.config.Repositories))
 		if err := runChrootBuildGenerated(ctx, spec, b.config, out); err != nil {
-			return nil, failure.Wrap(err, "failed to build package in chroot")
+			return nil, fmt.Errorf("failed to build package in chroot: %w", err)
 		}
 	} else {
 		slog.Info("building package in clean chroot", "dir", spec.SrcDir, "archbuild", b.config.Devtools.ArchBuild, "arch", spec.Arch)
 		if err := runChrootBuild(ctx, spec, b.config.Devtools.ArchBuild, out); err != nil {
-			return nil, failure.Wrap(err, "failed to build package in chroot")
+			return nil, fmt.Errorf("failed to build package in chroot: %w", err)
 		}
 	}
 
@@ -94,7 +94,7 @@ func runChrootBuild(ctx context.Context, spec builder.Spec, archBuild string, ou
 	build := cmdContext(ctx, spec.SrcDir, out, args...)
 	slog.Debug("build command", "cmd", build.String())
 	if err := build.Run(); err != nil {
-		return failure.Build(ctx, err, "devtools wrapper build failed")
+		return builder.BuildError(ctx, err, "devtools wrapper build failed")
 	}
 	return nil
 }
@@ -118,20 +118,20 @@ func runChrootBuildGenerated(ctx context.Context, spec builder.Spec, config buil
 		return err
 	}
 
-	pacTmp, cleanupPac, err := writeTempConf("ayaka-pacman-*.conf", pacConf)
+	pacTmp, cleanupPac, err := writeTempConf("kamisato-pacman-*.conf", pacConf)
 	if err != nil {
 		return err
 	}
 	defer cleanupPac()
-	mkTmp, cleanupMk, err := writeTempConf("ayaka-makepkg-*.conf", mkConf)
+	mkTmp, cleanupMk, err := writeTempConf("kamisato-makepkg-*.conf", mkConf)
 	if err != nil {
 		return err
 	}
 	defer cleanupMk()
 
-	chrootDir, err := os.MkdirTemp("", "ayaka-chroot-")
+	chrootDir, err := os.MkdirTemp("", "kamisato-chroot-")
 	if err != nil {
-		return failure.Wrap(err, "failed to create chroot dir")
+		return fmt.Errorf("failed to create chroot dir: %w", err)
 	}
 	defer func() { _ = os.RemoveAll(chrootDir) }()
 	chrootRoot := filepath.Join(chrootDir, "root")
@@ -139,7 +139,7 @@ func runChrootBuildGenerated(ctx context.Context, spec builder.Spec, config buil
 	create := cmdContext(ctx, spec.SrcDir, out, mkarchrootArgs(arch, pacTmp, mkTmp, chrootRoot)...)
 	slog.Debug("chroot create command", "cmd", create.String())
 	if err := create.Run(); err != nil {
-		return failure.Wrap(err, "failed to create chroot (needs root, the 'devtools' package, and systemd-nspawn)")
+		return fmt.Errorf("failed to create chroot (needs root, the 'devtools' package, and systemd-nspawn): %w", err)
 	}
 
 	args := makechrootpkgArgs(chrootDir, spec.InstallPkgs)
@@ -147,7 +147,7 @@ func runChrootBuildGenerated(ctx context.Context, spec builder.Spec, config buil
 	build := cmdContext(ctx, spec.SrcDir, out, args...)
 	slog.Debug("chroot build command", "cmd", build.String())
 	if err := build.Run(); err != nil {
-		return failure.Build(ctx, err, "makechrootpkg build failed")
+		return builder.BuildError(ctx, err, "makechrootpkg build failed")
 	}
 	return nil
 }
@@ -156,22 +156,22 @@ func runChrootBuildGenerated(ctx context.Context, spec builder.Spec, config buil
 func writeTempConf(pattern, content string) (string, func(), error) {
 	f, err := os.CreateTemp("", pattern)
 	if err != nil {
-		return "", nil, failure.Wrap(err, "failed to create temp config")
+		return "", nil, fmt.Errorf("failed to create temp config: %w", err)
 	}
 	name := f.Name()
 	cleanup := func() { _ = os.Remove(name) }
 	if _, err := f.WriteString(content); err != nil {
 		_ = f.Close()
 		cleanup()
-		return "", nil, failure.Wrap(err, "failed to write temp config")
+		return "", nil, fmt.Errorf("failed to write temp config: %w", err)
 	}
 	if err := f.Close(); err != nil {
 		cleanup()
-		return "", nil, failure.Wrap(err, "failed to write temp config")
+		return "", nil, fmt.Errorf("failed to write temp config: %w", err)
 	}
 	if err := os.Chmod(name, 0o644); err != nil { //nolint:gosec // config copied into the chroot must be readable there
 		cleanup()
-		return "", nil, failure.Wrap(err, "failed to chmod temp config")
+		return "", nil, fmt.Errorf("failed to chmod temp config: %w", err)
 	}
 	return name, cleanup, nil
 }

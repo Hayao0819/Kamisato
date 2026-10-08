@@ -4,12 +4,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Hayao0819/Kamisato/ayaka/app"
-	"github.com/Hayao0819/Kamisato/internal/pacman/source"
+	"github.com/Hayao0819/Kamisato/ayaka/cmd/internal/sourcerepos"
+	"github.com/Hayao0819/Kamisato/ayaka/source"
 )
 
 func TestBuildFlagShape(t *testing.T) {
-	cmd := Cmd(app.StaticRuntime(&app.App{}))
+	cmd := newCommand(sourcerepos.Static(nil), nil)
 	flags := cmd.Flags()
 
 	present := []string{
@@ -44,10 +44,9 @@ func TestBuildSignRequiresKey(t *testing.T) {
 		{"--source-repo", "extra", "--sign"},
 		{"--source-repo", "extra", "--sign", "--diff"},
 	} {
-		a := &app.App{SrcRepos: []*source.SourceRepo{
-			{Config: &source.SrcConfig{Name: "extra"}},
-		}}
-		cmd := Cmd(app.StaticRuntime(a))
+		a := []*source.SourceRepo{
+			{Config: &source.SrcConfig{Name: "extra"}}}
+		cmd := newCommand(sourcerepos.Static(a), nil)
 		cmd.SetArgs(args)
 		cmd.SilenceErrors = true
 		cmd.SilenceUsage = true
@@ -63,15 +62,15 @@ func TestBuildSignRequiresKey(t *testing.T) {
 }
 
 func TestBuildUseString(t *testing.T) {
-	cmd := Cmd(app.StaticRuntime(&app.App{}))
+	cmd := newCommand(sourcerepos.Static(nil), nil)
 	if cmd.Use != "build [pkgname...]" {
 		t.Errorf("Use = %q", cmd.Use)
 	}
 }
 
 func TestBuildRejectsDirectInputsWithSourceRepo(t *testing.T) {
-	a := &app.App{SrcRepos: []*source.SourceRepo{{Config: &source.SrcConfig{Name: "extra"}}}}
-	cmd := Cmd(app.StaticRuntime(a))
+	a := []*source.SourceRepo{{Config: &source.SrcConfig{Name: "extra"}}}
+	cmd := newCommand(sourcerepos.Static(a), nil)
 	cmd.SetArgs([]string{"--source-repo", "extra", "--local-source", "./pkg"})
 	cmd.SilenceErrors = true
 	cmd.SilenceUsage = true
@@ -82,7 +81,7 @@ func TestBuildRejectsDirectInputsWithSourceRepo(t *testing.T) {
 }
 
 func TestBuildRejectsMissingDirectOutput(t *testing.T) {
-	cmd := Cmd(app.StaticRuntime(&app.App{}))
+	cmd := newCommand(sourcerepos.Static(nil), nil)
 	cmd.SetArgs([]string{"example", "--pacman-conf", "pacman.conf"})
 	cmd.SilenceErrors = true
 	cmd.SilenceUsage = true
@@ -93,7 +92,7 @@ func TestBuildRejectsMissingDirectOutput(t *testing.T) {
 }
 
 func TestBuildRejectsAlterisoListFlags(t *testing.T) {
-	cmd := Cmd(app.StaticRuntime(&app.App{}))
+	cmd := newCommand(sourcerepos.Static(nil), nil)
 	for _, name := range []string{"aur-list", "pkgbuild-root"} {
 		if cmd.Flags().Lookup(name) != nil {
 			t.Errorf("flag --%s should not be registered", name)

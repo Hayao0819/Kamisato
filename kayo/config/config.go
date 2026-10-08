@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/spf13/pflag"
 
@@ -85,6 +87,21 @@ type OverlayConfig struct {
 	Maintainer string `koanf:"maintainer,omitempty"`
 }
 
+// Validate protects the source namespace, which is also the cache directory
+// component used when updating an overlay's working tree.
+func (o OverlayConfig) Validate() error {
+	if o.Name == "" || !filepath.IsLocal(o.Name) || filepath.Base(o.Name) != o.Name || strings.ContainsAny(o.Name, "\\\x00") || o.Name == "." {
+		return fmt.Errorf("overlay name %q must be a single directory component", o.Name)
+	}
+	if o.Name == "overlay" || o.Name == "aur" {
+		return fmt.Errorf("overlay name %q is reserved", o.Name)
+	}
+	if o.URL == "" {
+		return fmt.Errorf("overlay %q: url is required", o.Name)
+	}
+	return nil
+}
+
 func LoadKayoConfig(flags *pflag.FlagSet, configFile string) (*KayoConfig, error) {
 	configloader.LoadDotEnv()
 	return configloader.LoadTyped[KayoConfig](
@@ -105,17 +122,11 @@ func LoadKayoConfig(flags *pflag.FlagSet, configFile string) (*KayoConfig, error
 func (c *KayoConfig) Validate() error {
 	names := map[string]bool{}
 	for i, o := range c.Overlays {
-		if o.Name == "" {
-			return fmt.Errorf("overlays[%d]: name is required", i)
-		}
-		if o.URL == "" {
-			return fmt.Errorf("overlay %q: url is required", o.Name)
+		if err := o.Validate(); err != nil {
+			return fmt.Errorf("overlays[%d]: %w", i, err)
 		}
 		if names[o.Name] {
 			return fmt.Errorf("overlay %q: duplicate name", o.Name)
-		}
-		if o.Name == "overlay" || o.Name == "aur" {
-			return fmt.Errorf("overlay name %q is reserved", o.Name)
 		}
 		names[o.Name] = true
 		if o.Ref == "" {

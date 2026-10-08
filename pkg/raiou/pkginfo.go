@@ -54,8 +54,7 @@ func ParsePkginfoString(data string) (*PKGINFO, error) {
 }
 
 // ParsePkginfo parses a .PKGINFO. The pkgtype xdata field is optional: repo-add
-// and pacman accept packages without it, so ayato does too (pkgtype is recorded
-// when present but is not required by any consumer).
+// and pacman accept packages without it. The parser records it when present.
 func ParsePkginfo(r io.Reader) (*PKGINFO, error) {
 	p := NewPKGINFO()
 	lines, err := readLines(r)

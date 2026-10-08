@@ -10,8 +10,9 @@ import (
 	"github.com/Hayao0819/Kamisato/internal/errors"
 
 	"github.com/Hayao0819/Kamisato/internal/pacman/builder"
+	"github.com/Hayao0819/Kamisato/internal/pacman/depend"
+	"github.com/Hayao0819/Kamisato/internal/pacman/nvcheck"
 	"github.com/Hayao0819/Kamisato/internal/pacman/sign"
-	"github.com/Hayao0819/Kamisato/internal/pacman/source/nvcheck"
 	"github.com/Hayao0819/Kamisato/miko/domain"
 	"github.com/Hayao0819/Kamisato/miko/joblog"
 )
@@ -50,11 +51,14 @@ type Service struct {
 	queue    *queue
 	persist  Persister   // durable job store; nil disables persistence
 	uploader Uploader    // publishes built packages to ayato
-	sonames  sonameStore // per-pkgbase soname history; nil disables bump detection
+	sonames  SonameStore // per-pkgbase soname history; nil disables bump detection
 	// httpClient is shared by upstream-version providers. repositories owns the
 	// separate Ayato repository protocol and parsing policy.
 	httpClient   *http.Client
 	repositories RepositoryDBReader
+	newBackend   func(builder.ResolvedConfig) (builder.Backend, error)
+	aur          AURClient
+	repoChecker  depend.RepoChecker
 	aurTrust     domain.AURTrustPolicy
 
 	startedAt time.Time
@@ -74,9 +78,7 @@ type Service struct {
 type Settings struct {
 	Builder                   builder.HostConfig
 	ResolveAURDependencies    bool
-	AURRPCURL                 string
 	AyatoURL                  string
-	AyatoAPIKey               string
 	Workers                   int
 	Executor                  string
 	DataDir                   string
@@ -112,23 +114,14 @@ func (settings Settings) normalized() Settings {
 	return settings
 }
 
-// New builds a Service from explicitly named optional collaborators.
+// New creates an in-memory coordinator. Build execution requires
+// WithBuildBackend; signing, publication, and persistence are configured separately.
 func New(settings Settings, options ...ServiceOption) *Service {
 	settings = settings.normalized()
-	dependencies := serviceOptions{httpClient: &http.Client{Timeout: 30 * time.Second}}
-	for _, option := range options {
-		if option != nil {
-			option(&dependencies)
-		}
-	}
 	s := &Service{
-		settings:     settings,
-		signer:       dependencies.signer,
-		queue:        newQueue(),
-		persist:      dependencies.persister,
-		uploader:     dependencies.uploader,
-		httpClient:   dependencies.httpClient,
-		repositories: dependencies.repositories,
+		settings:   settings,
+		queue:      newQueue(),
+		httpClient: &http.Client{Timeout: 30 * time.Second},
 		aurTrust: domain.NewAURTrustPolicy(domain.AURTrustPolicySpec{
 			TrustedMaintainers: settings.TrustedAURMaintainers,
 			TrustedPkgbases:    settings.TrustedAURPackages,
@@ -139,17 +132,13 @@ func New(settings Settings, options ...ServiceOption) *Service {
 		logs:      make(map[string]*joblog.Buffer),
 		startedAt: time.Now(),
 	}
-	if dependencies.persister != nil {
-		s.restore()
-	}
-	// Soname history is small per-pkgbase state; persist it under the data dir so
-	// a bump is detected across restarts. Disabled (nil) without a data dir.
-	if settings.DataDir != "" {
-		if st, err := newFileSonameStore(settings.DataDir); err != nil {
-			slog.Warn("soname history disabled", "error", err)
-		} else {
-			s.sonames = st
+	for _, option := range options {
+		if option != nil {
+			option(s)
 		}
+	}
+	if s.persist != nil {
+		s.restore()
 	}
 	return s
 }

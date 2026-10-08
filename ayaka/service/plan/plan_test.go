@@ -7,7 +7,7 @@ import (
 	"reflect"
 	"testing"
 
-	pkg "github.com/Hayao0819/Kamisato/internal/pacman/pkg"
+	"github.com/Hayao0819/Kamisato/internal/pacman/pkg"
 	"github.com/Hayao0819/Kamisato/internal/pacman/repo"
 	"github.com/Hayao0819/Kamisato/pkg/raiou"
 )

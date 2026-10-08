@@ -129,3 +129,32 @@ func TestHandlerDefaultsLogReaderCap(t *testing.T) {
 		t.Fatalf("max log readers = %d, want 8", h.settings.MaxLogReaders)
 	}
 }
+
+func TestStoredJobLogsSupportPlainTextAndEventSource(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	for _, test := range []struct {
+		name, logs, accept, wantBody, wantType string
+	}{
+		{"plain text", "line1\npartial", "", "line1\npartial", "text/plain; charset=utf-8"},
+		{"SSE lines and partial tail", "line1\npartial", "text/event-stream", "data: line1\n\ndata: partial\n\n", "text/event-stream"},
+		{"SSE final newline", "line1\n", "text/event-stream", "data: line1\n\n", "text/event-stream"},
+		{"SSE empty", "", "text/event-stream", "", "text/event-stream"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			mockSvc := mocks.NewMockServicer(ctrl)
+			mockSvc.EXPECT().Status("job1").Return(&domain.BuildJob{ID: "job1", Logs: test.logs}, nil)
+			mockSvc.EXPECT().LogBuffer("job1").Return(nil)
+			h := New(mockSvc, Settings{})
+			engine := gin.New()
+			engine.GET("/jobs/:id/logs", h.JobLogsHandler)
+			request := httptest.NewRequest(http.MethodGet, "/jobs/job1/logs", nil)
+			request.Header.Set("Accept", test.accept)
+			response := httptest.NewRecorder()
+			engine.ServeHTTP(response, request)
+			if response.Code != http.StatusOK || response.Header().Get("Content-Type") != test.wantType || response.Body.String() != test.wantBody {
+				t.Fatalf("response = %d %q %q, want 200 %q %q", response.Code, response.Header().Get("Content-Type"), response.Body.String(), test.wantType, test.wantBody)
+			}
+		})
+	}
+}

@@ -20,7 +20,6 @@ func settingsFromConfig(cfg *ayatoconfig.AyatoConfig) service.Settings {
 		MaxBatchPackages:           cfg.MaxBatchPackages,
 		MaxPackageSize:             cfg.MaxSize,
 		SignDatabase:               cfg.Sign.DB,
-		VerificationKeyring:        cfg.Verify.Keyring,
 		TrustedVerificationKeys:    cfg.Verify.TrustedKeys,
 		MasterVerificationKeys:     cfg.Verify.MasterKeys,
 	}

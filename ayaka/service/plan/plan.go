@@ -8,15 +8,13 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/samber/lo"
-
-	alpm "github.com/Hayao0819/dyalpm"
-
+	"github.com/Hayao0819/Kamisato/ayaka/source"
 	"github.com/Hayao0819/Kamisato/internal/errors"
 	"github.com/Hayao0819/Kamisato/internal/pacman/depend"
 	"github.com/Hayao0819/Kamisato/internal/pacman/pkg"
 	"github.com/Hayao0819/Kamisato/internal/pacman/repo"
-	"github.com/Hayao0819/Kamisato/internal/pacman/source"
+	alpm "github.com/Hayao0819/dyalpm"
+	"github.com/samber/lo"
 )
 
 // CascadeMode selects which build-time dependency updates trigger dependent

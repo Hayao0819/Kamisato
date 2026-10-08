@@ -7,7 +7,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/Hayao0819/Kamisato/internal/api/kayo"
+	kayo "github.com/Hayao0819/Kamisato/ayato/protocol"
 	"github.com/Hayao0819/Kamisato/internal/errors"
 )
 

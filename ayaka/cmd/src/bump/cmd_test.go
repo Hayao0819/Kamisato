@@ -1,14 +1,15 @@
 package bumpcmd
 
 import (
+	"context"
 	"io"
 	"os"
 	"path/filepath"
 	"testing"
 
-	"github.com/Hayao0819/Kamisato/ayaka/app"
-	pkg "github.com/Hayao0819/Kamisato/internal/pacman/pkg"
-	"github.com/Hayao0819/Kamisato/internal/pacman/source"
+	"github.com/Hayao0819/Kamisato/ayaka/cmd/internal/sourcerepos"
+	"github.com/Hayao0819/Kamisato/ayaka/source"
+	"github.com/Hayao0819/Kamisato/internal/pacman/pkg"
 )
 
 type recordingBumper struct {
@@ -18,7 +19,7 @@ type recordingBumper struct {
 	commits int
 }
 
-func (r *recordingBumper) Bump(src *source.SourceRepo, names []string, by string, _ io.Writer) ([]*pkg.SourcePackage, error) {
+func (r *recordingBumper) Bump(_ context.Context, src *source.SourceRepo, names []string, by string, _ io.Writer) ([]*pkg.SourcePackage, error) {
 	r.names = names
 	r.by = by
 	return src.Pkgs, nil
@@ -30,7 +31,7 @@ func (r *recordingBumper) Commit(_ string, _ []*pkg.SourcePackage, message strin
 	return "deadbeef", nil
 }
 
-func testApp(t *testing.T) *app.App {
+func testSources(t *testing.T) []*source.SourceRepo {
 	t.Helper()
 	dir := t.TempDir()
 	srcinfo := "pkgbase = foo\n\tpkgver = 1.0\n\tpkgrel = 1\n\tarch = any\n\npkgname = foo\n"
@@ -41,16 +42,16 @@ func testApp(t *testing.T) *app.App {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return &app.App{SrcRepos: []*source.SourceRepo{{
+	return []*source.SourceRepo{{
 		Config: &source.SrcConfig{Name: "test"},
 		Pkgs:   []*pkg.SourcePackage{p},
 		Dir:    dir,
-	}}}
+	}}
 }
 
 func TestBumpFlagsReachService(t *testing.T) {
 	rec := &recordingBumper{}
-	cmd := newCommand(rec, app.StaticRuntime(testApp(t)))
+	cmd := newCommand(rec.Bump, rec.Commit, sourcerepos.Static(testSources(t)).Find, nil)
 	cmd.SetArgs([]string{"test", "foo", "--by", "1", "--message", "msg"})
 	if err := cmd.Execute(); err != nil {
 		t.Fatal(err)
@@ -65,7 +66,7 @@ func TestBumpFlagsReachService(t *testing.T) {
 
 func TestBumpNoCommitSkipsCommit(t *testing.T) {
 	rec := &recordingBumper{}
-	cmd := newCommand(rec, app.StaticRuntime(testApp(t)))
+	cmd := newCommand(rec.Bump, rec.Commit, sourcerepos.Static(testSources(t)).Find, nil)
 	cmd.SetArgs([]string{"test", "foo", "--no-commit"})
 	if err := cmd.Execute(); err != nil {
 		t.Fatal(err)
@@ -76,7 +77,7 @@ func TestBumpNoCommitSkipsCommit(t *testing.T) {
 }
 
 func TestBumpUnknownRepoFails(t *testing.T) {
-	cmd := newCommand(&recordingBumper{}, app.StaticRuntime(testApp(t)))
+	cmd := newCommand((&recordingBumper{}).Bump, (&recordingBumper{}).Commit, sourcerepos.Static(testSources(t)).Find, nil)
 	cmd.SetArgs([]string{"nope", "foo"})
 	cmd.SilenceUsage = true
 	cmd.SilenceErrors = true

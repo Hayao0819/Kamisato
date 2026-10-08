@@ -169,3 +169,24 @@ func TestResolve(t *testing.T) {
 		t.Error("delegated but unverified must report delegatedVerified=false")
 	}
 }
+
+func TestSourceURLForPreservesResolvedNamespace(t *testing.T) {
+	c := New()
+	c.Add(&stub{src: map[string]string{"base": "other-source"}}, TierOverlay, 0, "overlay")
+	c.Add(&stub{
+		pkgs: map[string]aurweb.Pkg{"split": {Name: "split", PackageBase: "base"}},
+		src:  map[string]string{"base": "resolved-source"},
+	}, TierAyato, 0, "mirror")
+	ctx := context.Background()
+	pkg, source, _, ok := c.Resolve(ctx, "split")
+	if !ok || source != "mirror" {
+		t.Fatalf("resolved source=%q, found=%v", source, ok)
+	}
+	url, found, err := c.SourceURLFor(ctx, source, pkg.PackageBase)
+	if err != nil || !found || url != "resolved-source" {
+		t.Fatalf("checkout=%q, found=%v, error=%v", url, found, err)
+	}
+	if _, found, err := c.SourceURLFor(ctx, "missing", pkg.PackageBase); err != nil || found {
+		t.Fatalf("unknown source must not fall through: found=%v, error=%v", found, err)
+	}
+}

@@ -71,7 +71,7 @@ func rateLimitWindow(now time.Time, window time.Duration) (int64, time.Duration)
 // request in a window is created atomically via kv.Adder (when offered), so two
 // racing first requests cannot both under-count. Subsequent increments are a
 // Get-then-Set read-modify-write: kv has no atomic add, so two concurrent
-// increments can both read n and write n+1, admitting ONE extra request — a
+// increments can read n and write n+1, admitting extra requests — a
 // residual bounded by in-flight concurrency per key per window that never resets
 // the limit. An eventually-consistent store (cfkv) widens it because a stale read
 // can miss a just-written increment.

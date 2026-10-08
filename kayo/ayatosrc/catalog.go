@@ -3,7 +3,7 @@ package ayatosrc
 import (
 	"context"
 
-	"github.com/Hayao0819/Kamisato/internal/api/client"
+	httpclient "github.com/Hayao0819/Kamisato/internal/http/client"
 )
 
 const (
@@ -14,11 +14,11 @@ const (
 )
 
 type catalogClient struct {
-	transport *client.Transport
+	transport *httpclient.Transport
 }
 
-func newCatalogClient(base string, opts ...client.Option) (*catalogClient, error) {
-	transport, err := client.NewPublicTransport(base, opts...)
+func newCatalogClient(base string, opts ...httpclient.Option) (*catalogClient, error) {
+	transport, err := httpclient.NewPublicTransport(base, opts...)
 	if err != nil {
 		return nil, err
 	}

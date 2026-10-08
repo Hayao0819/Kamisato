@@ -2,64 +2,71 @@ package pullcmd
 
 import (
 	"context"
+	"fmt"
+	"io"
 	"log/slog"
 
-	"github.com/spf13/cobra"
-
-	"github.com/Hayao0819/Kamisato/ayaka/app"
-	"github.com/Hayao0819/Kamisato/ayaka/cli"
+	"github.com/Hayao0819/Kamisato/ayaka/cmd/internal/completion"
+	"github.com/Hayao0819/Kamisato/ayaka/cmd/internal/sourcerepos"
 	"github.com/Hayao0819/Kamisato/ayaka/service/source"
-	"github.com/Hayao0819/Kamisato/internal/errors"
-	pkg "github.com/Hayao0819/Kamisato/internal/pacman/pkg"
-	pacmansource "github.com/Hayao0819/Kamisato/internal/pacman/source"
+	sourcerepo "github.com/Hayao0819/Kamisato/ayaka/source"
+	"github.com/Hayao0819/Kamisato/internal/pacman/pkg"
+	"github.com/spf13/cobra"
 )
 
-// puller is the slice of service/source this command drives.
-type puller interface {
-	Pull(ctx context.Context, src *pacmansource.SourceRepo, names []string, force bool) ([]*pkg.SourcePackage, error)
+// pullFunc is the source-update operation this command drives.
+type pullFunc func(ctx context.Context, src *sourcerepo.SourceRepo, names []string, force bool) ([]*pkg.SourcePackage, error)
+
+// Options groups the repository and mirror targets of a pull operation.
+type Options struct {
+	Repository string
+	Packages   []string
+	Force      bool
 }
 
-type sourcePuller struct{}
-
-func (sourcePuller) Pull(ctx context.Context, src *pacmansource.SourceRepo, names []string, force bool) ([]*pkg.SourcePackage, error) {
-	return source.PullPackages(ctx, src, names, force)
+func Cmd() *cobra.Command {
+	return newCommand(source.PullPackages, nil, nil)
 }
 
-// Cmd advances mirror packages (dirs that are their own git checkout, like AUR
-// submodules) to their origin HEAD. It is the one implementation of that
-// operation: `aur update` and `submodules --remote` folded into it.
-func Cmd(runtime *app.Runtime) *cobra.Command { return newCommand(sourcePuller{}, runtime) }
-
-func newCommand(svc puller, runtime *app.Runtime) *cobra.Command {
-	var force bool
-	cmd := cobra.Command{
+func newCommand(pull pullFunc, resolve sourcerepos.LookupFunc, complete cobra.CompletionFunc) *cobra.Command {
+	var options Options
+	var cmd cobra.Command
+	if resolve == nil {
+		sources := sourcerepos.ForCommand(&cmd)
+		resolve = sources.Find
+		if complete == nil {
+			complete = completion.CompleteSrcRepoThenPackages(sources)
+		}
+	}
+	cmd = cobra.Command{
 		Use:               "pull <srcrepo> [pkgname...]",
 		Short:             "Sync mirror packages with their origin (all mirrors when no name is given)",
 		Args:              cobra.MinimumNArgs(1),
-		ValidArgsFunction: cli.CompleteSrcRepoThenPackages(runtime),
+		ValidArgsFunction: complete,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			a, err := runtime.App()
-			if err != nil {
-				return err
-			}
-			srcrepo := a.GetSrcRepo(args[0])
-			if srcrepo == nil {
-				return errors.WrapErr(cli.ErrSourceRepoNotFound, args[0])
-			}
-
-			pulled, err := svc.Pull(cmd.Context(), srcrepo, args[1:], force)
-			for _, p := range pulled {
-				slog.Info("pulled", "pkgbase", p.Base(), "version", p.Version())
-			}
-			if err != nil {
-				return err
-			}
-			if len(pulled) == 0 {
-				cmd.Println("no mirror packages to pull")
-			}
-			return nil
+			options.Repository = args[0]
+			options.Packages = args[1:]
+			return run(cmd.Context(), cmd.OutOrStdout(), resolve, pull, options)
 		},
 	}
-	cmd.Flags().BoolVarP(&force, "force", "f", false, "Discard local changes in the checkout before syncing")
+	cmd.Flags().BoolVarP(&options.Force, "force", "f", false, "Discard local changes in the checkout before syncing")
 	return &cmd
+}
+
+func run(ctx context.Context, out io.Writer, resolve sourcerepos.LookupFunc, pull pullFunc, options Options) error {
+	repo, err := sourcerepos.Require(resolve, options.Repository)
+	if err != nil {
+		return err
+	}
+	pulled, err := pull(ctx, repo, options.Packages, options.Force)
+	for _, pkg := range pulled {
+		slog.Info("pulled", "pkgbase", pkg.Base(), "version", pkg.Version())
+	}
+	if err != nil {
+		return err
+	}
+	if len(pulled) == 0 {
+		fmt.Fprintln(out, "no mirror packages to pull")
+	}
+	return nil
 }

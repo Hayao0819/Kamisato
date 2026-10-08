@@ -1,4 +1,4 @@
-// Package makepkgconf reads makepkg's configuration by sourcing it with bash.
+// The host package reads makepkg's configuration by sourcing it with bash.
 // That is the only faithful way: makepkg.conf is a bash script with includes and
 // variable expansion, not a static key=value file, so a Go parser would guess at
 // what bash resolves exactly.
@@ -9,8 +9,8 @@ import (
 	"strings"
 )
 
-// Conf holds the makepkg.conf fields Kamisato consumes. An unset field is "".
-type Conf struct {
+// MakepkgConfig holds the makepkg.conf fields Kamisato consumes. An unset field is "".
+type MakepkgConfig struct {
 	CARCH   string
 	CHOST   string
 	PKGDEST string
@@ -32,32 +32,32 @@ elif [[ -r $HOME/.makepkg.conf ]]; then
 fi
 `
 
-// printVars emits the consumed fields one per line, in Conf field order.
+// printVars emits the consumed fields one per line, in MakepkgConfig field order.
 const printVars = `printf '%s\n' "${CARCH:-}" "${CHOST:-}" "${PKGDEST:-}" "${PKGEXT:-}"`
 
-// Read resolves makepkg's config from the system default file chain (the same
+// ReadMakepkgConfig resolves makepkg's config from the system default file chain (the same
 // files makepkg itself reads).
-func Read() (*Conf, error) {
+func ReadMakepkgConfig() (*MakepkgConfig, error) {
 	out, err := exec.Command("bash", "-c", sourceChain+printVars).Output()
 	if err != nil {
 		return nil, err
 	}
-	return parse(out), nil
+	return parseMakepkgConfig(out), nil
 }
 
-// ReadFile resolves makepkg's config from a single file; a missing file yields an all-empty Conf
+// ReadMakepkgConfigFile resolves makepkg's config from a single file; a missing file yields an all-empty config
 // rather than an error, mirroring makepkg's tolerance of an absent override.
-func ReadFile(path string) (*Conf, error) {
+func ReadMakepkgConfigFile(path string) (*MakepkgConfig, error) {
 	// path rides in as a bash positional ($1), never interpolated into the script,
 	// so it cannot inject shell; sourcing the referenced makepkg.conf is intended.
 	out, err := exec.Command("bash", "-c", `[[ -r "$1" ]] && source "$1"; `+printVars, "makepkgconf", path).Output() //nolint:gosec // path is a positional arg, not interpolated
 	if err != nil {
 		return nil, err
 	}
-	return parse(out), nil
+	return parseMakepkgConfig(out), nil
 }
 
-func parse(out []byte) *Conf {
+func parseMakepkgConfig(out []byte) *MakepkgConfig {
 	lines := strings.Split(strings.TrimRight(string(out), "\n"), "\n")
 	at := func(i int) string {
 		if i < len(lines) {
@@ -65,7 +65,7 @@ func parse(out []byte) *Conf {
 		}
 		return ""
 	}
-	return &Conf{
+	return &MakepkgConfig{
 		CARCH:   at(0),
 		CHOST:   at(1),
 		PKGDEST: at(2),

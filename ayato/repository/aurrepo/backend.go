@@ -15,8 +15,8 @@ import (
 
 	"github.com/Hayao0819/Kamisato/internal/errors"
 
+	kayo "github.com/Hayao0819/Kamisato/ayato/protocol"
 	"github.com/Hayao0819/Kamisato/ayato/repository/kv"
-	"github.com/Hayao0819/Kamisato/internal/api/kayo"
 	"github.com/Hayao0819/Kamisato/pkg/aurweb"
 )
 

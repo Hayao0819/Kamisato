@@ -1,26 +1,18 @@
 package repo
 
 import (
-	"bytes"
 	"io"
+	"slices"
 )
 
 // Merge writes a database layering the local overlay on top of upstream: LOCAL SHADOWS UPSTREAM on name collision.
 // Nil readers are empty; output is byte-identical to a normally written database.
 func Merge(upstreamDB, upstreamFiles, localDB, localFiles io.Reader, dbOut, filesOut io.Writer) error {
-	// Buffer the (small) local overlay: its names are read once to shadow upstream
-	// and its entries are loaded again on top of the merged builder.
-	localDBBytes, err := readAllMaybe(localDB)
-	if err != nil {
-		return err
-	}
-	localFilesBytes, err := readAllMaybe(localFiles)
-	if err != nil {
-		return err
-	}
-
 	overlay := newDBBuilder()
-	if err := overlay.LoadDB(bytes.NewReader(localDBBytes)); err != nil {
+	if err := overlay.LoadDB(localDB); err != nil {
+		return err
+	}
+	if err := overlay.LoadFiles(localFiles); err != nil {
 		return err
 	}
 
@@ -36,11 +28,8 @@ func Merge(upstreamDB, upstreamFiles, localDB, localFiles io.Reader, dbOut, file
 	for _, name := range overlay.names() {
 		merged.Remove(name)
 	}
-	if err := merged.LoadDB(bytes.NewReader(localDBBytes)); err != nil {
-		return err
-	}
-	if err := merged.LoadFiles(bytes.NewReader(localFilesBytes)); err != nil {
-		return err
+	for dir, entry := range overlay.entries {
+		merged.entries[dir] = entry
 	}
 	if err := merged.WriteDB(dbOut); err != nil {
 		return err
@@ -84,6 +73,9 @@ func DiffDB(oldDB, newDB io.Reader) (DBDiff, error) {
 			diff.Removed = append(diff.Removed, name)
 		}
 	}
+	slices.Sort(diff.Added)
+	slices.Sort(diff.Removed)
+	slices.Sort(diff.Updated)
 	return diff, nil
 }
 
@@ -101,11 +93,4 @@ func indexVersions(db io.Reader) (map[string]string, error) {
 		idx[p.Name()] = p.Version()
 	}
 	return idx, nil
-}
-
-func readAllMaybe(r io.Reader) ([]byte, error) {
-	if r == nil {
-		return nil, nil
-	}
-	return io.ReadAll(r)
 }

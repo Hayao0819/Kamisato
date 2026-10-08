@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Hayao0819/Kamisato/ayaka/service/report"
+	"github.com/Hayao0819/Kamisato/ayaka/cmd/src/internal/report"
 )
 
 func renderToString(t *testing.T, format string, rows []report.Row) string {

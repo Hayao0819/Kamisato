@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -36,6 +37,9 @@ func TestCommandFilesMatchCommands(t *testing.T) {
 			if walkErr != nil {
 				return walkErr
 			}
+			if entry.IsDir() && entry.Name() == "internal" {
+				return filepath.SkipDir
+			}
 			if entry.IsDir() || filepath.Ext(path) != ".go" || strings.HasSuffix(path, "_test.go") {
 				return nil
 			}
@@ -52,8 +56,13 @@ func TestCommandFilesMatchCommands(t *testing.T) {
 				return err
 			}
 			uses := commandUses(parsed)
-			if len(uses) == 0 && callsInstallFactory(parsed) {
-				uses = []string{"install"}
+			if len(uses) == 0 {
+				uses = hookFactoryUses(parsed)
+			}
+			// A command package may also contain options, execution, and output
+			// helpers. Only files declaring a command must follow command naming.
+			if len(uses) == 0 {
+				return nil
 			}
 			if len(uses) != 1 {
 				t.Errorf("%s defines %d commands, want 1", path, len(uses))
@@ -62,6 +71,9 @@ func TestCommandFilesMatchCommands(t *testing.T) {
 			want := strings.ReplaceAll(strings.Fields(uses[0])[0], "-", "_") + ".go"
 			if entry.Name() != want {
 				t.Errorf("%s defines %q; filename must be %s", path, uses[0], want)
+			}
+			if filepath.Base(filepath.Dir(path)) != strings.Fields(uses[0])[0] {
+				t.Errorf("%s: subcommand %q must own its directory", path, uses[0])
 			}
 			commandPath := sourceCommandPath(product, cmdRoot, path, strings.Fields(uses[0])[0])
 			if !reachable[commandPath] {
@@ -110,20 +122,70 @@ func isCobraCommandType(expr ast.Expr) bool {
 	return ok && packageName.Name == "cobra"
 }
 
-func callsInstallFactory(file *ast.File) bool {
-	found := false
+func hookFactoryUses(file *ast.File) []string {
+	var uses []string
 	ast.Inspect(file, func(node ast.Node) bool {
 		selector, ok := node.(*ast.SelectorExpr)
 		if !ok {
-			return !found
+			return true
 		}
 		packageName, packageOK := selector.X.(*ast.Ident)
-		if packageOK && packageName.Name == "sharedhook" && selector.Sel.Name == "NewInstallCmd" {
-			found = true
+		if packageOK && packageName.Name == "sharedhook" {
+			switch selector.Sel.Name {
+			case "NewInstallCmd":
+				uses = append(uses, "install")
+			case "NewUninstallCmd":
+				uses = append(uses, "uninstall")
+			}
 		}
-		return !found
+		return true
 	})
-	return found
+	return uses
+}
+
+func TestCommandHelpAndVersionDoNotLoadResources(t *testing.T) {
+	constructors := map[string]func() *cobra.Command{
+		"ayaka": ayakacmd.RootCmd, "ayato": ayatocmd.RootCmd,
+		"miko": mikocmd.RootCmd, "lumine": luminecmd.RootCmd,
+		"kayo": kayocmd.RootCmd, "thoma": thomacmd.RootCmd,
+	}
+	for product, constructor := range constructors {
+		// Thoma's --help belongs to the real makepkg, not Cobra. Its own version
+		// command must still work without configuration or a remote endpoint.
+		args := [][]string{{"version"}}
+		if product != "thoma" {
+			args = append(args, []string{"--help"}, []string{"--version"})
+			root := constructor()
+			var addHelp func(*cobra.Command, []string)
+			addHelp = func(parent *cobra.Command, path []string) {
+				for _, child := range parent.Commands() {
+					childPath := append(append([]string(nil), path...), child.Name())
+					args = append(args, append(append([]string(nil), childPath...), "--help"))
+					addHelp(child, childPath)
+				}
+			}
+			addHelp(root, nil)
+		}
+		for _, argv := range args {
+			t.Run(product+"/"+strings.Join(argv, "/"), func(t *testing.T) {
+				root := constructor()
+				var out bytes.Buffer
+				root.SetOut(&out)
+				root.SetErr(&out)
+				// An explicit missing config would fail if execution were eager.
+				if root.PersistentFlags().Lookup("config") != nil || (product != "thoma" && len(argv) == 1 && strings.HasPrefix(argv[0], "--")) {
+					argv = append([]string{"--config", filepath.Join(t.TempDir(), "missing.toml")}, argv...)
+				}
+				root.SetArgs(argv)
+				if err := root.Execute(); err != nil {
+					t.Fatalf("help/version should not load resources: %v; output: %s", err, &out)
+				}
+				if out.Len() == 0 {
+					t.Fatal("help/version produced no output")
+				}
+			})
+		}
+	}
 }
 
 func reachableCommandPaths(root *cobra.Command) map[string]bool {
@@ -140,9 +202,6 @@ func reachableCommandPaths(root *cobra.Command) map[string]bool {
 }
 
 func sourceCommandPath(product, cmdRoot, path, command string) string {
-	if override, ok := commandPathOverrides[filepath.ToSlash(path)]; ok {
-		return override
-	}
 	directory, _ := filepath.Rel(cmdRoot, filepath.Dir(path))
 	parts := []string{product}
 	if directory != "." {
@@ -152,10 +211,4 @@ func sourceCommandPath(product, cmdRoot, path, command string) string {
 		parts = append(parts, command)
 	}
 	return strings.Join(parts, " ")
-}
-
-var commandPathOverrides = map[string]string{
-	"ayato/cmd/audit.go":  "ayato kv audit",
-	"ayato/cmd/gc.go":     "ayato repo gc",
-	"ayato/cmd/keygen.go": "ayato aur keygen",
 }

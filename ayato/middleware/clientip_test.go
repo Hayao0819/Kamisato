@@ -118,22 +118,18 @@ func TestRedteam_XFFHonoredOnlyFromTrustedCIDR(t *testing.T) {
 	}
 }
 
-// TestRedteam_TrustAllSpellingHonorsForgedXFF is the runtime half of the
-// config.TestRedteam_TrustAllSpellingBypass PoC: it proves that the any-net
-// spellings Validate fails to catch ("0000:0000::/0", "0.0.0.0/00") cause gin to
-// honor a forged X-Forwarded-For from an ARBITRARY peer, which re-enables the
-// rotating-XFF rate-limit bypass. The canonical forms ("::/0","0.0.0.0/0") behave
-// identically — they are only blocked because Validate string-matches them.
+// Every spelling of a trust-all network makes gin honor forged forwarding
+// headers. Configuration validation rejects these networks semantically;
+// this runtime regression documents why checking only canonical strings is unsafe.
 func TestRedteam_TrustAllSpellingHonorsForgedXFF(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	cases := []struct {
-		cidr, peer        string
-		blockedByValidate bool
+		cidr, peer string
 	}{
-		{"0000:0000::/0", "[2001:db8::dead]:9999", false}, // PoC: slips past Validate
-		{"0.0.0.0/00", "203.0.113.9:5000", false},         // PoC: slips past Validate
-		{"::/0", "[2001:db8::dead]:9999", true},           // canonical: Validate blocks it
-		{"0.0.0.0/0", "203.0.113.9:5000", true},           // canonical: Validate blocks it
+		{"0000:0000::/0", "[2001:db8::dead]:9999"},
+		{"0.0.0.0/00", "203.0.113.9:5000"},
+		{"::/0", "[2001:db8::dead]:9999"},
+		{"0.0.0.0/0", "203.0.113.9:5000"},
 	}
 	for _, tc := range cases {
 		r := gin.New()
@@ -155,10 +151,6 @@ func TestRedteam_TrustAllSpellingHonorsForgedXFF(t *testing.T) {
 		if !honored {
 			t.Fatalf("%q: expected gin to honor forged XFF (trust-all), but ClientIP=%q", tc.cidr, got)
 		}
-		if !tc.blockedByValidate {
-			t.Logf("VULN: %q passes config.Validate AND makes gin trust forged XFF from %s -> bypass", tc.cidr, tc.peer)
-		} else {
-			t.Logf("(canonical) %q makes gin trust forged XFF, but config.Validate rejects this spelling", tc.cidr)
-		}
+		t.Logf("%q trusts forged XFF at runtime and must be rejected by config validation", tc.cidr)
 	}
 }
