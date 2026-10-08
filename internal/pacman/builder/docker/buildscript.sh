@@ -16,6 +16,9 @@ pacman -Sy --noconfirm --needed base-devel sudo
 useradd -m -G wheel builduser 2>/dev/null || true
 printf '%s\n' '%wheel ALL=(ALL) NOPASSWD: ALL' >/etc/sudoers.d/builduser
 chmod 0440 /etc/sudoers.d/builduser
+install -d -m 0700 -o builduser -g builduser /home/builduser/.gnupg
+printf '%s\n' 'keyserver hkps://keyserver.ubuntu.com' 'auto-key-retrieve' >/home/builduser/.gnupg/gpg.conf
+chown builduser:builduser /home/builduser/.gnupg/gpg.conf
 
 # Override only CARCH/CHOST: copy the staged base config (which sources
 # /etc/makepkg.conf, preserving PKGEXT, compression, CFLAGS, MAKEFLAGS and
@@ -35,4 +38,7 @@ chown -R builduser:builduser /build/work /build/makepkg.override.conf
 # while allowing the unprivileged build user to create package files in it.
 chmod 0777 /build/out
 __INSTALL__
+if command -v update-ca-trust >/dev/null 2>&1; then
+	update-ca-trust
+fi
 sudo -u builduser env PKGDEST=/build/out sh -c 'cd /build/work && makepkg --config /build/makepkg.override.conf --syncdeps --noconfirm --clean __MAKEPKG_ARGS__'
