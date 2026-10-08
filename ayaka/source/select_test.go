@@ -60,6 +60,18 @@ func equalStrings(a, b []string) bool {
 	return true
 }
 
+func TestRuntimeDependenciesOrderSplitPackages(t *testing.T) {
+	base := srcinfoPkg(t, "pkgbase = qt-base\n\tpkgver = 1\n\tpkgrel = 1\n\tarch = i486\n\npkgname = qt-core\n\n pkgname = qt-gui\n")
+	qml := srcinfoPkg(t, "pkgbase = qt-qml\n\tpkgver = 1\n\tpkgrel = 1\n\tarch = i486\n\npkgname = qt-qml\n\tdepends_i486 = qt-gui>=1\n")
+	pkgs := []*pkg.SourcePackage{qml, base}
+	if got := bases(OrderByDeps(pkgs, "i486")); !reflect.DeepEqual(got, []string{"qt-base", "qt-qml"}) {
+		t.Fatalf("order = %v", got)
+	}
+	if got := BuildMakeDependencyGraph(pkgs, "i486").Deps("qt-qml"); len(got) != 0 {
+		t.Fatalf("runtime dependency entered rebuild graph: %v", got)
+	}
+}
+
 // goSrc self-hosts go for 32bit only; kamisatoSrc makedepends on it (via its
 // go-pie provide, exercising provider resolution) and also builds for x86_64.
 func goSrc(t *testing.T, ver string) *pkg.SourcePackage {

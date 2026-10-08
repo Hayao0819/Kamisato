@@ -42,11 +42,17 @@ func FilterByArch(pkgs []*pkg.SourcePackage, arch string) []*pkg.SourcePackage {
 	return kept
 }
 
-// BuildDependencyGraph resolves each package's makedepends/checkdepends to the source
-// package providing them for arch. Runtime depends are not edges: installing a
-// newer dependency does not invalidate a dependent's binary, only build-time
-// deps order builds and drive the rebuild cascade.
 func BuildDependencyGraph(pkgs []*pkg.SourcePackage, arch string) *depend.Graph {
+	return dependencyGraph(pkgs, arch, (*pkg.SourcePackage).BuildDepends)
+}
+
+func BuildMakeDependencyGraph(pkgs []*pkg.SourcePackage, arch string) *depend.Graph {
+	return dependencyGraph(pkgs, arch, func(p *pkg.SourcePackage, arch string) []string {
+		return append(p.MakeDepends(arch), p.CheckDepends(arch)...)
+	})
+}
+
+func dependencyGraph(pkgs []*pkg.SourcePackage, arch string, dependencies func(*pkg.SourcePackage, string) []string) *depend.Graph {
 	// Real pkgnames are registered before any provides so a provides entry can
 	// never shadow an actual package; without this the graph would depend on
 	// directory iteration order.
@@ -66,7 +72,7 @@ func BuildDependencyGraph(pkgs []*pkg.SourcePackage, arch string) *depend.Graph 
 	}
 	deps := map[string][]string{}
 	for _, p := range pkgs {
-		for _, d := range append(p.MakeDepends(arch), p.CheckDepends(arch)...) {
+		for _, d := range dependencies(p, arch) {
 			if prov, ok := provider[depend.Parse(d).Name]; ok && prov != p.Base() {
 				deps[p.Base()] = append(deps[p.Base()], prov)
 			}

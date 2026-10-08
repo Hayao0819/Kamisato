@@ -86,7 +86,7 @@ func compute(
 		seeds := lo.Filter(lo.Keys(reasons), func(base string, _ int) bool {
 			return reasons[base] == "vcs" || pkgverChanged(byBase[base], rr)
 		})
-		for _, dep := range dependentsClosure(graph, seeds) {
+		for _, dep := range dependentsClosure(source.BuildMakeDependencyGraph(archPkgs, arch), seeds) {
 			if _, ok := reasons[dep]; !ok {
 				reasons[dep] = "makedepends"
 			}

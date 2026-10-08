@@ -260,6 +260,27 @@ func TestComputePlanBuckets(t *testing.T) {
 	}
 }
 
+func TestRuntimeDependenciesShareBuildBucketWithoutCascading(t *testing.T) {
+	base := srcinfoPkg(t, "pkgbase = qt-base\n\tpkgver = 2\n\tpkgrel = 1\n\tarch = i486\n\npkgname = qt-base\n")
+	qml := srcinfoPkg(t, "pkgbase = qt-qml\n\tpkgver = 1\n\tpkgrel = 1\n\tarch = i486\n\npkgname = qt-qml\n\tdepends = qt-base\n")
+	pkgs := []*pkg.SourcePackage{qml, base}
+	plan, err := Compute(context.Background(), pkgs, &repo.RemoteRepo{Name: "test"}, "i486", CascadeMakeDepends, 4, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := [][]string{{"qt-base", "qt-qml"}}; !reflect.DeepEqual(plan.Buckets, want) {
+		t.Fatalf("buckets = %v, want %v", plan.Buckets, want)
+	}
+	rr := &repo.RemoteRepo{Name: "test", Pkgs: []*pkg.BinaryPackage{remoteBin("qt-base", "1-1"), remoteBin("qt-qml", "1-1")}}
+	plan, err = Compute(context.Background(), pkgs, rr, "i486", CascadeMakeDepends, 4, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := []string{"qt-base"}; !reflect.DeepEqual(plan.Order, want) {
+		t.Fatalf("runtime-only upgrade cascaded: %v", plan.Order)
+	}
+}
+
 func TestPackBucketsFewerComponentsThanWorkers(t *testing.T) {
 	comps := [][]string{{"a"}}
 	got := packBuckets(comps, []string{"a"}, 4, nil)
