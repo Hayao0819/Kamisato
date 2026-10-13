@@ -2,26 +2,21 @@
 
 Use from another repo as `Hayao0819/Kamisato/actions/<name>@<ref>`.
 
-- `install` — install selected Kamisato CLIs (ayaka/ayato/miko/lumine) and add them
-  to `PATH`.
-- `upload` — publish package files to ayato (`ayaka repo add`); needs `install`
-  first.
-- `prune` — delete packages absent from the checked-out source repo
-  (`ayaka repo prune`); needs `install` first.
-- `build-lumine` — build the lumine web UI to a static directory with
-  `env.json`/CSP injected, ready for any static host. Upload is the caller's step.
+- `install` — install selected Kamisato CLIs (ayaka/ayato/miko/lumine) and add them to `PATH`.
+- `upload` — publish package files to ayato (`ayaka repo add`); needs `install` first.
+- `prune` — delete packages from ayato that no longer exist in the checked-out source repo (`ayaka repo remove --diff`); needs `install` first.
+- `build-lumine` — build the lumine web UI to a static directory with `env.json`/CSP injected, ready for any static host (the host-specific upload is the caller's step).
 
 ```yaml
 - uses: actions/setup-go@v7
   with: { go-version: "1.x" }
 - uses: Hayao0819/Kamisato/actions/install@<ref>
-  with: { ayaka: "true" }          # method=source, version=master by default
+  with: { ayaka: "true" }          # method=source, version=main by default
 - uses: Hayao0819/Kamisato/actions/upload@<ref>
   with:
     server: https://repo.example.com
     repo: alterlinux
-    auth: apikey
-    api_key: ${{ secrets.AYATO_API_KEY }}
+    token: ${{ secrets.AYATO_TOKEN }}
     files: out/alterlinux/**/*.pkg.tar.*
 ```
 
@@ -36,9 +31,7 @@ Use from another repo as `Hayao0819/Kamisato/actions/<name>@<ref>`.
   with:
     apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
     accountId: ${{ vars.CF_ACCOUNT_ID }}
-    command: >-
-      pages deploy ${{ steps.lumine.outputs.dir }}
-      --project-name=alterlinux --branch=main
+    command: pages deploy ${{ steps.lumine.outputs.dir }} --project-name=alterlinux --branch=main
 ```
 
 See each `action.yml` for the full input list.
