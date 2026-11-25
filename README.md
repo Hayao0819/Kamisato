@@ -1,6 +1,5 @@
 # Project Kamisato
 
-[![Go Report Card](https://goreportcard.com/badge/github.com/Hayao0819/Kamisato)](https://goreportcard.com/report/github.com/Hayao0819/Kamisato)
 ![GitHub License](https://img.shields.io/github/license/Hayao0819/Kamisato)
 ![GitHub last commit](https://img.shields.io/github/last-commit/Hayao0819/Kamisato)
 ![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/Hayao0819/Kamisato)
